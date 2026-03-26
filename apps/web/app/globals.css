@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+:root {
+  --radius: 0.5rem;
+  
+  /* 春分节气 - 清新淡雅主题 */
+  --background: 150 30% 97%;      /* 春芽白 */
+  --foreground: 160 20% 25%;      /* 深青灰 */
+  --card: 150 25% 99%;            /* 淡绿白 */
+  --card-foreground: 160 20% 25%;
+  --popover: 150 25% 99%;
+  --popover-foreground: 160 20% 25%;
+  --primary: 160 55% 40%;         /* 春芽绿 */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 150 20% 94%;       /* 淡青灰 */
+  --secondary-foreground: 160 20% 25%;
+  --muted: 150 15% 92%;
+  --muted-foreground: 160 15% 45%;
+  --accent: 150 20% 94%;
+  --accent-foreground: 160 20% 25%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 150 20% 88%;
+  --input: 150 20% 88%;
+  --ring: 160 55% 40%;
+  
+  /* 五行色 - 春分淡雅版 */
+  --wuxing-metal: #D4E2E8;  /* 春霜银 */
+  --wuxing-wood: #A8D5BA;   /* 春芽绿 */
+  --wuxing-water: #B8D4E3;  /* 春雨青 */
+  --wuxing-fire: #F5C6B8;   /* 春桃粉 */
+  --wuxing-earth: #E8DCC4;  /* 春泥黄 */
+}
+
+/* 节气主题 - 木 */
+[data-element="wood"] {
+  --primary: 142 76% 36%;
+  --ring: 142 76% 36%;
+}
+
+/* 节气主题 - 火 */
+[data-element="fire"] {
+  --primary: 0 84% 60%;
+  --ring: 0 84% 60%;
+}
+
+/* 节气主题 - 土 */
+[data-element="earth"] {
+  --primary: 35 92% 33%;
+  --ring: 35 92% 33%;
+}
+
+/* 节气主题 - 金 */
+[data-element="metal"] {
+  --primary: 48 96% 53%;
+  --ring: 48 96% 53%;
+}
+
+/* 节气主题 - 水 */
+[data-element="water"] {
+  --primary: 217 91% 60%;
+  --ring: 217 91% 60%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}

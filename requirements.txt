@@ -1,0 +1,36 @@
+# WuXing AI Stylist - Python Dependencies
+
+# Database
+psycopg2-binary
+
+# AI/ML (兼容 macOS 的 torch 版本)
+sentence-transformers>=2.2.0,<3.0.0
+torch>=2.0.0
+
+# Data Processing
+pandas
+numpy<2.0.0
+
+# Environment
+python-dotenv
+
+# === Week 2 新增 ===
+# Web Framework
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+pydantic-settings>=2.0.0
+python-multipart>=0.0.9
+
+# LLM (阿里百炼兼容 OpenAI SDK)
+openai>=1.0.0
+
+# 八字/农历转换
+cnlunar>=0.2.0
+
+# LangGraph Agent
+langgraph>=0.2.0
+langchain-core>=0.3.0
+langchain-openai>=0.2.0
+
+# Retry & Resilience
+tenacity>=8.0.0

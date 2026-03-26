@@ -1,0 +1,75 @@
+{
+  "version": "1.0",
+  "description": "五行基础数据表",
+  "elements": {
+    "金": {
+      "symbol": "metal",
+      "direction": "西",
+      "season": "秋",
+      "organ": "肺",
+      "emotion": "悲",
+      "color": ["白", "金", "银"],
+      "traits": ["果断", "坚毅", "收敛", "正义", "刚强"],
+      "enhances": "水",
+      "weakens": "木",
+      "enhanced_by": "土",
+      "weakened_by": "火"
+    },
+    "木": {
+      "symbol": "wood",
+      "direction": "东",
+      "season": "春",
+      "organ": "肝",
+      "emotion": "怒",
+      "color": ["绿", "青"],
+      "traits": ["生长", "仁慈", "创新", "向上", "条达"],
+      "enhances": "火",
+      "weakens": "土",
+      "enhanced_by": "水",
+      "weakened_by": "金"
+    },
+    "水": {
+      "symbol": "water",
+      "direction": "北",
+      "season": "冬",
+      "organ": "肾",
+      "emotion": "恐",
+      "color": ["黑", "蓝"],
+      "traits": ["智慧", "灵动", "深沉", "润下", "寒冷"],
+      "enhances": "木",
+      "weakens": "火",
+      "enhanced_by": "金",
+      "weakened_by": "土"
+    },
+    "火": {
+      "symbol": "fire",
+      "direction": "南",
+      "season": "夏",
+      "organ": "心",
+      "emotion": "喜",
+      "color": ["红", "紫", "橙"],
+      "traits": ["热情", "活力", "光明", "向上", "礼仪"],
+      "enhances": "土",
+      "weakens": "金",
+      "enhanced_by": "木",
+      "weakened_by": "水"
+    },
+    "土": {
+      "symbol": "earth",
+      "direction": "中",
+      "season": "四季末",
+      "organ": "脾",
+      "emotion": "思",
+      "color": ["黄", "棕", "米"],
+      "traits": ["稳重", "包容", "信任", "承载", "信用"],
+      "enhances": "金",
+      "weakens": "水",
+      "enhanced_by": "火",
+      "weakened_by": "木"
+    }
+  },
+  "relations": {
+    "相生": ["木→火", "火→土", "土→金", "金→水", "水→木"],
+    "相克": ["木→土", "土→水", "水→火", "火→金", "金→木"]
+  }
+}
