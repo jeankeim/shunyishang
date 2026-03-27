@@ -7,7 +7,7 @@ import { submitFeedback } from '@/lib/api'
 import { getWuxingConfig } from '@/lib/wuxing-config'
 
 interface RecommendCardProps {
-  item: RecommendItem & { source?: 'wardrobe' | 'public'; item_id?: number }
+  item: RecommendItem
   index: number
   sessionId?: string
   onFeedback?: (action: 'like' | 'dislike') => void
@@ -64,9 +64,9 @@ export function RecommendCard({ item, index, sessionId, onFeedback }: RecommendC
           <div className={`absolute top-2 left-2 px-2 py-0.5 rounded-full text-xs font-medium ${
             isFromWardrobe 
               ? 'bg-emerald-500/90 text-white' 
-              : 'bg-orange-500/90 text-white'
+              : 'bg-blue-500/90 text-white'
           }`}>
-            {isFromWardrobe ? '🏠 自有' : '🛒 建议'}
+            {isFromWardrobe ? '🏠 自有' : '📚 公共库'}
           </div>
         </div>
       )}
@@ -77,9 +77,9 @@ export function RecommendCard({ item, index, sessionId, onFeedback }: RecommendC
           <div className={`px-2 py-0.5 rounded-full text-xs font-medium ${
             isFromWardrobe 
               ? 'bg-emerald-500/90 text-white' 
-              : 'bg-orange-500/90 text-white'
+              : 'bg-blue-500/90 text-white'
           }`}>
-            {isFromWardrobe ? '🏠 自有' : '🛒 建议'}
+            {isFromWardrobe ? '🏠 自有' : '📚 公共库'}
           </div>
         </div>
       )}

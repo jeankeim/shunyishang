@@ -220,7 +220,7 @@ def run_agent_stream(
         }
     }
     
-    # 输出物品列表
+    # 输出物品列表（包含 source 字段）
     items = []
     for item in initial_state["retrieved_items"]:
         items.append({
@@ -230,6 +230,9 @@ def run_agent_stream(
             "primary_element": item.get("primary_element", ""),
             "secondary_element": item.get("secondary_element"),
             "final_score": round(item.get("final_score", 0), 3),
+            "source": item.get("source") or "public",
+            "item_id": item.get("id"),
+            "image_url": item.get("image_url"),
         })
     yield {"type": "items", "data": items}
     

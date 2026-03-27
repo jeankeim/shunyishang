@@ -660,6 +660,7 @@ def _vector_search(
                         "functionality": row[10],
                         "thickness_level": row[11],
                         "semantic_score": float(row[12]) if row[12] else 0.5,
+                        "source": "public",
                     })
     except Exception as e:
         print(f"[Agent] 向量搜索失败: {e}")
@@ -1117,6 +1118,9 @@ def format_output_node(state: AgentState) -> Dict:
             "final_score": round(item.get("final_score", 0), 3),
             "semantic_score": round(item.get("semantic_score", 0), 3),
             "wuxing_score": round(item.get("wuxing_score", 0), 3),
+            "source": item.get("source") or "public",
+            "item_id": item.get("id"),
+            "image_url": item.get("image_url"),
         })
     
     # 最终响应
