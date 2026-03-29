@@ -59,13 +59,19 @@ export function UserProfile({ onClose }: UserProfileProps) {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [showCityDropdown, setShowCityDropdown] = useState(false)
 
-  // 获取完整用户资料
+  // 获取完整用户资料（带请求去重）
   useEffect(() => {
+    // 防止重复请求的标志
+    let isCancelled = false
+    
     const fetchFullProfile = async () => {
       if (isAuthenticated && user) {
         setLoading(true)
         try {
           const profile = await getUserProfile()
+          // 如果请求被取消，不更新状态
+          if (isCancelled) return
+          
           setFullProfile(profile)
           setFormData({
             nickname: profile.nickname || user.nickname || '',
@@ -77,6 +83,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
             avatar_url: profile.avatar_url || ''
           })
         } catch (error) {
+          if (isCancelled) return
           console.error('获取完整资料失败:', error)
           // 如果获取失败，使用已有的 user 数据
           if (user) {
@@ -92,12 +99,19 @@ export function UserProfile({ onClose }: UserProfileProps) {
           }
           setMessage({ type: 'error', text: '获取完整资料失败，请刷新页面重试' })
         } finally {
-          setLoading(false)
+          if (!isCancelled) {
+            setLoading(false)
+          }
         }
       }
     }
 
     fetchFullProfile()
+    
+    // 清理函数：标记请求已取消
+    return () => {
+      isCancelled = true
+    }
   }, [isAuthenticated, user])
 
   const handleChange = (field: keyof UserProfileData, value: string) => {
