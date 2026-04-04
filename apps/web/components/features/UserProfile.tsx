@@ -264,7 +264,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
   if (!isAuthenticated || !user) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-muted-foreground">请先登录</p>
+        <p className="text-[#6B7F72]">请先登录</p>
       </div>
     )
   }
@@ -272,7 +272,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-muted-foreground">加载中...</p>
+        <p className="text-[#6B7F72]">加载中...</p>
       </div>
     )
   }

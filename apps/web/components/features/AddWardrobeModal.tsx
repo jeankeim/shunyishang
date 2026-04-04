@@ -7,6 +7,7 @@ import { useUserStore } from '@/store/user'
 import type { WardrobeItem, AITaggingResult } from '@/lib/api'
 import { initAuthToken } from '@/lib/api'
 import { WUXING_ELEMENTS, WUXING_CONFIG, getWuxingConfig } from '@/lib/wuxing-config'
+import { ImageUploader } from './ImageUploader'
 
 const CATEGORIES = ['上装', '下装', '外套', '鞋履', '配饰', '裙装', '套装', '其他'] as const
 const SEASONS = ['春', '夏', '秋', '冬'] as const
@@ -34,7 +35,15 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
   
   // 基础信息（简化：name 由 description 自动填充）
   const [description, setDescription] = useState('')  // 衣物描述，同时也作为名称
-  const [imageUrl, setImageUrl] = useState('')
+  const [imageUrl, setImageUrlState] = useState('')
+  
+  // 包装 setImageUrl 以追踪调用
+  const setImageUrl = useCallback((url: string) => {
+    if (url === '') {
+      console.log('[AddWardrobeModal] setImageUrl 被清空 - 调用栈:', new Error().stack?.split('\n').slice(2, 6).join(' | '))
+    }
+    setImageUrlState(url)
+  }, [])
   const [localImage, setLocalImage] = useState<string | null>(null)
   
   // AI 分析结果（可编辑）
@@ -79,10 +88,9 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
         category: editItem.category,  // 新增：分类也由 AI 生成
       })
       setStep('review')
-    } else {
-      resetForm()
     }
-  }, [editItem, isOpen])
+    // 注意：不在这里调用 resetForm()，避免在弹窗打开时意外清空已上传的图片
+  }, [editItem])
 
   // 当 AI 分析完成时，自动填充所有字段
   useEffect(() => {
@@ -96,6 +104,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
   }, [taggingPreview])
 
   const resetForm = () => {
+    console.log('[AddWardrobeModal] resetForm 被调用 - 调用栈:', new Error().stack?.split('\n').slice(2, 5).join(' | '))
     setDescription('')
     setImageUrl('')
     setLocalImage(null)
@@ -106,37 +115,22 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
   }
 
   const handleClose = () => {
+    console.log('[AddWardrobeModal] handleClose 被调用 - step:', step, 'isSubmitting:', isSubmitting)
+    if (isSubmitting) {
+      console.log('[AddWardrobeModal] handleClose 被阻止 - 正在提交中')
+      return
+    }
     resetForm()
     onClose()
   }
 
-  // 处理图片上传
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    if (!file.type.startsWith('image/')) {
-      setError('请上传图片文件')
-      return
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      setError('图片大小不能超过 5MB')
-      return
-    }
-
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string
-      setLocalImage(base64)
-      setImageUrl('')
-      setError('')
-      setStep('input')
-      setAnalysis(null)
-      clearTaggingPreview()
-    }
-    reader.readAsDataURL(file)
-  }
+  // 处理图片上传完成（从 ImageUploader 组件）
+  const handleImageUploaded = useCallback((uploadedUrl: string) => {
+    setImageUrl(uploadedUrl);
+    setLocalImage(null); // 清除本地预览，使用服务器图片
+    setError('');
+    // 注意：不清除 analysis 和 taggingPreview，允许用户在上传后继续查看之前的分析结果
+  }, [setImageUrl, setLocalImage]);
 
   // AI 分析
   const handleAutoAnalyze = useCallback(async () => {
@@ -186,6 +180,13 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
 
   // 提交表单
   const handleSubmit = async () => {
+    console.log('[AddWardrobeModal] handleSubmit 被调用 - step:', step)
+    
+    if (step !== 'review') {
+      console.log('[AddWardrobeModal] handleSubmit 被阻止 - 不在确认步骤')
+      return
+    }
+    
     if (!isAuthenticated) {
       setError('请先登录后再添加衣物')
       return
@@ -256,6 +257,19 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
   }
 
   const displayImage = localImage || imageUrl
+  
+  // 对图片 URL 进行编码以支持中文文件名
+  const encodedDisplayImage = displayImage && !displayImage.startsWith('data:') 
+    ? encodeURI(displayImage) 
+    : displayImage
+  
+  // 调试日志：追踪图片状态
+  console.log('[AddWardrobeModal] 渲染 - localImage:', !!localImage, 'imageUrl:', imageUrl, 'displayImage:', displayImage, 'type:', typeof displayImage)
+  
+  // 额外调试：检查 renderReviewStep 是否被调用
+  if (step === 'review') {
+    console.log('[AddWardrobeModal] renderReviewStep - analysis:', !!analysis, 'displayImage:', displayImage)
+  }
 
   // 渲染输入步骤
   const renderInputStep = () => (
@@ -276,38 +290,11 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
         />
         
         {/* 图片上传（可选） */}
-        <div className="mt-3 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-rose-200 bg-white text-rose-600 text-sm hover:bg-rose-50 transition-all"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            上传图片（可选）
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleImageUpload}
-            className="hidden"
-          />
-          
-          {displayImage && (
-            <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-stone-100">
-              <img src={displayImage} alt="预览" className="w-full h-full object-cover" />
-              <button
-                type="button"
-                onClick={() => { setLocalImage(null); setImageUrl(''); setAnalysis(null); clearTaggingPreview(); }}
-                className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600"
-              >
-                ×
-              </button>
-            </div>
-          )}
-        </div>
+        <ImageUploader 
+          onImageUploaded={handleImageUploaded}
+          maxSize={5 * 1024 * 1024}
+          className="mt-3"
+        />
       </div>
 
       {/* AI 分析按钮 */}
@@ -383,7 +370,11 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
       {/* 下一步按钮 */}
       <motion.button
         type="button"
-        onClick={handleReview}
+        onClick={(e) => {
+          e.stopPropagation()
+          e.preventDefault()
+          handleReview()
+        }}
         disabled={!analysis}
         whileHover={{ scale: 1.01 }}
         whileTap={{ scale: 0.99 }}
@@ -403,7 +394,10 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
         {/* 返回按钮 */}
         <button
           type="button"
-          onClick={handleBackToInput}
+          onClick={(e) => {
+            e.stopPropagation()
+            handleBackToInput()
+          }}
           className="flex items-center gap-1 text-sm text-stone-500 hover:text-stone-700 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -413,9 +407,15 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
         </button>
 
         {/* 图片预览 */}
-        {displayImage && (
+        {encodedDisplayImage ? (
           <div className="relative h-40 rounded-2xl overflow-hidden">
-            <img src={displayImage} alt="预览" className="w-full h-full object-cover" />
+            <img 
+              src={encodedDisplayImage} 
+              alt="预览" 
+              className="w-full h-full object-cover"
+              onLoad={() => console.log('[AddWardrobeModal] 图片加载成功:', encodedDisplayImage)}
+              onError={(e) => console.error('[AddWardrobeModal] 图片加载失败:', encodedDisplayImage, e)}
+            />
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
             <div className="absolute bottom-3 left-3 right-3">
               <input
@@ -423,9 +423,13 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="衣物名称/描述"
-                className="w-full px-3 py-2 rounded-lg bg-white/90 backdrop-blur-sm border-0 text-stone-800 placeholder:text-stone-400 text-sm"
+                className="w-full px-3 py-2 rounded-lg bg-white/90 backdrop-blur-sm border-0 text-stone-800 placeholder:text-[#8A9F92] text-sm"
               />
             </div>
+          </div>
+        ) : (
+          <div className="h-40 rounded-2xl bg-stone-100 flex items-center justify-center">
+            <span className="text-[#6B7F72]">暂无图片</span>
           </div>
         )}
 
@@ -656,7 +660,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
                   <button
                     type="button"
                     onClick={() => updateAnalysisField('details', analysis.details?.filter((_, i) => i !== index))}
-                    className="text-stone-400 hover:text-red-500"
+                    className="text-[#6B7F72] hover:text-red-500"
                   >
                     ×
                   </button>
@@ -765,7 +769,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
                 <button
                   type="button"
                   onClick={() => updateAnalysisField('tags', analysis.tags?.filter((_, i) => i !== index))}
-                  className="text-stone-400 hover:text-red-500"
+                  className="text-[#6B7F72] hover:text-red-500"
                 >
                   ×
                 </button>
@@ -792,7 +796,10 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
         <div className="flex gap-3 pt-2">
           <motion.button
             type="button"
-            onClick={handleClose}
+            onClick={(e) => {
+              e.stopPropagation()
+              handleClose()
+            }}
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.99 }}
             className="flex-1 py-3.5 rounded-xl bg-stone-100 text-stone-700 font-medium hover:bg-stone-200 transition-all"
@@ -801,7 +808,10 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
           </motion.button>
           <motion.button
             type="button"
-            onClick={handleSubmit}
+            onClick={(e) => {
+              e.stopPropagation()
+              handleSubmit()
+            }}
             disabled={isSubmitting || !isAuthenticated}
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.99 }}
@@ -861,7 +871,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
                 </div>
                 <button
                   onClick={handleClose}
-                  className="p-2 rounded-full hover:bg-stone-100 text-stone-400 hover:text-stone-600 transition-colors"
+                  className="p-2 rounded-full hover:bg-stone-100 text-[#6B7F72] hover:text-stone-600 transition-colors"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

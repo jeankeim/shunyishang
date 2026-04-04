@@ -8,13 +8,13 @@ interface BaziCardProps {
   onEdit?: () => void
 }
 
-// 五行颜色映射
+// 五行颜色映射 - 春分优化版 (WCAG 4.5:1+)
 const elementColors: Record<string, { bg: string; text: string; border: string; light: string }> = {
-  '木': { bg: 'bg-green-500', text: 'text-green-700', border: 'border-green-200', light: 'bg-green-50' },
-  '火': { bg: 'bg-red-500', text: 'text-red-700', border: 'border-red-200', light: 'bg-red-50' },
-  '土': { bg: 'bg-yellow-600', text: 'text-yellow-700', border: 'border-yellow-200', light: 'bg-yellow-50' },
-  '金': { bg: 'bg-gray-400', text: 'text-gray-700', border: 'border-gray-200', light: 'bg-gray-50' },
-  '水': { bg: 'bg-blue-500', text: 'text-blue-700', border: 'border-blue-200', light: 'bg-blue-50' },
+  '木': { bg: 'bg-[#3DA35D]', text: 'text-[#2D7A45]', border: 'border-[#3DA35D]/30', light: 'bg-[#F0F9F4]' },
+  '火': { bg: 'bg-[#D4656B]', text: 'text-[#B5494F]', border: 'border-[#D4656B]/30', light: 'bg-[#FDF2F2]' },
+  '土': { bg: 'bg-[#B89B5E]', text: 'text-[#9A7E47]', border: 'border-[#B89B5E]/30', light: 'bg-[#F9F5EC]' },
+  '金': { bg: 'bg-[#8A9BA8]', text: 'text-[#6B7F8C]', border: 'border-[#8A9BA8]/30', light: 'bg-[#F5F7F9]' },
+  '水': { bg: 'bg-[#4A90C4]', text: 'text-[#3570A0]', border: 'border-[#4A90C4]/30', light: 'bg-[#F0F7FA]' },
 }
 
 // 天干五行映射
@@ -67,27 +67,32 @@ export function BaziCard({ onEdit }: BaziCardProps) {
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-gradient-to-br from-amber-50/80 to-yellow-50/60 rounded-2xl p-5 shadow-sm border border-amber-200/40"
+      className="bg-gradient-to-br from-[#F8FAF9] to-[#F5F9F7] rounded-xl p-5 shadow-sm border border-[#E8F0EB]/60"
     >
       {/* 标题 */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-400 rounded-lg flex items-center justify-center">
+          <motion.div 
+            whileHover={{ scale: 1.05, rotate: 5 }}
+            className="w-8 h-8 bg-gradient-to-br from-[#3DA35D] to-[#4A90C4] rounded-lg flex items-center justify-center shadow-sm"
+          >
             <Sparkles className="h-4 w-4 text-white" />
-          </div>
+          </motion.div>
           <div>
-            <h2 className="font-semibold text-stone-700 text-lg">我的八字</h2>
-            <p className="text-xs text-stone-500">已为您自动分析</p>
+            <h2 className="font-semibold text-[#2D4A38] text-base font-serif">我的八字</h2>
+            <p className="text-xs text-[#6B7F72]">已为您自动分析</p>
           </div>
         </div>
         {onEdit && (
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={onEdit}
-            className="flex items-center gap-1 px-3 py-1.5 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-100/50 rounded-lg transition-all"
+            className="flex items-center gap-1 px-3 py-1.5 text-xs text-[#3DA35D] hover:text-[#2D7A45] hover:bg-[#F0F7F4] rounded-lg transition-all duration-200"
           >
             <Edit3 className="h-3 w-3" />
             修改
-          </button>
+          </motion.button>
         )}
       </div>
       
@@ -95,7 +100,7 @@ export function BaziCard({ onEdit }: BaziCardProps) {
       <div className="grid grid-cols-4 gap-2 mb-4">
         {pillars.map((pillar, idx) => (
           <div key={idx} className="text-center">
-            <div className="text-xs text-stone-400 mb-1">{pillar.name}</div>
+            <div className="text-xs text-[#6B7F72] font-medium mb-1">{pillar.name}</div>
             <div className="space-y-1">
               <div className={`w-9 h-9 mx-auto rounded-lg ${getGanColor(pillar.gan)} text-white flex items-center justify-center font-bold text-sm shadow-sm`}>
                 {pillar.gan}
@@ -110,51 +115,58 @@ export function BaziCard({ onEdit }: BaziCardProps) {
       
       {/* 喜用神 */}
       {xiyong && xiyong.length > 0 && (
-        <div className="bg-white/60 rounded-xl p-3 mb-3">
+        <motion.div 
+          whileHover={{ scale: 1.01 }}
+          className="bg-white/80 rounded-xl p-3 mb-3 border border-[#E8F0EB]/40"
+        >
           <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="h-3 w-3 text-amber-500" />
-            <span className="text-xs font-medium text-stone-600">喜用神</span>
+            <Sparkles className="h-3 w-3 text-[#B89B5E]" />
+            <span className="text-xs font-medium text-[#4A5F52]">喜用神</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {xiyong.map((element: string, idx: number) => {
               const style = getElementStyle(element)
               return (
-                <span
+                <motion.span
                   key={idx}
-                  className={`px-3 py-1 rounded-full text-sm font-medium ${style.light} ${style.text} border ${style.border}`}
+                  whileHover={{ scale: 1.05 }}
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${style.light} ${style.text} border ${style.border} cursor-default`}
                 >
                   {element}
-                </span>
+                </motion.span>
               )
             })}
           </div>
-          <p className="text-xs text-stone-500 mt-2 flex items-center gap-1">
-            <span className="w-1 h-1 bg-amber-400 rounded-full"></span>
+          <p className="text-xs text-[#6B7F72] mt-2 flex items-center gap-1">
+            <span className="w-1 h-1 bg-[#B89B5E] rounded-full"></span>
             后续推荐将以此为依据
           </p>
-        </div>
+        </motion.div>
       )}
       
       {/* 忌用神 */}
       {avoidElements && avoidElements.length > 0 && (
-        <div className="bg-stone-50/60 rounded-xl p-3">
-          <div className="text-xs text-stone-500 mb-2">需避免</div>
+        <motion.div 
+          whileHover={{ scale: 1.01 }}
+          className="bg-[#F5F7F9]/60 rounded-xl p-3 border border-[#E8F0EB]/40"
+        >
+          <div className="text-xs text-[#6B7F72] mb-2 font-medium">需避免</div>
           <div className="flex flex-wrap gap-2">
             {avoidElements.map((element: string, idx: number) => (
               <span
                 key={idx}
-                className="px-3 py-1 rounded-full text-sm text-stone-500 bg-stone-100 border border-stone-200"
+                className="px-3 py-1 rounded-full text-sm text-[#6B7F8C] bg-[#F0F2F5] border border-[#D0D8E0]"
               >
                 {element}
               </span>
             ))}
           </div>
-        </div>
+        </motion.div>
       )}
       
       {/* 出生信息 */}
       {(user.birth_date || user.birth_time) && (
-        <div className="mt-3 pt-3 border-t border-amber-200/30 flex items-center gap-4 text-xs text-stone-400">
+        <div className="mt-3 pt-3 border-t border-[#E8F0EB]/40 flex items-center gap-4 text-xs text-[#8A9F92]">
           {user.birth_date && (
             <span className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />

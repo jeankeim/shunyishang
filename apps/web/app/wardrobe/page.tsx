@@ -7,14 +7,15 @@ import { AddWardrobeModal } from '@/components/features/AddWardrobeModal'
 import { initAuthToken } from '@/lib/api'
 import { WUXING_ELEMENTS, WUXING_CONFIG, getWuxingConfig } from '@/lib/wuxing-config'
 import type { WardrobeItem } from '@/lib/api'
+import { EmptyState, SkeletonList } from '@/components/ui'
 
-// 五行数据配置
+// 五行数据配置 - 春分优化版
 const WUXING_THEME: Record<string, { color: string; gradient: string; symbol: string; pattern: string }> = {
-  '金': { color: '#F5D0C5', gradient: 'from-amber-100 via-yellow-50 to-orange-50', symbol: '☰', pattern: 'cloud' },
-  '木': { color: '#A8D5BA', gradient: 'from-emerald-100 via-green-50 to-teal-50', symbol: '☳', pattern: 'leaf' },
-  '水': { color: '#B8D4E8', gradient: 'from-blue-100 via-cyan-50 to-sky-50', symbol: '☵', pattern: 'wave' },
-  '火': { color: '#F5C6C6', gradient: 'from-rose-100 via-pink-50 to-red-50', symbol: '☲', pattern: 'flame' },
-  '土': { color: '#E8D5B8', gradient: 'from-amber-100 via-orange-50 to-yellow-50', symbol: '☷', pattern: 'mountain' },
+  '金': { color: '#C5D0D8', gradient: 'from-[#F5F7F9] via-[#F0F2F5] to-[#E8EBF0]', symbol: '☰', pattern: 'cloud' },
+  '木': { color: '#3DA35D', gradient: 'from-[#F0F9F4] via-[#E8F5EC] to-[#D4E8DC]', symbol: '☳', pattern: 'leaf' },
+  '水': { color: '#4A90C4', gradient: 'from-[#F0F7FA] via-[#E8F0F8] to-[#D4E4F0]', symbol: '☵', pattern: 'wave' },
+  '火': { color: '#D4656B', gradient: 'from-[#FDF2F2] via-[#FBE8E8] to-[#F5D4D4]', symbol: '☲', pattern: 'flame' },
+  '土': { color: '#B89B5E', gradient: 'from-[#F9F5EC] via-[#F5F0E0] to-[#EDE5D0]', symbol: '☷', pattern: 'mountain' },
 }
 
 export default function WardrobePage() {
@@ -85,9 +86,9 @@ export default function WardrobePage() {
   // 未登录状态
   if (!isAuthenticated) {
     return (
-      <div className="min-h-full flex items-center justify-center relative overflow-hidden">
+      <div className="min-h-full flex items-center justify-center relative overflow-visible py-12">
         {/* 背景装饰 */}
-        <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 overflow-visible pointer-events-none">
           {[...Array(5)].map((_, i) => (
             <motion.div
               key={i}
@@ -150,14 +151,14 @@ export default function WardrobePage() {
             我的衣橱
           </h2>
           <p className="text-stone-500 mb-2">登录后开启您的五行穿搭之旅</p>
-          <p className="text-sm text-stone-400">点击右上角「登录」按钮</p>
+          <p className="text-sm text-[#6B7F72]">点击右上角「登录」按钮</p>
         </motion.div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-full relative">
+    <div className="min-h-full relative overflow-visible py-8">
       {/* 顶部艺术化标题区 */}
       <motion.div
         initial={{ opacity: 0 }}
@@ -222,7 +223,7 @@ export default function WardrobePage() {
           <div className="flex gap-2">
             <button
               onClick={() => setViewMode('flow')}
-              className={`p-2 rounded-lg transition-all ${viewMode === 'flow' ? 'bg-stone-800 text-white' : 'text-stone-400 hover:text-stone-600'}`}
+              className={`p-2 rounded-lg transition-all ${viewMode === 'flow' ? 'bg-stone-800 text-white' : 'text-[#6B7F72] hover:text-stone-600'}`}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -230,7 +231,7 @@ export default function WardrobePage() {
             </button>
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-stone-800 text-white' : 'text-stone-400 hover:text-stone-600'}`}
+              className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-stone-800 text-white' : 'text-[#6B7F72] hover:text-stone-600'}`}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -270,7 +271,7 @@ export default function WardrobePage() {
                   <div className="mt-1 text-2xl font-bold" style={{ color: config.gradientFrom }}>
                     {count}
                   </div>
-                  <span className="text-xs text-stone-400">{percentage}%</span>
+                  <span className="text-xs text-[#6B7F72]">{percentage}%</span>
                 </div>
                 
                 {/* 背景进度条 */}
@@ -294,60 +295,15 @@ export default function WardrobePage() {
         transition={{ delay: 0.3 }}
       >
         {isLoading && items.length === 0 ? (
-          <div className="flex items-center justify-center py-32">
-            <motion.div className="relative">
-              {[...Array(5)].map((_, i) => (
-                <motion.div
-                  key={i}
-                  className="absolute w-4 h-4 rounded-full"
-                  style={{
-                    background: Object.values(WUXING_CONFIG)[i].gradientFrom,
-                    left: i * 24 - 48,
-                  }}
-                  animate={{
-                    y: [0, -20, 0],
-                    opacity: [0.3, 1, 0.3],
-                  }}
-                  transition={{
-                    duration: 1,
-                    delay: i * 0.1,
-                    repeat: Infinity,
-                  }}
-                />
-              ))}
-            </motion.div>
-          </div>
+          <SkeletonList count={6} showImage={true} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4" />
         ) : filteredItems.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="text-center py-24"
-          >
-            <div className="w-24 h-24 mx-auto mb-6 relative">
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-                className="absolute inset-0 border-2 border-dashed border-stone-200 rounded-full"
-              />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-4xl">👔</span>
-              </div>
-            </div>
-            <h3 className="text-xl font-medium text-stone-700 mb-2" style={{ fontFamily: 'serif' }}>
-              {filterElement ? '此五行暂无衣物' : '衣橱空空如也'}
-            </h3>
-            <p className="text-stone-500 mb-8">
-              {filterElement ? '换个五行属性看看' : '开启您的五行穿搭之旅'}
-            </p>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleAddNew}
-              className="px-8 py-3 rounded-2xl bg-gradient-to-r from-stone-800 to-stone-700 text-white font-medium shadow-xl"
-            >
-              添加第一件衣物
-            </motion.button>
-          </motion.div>
+          <EmptyState
+            icon="wardrobe"
+            title={filterElement ? '此五行暂无衣物' : '衣橱空空如也'}
+            description={filterElement ? '换个五行属性看看' : '开始添加你的第一件衣物，让 AI 为你推荐完美搭配'}
+            actionLabel="添加衣物"
+            onAction={handleAddNew}
+          />
         ) : (
           <div className={viewMode === 'grid' 
             ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
@@ -422,6 +378,7 @@ export default function WardrobePage() {
                         <img
                           src={item.image_url}
                           alt={item.name}
+                          loading="lazy"
                           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                           onError={(e) => {
                             (e.target as HTMLImageElement).style.display = 'none'
@@ -460,12 +417,12 @@ export default function WardrobePage() {
                           {config.emoji} {item.primary_element}
                         </span>
                         {item.secondary_element && (
-                          <span className="text-xs text-stone-400 bg-stone-100 px-2 py-0.5 rounded-full">
+                          <span className="text-xs text-[#6B7F72] bg-stone-100 px-2 py-0.5 rounded-full">
                             +{item.secondary_element}
                           </span>
                         )}
                         {item.category && (
-                          <span className="text-xs text-stone-400">
+                          <span className="text-xs text-[#6B7F72]">
                             · {item.category}
                           </span>
                         )}

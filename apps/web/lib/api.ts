@@ -4,6 +4,12 @@ export interface RecommendRequest {
   query: string
   scene?: string
   weather_element?: string
+  weather?: {  // 新增：完整天气信息
+    temperature?: number
+    weather_desc?: string
+    humidity?: number
+    wind_level?: number
+  }
   bazi?: {
     birth_year: number
     birth_month: number

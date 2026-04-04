@@ -4,12 +4,12 @@ import { useState, useEffect } from 'react'
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend } from 'recharts'
 import { cn } from '@/lib/utils'
 
-const ELEMENT_CONFIG: Record<string, { color: string; emoji: string }> = {
-  '金': { color: '#E5E7EB', emoji: '⚪' },
-  '木': { color: '#4ADE80', emoji: '🟢' },
-  '水': { color: '#60A5FA', emoji: '🔵' },
-  '火': { color: '#F87171', emoji: '🔴' },
-  '土': { color: '#D97706', emoji: '🟡' },
+const ELEMENT_CONFIG: Record<string, { color: string; emoji: string; lightColor: string }> = {
+  '金': { color: '#C5D0D8', emoji: '⚪', lightColor: '#F5F7F9' },
+  '木': { color: '#3DA35D', emoji: '🟢', lightColor: '#F0F9F4' },
+  '水': { color: '#4A90C4', emoji: '🔵', lightColor: '#F0F7FA' },
+  '火': { color: '#D4656B', emoji: '🔴', lightColor: '#FDF2F2' },
+  '土': { color: '#B89B5E', emoji: '🟡', lightColor: '#F9F5EC' },
 }
 
 interface FiveElementRadarProps {
@@ -56,7 +56,7 @@ export function FiveElementRadar({
       <div className={cn('bg-card/50 backdrop-blur rounded-xl border p-6', className)}>
         <h3 className="text-lg font-semibold mb-2">五行能量分布</h3>
         <div className="h-[320px] flex items-center justify-center">
-          <div className="animate-pulse text-muted-foreground">加载中...</div>
+          <div className="animate-pulse text-[#6B7F72]">加载中...</div>
         </div>
       </div>
     )
@@ -67,7 +67,7 @@ export function FiveElementRadar({
       <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
         <span>五行能量分布</span>
         {xiyongShen.length > 0 && (
-          <span className="text-sm font-normal text-muted-foreground">
+          <span className="text-sm font-normal text-[#6B7F72]">
             (喜用神: {xiyongShen.join('、')})
           </span>
         )}
@@ -142,7 +142,7 @@ export function FiveElementRadar({
                 {element}
               </span>
               {hasData && count > 0 && (
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-[10px] text-[#6B7F72]">
                   {count}个
                 </span>
               )}
@@ -157,7 +157,7 @@ export function FiveElementRadar({
           <div className="flex items-center justify-between mb-3">
             <h4 className="text-sm font-medium">八字排盘</h4>
             {dayMaster && (
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-[#6B7F72]">
                 日元: <span className="text-primary font-medium">{dayMaster}</span>
               </span>
             )}
@@ -170,7 +170,7 @@ export function FiveElementRadar({
               { key: 'hour', label: '时柱' },
             ].map(({ key, label }) => (
               <div key={key} className="bg-muted/50 rounded-lg p-2">
-                <div className="text-xs text-muted-foreground mb-1">{label}</div>
+                <div className="text-xs text-[#6B7F72] mb-1">{label}</div>
                 <div className="text-lg font-semibold tracking-wider">
                   {pillars[key] || '--'}
                 </div>

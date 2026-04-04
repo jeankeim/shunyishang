@@ -11,22 +11,39 @@ import { Sidebar } from '@/components/features/Sidebar'
 import { Header } from '@/components/features/Header'
 import { useChatStore } from '@/store/chat'
 import { useUserStore } from '@/store/user'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 
 // 懒加载衣橱页面，减少首页初始加载时间
 const WardrobePage = lazy(() => import('./wardrobe/page'))
 
 export default function Home() {
-  const { radarData } = useChatStore()
+  const { radarData, setUserBazi } = useChatStore()
   const { user, isAuthenticated } = useUserStore()
   const [scene, setScene] = useState('')
   const [sceneElement, setSceneElement] = useState('')
   const [weatherElement, setWeatherElement] = useState('')
+  const [weatherInfo, setWeatherInfo] = useState<any>(null)  // 新增：保存完整天气信息
   const [activeTab, setActiveTab] = useState<'chat' | 'wardrobe' | 'profile'>('chat')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   
   // 判断用户是否有八字（已登录且资料完整）
   const hasBazi = isAuthenticated && user?.bazi
+  
+  // 当用户有八字信息时，自动设置 userBazi 到 chat store
+  useEffect(() => {
+    if (hasBazi && user?.birth_date && user?.gender) {
+      const birthDate = new Date(user.birth_date)
+      const baziInput = {
+        birthYear: birthDate.getFullYear(),
+        birthMonth: birthDate.getMonth() + 1,
+        birthDay: birthDate.getDate(),
+        birthHour: user.birth_time ? parseInt(user.birth_time.split(':')[0]) : 12,
+        gender: user.gender as '男' | '女',
+      }
+      setUserBazi(baziInput)
+      console.log('[HomePage] 从用户资料自动设置八字:', baziInput)
+    }
+  }, [hasBazi, user, setUserBazi])
 
   // 监听hash变化
   useEffect(() => {
@@ -52,6 +69,13 @@ export default function Home() {
 
   const handleWeatherChange = (weather: any) => {
     setWeatherElement(weather.element)
+    setWeatherInfo({  // 保存完整天气信息
+      temperature: weather.temperature,
+      weather_desc: weather.weather,
+      humidity: weather.humidity,
+      wind_level: parseInt(weather.wind?.replace('级', '') || '0'),
+    })
+    console.log('[HomePage] 天气信息:', weather)
   }
 
   const toggleSidebar = () => {
@@ -59,7 +83,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-blue-50">
+    <div className="flex h-screen bg-gradient-to-br from-[#F8FAF9] via-[#F5F9F7] to-[#F0F7F4]">
       {/* Sidebar - 聊天记录面板 */}
       <Sidebar 
         collapsed={sidebarCollapsed} 
@@ -70,8 +94,8 @@ export default function Home() {
       <motion.div 
         initial={{ x: -20, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        className={`bg-white/80 backdrop-blur-xl border-r border-amber-200/30 p-6 overflow-y-auto space-y-6 shadow-lg transition-all duration-300 ${
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className={`bg-white/90 backdrop-blur-xl p-6 overflow-y-auto space-y-6 transition-all duration-300 ${
           hasBazi ? 'w-[300px] lg:w-[340px]' : 'w-[320px] lg:w-[360px]'
         }`}
       >
@@ -80,13 +104,12 @@ export default function Home() {
           initial={{ y: -10, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className="text-center mb-4"
+          className="text-center mb-6"
         >
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-600 via-orange-500 to-rose-500 bg-clip-text text-transparent font-serif">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-[#3DA35D] via-[#4A90C4] to-[#D4656B] bg-clip-text text-transparent font-serif tracking-tight">
             五行穿搭
           </h1>
-          <div className="w-24 h-0.5 bg-gradient-to-r from-amber-300 to-orange-300 mx-auto my-3 rounded-full"></div>
-          <p className="text-sm text-stone-600 font-light">
+          <p className="text-sm text-[#4A5F52] font-light tracking-wide mt-2">
             {hasBazi ? '您的专属五行推荐' : '天人合一 · 五行相生'}
           </p>
         </motion.div>
@@ -110,11 +133,11 @@ export default function Home() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="bg-gradient-to-br from-amber-50/60 to-yellow-50/40 rounded-2xl p-5 shadow-sm border border-amber-200/40 hover:shadow-md transition-all duration-300"
+            className="bg-gradient-to-br from-[#F8FAF9] to-[#F0F7F4] rounded-xl p-5 shadow-sm border border-[#E8F0EB]/60 hover:shadow-[0_4px_20px_rgba(61,163,93,0.08)] hover:border-[#3DA35D]/30 transition-all duration-300 group"
           >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-3 h-3 bg-gradient-to-br from-amber-300 to-yellow-400 rounded-full"></div>
-              <h2 className="font-semibold text-stone-700 text-lg">生辰八字</h2>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-2.5 h-2.5 bg-gradient-to-br from-[#3DA35D] to-[#4A90C4] rounded-full group-hover:scale-110 transition-transform duration-300"></div>
+              <h2 className="font-semibold text-[#2D4A38] text-base tracking-wide">生辰八字</h2>
             </div>
             <BaziInputSection />
           </motion.div>
@@ -125,11 +148,11 @@ export default function Home() {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="bg-gradient-to-br from-blue-50/60 to-cyan-50/40 rounded-2xl p-5 shadow-sm border border-blue-200/40 hover:shadow-md transition-all duration-300"
+          className="bg-gradient-to-br from-[#F0F7FA] to-[#E8F4F8] rounded-xl p-5 shadow-sm border border-[#D4E8F0]/60 hover:shadow-[0_4px_20px_rgba(74,144,196,0.08)] hover:border-[#4A90C4]/30 transition-all duration-300 group"
         >
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-3 h-3 bg-gradient-to-br from-blue-300 to-cyan-400 rounded-full"></div>
-            <h2 className="font-semibold text-stone-700 text-lg">天地气象</h2>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-2.5 h-2.5 bg-gradient-to-br from-[#4A90C4] to-[#3DA35D] rounded-full group-hover:scale-110 transition-transform duration-300"></div>
+            <h2 className="font-semibold text-[#2D4A38] text-base tracking-wide">天地气象</h2>
           </div>
           <WeatherSceneSection 
             onSceneChange={handleSceneChange}
@@ -143,11 +166,11 @@ export default function Home() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="bg-gradient-to-br from-green-50/60 to-emerald-50/40 rounded-2xl p-5 shadow-sm border border-green-200/40 hover:shadow-md transition-all duration-300"
+            className="bg-gradient-to-br from-[#F0F9F4] to-[#E8F5EC] rounded-xl p-5 shadow-sm border border-[#D4E8DC]/60 hover:shadow-[0_4px_20px_rgba(61,163,93,0.08)] hover:border-[#3DA35D]/30 transition-all duration-300 group"
           >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-3 h-3 bg-gradient-to-br from-green-300 to-emerald-400 rounded-full"></div>
-              <h2 className="font-semibold text-stone-700 text-lg">五行生克</h2>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-2.5 h-2.5 bg-gradient-to-br from-[#3DA35D] to-[#B89B5E] rounded-full group-hover:scale-110 transition-transform duration-300"></div>
+              <h2 className="font-semibold text-[#2D4A38] text-base tracking-wide">五行生克</h2>
             </div>
             <FiveElementRadar
               currentData={radarData.currentData}
@@ -167,9 +190,9 @@ export default function Home() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="bg-gradient-to-br from-amber-50/40 to-orange-50/30 rounded-xl p-4 border border-amber-200/30"
+            className="bg-gradient-to-br from-[#F8FAF9] to-[#F5F9F7] rounded-xl p-4 border border-[#E8F0EB]/50"
           >
-            <p className="text-xs text-stone-500 text-center leading-relaxed">
+            <p className="text-xs text-[#5A7A66] text-center leading-relaxed">
               基于您的八字分析，我们已为您计算喜用神。
               <br />
               智能推荐将以此为依据，为您推荐最适合的穿搭。
@@ -191,7 +214,7 @@ export default function Home() {
           initial={{ y: -10, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className="bg-white/80 backdrop-blur-xl border-b border-amber-200/30 flex-shrink-0"
+          className="bg-white/90 backdrop-blur-xl flex-shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.05)]"
         >
           <div className="flex px-6 py-2">
             <button
@@ -199,17 +222,17 @@ export default function Home() {
                 setActiveTab('chat')
                 window.location.hash = ''
               }}
-              className={`relative px-6 py-4 font-medium text-sm transition-all duration-300 ${
+              className={`relative px-6 py-4 font-medium text-sm transition-all duration-300 hover:-translate-y-0.5 ${
                 activeTab === 'chat'
-                  ? 'text-amber-600'
-                  : 'text-stone-500 hover:text-amber-700'
+                  ? 'text-[#3DA35D]'
+                  : 'text-[#6B7F72] hover:text-[#3DA35D]/80'
               }`}
             >
               智能推荐
               {activeTab === 'chat' && (
                 <motion.div 
                   layoutId="tabIndicator"
-                  className="absolute bottom-0 left-4 right-4 h-1 bg-gradient-to-r from-amber-400 to-orange-400 rounded-full"
+                  className="absolute bottom-0 left-4 right-4 h-0.5 bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] rounded-full"
                   initial={false}
                   transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 />
@@ -220,17 +243,17 @@ export default function Home() {
                 setActiveTab('wardrobe')
                 window.location.hash = '#wardrobe'
               }}
-              className={`relative px-6 py-4 font-medium text-sm transition-all duration-300 ${
+              className={`relative px-6 py-4 font-medium text-sm transition-all duration-300 hover:-translate-y-0.5 ${
                 activeTab === 'wardrobe'
-                  ? 'text-rose-500'
-                  : 'text-stone-500 hover:text-rose-600'
+                  ? 'text-[#D4656B]'
+                  : 'text-[#6B7F72] hover:text-[#D4656B]/80'
               }`}
             >
               我的衣橱
               {activeTab === 'wardrobe' && (
                 <motion.div
                   layoutId="tabIndicator"
-                  className="absolute bottom-0 left-4 right-4 h-1 bg-gradient-to-r from-rose-400 to-pink-400 rounded-full"
+                  className="absolute bottom-0 left-4 right-4 h-0.5 bg-gradient-to-r from-[#D4656B] to-[#B89B5E] rounded-full"
                   initial={false}
                   transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 />
@@ -241,17 +264,17 @@ export default function Home() {
                 setActiveTab('profile')
                 window.location.hash = '#profile'
               }}
-              className={`relative px-6 py-4 font-medium text-sm transition-all duration-300 ${
+              className={`relative px-6 py-4 font-medium text-sm transition-all duration-300 hover:-translate-y-0.5 ${
                 activeTab === 'profile'
-                  ? 'text-blue-500'
-                  : 'text-stone-500 hover:text-blue-600'
+                  ? 'text-[#4A90C4]'
+                  : 'text-[#6B7F72] hover:text-[#4A90C4]/80'
               }`}
             >
               个人资料
               {activeTab === 'profile' && (
                 <motion.div 
                   layoutId="tabIndicator"
-                  className="absolute bottom-0 left-4 right-4 h-1 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-full"
+                  className="absolute bottom-0 left-4 right-4 h-0.5 bg-gradient-to-r from-[#4A90C4] to-[#3DA35D] rounded-full"
                   initial={false}
                   transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 />
@@ -264,29 +287,59 @@ export default function Home() {
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-          className="flex-1 overflow-y-auto bg-gradient-to-b from-white/70 to-amber-50/30 backdrop-blur-sm p-6"
+          transition={{ duration: 0.3, ease: "easeOut" }}
+          className="flex-1 overflow-y-auto overflow-x-visible bg-gradient-to-b from-white/80 via-[#F8FAF9]/50 to-[#F0F7F4]/30 backdrop-blur-sm p-6"
         >
-          {activeTab === 'chat' && (
-            <ChatInterface scene={scene} weatherElement={weatherElement} />
-          )}
-          {activeTab === 'wardrobe' && (
-            <Suspense fallback={
-              <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rose-500"></div>
-              </div>
-            }>
-              <WardrobePage />
-            </Suspense>
-          )}
-          {activeTab === 'profile' && (
-            <UserProfile 
-              onClose={() => {
-                setActiveTab('chat')
-                window.location.hash = ''
-              }}
-            />
-          )}
+          <AnimatePresence mode="wait">
+            {activeTab === 'chat' && (
+              <motion.div
+                key="chat"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+              >
+                <ChatInterface 
+                  scene={scene} 
+                  weatherElement={weatherElement}
+                  weatherInfo={weatherInfo}
+                />
+              </motion.div>
+            )}
+            {activeTab === 'wardrobe' && (
+              <motion.div
+                key="wardrobe"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+              >
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-64">
+                    <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#3DA35D] border-t-transparent"></div>
+                  </div>
+                }>
+                  <WardrobePage />
+                </Suspense>
+              </motion.div>
+            )}
+            {activeTab === 'profile' && (
+              <motion.div
+                key="profile"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+              >
+                <UserProfile 
+                  onClose={() => {
+                    setActiveTab('chat')
+                    window.location.hash = ''
+                  }}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       </div>
     </div>

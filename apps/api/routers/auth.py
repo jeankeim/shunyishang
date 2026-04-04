@@ -246,6 +246,11 @@ async def register(request: UserRegisterRequest):
             email=request.email,
             nickname=request.nickname,
             gender=request.gender,
+            birth_date=None,
+            birth_time=None,
+            birth_location=None,
+            preferred_city=None,
+            avatar_url=None,
             bazi=None,
             xiyong_elements=None
         )

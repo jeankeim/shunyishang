@@ -140,7 +140,7 @@ class WardrobeClient:
         sql = f"""
             SELECT 
                 id, name, category, primary_element, secondary_element,
-                attributes_detail, gender, applicable_weather, applicable_seasons,
+                attributes_detail, image_url, gender, applicable_weather, applicable_seasons,
                 temperature_range, functionality, thickness_level,
                 1 - (embedding <=> %(query_vector)s::vector) AS semantic_score
             FROM user_wardrobe
@@ -164,13 +164,14 @@ class WardrobeClient:
                             "primary_element": row[3],
                             "secondary_element": row[4],
                             "attributes_detail": row[5],
-                            "gender": row[6],
-                            "applicable_weather": row[7],
-                            "applicable_seasons": row[8],
-                            "temperature_range": row[9],
-                            "functionality": row[10],
-                            "thickness_level": row[11],
-                            "semantic_score": float(row[12]) if row[12] else 0.5,
+                            "image_url": row[6],
+                            "gender": row[7],
+                            "applicable_weather": row[8],
+                            "applicable_seasons": row[9],
+                            "temperature_range": row[10],
+                            "functionality": row[11],
+                            "thickness_level": row[12],
+                            "semantic_score": float(row[13]) if row[13] else 0.5,
                             "source": "wardrobe",  # 标记来源
                             "source_label": "🏠 自有",
                         })

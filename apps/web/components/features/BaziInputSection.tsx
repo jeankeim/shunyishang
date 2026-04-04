@@ -8,6 +8,7 @@ import { calculateBazi, BaziCalculateRequest } from '@/lib/api'
 import { useChatStore, RadarData } from '@/store/chat'
 import { useUserStore } from '@/store/user'
 import { motion, AnimatePresence } from 'framer-motion'
+import { toast } from '@/components/ui/Toast'
 import { 
   solarToLunar, 
   lunarToSolar, 
@@ -68,20 +69,35 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
     )
   }, [user])
 
-  // 当用户资料中有完整的出生信息时，初始化八字输入组件
+  // 当用户资料中有完整的出生信息时，初始化八字输入组件并自动计算
   useEffect(() => {
     if (hasCompleteProfileInfo && user?.birth_date && user.gender) {
       const birthDate = new Date(user.birth_date)
-      setDate({
+      const newDate = {
         year: birthDate.getFullYear(),
         month: birthDate.getMonth() + 1,
         day: birthDate.getDate(),
         hour: user.birth_time ? parseInt(user.birth_time.split(':')[0]) : 12,
         minute: user.birth_time ? parseInt(user.birth_time.split(':')[1]) : 0,
-      })
-      setGender(user.gender as '男' | '女')
+      }
+      const newGender = user.gender as '男' | '女'
+      
+      setDate(newDate)
+      setGender(newGender)
+      
+      // 自动计算八字并设置 userBazi（无需调用 API，直接设置）
+      const baziInput: BaziInput = {
+        birthYear: newDate.year,
+        birthMonth: newDate.month,
+        birthDay: newDate.day,
+        birthHour: newDate.hour,
+        gender: newGender,
+      }
+      setUserBazi(baziInput)
+      
+      console.log('[BaziInputSection] 从用户资料自动设置八字:', baziInput)
     }
-  }, [hasCompleteProfileInfo, user])
+  }, [hasCompleteProfileInfo, user, setUserBazi])
 
   // 监听用户资料更新事件并同步数据
   useEffect(() => {
@@ -91,16 +107,31 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
       if (birth_date && gender) {
         const birthDate = new Date(birth_date)
         if (birthDate instanceof Date && !isNaN(birthDate.getTime())) {
-          setDate({
+          const newDate = {
             year: birthDate.getFullYear(),
             month: birthDate.getMonth() + 1,
             day: birthDate.getDate(),
             hour: birth_time ? parseInt(birth_time.split(':')[0]) : 12,
             minute: birth_time ? parseInt(birth_time.split(':')[1]) : 0,
-          })
-          setGender(gender as '男' | '女')
+          }
+          const newGender = gender as '男' | '女'
           
-          // 自动展开并计算八字
+          setDate(newDate)
+          setGender(newGender)
+          
+          // 自动设置 userBazi
+          const baziInput: BaziInput = {
+            birthYear: newDate.year,
+            birthMonth: newDate.month,
+            birthDay: newDate.day,
+            birthHour: newDate.hour,
+            gender: newGender,
+          }
+          setUserBazi(baziInput)
+          
+          console.log('[BaziInputSection] 用户资料更新，重新设置八字:', baziInput)
+          
+          // 自动展开
           setIsExpanded(true)
         }
       }
@@ -110,7 +141,7 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
     return () => {
       document.removeEventListener('userProfileUpdated', handleProfileUpdate as EventListener)
     }
-  }, [])
+  }, [setUserBazi])
 
   // ============================================================
   // 性能优化：使用 useMemo 缓存计算结果
@@ -198,9 +229,11 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
 
       // 收起输入区
       setIsExpanded(false)
+      
+      toast.success('八字计算成功！')
     } catch (e) {
       console.error('八字计算失败:', e)
-      alert('八字计算失败，请检查输入')
+      toast.error('八字计算失败，请检查输入')
     } finally {
       setIsCalculating(false)
     }
@@ -232,93 +265,112 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
   }, [])
 
   return (
-    <div className={cn('bg-background/60 backdrop-blur-sm border border-border/30 rounded-xl p-4 shadow-sm', className)}>
+    <div className={cn('bg-white/80 backdrop-blur-sm border border-[#E8F0EB]/60 rounded-xl p-4 shadow-sm', className)}>
       {/* 标题栏 */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-primary" />
-          <h3 className="font-medium">生辰八字</h3>
+          <Calendar className="h-4 w-4 text-[#3DA35D]" />
+          <h3 className="font-medium text-[#2D4A38]">生辰八字</h3>
           {userBazi && (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-[#6B7F72]">
               {userBazi.birthYear}年{userBazi.birthMonth}月{userBazi.birthDay}日
             </span>
           )}
         </div>
-        <button
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           onClick={toggleExpanded}
-          className="flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition"
+          className="flex items-center gap-1 text-sm text-[#3DA35D] hover:text-[#2D7A45] transition-colors duration-200"
         >
           {userBazi ? '修改' : '输入八字'}
-          <ChevronDown className={cn('h-4 w-4 transition-transform', isExpanded && 'rotate-180')} />
-        </button>
+          <ChevronDown className={cn('h-4 w-4 transition-transform duration-200', isExpanded && 'rotate-180')} />
+        </motion.button>
       </div>
       
       {/* 用户资料提醒区域 */}
       {!hasCompleteProfileInfo && isAuthenticated && (
-        <div className="mb-4 p-3 bg-amber-50/60 border border-amber-200/60 rounded-lg">
+        <motion.div 
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          className="mb-4 p-3 bg-[#F9F5EC]/60 border border-[#B89B5E]/40 rounded-lg"
+        >
           <div className="flex items-start gap-2">
-            <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+            <AlertCircle className="h-4 w-4 text-[#B89B5E] mt-0.5 flex-shrink-0" />
             <div className="text-sm">
-              <p className="text-amber-800 font-medium">建议完善个人资料</p>
-              <p className="text-amber-700 mt-1">
+              <p className="text-[#9A7E47] font-medium">建议完善个人资料</p>
+              <p className="text-[#8A7340] mt-1">
                 在个人资料中填写完整的出生信息，可以让八字计算更加准确，
                 并且无需重复输入。
               </p>
-              <button
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => {
                   // 这里可以触发打开个人资料面板的逻辑
                   document.dispatchEvent(new CustomEvent('openUserProfile'))
                 }}
-                className="mt-2 inline-flex items-center gap-1 text-amber-600 hover:text-amber-700 text-xs font-medium"
+                className="mt-2 inline-flex items-center gap-1 text-[#B89B5E] hover:text-[#9A7E47] text-xs font-medium transition-colors"
               >
                 <User className="h-3 w-3" />
                 去完善资料
-              </button>
+              </motion.button>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
       
       {/* 展开的输入表单 */}
-      {isExpanded && (
-        <div className="space-y-4 pt-3 border-t border-border/50">
-          {/* 历法切换 */}
-          <div className="flex bg-muted/50 rounded-lg p-1">
-            <button
-              onClick={() => switchCalendarType('solar')}
-              className={cn(
-                'flex-1 py-1.5 text-sm rounded-md transition',
-                calendarType === 'solar'
-                  ? 'bg-background shadow-sm text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              公历
-            </button>
-            <button
-              onClick={() => switchCalendarType('lunar')}
-              className={cn(
-                'flex-1 py-1.5 text-sm rounded-md transition',
-                calendarType === 'lunar'
-                  ? 'bg-background shadow-sm text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              农历
-            </button>
-          </div>
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="space-y-4 pt-3 border-t border-[#E8F0EB]/50"
+          >
+            {/* 历法切换 */}
+            <div className="flex bg-[#F0F7F4] rounded-lg p-1">
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => switchCalendarType('solar')}
+                className={cn(
+                  'flex-1 py-2 text-sm rounded-md transition-all duration-200 font-medium',
+                  calendarType === 'solar'
+                    ? 'bg-white shadow-sm text-[#2D4A38]'
+                    : 'text-[#6B7F72] hover:text-[#2D4A38]'
+                )}
+              >
+                <Sun className="h-4 w-4 inline mr-1" />
+                公历
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => switchCalendarType('lunar')}
+                className={cn(
+                  'flex-1 py-2 text-sm rounded-md transition-all duration-200 font-medium',
+                  calendarType === 'lunar'
+                    ? 'bg-white shadow-sm text-[#2D4A38]'
+                    : 'text-[#6B7F72] hover:text-[#2D4A38]'
+                )}
+              >
+                <Moon className="h-4 w-4 inline mr-1" />
+                农历
+              </motion.button>
+            </div>
 
           {/* 日期选择 */}
           <div className="grid grid-cols-4 gap-2">
             {/* 年 */}
             <div className="min-w-0">
-              <label className="text-xs text-muted-foreground mb-1 block truncate">
+              <label className="text-xs text-[#6B7F72] mb-1 block truncate">
                 {calendarType === 'solar' ? '年' : '农历年'}
               </label>
               <select
                 value={date.year}
                 onChange={(e) => updateDate('year', parseInt(e.target.value))}
-                className="w-full min-w-[70px] px-2 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                className="w-full min-w-[70px] px-3 py-2.5 rounded-lg border border-[#E8F0EB] bg-white text-sm text-[#2D4A38] focus:outline-none focus:ring-2 focus:ring-[#3DA35D]/30 focus:border-[#3DA35D] hover:border-[#3DA35D]/50 transition-all duration-200"
               >
                 {YEARS.map((y) => (
                   <option key={y} value={y}>
@@ -330,13 +382,13 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
 
             {/* 月 */}
             <div className="min-w-0">
-              <label className="text-xs text-muted-foreground mb-1 block truncate">
+              <label className="text-xs text-[#6B7F72] mb-1 block truncate">
                 {calendarType === 'solar' ? '月' : '农历月'}
               </label>
               <select
                 value={date.month}
                 onChange={(e) => updateDate('month', parseInt(e.target.value))}
-                className="w-full min-w-[60px] px-2 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                className="w-full min-w-[60px] px-3 py-2.5 rounded-lg border border-[#E8F0EB] bg-white text-sm text-[#2D4A38] focus:outline-none focus:ring-2 focus:ring-[#3DA35D]/30 focus:border-[#3DA35D] hover:border-[#3DA35D]/50 transition-all duration-200"
               >
                 {MONTHS.map((m) => (
                   <option key={m} value={m}>
@@ -348,13 +400,13 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
 
             {/* 日 */}
             <div className="min-w-0">
-              <label className="text-xs text-muted-foreground mb-1 block truncate">
+              <label className="text-xs text-[#6B7F72] mb-1 block truncate">
                 {calendarType === 'solar' ? '日' : '农历日'}
               </label>
               <select
                 value={date.day}
                 onChange={(e) => updateDate('day', parseInt(e.target.value))}
-                className="w-full min-w-[60px] px-2 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                className="w-full min-w-[60px] px-3 py-2.5 rounded-lg border border-[#E8F0EB] bg-white text-sm text-[#2D4A38] focus:outline-none focus:ring-2 focus:ring-[#3DA35D]/30 focus:border-[#3DA35D] hover:border-[#3DA35D]/50 transition-all duration-200"
               >
                 {days.map((d) => (
                   <option key={d} value={d}>
@@ -366,11 +418,11 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
 
             {/* 时辰 */}
             <div className="min-w-0">
-              <label className="text-xs text-muted-foreground mb-1 block truncate">时辰</label>
+              <label className="text-xs text-[#6B7F72] mb-1 block truncate">时辰</label>
               <select
                 value={date.hour}
                 onChange={(e) => updateDate('hour', parseInt(e.target.value))}
-                className="w-full min-w-[70px] px-2 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                className="w-full min-w-[70px] px-3 py-2.5 rounded-lg border border-[#E8F0EB] bg-white text-sm text-[#2D4A38] focus:outline-none focus:ring-2 focus:ring-[#3DA35D]/30 focus:border-[#3DA35D] hover:border-[#3DA35D]/50 transition-all duration-200"
               >
                 {HOUR_OPTIONS.map((h) => (
                   <option key={h.value} value={h.value}>
@@ -385,7 +437,7 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
           {calendarType === 'solar' && lunarDisplay && (
             <div className="flex items-center gap-2 px-2 py-1.5 bg-muted/30 rounded-lg text-xs">
               <Moon className="h-3 w-3 text-primary" />
-              <span className="text-muted-foreground">农历：</span>
+              <span className="text-[#6B7F72]">农历：</span>
               <span className="font-medium">
                 {lunarDisplay.lunarYearDisplay}
                 {lunarDisplay.lunarMonthDisplay}
@@ -399,43 +451,47 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
 
           {/* 性别选择 */}
           <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">性别</span>
+            <span className="text-sm text-[#6B7F72]">性别</span>
             <div className="flex gap-3">
-              <label className="flex items-center gap-1.5 cursor-pointer">
+              <label className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#E8F0EB] cursor-pointer hover:border-[#3DA35D]/50 hover:bg-[#F5F9F7] transition-all duration-200">
                 <input
                   type="radio"
                   name="gender"
                   checked={gender === '男'}
                   onChange={() => switchGender('男')}
-                  className="accent-primary"
+                  className="w-4 h-4 text-[#3DA35D] focus:ring-[#3DA35D]/30 border-[#E8F0EB]"
                 />
-                <span className="text-sm">男</span>
+                <span className="text-sm text-[#2D4A38]">男</span>
               </label>
-              <label className="flex items-center gap-1.5 cursor-pointer">
+              <label className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#E8F0EB] cursor-pointer hover:border-[#D4656B]/50 hover:bg-[#FDF2F2] transition-all duration-200">
                 <input
                   type="radio"
                   name="gender"
                   checked={gender === '女'}
                   onChange={() => switchGender('女')}
-                  className="accent-primary"
+                  className="w-4 h-4 text-[#D4656B] focus:ring-[#D4656B]/30 border-[#E8F0EB]"
                 />
-                <span className="text-sm">女</span>
+                <span className="text-sm text-[#2D4A38]">女</span>
               </label>
             </div>
           </div>
 
           {/* 操作按钮 */}
           <div className="flex gap-2 pt-2">
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={handleClear}
-              className="flex-1 px-4 py-2 rounded border hover:bg-muted transition text-sm"
+              className="flex-1 px-4 py-2 rounded-lg border border-[#E8F0EB] hover:bg-[#F5F9F7] transition-all duration-200 text-sm text-[#4A5F52] font-medium"
             >
               清除
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={handleCalculate}
               disabled={isCalculating}
-              className="flex-1 px-4 py-2 rounded bg-primary text-primary-foreground hover:bg-primary/90 transition text-sm disabled:opacity-50 flex items-center justify-center gap-1"
+              className="flex-1 px-4 py-2 rounded-lg bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] text-white hover:from-[#359454] hover:to-[#3F84B5] transition-all duration-200 text-sm disabled:opacity-50 flex items-center justify-center gap-1 font-medium shadow-sm hover:shadow-md"
             >
               {isCalculating ? (
                 <>
@@ -445,10 +501,11 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
               ) : (
                 '计算八字'
               )}
-            </button>
+            </motion.button>
           </div>
-        </div>
-      )}
+        </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

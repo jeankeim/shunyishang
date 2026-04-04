@@ -370,7 +370,8 @@ def retrieve_items_node(state: AgentState) -> Dict:
                 search_query,
                 limit=top_k * 2,
                 user_gender=user_gender,
-                weather_info=weather_info
+                weather_info=weather_info,
+                scene=scene  # 传入场景参数
             )
             
             # 标记公共库物品
@@ -393,7 +394,8 @@ def retrieve_items_node(state: AgentState) -> Dict:
             search_query, 
             limit=50, 
             user_gender=user_gender,
-            weather_info=weather_info
+            weather_info=weather_info,
+            scene=scene  # 传入场景参数
         )
         
         # 标记来源
@@ -589,10 +591,11 @@ def _vector_search(
     query: str, 
     limit: int = 20, 
     user_gender: Optional[str] = None,
-    weather_info: Optional[Dict] = None
+    weather_info: Optional[Dict] = None,
+    scene: Optional[str] = None  # 新增场景参数
 ) -> List[Dict]:
     """
-    向量搜索（支持性别过滤和天气过滤）
+    向量搜索（支持性别过滤、天气过滤和场景过滤）
     
     使用 pgvector 进行语义相似度搜索
     
@@ -601,6 +604,7 @@ def _vector_search(
         limit: 返回数量
         user_gender: 用户性别（男/女），用于过滤专属物品
         weather_info: 天气信息 {"temperature": int, "weather_desc": str}
+        scene: 场景名称，用于过滤不合适的衣物
     """
     import numpy as np
     
@@ -627,6 +631,13 @@ def _vector_search(
                 # 天气过滤逻辑
                 weather_filter = _build_weather_filter(weather_info)
                 
+                # 场景过滤逻辑（新增）
+                scene_filter = _build_scene_filter(scene)
+                
+                # 调试日志
+                if scene:
+                    logger.info(f"[场景过滤] scene={scene}, filter={scene_filter}")
+                
                 sql = f"""
                     SELECT 
                         item_code, name, category, 
@@ -634,11 +645,13 @@ def _vector_search(
                         attributes_detail, gender,
                         applicable_weather, applicable_seasons,
                         temperature_range, functionality, thickness_level,
+                        image_url,
                         1 - (embedding <=> %s::vector) AS semantic_score
                     FROM items
                     WHERE embedding IS NOT NULL
                     {gender_filter}
-                    {weather_filter}
+                    {f'AND ({weather_filter})' if weather_filter else ''}
+                    {f'AND ({scene_filter})' if scene_filter else ''}
                     ORDER BY embedding <=> %s::vector
                     LIMIT %s
                 """
@@ -659,11 +672,14 @@ def _vector_search(
                         "temperature_range": row[9],
                         "functionality": row[10],
                         "thickness_level": row[11],
-                        "semantic_score": float(row[12]) if row[12] else 0.5,
+                        "image_url": row[12],
+                        "semantic_score": float(row[13]) if row[13] else 0.5,
                         "source": "public",
                     })
     except Exception as e:
+        import traceback
         print(f"[Agent] 向量搜索失败: {e}")
+        print(f"[Agent] 错误堆栈: {traceback.format_exc()}")
     
     return items
 
@@ -682,10 +698,6 @@ def _build_weather_filter(weather_info: Optional[Dict]) -> str:
     Returns:
         str: SQL过滤条件
     """
-    # 暂时禁用天气过滤，返回空字符串
-    # TODO: 待数据质量提升后重新启用
-    return ""
-    
     if not weather_info:
         return ""
     
@@ -746,16 +758,97 @@ def _build_weather_filter(weather_info: Optional[Dict]) -> str:
                 "functionality->>'防晒' = 'true' OR "
                 "applicable_weather ? '温和')"
             )
-        elif any(kw in weather_desc_lower for kw in ['霾', '雾']):
-            # 雾霾天气：推荐温和天气的衣物
-            conditions.append(
-                "(applicable_weather ? '温和' OR "
-                "applicable_weather ? '多云')"
-            )
     
-    if conditions:
-        return "AND (" + " OR ".join(conditions) + ")"
-    return ""
+    return " AND ".join(conditions) if conditions else ""
+
+
+def _build_scene_filter(scene: Optional[str]) -> str:
+    """
+    构建场景过滤SQL条件
+    
+    根据场景排除不合适的衣物类型：
+    - 运动场景：排除风衣、围巾、西装等
+    - 商务场景：排除运动装、睡衣等
+    - 居家场景：排除正装、礼服等
+    
+    Args:
+        scene: 场景名称
+    
+    Returns:
+        str: SQL过滤条件
+    """
+    if not scene:
+        return ""
+    
+    # 场景排除规则：某些场景下不应该出现的衣物类别
+    scene_exclusions = {
+        "运动": {
+            "categories": ["外套", "配饰"],  # 排除外套、配饰（围巾等）
+            "keywords": ["风衣", "大衣", "围巾", "西装", "礼服", "睡衣"],
+            "require_functionality": ["透气", "速干", "运动"],  # 优先运动功能
+        },
+        "商务": {
+            "categories": [],  # 不排除类别
+            "keywords": ["运动裤", "睡衣", "泳衣", "拖鞋"],
+            "require_functionality": [],
+        },
+        "居家": {
+            "categories": ["外套"],  # 排除外套
+            "keywords": ["西装", "礼服", "高跟鞋"],
+            "require_functionality": [],
+        },
+        "婚礼": {
+            "categories": [],
+            "keywords": ["运动裤", "睡衣", "拖鞋", "泳衣"],
+            "require_functionality": [],
+        },
+        "派对": {
+            "categories": [],
+            "keywords": ["睡衣", "运动裤", "泳衣"],
+            "require_functionality": [],
+        },
+        "面试": {
+            "categories": [],
+            "keywords": ["运动裤", "睡衣", "拖鞋", "泳衣", "短裤"],
+            "require_functionality": [],
+        },
+        "旅行": {
+            "categories": [],
+            "keywords": ["毛衣", "卫衣", "棉袄", "羽绒服"],  # 排除厚重衣物
+            "thickness_exclude": ["厚重", "中厚"],  # 排除厚重和中厚
+            "require_functionality": [],
+        },
+    }
+    
+    if scene not in scene_exclusions:
+        return ""
+    
+    rules = scene_exclusions[scene]
+    conditions = []
+    
+    # 1. 排除特定类别
+    if rules["categories"]:
+        categories_str = ",".join([f"'{cat}'" for cat in rules["categories"]])
+        conditions.append(f"category NOT IN ({categories_str})")
+    
+    # 2. 排除包含特定关键词的衣物
+    if rules["keywords"]:
+        keyword_conditions = []
+        for keyword in rules["keywords"]:
+            # 使用 %% 转义 % 符号，避免与 SQL 参数占位符冲突
+            keyword_conditions.append(f"name NOT LIKE '%%{keyword}%%'")
+        if keyword_conditions:
+            conditions.append(" AND ".join(keyword_conditions))
+    
+    # 3. 排除特定厚度的衣物（新增）
+    if rules.get("thickness_exclude"):
+        thickness_str = ",".join([f"'{t}'" for t in rules["thickness_exclude"]])
+        conditions.append(f"thickness_level NOT IN ({thickness_str})")
+    
+    # 4. 优先特定功能（作为排序因子，不做硬过滤）
+    # 这个逻辑会在评分时体现，不在SQL过滤
+    
+    return " AND ".join(conditions) if conditions else ""
 
 
 def _build_weather_details(weather_info: Optional[Dict], retrieved_items: List[Dict]) -> str:

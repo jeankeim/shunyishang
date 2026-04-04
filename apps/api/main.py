@@ -4,11 +4,13 @@ FastAPI 应用入口
 
 import time
 import logging
+from pathlib import Path
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from apps.api.core.config import settings
 from apps.api.core.database import DatabasePool, check_db_health
@@ -84,6 +86,11 @@ app.include_router(bazi.router, prefix="/api/v1/bazi", tags=["bazi"])
 app.include_router(weather.router, prefix="/api/v1/weather", tags=["weather"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(wardrobe.router, prefix="/api/v1", tags=["wardrobe"])
+
+# 挂载静态文件服务（图片上传）
+UPLOAD_DIR = Path(__file__).parent.parent.parent / "data" / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 
 @app.get("/", include_in_schema=False)

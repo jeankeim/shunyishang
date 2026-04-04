@@ -5,9 +5,13 @@
 
 import logging
 import json
+import os
+import time
+import uuid
 from typing import Optional
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from pydantic import BaseModel, Field
 from psycopg2.extras import RealDictCursor
 
@@ -30,15 +34,99 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/wardrobe", tags=["wardrobe"])
 
 
+# ========== 常量配置 ==========
+UPLOAD_DIR = Path(__file__).parent.parent.parent.parent / "data" / "uploads" / "wardrobe"
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
+
 # ========== 请求模型 ==========
 
 class AITaggingPreview(BaseModel):
-    """AI打标预览请求"""
+    """AI 打标预览请求"""
     description: str = Field(..., min_length=2, max_length=500, description="衣物描述")
-    image_url: Optional[str] = Field(None, description="图片URL（可选）")
+    image_url: Optional[str] = Field(None, description="图片 URL（可选）")
 
 
 # ========== API 端点 ==========
+
+@router.post("/upload-image")
+async def upload_wardrobe_image(
+    file: UploadFile = File(..., description="衣物图片"),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    上传衣物图片到本地文件系统
+    
+    **源码位置**: `apps/api/routers/wardrobe.py:upload_wardrobe_image()`
+    
+    **核心逻辑**:
+    1. 验证文件类型（JPG/PNG/WebP）和大小（≤5MB）
+    2. 生成唯一文件名：{timestamp}_{uuid}_{filename}
+    3. 保存到 data/uploads/wardrobe/{user_id}/ 目录
+    4. 返回可访问的 URL 路径
+    
+    **用途**: 用户添加衣物时上传图片，用于推荐结果展示
+    
+    **响应示例**:
+    ```json
+    {
+      "image_url": "/uploads/wardrobe/1/1712000000_a1b2c3d4_shirt.jpg"
+    }
+    ```
+    """
+    try:
+        user_id = current_user["id"]
+        
+        # 1. 验证文件类型
+        if file.content_type not in ALLOWED_IMAGE_TYPES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"不支持的图片格式，仅支持 JPG/PNG/WebP"
+            )
+        
+        # 2. 验证文件大小
+        file_size = 0
+        content = await file.read()
+        file_size = len(content)
+        
+        if file_size > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"图片大小超过限制（最大 5MB）"
+            )
+        
+        # 3. 生成唯一文件名
+        timestamp = int(time.time())
+        unique_id = str(uuid.uuid4())[:8]
+        original_filename = file.filename or "image.jpg"
+        safe_filename = f"{timestamp}_{unique_id}_{original_filename}"
+        
+        # 4. 创建用户目录
+        user_dir = UPLOAD_DIR / str(user_id)
+        user_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 5. 保存文件
+        file_path = user_dir / safe_filename
+        with open(file_path, "wb") as f:
+            f.write(content)
+        
+        # 6. 生成访问 URL（相对路径），不编码，前端会处理
+        image_url = f"/uploads/wardrobe/{user_id}/{safe_filename}"
+        
+        logger.info(f"用户 {user_id} 上传图片成功：{image_url}")
+        
+        return {"image_url": image_url}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"图片上传失败：{e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"上传失败：{str(e)}"
+        )
+
 
 @router.post("/items/preview-tagging", response_model=AITaggingResult)
 async def preview_tagging(

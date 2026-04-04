@@ -16,7 +16,38 @@ interface RecommendCardProps {
 export function RecommendCard({ item, index, sessionId, onFeedback }: RecommendCardProps) {
   const [feedback, setFeedback] = useState<'like' | 'dislike' | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [imageError, setImageError] = useState(false)
   const config = getWuxingConfig(item.primary_element)
+
+  // 构建完整的图片 URL，并对特殊字符（空格等）进行编码
+  const getImageUrl = (url: string | undefined) => {
+    if (!url) return null
+    
+    // 如果已经是完整 URL（http/https），直接返回
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url
+    }
+    
+    // 公共库图片（/images/seed/...）直接使用相对路径，前端会自动处理
+    if (url.startsWith('/images/')) {
+      return url
+    }
+    
+    // 用户上传的图片（/uploads/...）需要拼接后端 baseURL
+    if (url.startsWith('/uploads/')) {
+      const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      // 使用 encodeURI 编码整个 URL，处理空格等特殊字符
+      const encodedPath = encodeURI(url)
+      return `${baseURL}${encodedPath}`
+    }
+    
+    // 其他情况，尝试拼接 baseURL
+    const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    return `${baseURL}${url}`
+  }
+
+  const fullImageUrl = getImageUrl(item.image_url)
+  const shouldShowImage = fullImageUrl && !imageError
 
   const handleFeedback = async (action: 'like' | 'dislike') => {
     if (feedback || isSubmitting) return
@@ -49,10 +80,10 @@ export function RecommendCard({ item, index, sessionId, onFeedback }: RecommendC
       className="bg-card rounded-lg border overflow-hidden hover:shadow-lg transition-shadow"
     >
       {/* 元素渐变占位图 */}
-      {item.image_url ? (
+      {shouldShowImage ? (
         <div
           className="h-32"
-          style={{ backgroundImage: `url(${item.image_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+          style={{ backgroundImage: `url(${fullImageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
         />
       ) : (
         <div
@@ -72,7 +103,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback }: RecommendC
       )}
       
       {/* 如果有图片且是衣橱物品，也显示标签 */}
-      {item.image_url && (
+      {shouldShowImage && (
         <div className="relative -mt-8 ml-2 w-fit">
           <div className={`px-2 py-0.5 rounded-full text-xs font-medium ${
             isFromWardrobe 
@@ -113,7 +144,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback }: RecommendC
               className={`p-1.5 rounded-full transition-all ${
                 feedback === 'like'
                   ? 'bg-emerald-100 text-emerald-600'
-                  : 'hover:bg-stone-100 text-stone-400 hover:text-emerald-500'
+                  : 'hover:bg-stone-100 text-[#6B7F72] hover:text-emerald-500'
               } disabled:cursor-not-allowed`}
             >
               <svg className="w-4 h-4" fill={feedback === 'like' ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
@@ -126,7 +157,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback }: RecommendC
               className={`p-1.5 rounded-full transition-all ${
                 feedback === 'dislike'
                   ? 'bg-red-100 text-red-600'
-                  : 'hover:bg-stone-100 text-stone-400 hover:text-red-500'
+                  : 'hover:bg-stone-100 text-[#6B7F72] hover:text-red-500'
               } disabled:cursor-not-allowed`}
             >
               <svg className="w-4 h-4" fill={feedback === 'dislike' ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">

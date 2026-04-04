@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useTheme } from '@/hooks/useTheme'
 import { useUserStore } from '@/store/user'
 import { Leaf, User, LogOut, Settings, X, Menu } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { AuthModal } from './AuthModal'
 
 interface HeaderProps {
@@ -40,12 +41,12 @@ export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
 
   if (!mounted) {
     return (
-      <header className="h-[60px] border-b border-amber-200/30 flex items-center justify-between px-4 bg-gradient-to-r from-amber-50/80 to-orange-50/60 backdrop-blur-sm">
+      <header className="h-[60px] border-b border-[#E8F0EB]/50 flex items-center justify-between px-4 bg-white/90 backdrop-blur-xl">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-200/80 to-orange-200/60 flex items-center justify-center shadow-sm">
-            <span className="text-xl">🌿</span>
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#3DA35D]/20 to-[#4A90C4]/20 flex items-center justify-center shadow-sm">
+            <Leaf className="w-5 h-5 text-[#3DA35D]" />
           </div>
-          <h1 className="font-semibold text-stone-700 bg-gradient-to-r from-amber-600 to-orange-500 bg-clip-text text-transparent">顺衣裳</h1>
+          <h1 className="font-semibold text-[#2D4A38] bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] bg-clip-text text-transparent font-serif">顺衣尚</h1>
         </div>
       </header>
     )
@@ -53,112 +54,135 @@ export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
 
   return (
     <>
-      <header className="h-[60px] border-b border-amber-200/30 flex items-center justify-between px-4 bg-gradient-to-r from-amber-50/80 to-orange-50/60 backdrop-blur-sm relative z-10">
+      <header className="h-[60px] flex items-center justify-between px-4 bg-white/90 backdrop-blur-xl relative z-10 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
         <div className="flex items-center gap-3">
           {/* 菜单按钮 - 点击打开/关闭聊天记录 */}
-          <button
+          <motion.button
             onClick={onToggleSidebar}
-            className="p-2 rounded-lg hover:bg-amber-100/60 transition-colors"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="p-2 rounded-lg hover:bg-[#F0F7F4] transition-colors duration-200"
             title="聊天记录"
+            aria-label="切换侧边栏"
           >
-            <Menu className="h-5 w-5 text-stone-600" />
-          </button>
-          {/* 顺衣裳 Logo */}
+            <Menu className="h-5 w-5 text-[#4A5F52]" />
+          </motion.button>
+          {/* 顺衣尚 Logo */}
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-200/80 to-orange-200/60 flex items-center justify-center shadow-sm">
-              <span className="text-xl">🌿</span>
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#3DA35D]/20 to-[#4A90C4]/20 flex items-center justify-center shadow-sm">
+              <Leaf className="w-5 h-5 text-[#3DA35D]" />
             </div>
-            <h1 className="font-semibold text-stone-700 text-lg bg-gradient-to-r from-amber-600 to-orange-500 bg-clip-text text-transparent">顺衣裳</h1>
+            <h1 className="font-semibold text-[#2D4A38] text-lg bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] bg-clip-text text-transparent font-serif tracking-tight">顺衣尚</h1>
           </div>
         </div>
 
         <div className="flex items-center gap-4">
           {/* 节气显示 */}
           {currentTerm && (
-            <div className="hidden sm:flex items-center gap-2 text-sm text-stone-600">
+            <motion.div 
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              className="hidden sm:flex items-center gap-2 text-sm text-[#5A7A66]"
+            >
               <Leaf className="h-4 w-4" style={{ color: currentTerm.primaryColor }} />
               <span>当前节气: {currentTerm.name}</span>
               <span
                 className="w-2 h-2 rounded-full"
                 style={{ backgroundColor: currentTerm.primaryColor }}
               />
-            </div>
+            </motion.div>
           )}
 
           {/* 用户菜单 */}
           {isAuthenticated && user ? (
             <div className="relative">
-              <button
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-100/60 to-orange-100/40 hover:from-amber-200/60 hover:to-orange-200/40 transition-all shadow-sm border border-amber-200/30"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#F0F7F4] to-[#E8F5EC] hover:from-[#E8F5EC] hover:to-[#D4E8DC] transition-all duration-200 shadow-sm border border-[#E8F0EB]/60"
               >
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-300 to-orange-300 flex items-center justify-center">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#3DA35D] to-[#4A90C4] flex items-center justify-center">
                   <User className="w-4 h-4 text-white" />
                 </div>
-                <span className="text-sm text-stone-700 hidden sm:inline">
+                <span className="text-sm text-[#2D4A38] hidden sm:inline font-medium">
                   {user.nickname || user.phone || user.email || '用户'}
                 </span>
-              </button>
+              </motion.button>
             </div>
           ) : (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => setShowAuthModal(true)}
-              className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-white text-sm font-medium transition-all shadow-sm hover:shadow-md"
+              className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] hover:from-[#359454] hover:to-[#3F84B5] text-white text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md"
             >
               <User className="w-4 h-4" />
               <span className="hidden sm:inline">登录</span>
-            </button>
+            </motion.button>
           )}
         </div>
       </header>
 
       {/* 用户菜单弹窗 - 使用固定定位 */}
       {showUserMenu && isAuthenticated && user && (
-        <div 
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
           className="fixed inset-0 z-[9998]"
           onClick={() => setShowUserMenu(false)}
         >
-          <div 
-            className="absolute right-4 top-[70px] w-48 bg-white/80 backdrop-blur-md border border-amber-200/30 rounded-xl shadow-xl py-1"
+          <motion.div 
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            className="absolute right-4 top-[70px] w-56 bg-white/95 backdrop-blur-xl border border-[#E8F0EB]/60 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.08)] py-1"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-4 py-2 border-b border-amber-200/20 flex justify-between items-center">
+            <div className="px-4 py-3 border-b border-[#E8F0EB]/50 flex justify-between items-start">
               <div>
-                <p className="text-sm text-stone-700 font-medium">{user.nickname || '用户'}</p>
-                <p className="text-xs text-stone-500 truncate">
+                <p className="text-sm text-[#2D4A38] font-semibold">{user.nickname || '用户'}</p>
+                <p className="text-xs text-[#6B7F72] truncate mt-0.5">
                   {user.phone || user.email}
                 </p>
               </div>
-              <button 
+              <motion.button 
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={() => setShowUserMenu(false)}
-                className="text-stone-400 hover:text-stone-600"
+                className="text-[#8A9F92] hover:text-[#4A5F52] transition-colors p-0.5"
+                aria-label="关闭菜单"
               >
                 <X className="w-4 h-4" />
-              </button>
+              </motion.button>
             </div>
-            <div
+            <motion.button
+              whileHover={{ x: 2 }}
               onClick={() => {
                 setShowUserMenu(false)
                 // 跳转到用户资料页面
                 window.location.hash = '#profile'
               }}
-              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-stone-700 hover:bg-amber-50/60 transition-colors cursor-pointer"
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#2D4A38] hover:bg-[#F0F7F4] transition-colors cursor-pointer"
             >
-              <Settings className="w-4 h-4" />
-              个人中心
-            </div>
-            <div
+              <Settings className="w-4 h-4 text-[#5A7A66]" />
+              <span className="font-medium">个人中心</span>
+            </motion.button>
+            <motion.button
+              whileHover={{ x: 2 }}
               onClick={() => {
                 setShowUserMenu(false)
                 handleLogout()
               }}
-              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50/60 transition-colors cursor-pointer"
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#D4656B] hover:bg-[#FDF2F2] transition-colors cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
-              退出登录
-            </div>
-          </div>
-        </div>
+              <span className="font-medium">退出登录</span>
+            </motion.button>
+          </motion.div>
+        </motion.div>
       )}
 
       {/* 认证弹窗 */}

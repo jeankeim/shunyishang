@@ -100,6 +100,127 @@ _graph = build_graph()
 app = _graph.compile()
 
 
+def _extract_context_from_query(user_input: str) -> dict:
+    """
+    从用户输入中提取场景、天气、气温信息
+    
+    优先级：用户提问中的信息 > 外部设置
+    
+    Args:
+        user_input: 用户输入文本
+    
+    Returns:
+        dict: 提取的上下文信息
+        {
+            "scene": str | None,  # 场景
+            "weather_info": dict | None,  # 天气信息
+            "weather_element": str | None,  # 天气五行
+        }
+    """
+    import re
+    
+    result = {
+        "scene": None,
+        "weather_info": None,
+        "weather_element": None,
+    }
+    
+    text = user_input.lower()
+    
+    # ==================== 1. 场景提取 ====================
+    # 先检测高优先级场景（商务、面试）
+    # 商务场景（优先级最高）
+    if any(kw in text for kw in ['商务', '会议', '见客户', '办公']):
+        result["scene"] = "商务"
+    # 面试场景
+    elif '面试' in text:
+        result["scene"] = "面试"
+    # 出差/旅行场景
+    elif any(kw in text for kw in ['出差', '旅行', '旅游', '去成都', '去北京', '去上海', '去广州', '去深圳']):
+        result["scene"] = "旅行"
+    # 运动场景
+    elif any(kw in text for kw in ['马拉松', '跑步', '健身', '运动', '打球', '游泳', '瑜伽']):
+        result["scene"] = "运动"
+    # 上班/工作场景
+    elif any(kw in text for kw in ['上班', '工作']):
+        result["scene"] = "商务"
+    # 约会场景
+    elif any(kw in text for kw in ['约会', '相亲', '见面']):
+        result["scene"] = "约会"
+    # 居家场景
+    elif any(kw in text for kw in ['居家', '在家', '宅', '休息']):
+        result["scene"] = "居家"
+    # 婚礼场景
+    elif any(kw in text for kw in ['婚礼', '结婚', '婚宴']):
+        result["scene"] = "婚礼"
+    # 派对场景
+    elif any(kw in text for kw in ['派对', '聚会', 'party']):
+        result["scene"] = "派对"
+    
+    # ==================== 2. 气温提取 ====================
+    # 匹配温度：25度、25°C、25℃、气温25
+    temp_match = re.search(r'(\d+)\s*[°度℃cC]', text)
+    if not temp_match:
+        temp_match = re.search(r'气温[^\d]*(\d+)', text)
+    
+    temperature = None
+    if temp_match:
+        temperature = int(temp_match.group(1))
+    
+    # ==================== 3. 天气描述提取 ====================
+    weather_desc = None
+    
+    # 潮湿/闷热
+    if any(kw in text for kw in ['潮湿', '闷热', '潮湿闷热']):
+        weather_desc = "闷热"
+    # 炎热/高温
+    elif any(kw in text for kw in ['炎热', '高温', '很热', '太热']):
+        weather_desc = "炎热"
+    # 寒冷/低温
+    elif any(kw in text for kw in ['寒冷', '低温', '很冷', '太冷', '极寒']):
+        weather_desc = "寒冷"
+    # 下雨
+    elif any(kw in text for kw in ['下雨', '雨天', '阴雨']):
+        weather_desc = "雨天"
+    # 下雪
+    elif any(kw in text for kw in ['下雪', '雪天']):
+        weather_desc = "雪天"
+    # 晴天
+    elif any(kw in text for kw in ['晴天', '晴朗', '出太阳']):
+        weather_desc = "晴天"
+    # 多云
+    elif '多云' in text:
+        weather_desc = "多云"
+    # 大风
+    elif any(kw in text for kw in ['大风', '刮风']):
+        weather_desc = "大风"
+    
+    # ==================== 4. 组装天气信息 ====================
+    if temperature is not None or weather_desc is not None:
+        result["weather_info"] = {
+            "temperature": temperature,
+            "weather_desc": weather_desc,
+            "humidity": None,
+            "wind_level": None,
+        }
+        
+        # 从天气描述推断五行元素
+        if weather_desc:
+            weather_element_map = {
+                "闷热": "火",
+                "炎热": "火",
+                "寒冷": "水",
+                "雨天": "水",
+                "雪天": "水",
+                "晴天": "火",
+                "多云": "土",
+                "大风": "木",
+            }
+            result["weather_element"] = weather_element_map.get(weather_desc)
+    
+    return result
+
+
 def run_agent(
     user_input: str,
     scene: str = None,
@@ -168,15 +289,31 @@ def run_agent_stream(
     """
     from packages.ai_agents.nodes import generate_advice_stream
     
+    # 新增：从用户输入中提取场景和天气信息（优先级：用户提问 > 外部设置）
+    extracted = _extract_context_from_query(user_input)
+    
+    # 使用用户提问中提取的信息，如果未提取到则使用外部传入的参数
+    final_scene = extracted.get("scene") or scene
+    final_weather_info = extracted.get("weather_info") or weather_info
+    final_weather_element = extracted.get("weather_element") or weather_element
+    
+    if extracted.get("scene"):
+        print(f"[推荐] 从用户提问中提取到场景: {extracted['scene']}")
+    if extracted.get("weather_info"):
+        print(f"[推荐] 从用户提问中提取到天气: {extracted['weather_info']}")
+    
     # 使用传入的 user_gender，如果没有则从八字输入中提取
     if user_gender is None and bazi_input:
         user_gender = bazi_input.get("gender")
     
+    # 调试日志：打印 gender 信息
+    print(f"[推荐] user_gender={user_gender}, bazi_input.gender={bazi_input.get('gender') if bazi_input else None}")
+    
     initial_state = create_initial_state(
         user_input=user_input,
-        scene=scene,
-        weather_element=weather_element,
-        weather_info=weather_info,
+        scene=final_scene,  # 使用提取后的场景
+        weather_element=final_weather_element,  # 使用提取后的天气五行
+        weather_info=final_weather_info,  # 使用提取后的天气信息
         bazi_input=bazi_input,
         user_gender=user_gender,
         user_id=user_id,

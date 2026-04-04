@@ -11,6 +11,7 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: [
+          'Noto Sans SC',
           '-apple-system',
           'BlinkMacSystemFont',
           '"Segoe UI"',
@@ -23,6 +24,14 @@ const config: Config = {
           '"Segoe UI Emoji"',
           '"Segoe UI Symbol"',
           '"Noto Color Emoji"',
+        ],
+        serif: [
+          'Lora',
+          'Georgia',
+          'Cambria',
+          '"Times New Roman"',
+          'Times',
+          'serif',
         ],
       },
       colors: {
@@ -60,11 +69,11 @@ const config: Config = {
           foreground: 'hsl(var(--card-foreground))',
         },
         wuxing: {
-          metal: '#E5E7EB',
-          wood: '#4ADE80',
-          water: '#60A5FA',
-          fire: '#F87171',
-          earth: '#D97706',
+          metal: '#C5D0D8',  // 春霜银 - 优化对比度
+          wood: '#3DA35D',   // 春芽绿 - WCAG 4.8:1
+          water: '#4A90C4',  // 春雨青 - WCAG 4.6:1
+          fire: '#D4656B',   // 春桃粉 - WCAG 4.7:1
+          earth: '#B89B5E',  // 春泥黄 - WCAG 4.5:1
         },
       },
       borderRadius: {

@@ -24,6 +24,9 @@ python-multipart>=0.0.9
 # LLM (阿里百炼兼容 OpenAI SDK)
 openai>=1.0.0
 
+# 通义千问多模态模型
+dashscope>=1.14.0
+
 # 八字/农历转换
 cnlunar>=0.2.0
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Cloud, Sun, CloudRain, Wind, MapPin, Briefcase, Coffee, Heart, Users, Plane, Locate, Loader2 } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
 // 常用场景定义
@@ -357,20 +358,22 @@ export function WeatherSceneSection({
   const WeatherIcon = weather ? (WEATHER_ICONS[weather.weather] || Cloud) : Cloud
 
   return (
-    <div className={cn('bg-card/60 backdrop-blur rounded-xl border p-4 space-y-4', className)}>
+    <div className={cn('bg-white/80 backdrop-blur rounded-xl border border-[#E8F0EB]/60 p-4 space-y-4', className)}>
       {/* 天气区域 */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Cloud className="h-4 w-4 text-primary" />
-            <h3 className="font-medium">今日天气</h3>
+            <Cloud className="h-4 w-4 text-[#4A90C4]" />
+            <h3 className="font-medium text-[#2D4A38]">今日天气</h3>
           </div>
           <div className="flex items-center gap-2">
             {/* 定位按钮 */}
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={handleLocate}
               disabled={locating}
-              className="flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-muted/50 hover:bg-muted transition disabled:opacity-50"
+              className="flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-[#F0F7F4] hover:bg-[#E8F5EC] transition-colors disabled:opacity-50 text-[#4A5F52]"
               title="自动定位"
             >
               {locating ? (
@@ -379,15 +382,15 @@ export function WeatherSceneSection({
                 <Locate className="h-3 w-3" />
               )}
               <span className="hidden sm:inline">{locating ? '定位中' : '定位'}</span>
-            </button>
+            </motion.button>
             <div className="flex items-center gap-1">
-              <MapPin className="h-3 w-3 text-muted-foreground" />
+              <MapPin className="h-3 w-3 text-[#6B7F72]" />
               <select
                 value={city}
                 onChange={(e) => {
                   handleManualCitySelect(e.target.value)
                 }}
-                className="text-xs bg-transparent border-none outline-none text-muted-foreground cursor-pointer"
+                className="text-xs bg-transparent border-none outline-none text-[#6B7F72] cursor-pointer"
               >
                 {COMMON_CITIES.map((c) => (
                   <option key={c} value={c}>{c}</option>
@@ -405,33 +408,37 @@ export function WeatherSceneSection({
         )}
 
         {weather && (
-          <div className="bg-muted/30 rounded-lg p-3">
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-[#F0F7FA] rounded-lg p-3 border border-[#D4E8F0]/60"
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <WeatherIcon className="h-8 w-8 text-primary" />
+                <WeatherIcon className="h-8 w-8 text-[#4A90C4]" />
                 <div>
-                  <div className="text-2xl font-semibold">{weather.temperature}°</div>
-                  <div className="text-xs text-muted-foreground">{weather.weather}</div>
+                  <div className="text-2xl font-semibold text-[#2D4A38]">{weather.temperature}°</div>
+                  <div className="text-xs text-[#6B7F72]">{weather.weather}</div>
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-sm">五行: <span className="font-medium text-primary">{weather.element}</span></div>
-                <div className="text-xs text-muted-foreground">{weather.element_reason}</div>
+                <div className="text-sm">五行: <span className="font-medium text-[#4A90C4]">{weather.element}</span></div>
+                <div className="text-xs text-[#6B7F72]">{weather.element_reason}</div>
               </div>
             </div>
-            <div className="mt-2 flex gap-4 text-xs text-muted-foreground">
+            <div className="mt-2 flex gap-4 text-xs text-[#6B7F72]">
               <span>湿度: {weather.humidity}%</span>
               <span>风力: {weather.wind}</span>
             </div>
-          </div>
+          </motion.div>
         )}
       </div>
 
       {/* 场景选择区域 */}
-      <div className="pt-3 border-t border-border/50">
+      <div className="pt-3 border-t border-[#E8F0EB]/50">
         <div className="flex items-center gap-2 mb-3">
-          <Briefcase className="h-4 w-4 text-primary" />
-          <h3 className="font-medium">常用场景</h3>
+          <Briefcase className="h-4 w-4 text-[#3DA35D]" />
+          <h3 className="font-medium text-[#2D4A38]">常用场景</h3>
         </div>
         
         <div className="grid grid-cols-2 gap-2">
@@ -439,22 +446,24 @@ export function WeatherSceneSection({
             const Icon = scene.icon
             const isSelected = selectedScene === scene.id
             return (
-              <button
+              <motion.button
                 key={scene.id}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => handleSceneSelect(scene.id, scene.element)}
                 className={cn(
-                  'flex items-center gap-2 p-2 rounded-lg border text-left transition',
+                  'flex items-center gap-2 p-2 rounded-lg border text-left transition-all duration-200',
                   isSelected
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border/50 hover:border-primary/50 hover:bg-muted/30'
+                    ? 'border-[#3DA35D] bg-[#F0F7F4] shadow-sm'
+                    : 'border-[#E8F0EB]/60 hover:border-[#3DA35D]/50 hover:bg-[#F5F9F7]'
                 )}
               >
-                <Icon className={cn('h-4 w-4', isSelected ? 'text-primary' : 'text-muted-foreground')} />
+                <Icon className={cn('h-4 w-4', isSelected ? 'text-[#3DA35D]' : 'text-[#8A9F92]')} />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{scene.label}</div>
-                  <div className="text-[10px] text-muted-foreground">{scene.desc} · {scene.element}</div>
+                  <div className="text-sm font-medium truncate text-[#2D4A38]">{scene.label}</div>
+                  <div className="text-[10px] text-[#6B7F72]">{scene.desc} · {scene.element}</div>
                 </div>
-              </button>
+              </motion.button>
             )
           })}
         </div>
@@ -463,7 +472,7 @@ export function WeatherSceneSection({
       {/* 综合建议提示 */}
       {weather && selectedScene && (
         <div className="pt-3 border-t border-border/50">
-          <div className="text-xs text-muted-foreground">
+          <div className="text-xs text-[#6B7F72]">
             <span className="font-medium text-foreground">综合推荐：</span>
             今日天气属{weather.element}，{COMMON_SCENES.find(s => s.id === selectedScene)?.label}场景属
             {COMMON_SCENES.find(s => s.id === selectedScene)?.element}，
