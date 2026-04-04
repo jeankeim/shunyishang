@@ -16,7 +16,7 @@ from apps.api.core.config import settings
 from apps.api.core.database import DatabasePool, check_db_health
 from apps.api.core.logging_config import init_logging, get_logger
 from apps.api.schemas.response import HealthResponse
-from apps.api.routers import recommend, bazi, weather, auth, wardrobe
+from apps.api.routers import recommend, bazi, weather, auth, wardrobe, poster
 
 # 初始化日志系统
 init_logging()
@@ -86,6 +86,7 @@ app.include_router(bazi.router, prefix="/api/v1/bazi", tags=["bazi"])
 app.include_router(weather.router, prefix="/api/v1/weather", tags=["weather"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(wardrobe.router, prefix="/api/v1", tags=["wardrobe"])
+app.include_router(poster.router, tags=["poster"])
 
 # 挂载静态文件服务（图片上传）
 UPLOAD_DIR = Path(__file__).parent.parent.parent / "data" / "uploads"

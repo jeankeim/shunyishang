@@ -124,4 +124,4 @@ def init_logging():
     
     # 输出启动日志
     logger = get_logger("wuxing")
-    logger.info(f"五行AI衣橱启动 | 环境: {settings.app_env} | 调试模式: {settings.app_debug}")
+    logger.info(f"顺衣尚启动 | 环境: {settings.app_env} | 调试模式: {settings.app_debug}")

@@ -209,6 +209,29 @@ export function ChatInterface({ scene, weatherElement, weatherInfo }: ChatInterf
     }
   }, [])
 
+  // 滚动到顶部（用于打开海报）
+  const scrollToTop = useCallback(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      })
+    }
+  }, [])
+
+  // 滚动到指定消息（用于关闭海报）
+  const scrollToMessage = useCallback((messageId: string) => {
+    if (scrollRef.current) {
+      const messageElement = scrollRef.current.querySelector(`[data-message-id="${messageId}"]`)
+      if (messageElement) {
+        messageElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        })
+      }
+    }
+  }, [])
+
   const handleSend = async (content: string, bazi?: BaziInput) => {
     let convId = currentConversationId
     if (!convId) {
@@ -327,6 +350,9 @@ export function ChatInterface({ scene, weatherElement, weatherInfo }: ChatInterf
             const errorMsg = event.data || ''
             let userFriendlyMsg = '抱歉，服务暂时不可用，请稍后重试。'
             
+            // 调试：打印错误信息
+            console.error('[推荐错误] 收到错误事件:', event)
+            
             if (errorMsg.includes('衣橱')) {
               // 衣橱相关错误（需要登录）
               if (isAuthenticated) {
@@ -339,6 +365,18 @@ export function ChatInterface({ scene, weatherElement, weatherInfo }: ChatInterf
               userFriendlyMsg = '👗 ' + errorMsg + '\n\n💡 建议：\n1. 尝试调整筛选条件\n2. 更换推荐场景或天气'
             } else if (errorMsg.includes('登录')) {
               userFriendlyMsg = '🔒 ' + errorMsg
+            } else if (errorMsg.trim() === '') {
+              // 空错误信息，可能是流处理中的临时问题，忽略
+              console.warn('[推荐] 收到空错误事件，忽略')
+              return
+            }
+            
+            // 如果已经有推荐卡片，不覆盖错误信息，只在控制台记录
+            const currentMessages = useChatStore.getState().conversations.find(c => c.id === convId)?.messages || []
+            const currentMessage = currentMessages.find(m => m.id === aiMessageId)
+            if (currentMessage?.metadata?.items && currentMessage.metadata.items.length > 0) {
+              console.warn('[推荐] 已有推荐卡片，忽略错误事件:', errorMsg)
+              return
             }
             
             updateMessage(convId, aiMessageId, {
@@ -456,7 +494,12 @@ export function ChatInterface({ scene, weatherElement, weatherInfo }: ChatInterf
         ) : (
           <div className="max-w-3xl mx-auto py-4 space-y-4 px-4">
             {messages.map((message) => (
-              <ChatMessageItem key={message.id} message={message} />
+              <ChatMessageItem 
+                key={message.id} 
+                message={message} 
+                onOpenPoster={scrollToTop}
+                onClosePoster={() => scrollToMessage(message.id)}
+              />
             ))}
           </div>
         )}

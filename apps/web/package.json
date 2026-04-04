@@ -14,6 +14,7 @@
     "autoprefixer": "^10.4.27",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dom-to-image-more": "^3.7.2",
     "framer-motion": "^12.38.0",
     "lucide-react": "^0.577.0",
     "lunar-javascript": "^1.6.12",

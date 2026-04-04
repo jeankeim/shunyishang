@@ -87,6 +87,8 @@ apps/web/public/uploads
 # 临时测试脚本 (开发用，不需要提交)
 test_context_extraction.py
 test_scene_filter.py
+scripts/test_*.py
+scripts/test_*.png
 
 # Week5 任务文档 (开发过程文档，不需要提交)
 WEEK5_*.md

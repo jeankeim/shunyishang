@@ -32,6 +32,7 @@ export interface ChatMessageMetadata {
   items?: RecommendItem[]
   elementScores?: Record<string, number>
   suggestedElements?: string[]
+  scene?: string
 }
 
 export interface ChatMessage {

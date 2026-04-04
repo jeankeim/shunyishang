@@ -95,16 +95,17 @@ export default function Home() {
         initial={{ x: -20, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className={`bg-white/90 backdrop-blur-xl p-6 overflow-y-auto space-y-6 transition-all duration-300 ${
+        className={`bg-white/90 backdrop-blur-xl p-6 overflow-y-auto transition-all duration-300 ${
           hasBazi ? 'w-[300px] lg:w-[340px]' : 'w-[320px] lg:w-[360px]'
         }`}
       >
+        <div className="space-y-5">
         {/* 标题区域 - 清雅书法风格 */}
         <motion.div 
           initial={{ y: -10, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className="text-center mb-6"
+          className="text-center mb-4"
         >
           <h1 className="text-3xl font-bold bg-gradient-to-r from-[#3DA35D] via-[#4A90C4] to-[#D4656B] bg-clip-text text-transparent font-serif tracking-tight">
             五行穿搭
@@ -133,7 +134,7 @@ export default function Home() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="bg-gradient-to-br from-[#F8FAF9] to-[#F0F7F4] rounded-xl p-5 shadow-sm border border-[#E8F0EB]/60 hover:shadow-[0_4px_20px_rgba(61,163,93,0.08)] hover:border-[#3DA35D]/30 transition-all duration-300 group"
+            className="card-secondary p-5 bg-gradient-to-br from-[#F8FAF9]/80 to-[#F0F7F4]/60 hover:shadow-[0_6px_24px_rgba(61,163,93,0.12)] transition-all duration-300 group"
           >
             <div className="flex items-center gap-3 mb-4">
               <div className="w-2.5 h-2.5 bg-gradient-to-br from-[#3DA35D] to-[#4A90C4] rounded-full group-hover:scale-110 transition-transform duration-300"></div>
@@ -148,7 +149,7 @@ export default function Home() {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="bg-gradient-to-br from-[#F0F7FA] to-[#E8F4F8] rounded-xl p-5 shadow-sm border border-[#D4E8F0]/60 hover:shadow-[0_4px_20px_rgba(74,144,196,0.08)] hover:border-[#4A90C4]/30 transition-all duration-300 group"
+          className="card-secondary p-5 bg-gradient-to-br from-[#F0F7FA]/80 to-[#E8F4F8]/60 hover:shadow-[0_6px_24px_rgba(74,144,196,0.12)] transition-all duration-300 group"
         >
           <div className="flex items-center gap-3 mb-4">
             <div className="w-2.5 h-2.5 bg-gradient-to-br from-[#4A90C4] to-[#3DA35D] rounded-full group-hover:scale-110 transition-transform duration-300"></div>
@@ -166,7 +167,7 @@ export default function Home() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="bg-gradient-to-br from-[#F0F9F4] to-[#E8F5EC] rounded-xl p-5 shadow-sm border border-[#D4E8DC]/60 hover:shadow-[0_4px_20px_rgba(61,163,93,0.08)] hover:border-[#3DA35D]/30 transition-all duration-300 group"
+            className="card-secondary p-5 bg-gradient-to-br from-[#F0F9F4]/80 to-[#E8F5EC]/60 hover:shadow-[0_6px_24px_rgba(61,163,93,0.12)] transition-all duration-300 group"
           >
             <div className="flex items-center gap-3 mb-4">
               <div className="w-2.5 h-2.5 bg-gradient-to-br from-[#3DA35D] to-[#B89B5E] rounded-full group-hover:scale-110 transition-transform duration-300"></div>
@@ -190,7 +191,7 @@ export default function Home() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="bg-gradient-to-br from-[#F8FAF9] to-[#F5F9F7] rounded-xl p-4 border border-[#E8F0EB]/50"
+            className="card-secondary p-4 bg-gradient-to-br from-[#F8FAF9]/80 to-[#F5F9F7]/60"
           >
             <p className="text-xs text-[#5A7A66] text-center leading-relaxed">
               基于您的八字分析，我们已为您计算喜用神。
@@ -199,6 +200,7 @@ export default function Home() {
             </p>
           </motion.div>
         )}
+        </div>
       </motion.div>
 
       {/* 右侧：主要内容区 */}

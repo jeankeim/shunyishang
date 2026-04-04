@@ -67,7 +67,7 @@ export function BaziCard({ onEdit }: BaziCardProps) {
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-gradient-to-br from-[#F8FAF9] to-[#F5F9F7] rounded-xl p-5 shadow-sm border border-[#E8F0EB]/60"
+      className="card-primary p-5"
     >
       {/* 标题 */}
       <div className="flex items-center justify-between mb-4">
@@ -117,7 +117,7 @@ export function BaziCard({ onEdit }: BaziCardProps) {
       {xiyong && xiyong.length > 0 && (
         <motion.div 
           whileHover={{ scale: 1.01 }}
-          className="bg-white/80 rounded-xl p-3 mb-3 border border-[#E8F0EB]/40"
+          className="inner-card p-3 mb-3 bg-gradient-to-br from-white to-[#F8FAF9]"
         >
           <div className="flex items-center gap-2 mb-2">
             <Sparkles className="h-3 w-3 text-[#B89B5E]" />
@@ -130,7 +130,7 @@ export function BaziCard({ onEdit }: BaziCardProps) {
                 <motion.span
                   key={idx}
                   whileHover={{ scale: 1.05 }}
-                  className={`px-3 py-1 rounded-full text-sm font-medium ${style.light} ${style.text} border ${style.border} cursor-default`}
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${style.light} ${style.text} cursor-default shadow-[0_1px_4px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200`}
                 >
                   {element}
                 </motion.span>
@@ -148,14 +148,14 @@ export function BaziCard({ onEdit }: BaziCardProps) {
       {avoidElements && avoidElements.length > 0 && (
         <motion.div 
           whileHover={{ scale: 1.01 }}
-          className="bg-[#F5F7F9]/60 rounded-xl p-3 border border-[#E8F0EB]/40"
+          className="inner-card p-3 bg-gradient-to-br from-[#F5F7F9] to-[#F0F2F5]/80"
         >
           <div className="text-xs text-[#6B7F72] mb-2 font-medium">需避免</div>
           <div className="flex flex-wrap gap-2">
             {avoidElements.map((element: string, idx: number) => (
               <span
                 key={idx}
-                className="px-3 py-1 rounded-full text-sm text-[#6B7F8C] bg-[#F0F2F5] border border-[#D0D8E0]"
+                className="px-3 py-1 rounded-full text-sm text-[#6B7F8C] bg-[#F0F2F5] shadow-[0_1px_4px_rgba(0,0,0,0.04)]"
               >
                 {element}
               </span>
@@ -166,7 +166,7 @@ export function BaziCard({ onEdit }: BaziCardProps) {
       
       {/* 出生信息 */}
       {(user.birth_date || user.birth_time) && (
-        <div className="mt-3 pt-3 border-t border-[#E8F0EB]/40 flex items-center gap-4 text-xs text-[#8A9F92]">
+        <div className="mt-3 pt-3 divider-subtle flex items-center gap-4 text-xs text-[#8A9F92]">
           {user.birth_date && (
             <span className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />

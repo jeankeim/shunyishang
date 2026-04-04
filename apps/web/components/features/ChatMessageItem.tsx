@@ -1,9 +1,12 @@
 'use client'
 
+import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { ChatMessage, RecommendItem } from '@/types'
 import { RecommendCard } from './RecommendCard'
+import { PosterGenerator } from './PosterGenerator'
 import { cn } from '@/lib/utils'
+import { Sparkles } from 'lucide-react'
 
 const ELEMENT_EMOJI: Record<string, string> = {
   '金': '⚪', '木': '🟢', '水': '🔵', '火': '🔴', '土': '🟡',
@@ -11,14 +14,38 @@ const ELEMENT_EMOJI: Record<string, string> = {
 
 interface ChatMessageItemProps {
   message: ChatMessage
+  onOpenPoster?: () => void
+  onClosePoster?: () => void
 }
 
-export function ChatMessageItem({ message }: ChatMessageItemProps) {
+export function ChatMessageItem({ 
+  message,
+  onOpenPoster,
+  onClosePoster 
+}: ChatMessageItemProps) {
   const isUser = message.role === 'user'
   const isStreaming = message.type !== 'done' && message.role === 'assistant' && message.type !== 'error'
   const isInitial = !message.content && isStreaming  // 刚开始，还没有内容
   const hasAnalysis = !!message.metadata?.targetElements  // 已有分析结果
   const hasItems = !!message.metadata?.items  // 已有推荐物品
+  const [isPosterOpen, setIsPosterOpen] = useState(false)
+  const messageRef = useRef<HTMLDivElement>(null)
+
+  // 当海报弹窗打开时，滚动到顶部
+  useEffect(() => {
+    if (isPosterOpen) {
+      onOpenPoster?.()
+    }
+  }, [isPosterOpen, onOpenPoster])
+
+  // 关闭海报时，滚动回消息位置
+  const handleClosePoster = () => {
+    setIsPosterOpen(false)
+    // 延迟滚动，等待弹窗关闭动画
+    setTimeout(() => {
+      onClosePoster?.()
+    }, 100)
+  }
 
   // 根据处理阶段显示不同的提示
   const getStatusText = () => {
@@ -30,6 +57,8 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
 
   return (
     <motion.div
+      ref={messageRef}
+      data-message-id={message.id}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
@@ -100,15 +129,45 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
 
         {/* 推荐卡片 */}
         {message.metadata?.items && message.metadata.items.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
-            {message.metadata.items.map((item: RecommendItem, index: number) => (
-              <RecommendCard 
-                key={item.item_code || `item-${index}`} 
-                item={item} 
-                index={index} 
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
+              {message.metadata.items.map((item: RecommendItem, index: number) => (
+                <RecommendCard 
+                  key={item.item_code || `item-${index}`} 
+                  item={item} 
+                  index={index} 
+                />
+              ))}
+            </div>
+
+            {/* 生成海报按钮 */}
+            <div className="pt-4 flex justify-center">
+              <button
+                onClick={() => setIsPosterOpen(true)}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+              >
+                <Sparkles className="w-5 h-5" />
+                生成分享海报
+              </button>
+            </div>
+
+            {/* 海报生成器 */}
+            <PosterGenerator
+              isOpen={isPosterOpen}
+              onClose={handleClosePoster}
+              title="今日五行穿搭推荐"
+              items={message.metadata.items.map((item: RecommendItem) => ({
+                name: item.name,
+                image_url: item.image_url,
+                primary_element: item.primary_element,
+                color: item.color,
+              }))}
+              xiyongElements={message.metadata?.targetElements || []}
+              scene={message.metadata?.scene || ''}
+              quote={message.content}
+              username="用户"
+            />
+          </>
         )}
       </div>
     </motion.div>

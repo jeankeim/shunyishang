@@ -279,15 +279,15 @@ export function UserProfile({ onClose }: UserProfileProps) {
 
   return (
     <div className="max-w-2xl mx-auto p-4 h-full overflow-y-auto">
-      <div className="bg-gradient-to-br from-white to-amber-50/30 rounded-xl border border-amber-200/40 shadow-lg">
+      <div className="card-primary">
         {/* 头部区域 - 添加关闭按钮 */}
-        <div className="p-6 border-b border-amber-200/30 flex justify-between items-start">
+        <div className="p-6 divider-subtle flex justify-between items-start">
           <div>
-            <h2 className="text-xl font-semibold flex items-center gap-2 text-stone-700">
+            <h2 className="text-xl font-bold flex items-center gap-2 text-stone-900">
               <User className="h-5 w-5 text-amber-500" />
               个人资料
             </h2>
-            <p className="text-sm text-stone-500 mt-1">
+            <p className="text-sm text-stone-600 mt-1">
               管理您的个人信息，这些信息将用于为您提供更精准的五行推荐
             </p>
           </div>
@@ -313,7 +313,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
 
           {/* 八字分析状态 */}
           {analyzing && (
-            <div className="mb-6 p-4 rounded-lg border bg-amber-50/60 border-amber-200/60 text-amber-700 flex items-center gap-2">
+            <div className="mb-6 p-4 rounded-lg bg-gradient-to-br from-amber-50/80 to-orange-50/60 text-amber-700 flex items-center gap-2 shadow-[0_1px_6px_rgba(0,0,0,0.04)]">
               <Sparkles className="h-4 w-4 animate-pulse" />
               <span>正在分析八字...</span>
             </div>
@@ -322,12 +322,12 @@ export function UserProfile({ onClose }: UserProfileProps) {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* 基本信息 */}
             <section className="space-y-4">
-              <h3 className="text-lg font-medium text-stone-700 border-b border-amber-200/30 pb-2">
+              <h3 className="text-lg font-semibold text-stone-800 divider-subtle pb-3 mb-4">
                 基本信息
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label htmlFor="nickname" className="block text-sm font-medium text-stone-600">
+                  <label htmlFor="nickname" className="block text-sm font-semibold text-stone-700">
                     昵称
                   </label>
                   <input
@@ -336,19 +336,19 @@ export function UserProfile({ onClose }: UserProfileProps) {
                     value={formData.nickname || ''}
                     onChange={(e) => handleChange('nickname', e.target.value)}
                     placeholder="请输入昵称"
-                    className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all shadow-sm"
+                    className="input-elegant w-full px-3 py-2.5 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="gender" className="block text-sm font-medium text-stone-600">
+                  <label htmlFor="gender" className="block text-sm font-semibold text-stone-700">
                     性别
                   </label>
                   <select
                     id="gender"
                     value={formData.gender || ''}
                     onChange={(e) => handleChange('gender', e.target.value)}
-                    className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all shadow-sm"
+                    className="input-elegant w-full px-3 py-2.5 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
                   >
                     <option value="">请选择</option>
                     <option value="男">男</option>
@@ -360,17 +360,17 @@ export function UserProfile({ onClose }: UserProfileProps) {
 
             {/* 出生信息 */}
             <section className="space-y-4">
-              <h3 className="text-lg font-medium flex items-center gap-2 text-stone-700 border-b border-amber-200/30 pb-2">
+              <h3 className="text-lg font-semibold flex items-center gap-2 text-stone-800 divider-subtle pb-3 mb-4">
                 <Calendar className="h-4 w-4 text-amber-500" />
                 出生信息
               </h3>
-              <p className="text-sm text-stone-500">
+              <p className="text-sm text-stone-600">
                 完善后可用于更精确的八字分析
               </p>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-stone-600">
+                  <label className="block text-sm font-semibold text-stone-700">
                     出生日期
                   </label>
                   <div className="relative">
@@ -381,15 +381,15 @@ export function UserProfile({ onClose }: UserProfileProps) {
                       }}
                       dateFormat="yyyy/MM/dd"
                       placeholderText="请选择出生日期"
-                      className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all shadow-sm"
-                      calendarClassName="bg-white border border-stone-200 rounded-lg shadow-lg"
+                      className="input-elegant w-full px-3 py-2.5 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
+                      calendarClassName="bg-white rounded-lg shadow-lg"
                     />
                     <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-stone-400 pointer-events-none" />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="birth_time" className="block text-sm font-medium text-stone-600">
+                  <label htmlFor="birth_time" className="block text-sm font-semibold text-stone-700">
                     出生时间
                   </label>
                   <input
@@ -397,13 +397,13 @@ export function UserProfile({ onClose }: UserProfileProps) {
                     type="time"
                     value={formData.birth_time || ''}
                     onChange={(e) => handleChange('birth_time', e.target.value)}
-                    className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all shadow-sm"
+                    className="input-elegant w-full px-3 py-2.5 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="birth_location" className="block text-sm font-medium text-stone-600">
+                <label htmlFor="birth_location" className="block text-sm font-semibold text-stone-700">
                   出生地点
                 </label>
                 <input
@@ -412,20 +412,20 @@ export function UserProfile({ onClose }: UserProfileProps) {
                   value={formData.birth_location || ''}
                   onChange={(e) => handleChange('birth_location', e.target.value)}
                   placeholder="请输入出生地（省市区）"
-                  className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all shadow-sm"
+                  className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all shadow-sm"
                 />
               </div>
             </section>
 
             {/* 偏好设置 */}
             <section className="space-y-4">
-              <h3 className="text-lg font-medium flex items-center gap-2 text-stone-700 border-b border-amber-200/30 pb-2">
+              <h3 className="text-lg font-semibold flex items-center gap-2 text-stone-800 divider-subtle pb-3 mb-4">
                 <MapPin className="h-4 w-4 text-emerald-500" />
                 偏好设置
               </h3>
               
               <div className="space-y-2">
-                <label htmlFor="preferred_city" className="block text-sm font-medium text-stone-600">
+                <label htmlFor="preferred_city" className="block text-sm font-semibold text-stone-700">
                   常驻城市
                 </label>
                 <div className="relative">
@@ -439,13 +439,13 @@ export function UserProfile({ onClose }: UserProfileProps) {
                     }}
                     onFocus={() => setShowCityDropdown(true)}
                     placeholder="请输入或选择城市"
-                    className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all shadow-sm"
+                    className="input-elegant w-full px-3 py-2.5 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
                   />
                   <MapPin className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-stone-400 pointer-events-none" />
                   
                   {/* 城市下拉选项 */}
                   {showCityDropdown && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-stone-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                    <div className="absolute z-10 w-full mt-1 bg-white rounded-lg shadow-lg max-h-60 overflow-auto">
                       {filteredCities.length > 0 ? (
                         filteredCities.map((city) => (
                           <button
@@ -475,12 +475,12 @@ export function UserProfile({ onClose }: UserProfileProps) {
 
             {/* 头像设置 */}
             <section className="space-y-4">
-              <h3 className="text-lg font-medium text-stone-700 border-b border-amber-200/30 pb-2">
+              <h3 className="text-lg font-semibold text-stone-800 border-b border-amber-200/30 pb-2">
                 头像设置
               </h3>
               
               <div className="space-y-2">
-                <label htmlFor="avatar_url" className="block text-sm font-medium text-stone-600">
+                <label htmlFor="avatar_url" className="block text-sm font-semibold text-stone-700">
                   头像URL
                 </label>
                 <input
@@ -489,11 +489,11 @@ export function UserProfile({ onClose }: UserProfileProps) {
                   value={formData.avatar_url || ''}
                   onChange={(e) => handleChange('avatar_url', e.target.value)}
                   placeholder="请输入头像图片链接"
-                  className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all shadow-sm"
+                  className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all shadow-sm"
                 />
                 {formData.avatar_url && (
                   <div className="mt-3">
-                    <p className="text-sm text-stone-500 mb-2">头像预览：</p>
+                    <p className="text-sm text-stone-600 mb-2">头像预览：</p>
                     <img 
                       src={formData.avatar_url} 
                       alt="预览头像" 

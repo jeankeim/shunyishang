@@ -921,16 +921,23 @@ def _build_weather_details(weather_info: Optional[Dict], retrieved_items: List[D
             if thickness:
                 item_features.append(f"{item['name']}厚度【{thickness}】")
             
-            # 功能性
+            # 功能性（处理列表和字典两种情况）
             funcs = []
-            if functionality.get("防水"):
-                funcs.append("防水")
-            if functionality.get("透气"):
-                funcs.append("透气")
-            if functionality.get("保暖"):
-                funcs.append("保暖")
-            if functionality.get("防晒"):
-                funcs.append("防晒")
+            if isinstance(functionality, dict):
+                # 字典格式：{"防水": true, "透气": false}
+                if functionality.get("防水"):
+                    funcs.append("防水")
+                if functionality.get("透气"):
+                    funcs.append("透气")
+                if functionality.get("保暖"):
+                    funcs.append("保暖")
+                if functionality.get("防晒"):
+                    funcs.append("防晒")
+            elif isinstance(functionality, list):
+                # 列表格式：["日常", "商务", "防水"]
+                for func in functionality:
+                    if func in ["防水", "透气", "保暖", "防晒"]:
+                        funcs.append(func)
             
             if funcs:
                 item_features.append(f"{item['name']}具有【{'、'.join(funcs)}】功能")
