@@ -37,3 +37,13 @@ langchain-openai>=0.2.0
 
 # Retry & Resilience
 tenacity>=8.0.0
+
+# === 生产部署新增 ===
+# 生产级 WSGI 服务器
+gunicorn>=21.2.0
+
+# Cloudflare R2 对象存储 (S3 兼容)
+boto3>=1.34.0
+
+# Upstash Redis (REST API)
+httpx>=0.27.0

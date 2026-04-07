@@ -43,6 +43,17 @@ class Settings(BaseSettings):
     cache_ttl_weather: int = 900
     cache_ttl_search: int = 3600
     
+    # === Upstash Redis 配置 (生产环境) ===
+    upstash_redis_rest_url: str = ""
+    upstash_redis_rest_token: str = ""
+    
+    # === Cloudflare R2 对象存储配置 ===
+    r2_account_id: str = ""
+    r2_access_key_id: str = ""
+    r2_secret_access_key: str = ""
+    r2_bucket_name: str = "wuxing-wardrobe"
+    r2_public_url: str = ""
+    
     # === JWT 配置 ===
     jwt_secret_key: str = ""  # 生产环境必须设置
     jwt_algorithm: str = "HS256"

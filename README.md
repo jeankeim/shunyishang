@@ -173,9 +173,10 @@ npm run dev
 
 3. **访问**
 打开浏览器访问 http://localhost:3000
-![alt text](image-1.png)
-![alt text](image-2.png)
 ![alt text](image.png)
+![alt text](image-3.png)
+![alt text](image-2.png)
+
 ---
 
 ## 已完成功能
