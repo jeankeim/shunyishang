@@ -14,7 +14,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # 安装 Python 依赖
 COPY requirements.txt .
-RUN pip install --no-cache-dir --break-system-packages -r requirements.txt
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
+ENV PIP_NO_WARN_SCRIPT_LOCATION=0
+RUN pip install --no-cache-dir -r requirements.txt
 
 # 创建非 root 用户
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser
@@ -34,8 +36,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
 
 EXPOSE ${PORT:-8000}
 
-# 使用 gunicorn 生产级服务器
-CMD ["sh", "-c", "gunicorn apps.api.main:app \
+# 使用 gunicorn 生产级服务器（使用完整路径）
+CMD ["sh", "-c", "python -m gunicorn apps.api.main:app \
     -w 4 \
     -k uvicorn.workers.UvicornWorker \
     -b 0.0.0.0:${PORT:-8000} \
