@@ -3,10 +3,6 @@
 # Database
 psycopg2-binary
 
-# AI/ML (兼容 macOS 的 torch 版本)
-sentence-transformers>=2.2.0,<3.0.0
-torch>=2.0.0
-
 # Data Processing
 pandas
 numpy<2.0.0

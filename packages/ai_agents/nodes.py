@@ -575,16 +575,32 @@ _EMBEDDING_MODEL = None
 
 
 def _get_embedding_model():
-    """获取 embedding 模型单例（本地缓存优先）"""
-    global _EMBEDDING_MODEL
-    if _EMBEDDING_MODEL is None:
-        import os
-        # 优先使用本地缓存，不连接 HuggingFace
-        os.environ['HF_HUB_OFFLINE'] = '1'
-        os.environ['TRANSFORMERS_OFFLINE'] = '1'
-        from sentence_transformers import SentenceTransformer
-        _EMBEDDING_MODEL = SentenceTransformer('BAAI/bge-m3')
-    return _EMBEDDING_MODEL
+    """获取 embedding 模型（使用 DashScope API，无需本地模型）"""
+    # 不再需要本地模型，直接返回 None 表示使用 API
+    return None
+
+
+def _encode_text_with_dashscope(text: str) -> list:
+    """
+    使用 DashScope API 生成文本向量
+    
+    Args:
+        text: 输入文本
+        
+    Returns:
+        embedding 向量 (1024 维)
+    """
+    from dashscope import TextEmbedding
+    
+    response = TextEmbedding.call(
+        model='text-embedding-v3',
+        input=text
+    )
+    
+    if response.status_code == 200:
+        return response.output['embeddings'][0]['embedding']
+    else:
+        raise Exception(f"DashScope embedding API error: {response.code} - {response.message}")
 
 
 def _vector_search(
@@ -608,11 +624,8 @@ def _vector_search(
     """
     import numpy as np
     
-    # 加载 embedding 模型（单例）
-    model = _get_embedding_model()
-    
-    # 生成查询向量
-    query_embedding = model.encode(query)
+    # 使用 DashScope API 生成查询向量
+    query_embedding = _encode_text_with_dashscope(query)
     query_vector = np.array(query_embedding, dtype=np.float32)
     
     # 数据库查询
