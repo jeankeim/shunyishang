@@ -3,6 +3,9 @@
 # Database
 psycopg2-binary
 
+# Authentication
+bcrypt>=4.0.0
+
 # Data Processing
 pandas
 numpy<2.0.0
