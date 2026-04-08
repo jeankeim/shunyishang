@@ -9,9 +9,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# 安装 Python 依赖
+# 安装 Python 依赖（同时安装到系统和用户目录）
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir --user -r requirements.txt
 
 # 运行阶段
 FROM python:3.11-slim as runtime
@@ -28,8 +29,10 @@ RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 
 WORKDIR /app
 
-# 从构建阶段复制依赖
+# 从构建阶段复制依赖（系统目录 + 用户目录）
 COPY --from=builder /usr/local /usr/local
+COPY --from=builder /root/.local /home/appuser/.local
+ENV PATH=/home/appuser/.local/bin:$PATH
 
 # 复制应用代码
 COPY --chown=appuser:appgroup . .
