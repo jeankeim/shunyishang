@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # 安装 Python 依赖
 COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # 运行阶段
 FROM python:3.11-slim as runtime
@@ -31,8 +31,7 @@ RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 WORKDIR /app
 
 # 从构建阶段复制依赖
-COPY --from=builder /root/.local /home/appuser/.local
-ENV PATH=/home/appuser/.local/bin:$PATH
+COPY --from=builder /usr/local /usr/local
 
 # 复制应用代码
 COPY --chown=appuser:appgroup . .
