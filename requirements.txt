@@ -19,6 +19,7 @@ python-dotenv
 fastapi>=0.110.0
 uvicorn[standard]>=0.29.0
 pydantic-settings>=2.0.0
+pydantic[email]>=2.0.0
 python-multipart>=0.0.9
 
 # LLM (阿里百炼兼容 OpenAI SDK)
