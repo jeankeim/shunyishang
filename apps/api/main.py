@@ -28,8 +28,29 @@ async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     logger.info("应用启动中...")
     
-    # 启动时初始化连接池
-    DatabasePool.init_pool()
+    # 启动时初始化连接池（添加重试机制）
+    max_retries = 5
+    retry_delay = 2  # 秒
+    
+    for attempt in range(max_retries):
+        try:
+            DatabasePool.init_pool()
+            
+            # 验证数据库连接
+            if check_db_health():
+                logger.info("数据库连接成功")
+                break
+            else:
+                raise Exception("数据库连接检查失败")
+        except Exception as e:
+            if attempt < max_retries - 1:
+                logger.warning(f"数据库连接失败 (尝试 {attempt + 1}/{max_retries}): {e}")
+                logger.info(f"等待 {retry_delay} 秒后重试...")
+                import asyncio
+                await asyncio.sleep(retry_delay)
+            else:
+                logger.error(f"数据库连接失败，已达到最大重试次数: {e}")
+                raise
     
     # 注意：Embedding 模型已改用 DashScope API，无需预热
     # 之前加载本地 BGE-M3 模型会占用大量内存（~400MB），导致 OOM

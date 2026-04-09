@@ -39,9 +39,10 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
   
   // 包装 setImageUrl 以追踪调用
   const setImageUrl = useCallback((url: string) => {
-    if (url === '') {
-      console.log('[AddWardrobeModal] setImageUrl 被清空 - 调用栈:', new Error().stack?.split('\n').slice(2, 6).join(' | '))
-    }
+    // 调试：追踪 URL 清空问题
+    // if (url === '') {
+    //   console.log('[AddWardrobeModal] setImageUrl 被清空 - 调用栈:', new Error().stack?.split('\n').slice(2, 6).join(' | '))
+    // }
     setImageUrlState(url)
   }, [])
   const [localImage, setLocalImage] = useState<string | null>(null)
@@ -104,7 +105,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
   }, [taggingPreview])
 
   const resetForm = () => {
-    console.log('[AddWardrobeModal] resetForm 被调用 - 调用栈:', new Error().stack?.split('\n').slice(2, 5).join(' | '))
+    // console.log('[AddWardrobeModal] resetForm 被调用 - 调用栈:', new Error().stack?.split('\n').slice(2, 5).join(' | '))
     setDescription('')
     setImageUrl('')
     setLocalImage(null)
@@ -115,9 +116,9 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
   }
 
   const handleClose = () => {
-    console.log('[AddWardrobeModal] handleClose 被调用 - step:', step, 'isSubmitting:', isSubmitting)
+    // console.log('[AddWardrobeModal] handleClose 被调用 - step:', step, 'isSubmitting:', isSubmitting)
     if (isSubmitting) {
-      console.log('[AddWardrobeModal] handleClose 被阻止 - 正在提交中')
+      // console.log('[AddWardrobeModal] handleClose 被阻止 - 正在提交中')
       return
     }
     resetForm()
@@ -180,10 +181,10 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
 
   // 提交表单
   const handleSubmit = async () => {
-    console.log('[AddWardrobeModal] handleSubmit 被调用 - step:', step)
+    // console.log('[AddWardrobeModal] handleSubmit 被调用 - step:', step)
     
     if (step !== 'review') {
-      console.log('[AddWardrobeModal] handleSubmit 被阻止 - 不在确认步骤')
+      // console.log('[AddWardrobeModal] handleSubmit 被阻止 - 不在确认步骤')
       return
     }
     
@@ -262,14 +263,6 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
   const encodedDisplayImage = displayImage && !displayImage.startsWith('data:') 
     ? encodeURI(displayImage) 
     : displayImage
-  
-  // 调试日志：追踪图片状态
-  console.log('[AddWardrobeModal] 渲染 - localImage:', !!localImage, 'imageUrl:', imageUrl, 'displayImage:', displayImage, 'type:', typeof displayImage)
-  
-  // 额外调试：检查 renderReviewStep 是否被调用
-  if (step === 'review') {
-    console.log('[AddWardrobeModal] renderReviewStep - analysis:', !!analysis, 'displayImage:', displayImage)
-  }
 
   // 渲染输入步骤
   const renderInputStep = () => (
@@ -413,8 +406,8 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
               src={encodedDisplayImage} 
               alt="预览" 
               className="w-full h-full object-cover"
-              onLoad={() => console.log('[AddWardrobeModal] 图片加载成功:', encodedDisplayImage)}
-              onError={(e) => console.error('[AddWardrobeModal] 图片加载失败:', encodedDisplayImage, e)}
+              // onLoad={() => console.log('[AddWardrobeModal] 图片加载成功:', encodedDisplayImage)}
+              // onError={(e) => console.error('[AddWardrobeModal] 图片加载失败:', encodedDisplayImage, e)}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
             <div className="absolute bottom-3 left-3 right-3">
