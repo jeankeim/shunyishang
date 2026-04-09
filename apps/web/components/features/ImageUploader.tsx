@@ -69,7 +69,8 @@ export function ImageUploader({
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('/api/v1/wardrobe/upload-image', {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const response = await fetch(`${API_BASE}/api/v1/wardrobe/upload-image`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
