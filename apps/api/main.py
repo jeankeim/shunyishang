@@ -31,14 +31,8 @@ async def lifespan(app: FastAPI):
     # 启动时初始化连接池
     DatabasePool.init_pool()
     
-    # 预热 Embedding 模型（避免首次请求延迟）
-    logger.info("正在预热 Embedding 模型...")
-    try:
-        from packages.ai_agents.nodes import _get_embedding_model
-        _get_embedding_model()
-        logger.info("Embedding 模型预热完成")
-    except Exception as e:
-        logger.warning(f"Embedding 模型预热失败: {e}")
+    # 注意：Embedding 模型已改用 DashScope API，无需预热
+    # 之前加载本地 BGE-M3 模型会占用大量内存（~400MB），导致 OOM
     
     logger.info("应用启动完成")
     

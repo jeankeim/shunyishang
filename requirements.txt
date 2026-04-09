@@ -8,7 +8,7 @@ bcrypt>=4.0.0
 python-jose[cryptography]>=3.3.0
 
 # Data Processing
-pandas
+# pandas  # 已移除，未使用且占用大量内存
 numpy<2.0.0
 
 # Environment
