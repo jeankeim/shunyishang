@@ -29,6 +29,21 @@ export default function WardrobePage() {
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [viewMode, setViewMode] = useState<'grid' | 'flow'>('flow')
 
+  // 辅助函数：将相对路径转换为完整 URL
+  const getImageUrl = (url: string | undefined | null): string | undefined => {
+    if (!url) return undefined
+    // 如果已经是完整 URL（http/https 开头），直接返回
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url
+    }
+    // 如果是相对路径（/uploads/...），添加后端域名
+    if (url.startsWith('/')) {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      return `${API_BASE}${url}`
+    }
+    return url
+  }
+
   useEffect(() => {
     initAuthToken()
     const checkAuth = () => {
@@ -376,7 +391,7 @@ export default function WardrobePage() {
                     <div className={`relative ${viewMode === 'flow' ? 'h-2/3' : 'h-3/4'} overflow-hidden`}>
                       {item.image_url ? (
                         <img
-                          src={item.image_url}
+                          src={getImageUrl(item.image_url)}
                           alt={item.name}
                           loading="lazy"
                           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
