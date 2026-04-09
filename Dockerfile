@@ -55,6 +55,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
 EXPOSE ${PORT:-8000}
 
 # 使用 gunicorn 生产级服务器（使用 shell 展开环境变量）
-# 注意：减少 worker 数量以节省内存（每个 worker ~100MB）
-# Zeabur 免费套餐内存限制较低，使用 2 个 worker 足够
-CMD ["sh", "-c", "gunicorn apps.api.main:app -w 2 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:${PORT:-8000} --timeout 120 --access-logfile - --error-logfile -"]
+# 注意：使用 1 个 worker 以最小化内存占用（约 100-150MB）
+# Zeabur 免费套餐内存限制 440MB，单 worker 最安全
+CMD ["sh", "-c", "gunicorn apps.api.main:app -w 1 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:${PORT:-8000} --timeout 120 --access-logfile - --error-logfile -"]
