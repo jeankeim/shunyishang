@@ -1,6 +1,6 @@
 """
 文本向量化服务
-复用 Week 1 已实现的 BGE-M3 模型能力
+使用 DashScope API 生成向量（不再使用本地模型）
 """
 
 import logging
@@ -8,10 +8,30 @@ from typing import List, Dict, Optional
 
 import numpy as np
 
-# 复用 Week 1 的 embedding 模型
-from packages.ai_agents.nodes import _get_embedding_model
-
 logger = logging.getLogger(__name__)
+
+
+def _encode_text_with_dashscope(text: str) -> List[float]:
+    """
+    使用 DashScope API 生成文本向量
+    
+    Args:
+        text: 输入文本
+        
+    Returns:
+        embedding 向量 (1024 维)
+    """
+    from dashscope import TextEmbedding
+    
+    response = TextEmbedding.call(
+        model='text-embedding-v3',
+        input=text
+    )
+    
+    if response.status_code == 200:
+        return response.output['embeddings'][0]['embedding']
+    else:
+        raise Exception(f"DashScope embedding API error: {response.code} - {response.message}")
 
 
 def build_wardrobe_embedding_text(
@@ -93,7 +113,7 @@ class EmbeddingService:
     
     def generate_embedding(self, text: str) -> List[float]:
         """
-        生成文本向量（同步版本）
+        生成文本向量（使用 DashScope API）
         
         Args:
             text: 衣物描述文本
@@ -101,13 +121,11 @@ class EmbeddingService:
         Returns:
             1024维向量
         """
-        model = _get_embedding_model()
-        embedding = model.encode(text, normalize_embeddings=True)
-        return embedding.tolist()
+        return _encode_text_with_dashscope(text)
     
     def generate_embedding_batch(self, texts: List[str]) -> List[List[float]]:
         """
-        批量生成文本向量
+        批量生成文本向量（使用 DashScope API）
         
         Args:
             texts: 文本列表
@@ -115,9 +133,8 @@ class EmbeddingService:
         Returns:
             向量列表
         """
-        model = _get_embedding_model()
-        embeddings = model.encode(texts, normalize_embeddings=True)
-        return [emb.tolist() for emb in embeddings]
+        # DashScope API 支持批量，但这里简单实现为逐个调用
+        return [_encode_text_with_dashscope(text) for text in texts]
     
     async def generate_embedding_async(self, text: str) -> List[float]:
         """
