@@ -263,23 +263,39 @@ export async function getCurrentUser(): Promise<User> {
   const headers = getAuthHeaders()
   console.log('[getCurrentUser] 请求 headers:', JSON.stringify(headers))
   
-  const response = await fetch(`${API_BASE}/api/v1/auth/me`, {
-    headers: {
-      ...headers,
-    },
-  })
+  try {
+    const response = await fetch(`${API_BASE}/api/v1/auth/me`, {
+      headers: {
+        ...headers,
+      },
+    })
 
-  if (!response.ok) {
-    console.log('[getCurrentUser] 请求失败，状态:', response.status)
-    if (response.status === 401) {
-      // 只在确实没有有效登录时才清除 token
-      // 不要在请求失败时立即清除，可能是临时的网络问题
-      console.log('[getCurrentUser] 401 错误，但不立即清除 token')
+    if (!response.ok) {
+      console.log('[getCurrentUser] 请求失败，状态:', response.status)
+      
+      if (response.status === 502) {
+        // 502 Bad Gateway - 服务暂时不可用
+        console.warn('[getCurrentUser] 后端服务暂时不可用 (502)，请稍后重试')
+        throw new Error('后端服务暂时不可用，请稍后重试')
+      }
+      
+      if (response.status === 401) {
+        // 只在确实没有有效登录时才清除 token
+        // 不要在请求失败时立即清除，可能是临时的网络问题
+        console.log('[getCurrentUser] 401 错误，但不立即清除 token')
+      }
+      throw new Error('获取用户信息失败')
     }
-    throw new Error('获取用户信息失败')
-  }
 
-  return response.json()
+    return response.json()
+  } catch (error) {
+    // 网络错误或 CORS 错误
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      console.warn('[getCurrentUser] 网络请求失败（后端可能不可用）')
+      throw new Error('网络连接失败，请检查后端服务')
+    }
+    throw error
+  }
 }
 
 /**

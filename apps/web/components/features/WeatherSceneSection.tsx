@@ -108,9 +108,15 @@ export function WeatherSceneSection({
         const data = await response.json()
         setWeather(data)
         onWeatherChange?.(data)
+      } else if (response.status === 502) {
+        // 502 Bad Gateway - 服务暂时不可用，静默失败
+        console.warn('[WeatherScene] 后端服务暂时不可用 (502)，请稍后重试')
+      } else {
+        console.error(`[WeatherScene] 获取天气失败: HTTP ${response.status}`)
       }
     } catch (e) {
-      console.error('获取天气失败:', e)
+      // 网络错误或 CORS 错误，静默失败
+      console.warn('[WeatherScene] 获取天气失败（网络或服务不可用）:', e)
     } finally {
       setLoading(false)
     }
