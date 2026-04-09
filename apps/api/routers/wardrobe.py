@@ -28,6 +28,7 @@ from apps.api.schemas.wardrobe import (
 )
 from apps.api.services.ai_tagging_service import ai_tagging_service
 from apps.api.services.embedding_service import embedding_service, build_wardrobe_embedding_text
+from apps.api.services.r2_storage import get_r2_service
 
 logger = logging.getLogger(__name__)
 
@@ -56,22 +57,22 @@ async def upload_wardrobe_image(
     current_user: dict = Depends(get_current_user)
 ):
     """
-    上传衣物图片到本地文件系统
+    上传衣物图片到 Cloudflare R2
     
     **源码位置**: `apps/api/routers/wardrobe.py:upload_wardrobe_image()`
     
     **核心逻辑**:
     1. 验证文件类型（JPG/PNG/WebP）和大小（≤5MB）
-    2. 生成唯一文件名：{timestamp}_{uuid}_{filename}
-    3. 保存到 data/uploads/wardrobe/{user_id}/ 目录
-    4. 返回可访问的 URL 路径
+    2. 生成唯一文件名：{user_id}_{timestamp}_{uuid}_{filename}
+    3. 上传到 R2 存储桶：uploads/wardrobe/{user_id}/
+    4. 返回完整的公共 URL
     
     **用途**: 用户添加衣物时上传图片，用于推荐结果展示
     
     **响应示例**:
     ```json
     {
-      "image_url": "/uploads/wardrobe/1/1712000000_a1b2c3d4_shirt.jpg"
+      "image_url": "https://pub-xxx.r2.dev/uploads/wardrobe/1/abc123_shirt.jpg"
     }
     ```
     """
@@ -100,19 +101,24 @@ async def upload_wardrobe_image(
         timestamp = int(time.time())
         unique_id = str(uuid.uuid4())[:8]
         original_filename = file.filename or "image.jpg"
-        safe_filename = f"{timestamp}_{unique_id}_{original_filename}"
+        safe_filename = f"{user_id}_{timestamp}_{unique_id}_{original_filename}"
         
-        # 4. 创建用户目录
-        user_dir = UPLOAD_DIR / str(user_id)
-        user_dir.mkdir(parents=True, exist_ok=True)
+        # 4. 上传到 R2
+        r2_service = get_r2_service()
+        from io import BytesIO
         
-        # 5. 保存文件
-        file_path = user_dir / safe_filename
-        with open(file_path, "wb") as f:
-            f.write(content)
+        image_url = r2_service.upload_file(
+            file_data=BytesIO(content),
+            file_name=safe_filename,
+            folder="uploads/wardrobe",
+            content_type=file.content_type
+        )
         
-        # 6. 生成访问 URL（相对路径），不编码，前端会处理
-        image_url = f"/uploads/wardrobe/{user_id}/{safe_filename}"
+        if not image_url:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="图片上传失败，请稍后重试"
+            )
         
         logger.info(f"用户 {user_id} 上传图片成功：{image_url}")
         
