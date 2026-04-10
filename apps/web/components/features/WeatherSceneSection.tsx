@@ -181,27 +181,42 @@ export function WeatherSceneSection({
     switch (error.code) {
       case error.PERMISSION_DENIED:
         showLocationError(
-          '请在浏览器设置中允许位置访问权限，然后刷新页面重试',
+          '位置权限被拒绝，请手动选择城市',
           'PERMISSION_DENIED'
         )
         break
       case error.POSITION_UNAVAILABLE:
         showLocationError(
-          '无法获取位置信息，请检查网络连接或稍后重试',
+          '无法获取位置信息（本地环境可能不支持定位），已使用默认城市：北京',
           'POSITION_UNAVAILABLE'
         )
+        // 自动使用默认城市
+        setTimeout(() => {
+          setCity('北京')
+          fetchWeather('北京')
+        }, 2000)
         break
       case error.TIMEOUT:
         showLocationError(
-          '定位超时，请确保网络畅通后重试',
+          '定位超时，已使用默认城市：北京',
           'TIMEOUT'
         )
+        // 自动使用默认城市
+        setTimeout(() => {
+          setCity('北京')
+          fetchWeather('北京')
+        }, 2000)
         break
       default:
         showLocationError(
-          '定位失败，请手动选择城市或稍后重试',
+          '定位失败，已使用默认城市：北京',
           'UNKNOWN_ERROR'
         )
+        // 自动使用默认城市
+        setTimeout(() => {
+          setCity('北京')
+          fetchWeather('北京')
+        }, 2000)
         break
     }
   }

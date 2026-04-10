@@ -21,7 +21,15 @@ def _encode_text_with_dashscope(text: str) -> List[float]:
     Returns:
         embedding 向量 (1024 维)
     """
+    import dashscope
     from dashscope import TextEmbedding
+    from apps.api.core.config import settings
+    
+    # 从配置中获取 API Key
+    api_key = settings.dashscope_api_key
+    if not api_key:
+        raise ValueError("未设置 DASHSCOPE_API_KEY 环境变量")
+    dashscope.api_key = api_key
     
     response = TextEmbedding.call(
         model='text-embedding-v3',

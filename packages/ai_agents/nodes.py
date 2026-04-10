@@ -324,13 +324,13 @@ def retrieve_items_node(state: AgentState) -> Dict:
             }
         
         # 生成查询向量
-        model = _get_embedding_model()
-        query_embedding = model.encode(search_query, normalize_embeddings=True)
+        from apps.api.services.embedding_service import embedding_service
+        query_embedding = embedding_service.generate_embedding(search_query)
         
         # 从衣橱检索
         items = wardrobe_client.vector_search_wardrobe(
             user_id=user_id,
-            query_embedding=query_embedding.tolist(),
+            query_embedding=query_embedding,  # 已经是 List[float]，无需 .tolist()
             target_elements=target_elements,
             weather_info=weather_info,
             limit=50
@@ -346,13 +346,13 @@ def retrieve_items_node(state: AgentState) -> Dict:
         # 模式 C: 混合推荐 - 优先衣橱，不足补充公共库
         if user_id and not wardrobe_client.check_wardrobe_empty(user_id):
             # 生成查询向量
-            model = _get_embedding_model()
-            query_embedding = model.encode(search_query, normalize_embeddings=True)
+            from apps.api.services.embedding_service import embedding_service
+            query_embedding = embedding_service.generate_embedding(search_query)
             
             # 先从衣橱检索
             wardrobe_items = wardrobe_client.vector_search_wardrobe(
                 user_id=user_id,
-                query_embedding=query_embedding.tolist(),
+                query_embedding=query_embedding,  # 已经是 List[float]，无需 .tolist()
                 target_elements=target_elements,
                 weather_info=weather_info,
                 limit=top_k
