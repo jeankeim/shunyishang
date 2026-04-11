@@ -283,25 +283,36 @@ export function ChatInterface({ scene, weatherElement, weatherInfo }: ChatInterf
     const userId = user?.id
     console.log('[推荐请求] userId:', userId, 'retrievalMode:', effectiveRetrievalMode, 'isAuthenticated:', isAuthenticated)
     
+    // 调试：打印完整请求参数
+    const requestParams = {
+      query: content,
+      scene: scene || undefined,
+      weather_element: weatherElement || undefined,
+      weather: weatherInfo || undefined,
+      bazi: effectiveBazi
+        ? {
+            birth_year: effectiveBazi.birthYear,
+            birth_month: effectiveBazi.birthMonth,
+            birth_day: effectiveBazi.birthDay,
+            birth_hour: effectiveBazi.birthHour,
+            gender: effectiveBazi.gender,
+          }
+        : undefined,
+      gender: userGender,
+      retrieval_mode: effectiveRetrievalMode,
+      user_id: userId,
+    }
+    console.log('[推荐请求] 完整请求参数:', JSON.stringify(requestParams, null, 2))
+    console.log('[推荐请求] 准备调用 streamRecommendation...')
+    
     try {
-      for await (const event of streamRecommendation({
-        query: content,
-        scene: scene || undefined,
-        weather_element: weatherElement || undefined,
-        weather: weatherInfo || undefined,  // 新增：传递完整天气信息
-        bazi: effectiveBazi
-          ? {
-              birth_year: effectiveBazi.birthYear,
-              birth_month: effectiveBazi.birthMonth,
-              birth_day: effectiveBazi.birthDay,
-              birth_hour: effectiveBazi.birthHour,
-              gender: effectiveBazi.gender,
-            }
-          : undefined,
-        gender: userGender,
-        retrieval_mode: effectiveRetrievalMode,
-        user_id: userId,
-      })) {
+      // 调试：记录开始时间
+      const startTime = Date.now()
+      console.log('[推荐请求] 开始时间:', new Date(startTime).toISOString())
+      
+      for await (const event of streamRecommendation(requestParams)) {
+        // 调试：打印收到的事件类型
+        console.log('[推荐请求] 收到事件:', event.type, event.type === 'token' ? '(流式)' : '')
         switch (event.type) {
           case 'analysis':
             updateMessage(convId, aiMessageId, {
@@ -387,7 +398,9 @@ export function ChatInterface({ scene, weatherElement, weatherInfo }: ChatInterf
             break
         }
       }
+      console.log('[推荐请求] 流式处理完成，耗时:', Date.now() - startTime, 'ms')
     } catch (error) {
+      console.error('[推荐请求] 异常:', error)
       updateMessage(convId, aiMessageId, {
         content: '连接失败，请检查网络后重试。',
         type: 'error',

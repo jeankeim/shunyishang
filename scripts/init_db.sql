@@ -33,10 +33,19 @@ CREATE TABLE items (
     category VARCHAR(50),                       -- 分类 (上装/下装/外套/裙装/鞋履/配饰)
     primary_element VARCHAR(10),                -- 主五行
     secondary_element VARCHAR(10),              -- 次五行
-    energy_intensity FLOAT,                     -- 能量强度 (0.0-1.0)
+    energy_intensity DOUBLE PRECISION,          -- 能量强度 (0.0-1.0)
     gender VARCHAR(10) DEFAULT '中性',          -- 适用性别 (男/女/中性)
     attributes_detail JSONB,                    -- 完整属性详情
     embedding VECTOR(1024),                     -- 语义向量 (BGE-M3 维度)
+    
+    -- 天气/场景适配字段
+    applicable_weather JSONB DEFAULT '[]',      -- 适用天气：["晴", "雨", "炎热", "寒冷"]
+    applicable_seasons JSONB DEFAULT '[]',      -- 适用季节：["春", "夏", "秋", "冬"]
+    temperature_range JSONB DEFAULT '{}',       -- 温度范围：{"最低": 10, "最高": 25}
+    functionality JSONB DEFAULT '{}',           -- 功能特性：{"保暖": false, "透气": true}
+    thickness_level VARCHAR(20),                -- 厚度等级：轻薄/适中/加厚/厚重
+    image_url VARCHAR(500),                     -- 图片URL
+    
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -174,6 +183,18 @@ CREATE INDEX idx_feedback_item ON feedback_logs(item_id, item_source);
 -- 7. 添加字段注释
 -- =====================================================
 
+-- items 表注释
+COMMENT ON COLUMN items.applicable_weather IS '适用天气: ["晴", "雨", "炎热", "寒冷", "多云", "阴", "雪", "霾"]';
+COMMENT ON COLUMN items.applicable_seasons IS '适用季节: ["春", "夏", "秋", "冬"]';
+COMMENT ON COLUMN items.temperature_range IS '温度范围: {"最低": 10, "最高": 25}';
+COMMENT ON COLUMN items.functionality IS '功能特性: {"保暖": false, "透气": true, "速干": false, "防晒": false, "防水": false}';
+COMMENT ON COLUMN items.thickness_level IS '厚度等级: 轻薄/适中/加厚/厚重';
+COMMENT ON COLUMN items.image_url IS '图片URL: /images/seed/ITEM_001.png';
+COMMENT ON COLUMN items.energy_intensity IS '能量强度(0.0-1.0)，用于八字喜用神匹配';
+COMMENT ON COLUMN items.embedding IS '向量嵌入，用于语义搜索 (BGE-M3, 1024维度)';
+COMMENT ON COLUMN items.attributes_detail IS 'AI分析结果: {"颜色": {...}, "面料": {...}, "款式": {...}}';
+
+-- user_wardrobe 表注释
 COMMENT ON COLUMN user_wardrobe.is_custom IS 'TRUE=用户自定义衣物，FALSE=引用公共库物品';
 COMMENT ON COLUMN user_wardrobe.embedding IS '向量嵌入，用于语义搜索';
 COMMENT ON COLUMN user_wardrobe.attributes_detail IS 'AI分析结果: {"color": "红色", "material": "丝绸", "style": "正式", "season": ["夏"], "tags": ["商务"]}';

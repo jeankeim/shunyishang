@@ -34,6 +34,10 @@ export interface SSEEvent {
 export async function* streamRecommendation(
   request: RecommendRequest
 ): AsyncGenerator<SSEEvent, void, unknown> {
+  const startTime = Date.now()
+  console.log('[SSE] 开始请求:', `${API_BASE}/api/v1/recommend/stream`)
+  console.log('[SSE] 请求参数:', JSON.stringify(request, null, 2))
+  
   const response = await fetch(`${API_BASE}/api/v1/recommend/stream`, {
     method: 'POST',
     headers: {
@@ -43,6 +47,10 @@ export async function* streamRecommendation(
     body: JSON.stringify(request),
   })
 
+  console.log('[SSE] 响应状态:', response.status, response.statusText)
+  console.log('[SSE] 响应头:', Object.fromEntries(response.headers.entries()))
+  console.log('[SSE] 响应耗时:', Date.now() - startTime, 'ms')
+
   if (!response.body) {
     throw new Error('No response body')
   }
@@ -50,10 +58,18 @@ export async function* streamRecommendation(
   const reader = response.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
+  let eventCount = 0
 
   while (true) {
+    const readStart = Date.now()
     const { done, value } = await reader.read()
-    if (done) break
+    
+    if (done) {
+      console.log('[SSE] 流结束，总事件数:', eventCount, '总耗时:', Date.now() - startTime, 'ms')
+      break
+    }
+    
+    console.log('[SSE] 读取数据块耗时:', Date.now() - readStart, 'ms', '数据大小:', value?.length || 0, 'bytes')
 
     buffer += decoder.decode(value, { stream: true })
     const lines = buffer.split('\n\n')
@@ -63,9 +79,11 @@ export async function* streamRecommendation(
       if (line.startsWith('data: ')) {
         try {
           const event: SSEEvent = JSON.parse(line.slice(6))
+          eventCount++
+          console.log(`[SSE] 事件 #${eventCount}:`, event.type, event.type === 'token' ? '(流式token)' : '')
           yield event
         } catch (e) {
-          console.error('Parse error:', e)
+          console.error('[SSE] 解析错误:', e, '原始数据:', line.slice(0, 100))
         }
       }
     }
