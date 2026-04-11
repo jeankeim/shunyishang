@@ -753,24 +753,25 @@ def _build_weather_filter(weather_info: Optional[Dict]) -> str:
                 "(temperature_range->>'最高')::int >= 25)"
             )
     
-    # 天气状况过滤
+    # 天气状况过滤（软过滤：不硬性排除，只在 SQL 中不添加过滤条件）
+    # 天气过滤已移至评分逻辑中处理，这里不再硬性过滤
+    # 原因：硬过滤会导致结果过少，应该让向量搜索先返回结果，再根据天气评分
     if weather_desc:
         weather_desc_lower = weather_desc.lower()
         
-        if any(kw in weather_desc_lower for kw in ['雨', '雪', '阴雨']):
-            # 雨雪天气：优先防水或有雨天标签的衣物
-            conditions.append(
-                "(applicable_weather ? '雨天' OR "
-                "functionality->>'防水' = 'true' OR "
-                "applicable_weather ? '多云')"
-            )
-        elif any(kw in weather_desc_lower for kw in ['晴', '晴朗']):
-            # 晴天：优先防晒或有晴天标签的衣物
-            conditions.append(
-                "(applicable_weather ? '晴天' OR "
-                "functionality->>'防晒' = 'true' OR "
-                "applicable_weather ? '温和')"
-            )
+        # 注释掉硬过滤，改为在评分时考虑天气因素
+        # if any(kw in weather_desc_lower for kw in ['雨', '雪', '阴雨']):
+        #     conditions.append(
+        #         "(applicable_weather ? '雨天' OR "
+        #         "functionality->>'防水' = 'true' OR "
+        #         "applicable_weather ? '多云')"
+        #     )
+        # elif any(kw in weather_desc_lower for kw in ['晴', '晴朗']):
+        #     conditions.append(
+        #         "(applicable_weather ? '晴天' OR "
+        #         "functionality->>'防晒' = 'true' OR "
+        #         "applicable_weather ? '温和')"
+        #     )
     
     return " AND ".join(conditions) if conditions else ""
 
