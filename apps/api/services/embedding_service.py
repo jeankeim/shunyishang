@@ -3,12 +3,20 @@
 使用 DashScope API 生成向量（不再使用本地模型）
 """
 
+import os
 import logging
 from typing import List, Dict, Optional
 
 import numpy as np
+import dashscope
 
 logger = logging.getLogger(__name__)
+
+# 模块加载时初始化 API Key（避免每次调用都设置）
+from apps.api.core.config import settings
+if settings.dashscope_api_key:
+    dashscope.api_key = settings.dashscope_api_key
+    os.environ['DASHSCOPE_API_KEY'] = settings.dashscope_api_key
 
 
 def _encode_text_with_dashscope(text: str) -> List[float]:
@@ -21,15 +29,7 @@ def _encode_text_with_dashscope(text: str) -> List[float]:
     Returns:
         embedding 向量 (1024 维)
     """
-    import dashscope
     from dashscope import TextEmbedding
-    from apps.api.core.config import settings
-    
-    # 从配置中获取 API Key
-    api_key = settings.dashscope_api_key
-    if not api_key:
-        raise ValueError("未设置 DASHSCOPE_API_KEY 环境变量")
-    dashscope.api_key = api_key
     
     response = TextEmbedding.call(
         model='text-embedding-v3',

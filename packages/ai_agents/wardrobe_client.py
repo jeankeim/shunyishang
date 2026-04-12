@@ -1,9 +1,10 @@
-"""
+""" 
 衣橱客户端
 用于获取用户衣橱数据和从衣橱中检索物品
 """
 
 import logging
+import time
 from typing import List, Dict, Optional, Any
 
 import numpy as np
@@ -18,6 +19,11 @@ class WardrobeClient:
     用户衣橱客户端
     负责从 user_wardrobe 表检索数据
     """
+    
+    def __init__(self):
+        # 衣橱空状态缓存（避免重复查询）
+        self._empty_cache = {}  # {user_id: (is_empty, timestamp)}
+        self._cache_ttl = 60  # 缓存 60 秒
     
     def _get_embedding_model(self):
         """延迟加载 embedding 模型（避免循环导入）"""
@@ -230,7 +236,7 @@ class WardrobeClient:
     
     def check_wardrobe_empty(self, user_id: int) -> bool:
         """
-        检查用户衣橱是否为空
+        检查用户衣橱是否为空（带缓存优化）
         
         Args:
             user_id: 用户ID
@@ -238,6 +244,15 @@ class WardrobeClient:
         Returns:
             True if empty, False otherwise
         """
+        # 检查缓存
+        now = time.time()
+        if user_id in self._empty_cache:
+            cached_result, cached_time = self._empty_cache[user_id]
+            if now - cached_time < self._cache_ttl:
+                logger.debug(f"[衣橱缓存] 命中: user_id={user_id}, is_empty={cached_result}")
+                return cached_result
+        
+        # 缓存未命中，查询数据库
         query = """
             SELECT COUNT(*) FROM user_wardrobe
             WHERE user_id = %s AND is_active = TRUE
@@ -246,13 +261,18 @@ class WardrobeClient:
         try:
             with DatabasePool.get_connection() as conn:
                 with conn.cursor() as cur:
-                    cur.execute(query, [user_id])
+                    cur.execute(query, (user_id,))
                     count = cur.fetchone()[0]
-                    logger.info(f"检查衣橱状态: user_id={user_id}, count={count}")
-                    return count == 0
+                    is_empty = count == 0
+                    
+                    # 更新缓存
+                    self._empty_cache[user_id] = (is_empty, now)
+                    logger.debug(f"[衣橱缓存] 写入: user_id={user_id}, is_empty={is_empty}, count={count}")
+                    
+                    return is_empty
         except Exception as e:
-            logger.error(f"检查衣橱状态失败: user_id={user_id}, error={e}")
-            return True
+            logger.error(f"检查衣橱空状态失败: {e}")
+            return False  # 失败时默认为非空，避免阻塞用户
 
 
 # 单例

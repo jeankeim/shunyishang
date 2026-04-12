@@ -2,6 +2,7 @@
 
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { FiveElementRadar } from '@/components/features/FiveElementRadar'
+import { FiveElementList } from '@/components/features/FiveElementList'
 import { ChatInterface } from '@/components/features/ChatInterface'
 import { BaziInputSection } from '@/components/features/BaziInputSection'
 import { BaziCard } from '@/components/features/BaziCard'
@@ -9,8 +10,10 @@ import { WeatherSceneSection } from '@/components/features/WeatherSceneSection'
 import { UserProfile } from '@/components/features/UserProfile'
 import { Sidebar } from '@/components/features/Sidebar'
 import { Header } from '@/components/features/Header'
+import { MobileControlPanel } from '@/components/features/MobileControlPanel'
 import { useChatStore } from '@/store/chat'
 import { useUserStore } from '@/store/user'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { motion, AnimatePresence } from 'framer-motion'
 
 // 懒加载衣橱页面，减少首页初始加载时间
@@ -83,21 +86,23 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-[#F8FAF9] via-[#F5F9F7] to-[#F0F7F4]">
+    <div className="flex h-screen bg-gradient-to-br from-[#F8FAF9] via-[#F5F9F7] to-[#F0F7F4] overflow-hidden">
       {/* Sidebar - 聊天记录面板 */}
       <Sidebar 
         collapsed={sidebarCollapsed} 
         onToggle={toggleSidebar}
       />
 
-      {/* 左侧：清新五行风格控制面板 */}
+      {/* 左侧：清新五行风格控制面板 - 移动端优化 */}
       <motion.div 
         initial={{ x: -20, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className={`bg-white/90 backdrop-blur-xl p-6 overflow-y-auto transition-all duration-300 ${
-          hasBazi ? 'w-[300px] lg:w-[340px]' : 'w-[320px] lg:w-[360px]'
-        }`}
+        className={`bg-white/90 backdrop-blur-xl overflow-y-auto transition-all duration-300 scrollbar-hide ${
+          hasBazi 
+            ? 'w-[300px] lg:w-[340px]' 
+            : 'w-[320px] lg:w-[360px]'
+        } hidden md:block`}
       >
         <div className="space-y-5">
         {/* 标题区域 - 清雅书法风格 */}
@@ -161,13 +166,13 @@ export default function Home() {
           />
         </motion.div>
         
-        {/* 五行雷达图：仅在没有八字时显示 */}
+        {/* 五行雷达图：仅在没有八字时显示 - 移动端优化 */}
         {!hasBazi && (
           <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="card-secondary p-5 bg-gradient-to-br from-[#F0F9F4]/80 to-[#E8F5EC]/60 hover:shadow-[0_6px_24px_rgba(61,163,93,0.12)] transition-all duration-300 group"
+            className="card-secondary p-5 bg-gradient-to-br from-[#F0F9F4]/80 to-[#E8F5EC]/60 hover:shadow-[0_6px_24px_rgba(61,163,93,0.12)] transition-all duration-300 group hidden md:block"
           >
             <div className="flex items-center gap-3 mb-4">
               <div className="w-2.5 h-2.5 bg-gradient-to-br from-[#3DA35D] to-[#B89B5E] rounded-full group-hover:scale-110 transition-transform duration-300"></div>
@@ -203,28 +208,28 @@ export default function Home() {
         </div>
       </motion.div>
 
-      {/* 右侧：主要内容区 */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      {/* 右侧：主要内容区 - 移动端优化 */}
+      <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
         {/* Header */}
         <Header 
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={toggleSidebar}
         />
         
-        {/* 清雅五行风格Tab导航 */}
+        {/* 清雅五行风格Tab导航 - 移动端优化 */}
         <motion.div 
           initial={{ y: -10, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className="bg-white/90 backdrop-blur-xl flex-shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.05)]"
+          className="bg-white/90 backdrop-blur-xl flex-shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.05)] overflow-x-auto scrollbar-hide"
         >
-          <div className="flex px-6 py-2">
+          <div className="flex px-4 md:px-6 py-2 min-w-max">
             <button
               onClick={() => {
                 setActiveTab('chat')
                 window.location.hash = ''
               }}
-              className={`relative px-6 py-4 font-medium text-sm transition-all duration-300 hover:-translate-y-0.5 ${
+              className={`relative px-4 md:px-6 py-4 font-medium text-sm transition-all duration-300 hover:-translate-y-0.5 touch-feedback ${
                 activeTab === 'chat'
                   ? 'text-[#3DA35D]'
                   : 'text-[#6B7F72] hover:text-[#3DA35D]/80'
@@ -245,7 +250,7 @@ export default function Home() {
                 setActiveTab('wardrobe')
                 window.location.hash = '#wardrobe'
               }}
-              className={`relative px-6 py-4 font-medium text-sm transition-all duration-300 hover:-translate-y-0.5 ${
+              className={`relative px-4 md:px-6 py-4 font-medium text-sm transition-all duration-300 hover:-translate-y-0.5 touch-feedback ${
                 activeTab === 'wardrobe'
                   ? 'text-[#D4656B]'
                   : 'text-[#6B7F72] hover:text-[#D4656B]/80'
@@ -266,7 +271,7 @@ export default function Home() {
                 setActiveTab('profile')
                 window.location.hash = '#profile'
               }}
-              className={`relative px-6 py-4 font-medium text-sm transition-all duration-300 hover:-translate-y-0.5 ${
+              className={`relative px-4 md:px-6 py-4 font-medium text-sm transition-all duration-300 hover:-translate-y-0.5 touch-feedback ${
                 activeTab === 'profile'
                   ? 'text-[#4A90C4]'
                   : 'text-[#6B7F72] hover:text-[#4A90C4]/80'
@@ -285,12 +290,12 @@ export default function Home() {
           </div>
         </motion.div>
 
-        {/* 内容区域 */}
+        {/* 内容区域 - 移动端优化 */}
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3, ease: "easeOut" }}
-          className="flex-1 overflow-y-auto overflow-x-visible bg-gradient-to-b from-white/80 via-[#F8FAF9]/50 to-[#F0F7F4]/30 backdrop-blur-sm p-6"
+          className="flex-1 overflow-y-auto overflow-x-visible bg-gradient-to-b from-white/80 via-[#F8FAF9]/50 to-[#F0F7F4]/30 backdrop-blur-sm p-4 md:p-6 pb-24 md:pb-6"
         >
           <AnimatePresence mode="wait">
             {activeTab === 'chat' && (
@@ -344,6 +349,12 @@ export default function Home() {
           </AnimatePresence>
         </motion.div>
       </div>
+      
+      {/* 移动端控制面板 - 底部固定 */}
+      <MobileControlPanel
+        onSceneChange={handleSceneChange}
+        onWeatherChange={handleWeatherChange}
+      />
     </div>
   )
 }

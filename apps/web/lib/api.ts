@@ -1,4 +1,81 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+// 智能API地址检测：支持localhost和局域网访问
+const getAPIBase = () => {
+  // 优先使用环境变量
+  const envUrl = process.env.NEXT_PUBLIC_API_URL
+  
+  if (typeof window !== 'undefined') {
+    // 浏览器环境：根据访问地址自动切换
+    const hostname = window.location.hostname
+    
+    // 如果通过localhost访问，使用localhost后端
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      const apiUrl = envUrl?.includes('localhost') ? envUrl : 'http://localhost:8000'
+      console.log('[API] 检测到localhost访问 → 使用:', apiUrl)
+      return apiUrl
+    }
+    
+    // 如果通过局域网IP访问（如手机），使用同IP的后端
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(hostname)) {
+      const apiUrl = `http://${hostname}:8000`
+      console.log('[API] 检测到局域网IP访问 → 使用:', apiUrl)
+      return apiUrl
+    }
+  }
+  
+  // SSR环境或其他情况：使用环境变量或默认值
+  const apiUrl = envUrl || 'http://localhost:8000'
+  console.log('[API] SSR或其他环境 → 使用:', apiUrl)
+  return apiUrl
+}
+
+// 不要在这里固定API_BASE，而是在每次请求时动态获取
+// const API_BASE = getAPIBase()  // 删除这行
+
+// 调试信息：打印API地址（仅在浏览器环境）
+if (typeof window !== 'undefined') {
+  console.log('[API] 初始化检查 - 访问地址:', window.location.href)
+  console.log('[API] 动态API地址函数已就绪')
+  
+  // 全局测试函数：在浏览器控制台执行 testAPI() 测试连接
+  ;(window as any).testAPI = async () => {
+    console.log('\n=== API 连接测试 ===')
+    console.log('当前页面:', window.location.href)
+    const apiUrl = getAPIBase()
+    console.log('目标API:', apiUrl)
+    
+    try {
+      console.log('测试健康检查...')
+      const health = await fetch(`${apiUrl}/health`).then(r => r.json())
+      console.log('✅ 健康检查成功:', health)
+      
+      console.log('测试八字计算接口...')
+      const bazi = await fetch(`${apiUrl}/api/v1/bazi/calculate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          birth_year: 1990,
+          birth_month: 5,
+          birth_day: 15,
+          birth_hour: 8,
+          gender: '男'
+        })
+      }).then(r => r.json())
+      console.log('✅ 八字计算成功:', bazi.day_master)
+      
+      console.log('\n=== 所有测试通过 ✅ ===')
+      return true
+    } catch (error) {
+      console.error('\n❌ API 连接失败:', error)
+      console.error('请检查：')
+      console.error('1. 后端服务是否运行 (lsof -i:8000)')
+      console.error('2. 手机和电脑是否在同一WiFi')
+      console.error('3. Mac防火墙是否关闭')
+      return false
+    }
+  }
+  
+  console.log('💡 提示: 在控制台输入 testAPI() 测试后端连接')
+}
 
 export interface RecommendRequest {
   query: string
@@ -35,10 +112,10 @@ export async function* streamRecommendation(
   request: RecommendRequest
 ): AsyncGenerator<SSEEvent, void, unknown> {
   const startTime = Date.now()
-  console.log('[SSE] 开始请求:', `${API_BASE}/api/v1/recommend/stream`)
+  console.log('[SSE] 开始请求:', `${getAPIBase()}/api/v1/recommend/stream`)
   console.log('[SSE] 请求参数:', JSON.stringify(request, null, 2))
   
-  const response = await fetch(`${API_BASE}/api/v1/recommend/stream`, {
+  const response = await fetch(`${getAPIBase()}/api/v1/recommend/stream`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -94,7 +171,7 @@ export async function* streamRecommendation(
  * 健康检查
  */
 export async function checkHealth(): Promise<{ status: string; db: string }> {
-  const response = await fetch(`${API_BASE}/health`)
+  const response = await fetch(`${getAPIBase()}/health`)
   if (!response.ok) throw new Error('Health check failed')
   return response.json()
 }
@@ -125,7 +202,7 @@ export interface BaziCalculateResponse {
 }
 
 export async function calculateBazi(request: BaziCalculateRequest): Promise<BaziCalculateResponse> {
-  const response = await fetch(`${API_BASE}/api/v1/bazi/calculate`, {
+  const response = await fetch(`${getAPIBase()}/api/v1/bazi/calculate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -224,7 +301,7 @@ function getAuthHeaders(): Record<string, string> {
  * 用户注册
  */
 export async function register(request: RegisterRequest): Promise<AuthResponse> {
-  const response = await fetch(`${API_BASE}/api/v1/auth/register`, {
+  const response = await fetch(`${getAPIBase()}/api/v1/auth/register`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -250,7 +327,7 @@ export async function login(request: LoginRequest): Promise<AuthResponse> {
   formData.append('username', request.phone || request.email || '')
   formData.append('password', request.password)
 
-  const response = await fetch(`${API_BASE}/api/v1/auth/login`, {
+  const response = await fetch(`${getAPIBase()}/api/v1/auth/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -282,7 +359,7 @@ export async function getCurrentUser(): Promise<User> {
   console.log('[getCurrentUser] 请求 headers:', JSON.stringify(headers))
   
   try {
-    const response = await fetch(`${API_BASE}/api/v1/auth/me`, {
+    const response = await fetch(`${getAPIBase()}/api/v1/auth/me`, {
       headers: {
         ...headers,
       },
@@ -320,7 +397,7 @@ export async function getCurrentUser(): Promise<User> {
  * 更新用户八字
  */
 export async function updateUserBazi(request: BaziCalculateRequest): Promise<User> {
-  const response = await fetch(`${API_BASE}/api/v1/auth/bazi`, {
+  const response = await fetch(`${getAPIBase()}/api/v1/auth/bazi`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -350,7 +427,7 @@ export interface UpdateProfileRequest {
 }
 
 export async function updateProfile(request: UpdateProfileRequest): Promise<User> {
-  const response = await fetch(`${API_BASE}/api/v1/auth/profile`, {
+  const response = await fetch(`${getAPIBase()}/api/v1/auth/profile`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
@@ -374,7 +451,7 @@ export async function getUserProfile(): Promise<any> {
   const headers = getAuthHeaders()
   console.log('[getUserProfile] 请求 headers:', JSON.stringify(headers))
   
-  const response = await fetch(`${API_BASE}/api/v1/auth/profile`, {
+  const response = await fetch(`${getAPIBase()}/api/v1/auth/profile`, {
     headers: {
       ...headers,
     },
@@ -399,7 +476,7 @@ export async function getUserProfile(): Promise<any> {
  */
 export async function logout(): Promise<void> {
   try {
-    await fetch(`${API_BASE}/api/v1/auth/logout`, {
+    await fetch(`${getAPIBase()}/api/v1/auth/logout`, {
       method: 'POST',
       headers: {
         ...getAuthHeaders(),
@@ -544,7 +621,7 @@ export async function getWardrobeItems(params?: {
   const headers = getAuthHeaders()
   console.log('[getWardrobeItems] 请求 headers:', JSON.stringify(headers))
 
-  const response = await fetch(`${API_BASE}/api/v1/wardrobe/items?${searchParams}`, {
+  const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/items?${searchParams}`, {
     headers: {
       ...headers,
     },
@@ -562,7 +639,7 @@ export async function getWardrobeItems(params?: {
  * 添加衣物到衣橱
  */
 export async function addWardrobeItem(data: AddWardrobeItemRequest): Promise<WardrobeItem> {
-  const response = await fetch(`${API_BASE}/api/v1/wardrobe/items`, {
+  const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/items`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -583,7 +660,7 @@ export async function addWardrobeItem(data: AddWardrobeItemRequest): Promise<War
  * 更新衣物信息
  */
 export async function updateWardrobeItem(itemId: number, data: UpdateWardrobeItemRequest): Promise<WardrobeItem> {
-  const response = await fetch(`${API_BASE}/api/v1/wardrobe/items/${itemId}`, {
+  const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/items/${itemId}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
@@ -604,7 +681,7 @@ export async function updateWardrobeItem(itemId: number, data: UpdateWardrobeIte
  * 删除衣物（软删除）
  */
 export async function deleteWardrobeItem(itemId: number): Promise<void> {
-  const response = await fetch(`${API_BASE}/api/v1/wardrobe/items/${itemId}`, {
+  const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/items/${itemId}`, {
     method: 'DELETE',
     headers: {
       ...getAuthHeaders(),
@@ -628,7 +705,7 @@ export async function previewTagging(description: string, image_url?: string): P
   
   console.log('[previewTagging] 请求 headers:', JSON.stringify(headers))
   
-  const response = await fetch(`${API_BASE}/api/v1/wardrobe/items/preview-tagging`, {
+  const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/items/preview-tagging`, {
     method: 'POST',
     headers,
     body: JSON.stringify({ description, image_url }),
@@ -646,7 +723,7 @@ export async function previewTagging(description: string, image_url?: string): P
  * 提交推荐反馈
  */
 export async function submitFeedback(data: FeedbackRequest): Promise<FeedbackResponse> {
-  const response = await fetch(`${API_BASE}/api/v1/wardrobe/feedback`, {
+  const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/feedback`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

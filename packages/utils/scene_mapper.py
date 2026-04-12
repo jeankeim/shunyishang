@@ -1,6 +1,8 @@
 """
-场景映射工具模块
+场曷映射工具模块
 提供场景提取、五行颜色映射等工具函数
+
+Task 03 增强：多维度场景识别（主场景 + 子场景 + 情感倾向）
 """
 
 from typing import Optional, List, Dict
@@ -16,7 +18,7 @@ from packages.utils.wuxing_rules import (
 
 def extract_scene_from_text(text: str) -> Optional[str]:
     """
-    从用户输入中提取场景关键词
+    从用户输入中提取场景关键词（旧版，保持兼容）
     
     Args:
         text: 用户输入文本
@@ -24,7 +26,62 @@ def extract_scene_from_text(text: str) -> Optional[str]:
     Returns:
         Optional[str]: 识别到的场景，未识别返回 None
     """
-    # 场景关键词映射（扩展匹配）
+    result = extract_scene_multidimensional(text)
+    return result.get("main_scene")
+
+
+def extract_scene_multidimensional(text: str) -> Dict:
+    """
+    Task 03: 多维度场景识别
+    
+    从用户输入中提取：
+    - 主场景（运动、商务、居家等）
+    - 子场景（马拉松、瑜伽、游泳等）
+    - 情感倾向（积极、消极）
+    - 置信度
+    
+    Args:
+        text: 用户输入文本
+    
+    Returns:
+        Dict: {
+            "main_scene": "运动",
+            "sub_scene": "马拉松",
+            "emotion": "积极",
+            "confidence": 0.9
+        }
+    """
+    result = {
+        "main_scene": None,
+        "sub_scene": None,
+        "emotion": None,
+        "confidence": 0.0
+    }
+    
+    text_lower = text.lower()
+    
+    # 1. 主场景识别
+    main_scene = _extract_main_scene(text_lower)
+    if main_scene:
+        result["main_scene"] = main_scene
+        result["confidence"] = 0.8
+    
+    # 2. 子场景识别
+    sub_scene = _extract_sub_scene(text_lower)
+    if sub_scene:
+        result["sub_scene"] = sub_scene
+        result["confidence"] = max(result["confidence"], 0.9)
+    
+    # 3. 情感倾向识别
+    emotion = _extract_emotion(text_lower)
+    if emotion:
+        result["emotion"] = emotion
+    
+    return result
+
+
+def _extract_main_scene(text: str) -> Optional[str]:
+    """提取主场景"""
     scene_keywords = {
         "面试": ["面试", "求职", "应聘", "招聘", "笔试", "复试"],
         "约会": ["约会", "相亲", "见面", "约会穿", "约会去"],
@@ -38,11 +95,40 @@ def extract_scene_from_text(text: str) -> Optional[str]:
         "会议": ["会议", "开会", "演讲", "汇报", "展示"],
     }
     
-    text_lower = text.lower()
     for scene, keywords in scene_keywords.items():
         for keyword in keywords:
-            if keyword.lower() in text_lower:
+            if keyword.lower() in text:
                 return scene
+    
+    return None
+
+
+def _extract_sub_scene(text: str) -> Optional[str]:
+    """提取子场景"""
+    sub_scene_keywords = {
+        "马拉松": ["马拉松", "长跑", "半马", "全马"],
+        "瑜伽": ["瑜伽", "yoga"],
+        "游泳": ["游泳", "泳池", "海边"],
+        "商务出差": ["出差", "商务旅行"],
+    }
+    
+    for sub_scene, keywords in sub_scene_keywords.items():
+        for keyword in keywords:
+            if keyword.lower() in text:
+                return sub_scene
+    
+    return None
+
+
+def _extract_emotion(text: str) -> Optional[str]:
+    """提取情感倾向"""
+    positive_words = ["心情很好", "开心", "高兴", "幸运", "好运", "旺运", "漂亮", "好看", "气质"]
+    negative_words = ["心情不好", "不顺", "低落", "沮丧", "烦闷", "郁闷"]
+    
+    if any(word in text for word in positive_words):
+        return "积极"
+    elif any(word in text for word in negative_words):
+        return "消极"
     
     return None
 

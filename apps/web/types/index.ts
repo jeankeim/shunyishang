@@ -17,6 +17,9 @@ export interface RecommendItem {
   primary_element: string
   secondary_element?: string
   final_score: number
+  semantic_score?: number  // Task 05: 语义匹配分数
+  wuxing_score?: number    // Task 05: 五行匹配分数
+  scene_score?: number     // Task 05: 场景适配分数
   color?: string
   reason?: string
   image_url?: string

@@ -102,6 +102,15 @@ class Settings(BaseSettings):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._validate_jwt_secret()
+        self._auto_enable_redis()
+    
+    def _auto_enable_redis(self):
+        """自动启用 Redis（如果配置了 Upstash）"""
+        # 如果配置了 Upstash，自动启用 Redis 缓存
+        if self.upstash_redis_rest_url and self.upstash_redis_rest_token:
+            if not self.redis_enabled:
+                self.redis_enabled = True
+                print(f"[配置] ✅ 检测到 Upstash Redis 配置，自动启用缓存")
     
     def _validate_jwt_secret(self):
         """JWT 密钥安全校验"""

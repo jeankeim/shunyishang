@@ -1,212 +1,222 @@
 """
-Redis 缓存管理模块
-提供统一的缓存接口，支持内存回退
+Redis 缓存服务
+支持 Upstash Redis (REST API) 和传统 Redis
 """
 
 import json
-import hashlib
 import logging
-from typing import Optional, Any, Union
-from datetime import datetime, timedelta
+from typing import Optional, Any
+from datetime import datetime
+
+import httpx
 
 from apps.api.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 
-class CacheManager:
-    """缓存管理器"""
-    
-    _instance = None
-    _redis_client = None
-    _memory_cache = {}  # 内存缓存回退
-    
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+class RedisCache:
+    """Redis 缓存服务"""
     
     def __init__(self):
-        if not hasattr(self, '_initialized'):
-            self._initialized = True
-            self._enabled = settings.redis_enabled
-            if self._enabled:
-                self._init_redis()
+        self.enabled = settings.redis_enabled
+        self.default_ttl = 3600  # 默认 1 小时
+        
+        # Upstash Redis 配置
+        self.upstash_url = settings.upstash_redis_rest_url
+        self.upstash_token = settings.upstash_redis_rest_token
+        self.use_upstash = bool(self.upstash_url and self.upstash_token)
+        
+        # 传统 Redis 配置
+        self.redis_url = settings.redis_url
+        self.redis_client = None
+        
+        # 初始化客户端
+        if self.enabled:
+            self._init_client()
     
-    def _init_redis(self):
-        """初始化 Redis 连接"""
-        try:
-            import redis
-            self._redis_client = redis.from_url(
-                settings.redis_url,
-                decode_responses=True,
-                socket_connect_timeout=5,
-                socket_timeout=5,
-                health_check_interval=30
-            )
-            # 测试连接
-            self._redis_client.ping()
-            logger.info("Redis 缓存已连接")
-        except Exception as e:
-            logger.warning(f"Redis 连接失败，使用内存缓存: {e}")
-            self._redis_client = None
-            self._enabled = False
+    def _init_client(self):
+        """初始化 Redis 客户端"""
+        if self.use_upstash:
+            logger.info(f"✅ Upstash Redis 已启用: {self.upstash_url}")
+        else:
+            # 传统 Redis (需要 redis-py)
+            try:
+                import redis
+                self.redis_client = redis.from_url(self.redis_url, decode_responses=True)
+                logger.info(f"✅ Redis 已启用: {self.redis_url}")
+            except ImportError:
+                logger.warning("⚠️  redis-py 未安装，Redis 缓存不可用")
+                self.enabled = False
+            except Exception as e:
+                logger.warning(f"⚠️  Redis 连接失败: {e}")
+                self.enabled = False
     
-    def _make_key(self, prefix: str, *args) -> str:
-        """生成缓存键"""
-        content = ":".join(str(arg) for arg in args)
-        hash_part = hashlib.md5(content.encode()).hexdigest()[:12]
-        return f"wuxing:{prefix}:{hash_part}"
-    
-    def get(self, key: str) -> Optional[Any]:
-        """获取缓存值"""
-        if not self._enabled or not self._redis_client:
-            # 使用内存缓存
-            item = self._memory_cache.get(key)
-            if item and item['expire'] > datetime.now():
-                return item['value']
+    async def get(self, key: str) -> Optional[Any]:
+        """获取缓存"""
+        if not self.enabled:
             return None
         
         try:
-            value = self._redis_client.get(key)
+            if self.use_upstash:
+                return await self._upstash_get(key)
+            else:
+                return await self._redis_get(key)
+        except Exception as e:
+            logger.error(f"❌ Redis GET 失败: {key}, 错误: {e}")
+            return None
+    
+    async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
+        """设置缓存"""
+        if not self.enabled:
+            return False
+        
+        try:
+            ttl = ttl or self.default_ttl
+            serialized = json.dumps(value, ensure_ascii=False, default=str)
+            
+            if self.use_upstash:
+                return await self._upstash_set(key, serialized, ttl)
+            else:
+                return await self._redis_set(key, serialized, ttl)
+        except Exception as e:
+            logger.error(f"❌ Redis SET 失败: {key}, 错误: {e}")
+            return False
+    
+    async def delete(self, key: str) -> bool:
+        """删除缓存"""
+        if not self.enabled:
+            return False
+        
+        try:
+            if self.use_upstash:
+                return await self._upstash_delete(key)
+            else:
+                return await self._redis_delete(key)
+        except Exception as e:
+            logger.error(f"❌ Redis DELETE 失败: {key}, 错误: {e}")
+            return False
+    
+    async def exists(self, key: str) -> bool:
+        """检查键是否存在"""
+        if not self.enabled:
+            return False
+        
+        try:
+            if self.use_upstash:
+                return await self._upstash_exists(key)
+            else:
+                return await self._redis_exists(key)
+        except Exception as e:
+            logger.error(f"❌ Redis EXISTS 失败: {key}, 错误: {e}")
+            return False
+    
+    # === Upstash Redis (REST API) ===
+    
+    async def _upstash_get(self, key: str) -> Optional[Any]:
+        """Upstash GET"""
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.upstash_url}/get/{key}",
+                headers={"Authorization": f"Bearer {self.upstash_token}"},
+                timeout=5.0
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("result") is not None:
+                    return json.loads(data["result"])
+            return None
+    
+    async def _upstash_set(self, key: str, value: str, ttl: int) -> bool:
+        """Upstash SET"""
+        async with httpx.AsyncClient() as client:
+            # 使用 SET + EXPIRE
+            response = await client.post(
+                f"{self.upstash_url}/set/{key}/{value}",
+                headers={"Authorization": f"Bearer {self.upstash_token}"},
+                timeout=5.0
+            )
+            
+            if response.status_code == 200:
+                # 设置过期时间
+                await client.post(
+                    f"{self.upstash_url}/expire/{key}/{ttl}",
+                    headers={"Authorization": f"Bearer {self.upstash_token}"},
+                    timeout=5.0
+                )
+                return True
+            return False
+    
+    async def _upstash_delete(self, key: str) -> bool:
+        """Upstash DELETE"""
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.upstash_url}/del/{key}",
+                headers={"Authorization": f"Bearer {self.upstash_token}"},
+                timeout=5.0
+            )
+            return response.status_code == 200
+    
+    async def _upstash_exists(self, key: str) -> bool:
+        """Upstash EXISTS"""
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.upstash_url}/exists/{key}",
+                headers={"Authorization": f"Bearer {self.upstash_token}"},
+                timeout=5.0
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                return data.get("result", 0) > 0
+            return False
+    
+    # === 传统 Redis ===
+    
+    async def _redis_get(self, key: str) -> Optional[Any]:
+        """传统 Redis GET"""
+        if self.redis_client:
+            value = self.redis_client.get(key)
             if value:
                 return json.loads(value)
-        except Exception as e:
-            logger.error(f"读取失败: {e}")
         return None
     
-    def set(
-        self, 
-        key: str, 
-        value: Any, 
-        ttl: Optional[int] = None
-    ) -> bool:
-        """设置缓存值"""
-        if not self._enabled or not self._redis_client:
-            # 使用内存缓存
-            self._memory_cache[key] = {
-                'value': value,
-                'expire': datetime.now() + timedelta(seconds=ttl or 3600)
-            }
-            # 清理过期缓存
-            self._cleanup_memory_cache()
-            return True
-        
-        try:
-            serialized = json.dumps(value, default=str)
-            self._redis_client.setex(key, ttl or 3600, serialized)
-            return True
-        except Exception as e:
-            logger.error(f"写入失败: {e}")
-            return False
+    async def _redis_set(self, key: str, value: str, ttl: int) -> bool:
+        """传统 Redis SET"""
+        if self.redis_client:
+            return self.redis_client.setex(key, ttl, value)
+        return False
     
-    def delete(self, key: str) -> bool:
-        """删除缓存"""
-        if not self._enabled or not self._redis_client:
-            self._memory_cache.pop(key, None)
-            return True
-        
-        try:
-            self._redis_client.delete(key)
-            return True
-        except Exception as e:
-            logger.error(f"删除失败: {e}")
-            return False
+    async def _redis_delete(self, key: str) -> bool:
+        """传统 Redis DELETE"""
+        if self.redis_client:
+            return self.redis_client.delete(key) > 0
+        return False
     
-    def _cleanup_memory_cache(self):
-        """清理过期内存缓存"""
-        now = datetime.now()
-        expired = [k for k, v in self._memory_cache.items() if v['expire'] <= now]
-        for k in expired:
-            del self._memory_cache[k]
-    
-    # ========== 业务封装方法 ==========
-    
-    def get_bazi(self, birth_key: str) -> Optional[dict]:
-        """获取八字缓存"""
-        key = self._make_key("bazi", birth_key)
-        return self.get(key)
-    
-    def set_bazi(self, birth_key: str, value: dict) -> bool:
-        """设置八字缓存"""
-        key = self._make_key("bazi", birth_key)
-        return self.set(key, value, settings.cache_ttl_bazi)
-    
-    def get_weather(self, city: str) -> Optional[dict]:
-        """获取天气缓存"""
-        key = self._make_key("weather", city, datetime.now().strftime("%Y%m%d%H"))
-        return self.get(key)
-    
-    def set_weather(self, city: str, value: dict) -> bool:
-        """设置天气缓存"""
-        key = self._make_key("weather", city, datetime.now().strftime("%Y%m%d%H"))
-        return self.set(key, value, settings.cache_ttl_weather)
-    
-    def get_search(self, query: str, gender: Optional[str] = None) -> Optional[list]:
-        """获取搜索结果缓存"""
-        key = self._make_key("search", query, gender or "all")
-        return self.get(key)
-    
-    def set_search(
-        self, 
-        query: str, 
-        value: list, 
-        gender: Optional[str] = None
-    ) -> bool:
-        """设置搜索结果缓存"""
-        key = self._make_key("search", query, gender or "all")
-        return self.set(key, value, settings.cache_ttl_search)
-    
-    def get_llm_response(self, prompt_hash: str) -> Optional[str]:
-        """获取 LLM 响应缓存"""
-        key = self._make_key("llm", prompt_hash)
-        return self.get(key)
-    
-    def set_llm_response(self, prompt_hash: str, value: str, ttl: int = 86400) -> bool:
-        """设置 LLM 响应缓存"""
-        key = self._make_key("llm", prompt_hash)
-        return self.set(key, value, ttl)
+    async def _redis_exists(self, key: str) -> bool:
+        """传统 Redis EXISTS"""
+        if self.redis_client:
+            return self.redis_client.exists(key) > 0
+        return False
 
 
 # 全局缓存实例
-cache = CacheManager()
+cache = RedisCache()
 
 
-def cached_bazi(func):
-    """八字计算缓存装饰器"""
-    def wrapper(birth_year: int, birth_month: int, birth_day: int, birth_hour: int, gender: str, *args, **kwargs):
-        birth_key = f"{birth_year}-{birth_month}-{birth_day}-{birth_hour}-{gender}"
-        
-        # 尝试读取缓存
-        cached = cache.get_bazi(birth_key)
-        if cached:
-            logger.debug(f"八字缓存命中: {birth_key}")
-            return cached
-        
-        # 执行计算
-        result = func(birth_year, birth_month, birth_day, birth_hour, gender, *args, **kwargs)
-        
-        # 写入缓存
-        cache.set_bazi(birth_key, result)
-        return result
-    
-    return wrapper
+# === 便捷函数 ===
+
+async def get_cached(key: str) -> Optional[Any]:
+    """获取缓存的便捷函数"""
+    return await cache.get(key)
 
 
-def cached_weather(func):
-    """天气查询缓存装饰器"""
-    def wrapper(city: str, *args, **kwargs):
-        # 尝试读取缓存
-        cached = cache.get_weather(city)
-        if cached:
-            logger.debug(f"天气缓存命中: {city}")
-            return cached
-        
-        # 执行查询
-        result = func(city, *args, **kwargs)
-        
-        # 写入缓存
-        cache.set_weather(city, result)
-        return result
-    
-    return wrapper
+async def set_cached(key: str, value: Any, ttl: Optional[int] = None) -> bool:
+    """设置缓存的便捷函数"""
+    return await cache.set(key, value, ttl)
+
+
+async def delete_cached(key: str) -> bool:
+    """删除缓存的便捷函数"""
+    return await cache.delete(key)

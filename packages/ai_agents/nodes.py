@@ -5,6 +5,8 @@ LangGraph Agent 节点函数
 
 import os
 import time
+import json
+import hashlib
 import logging
 from typing import Dict, List, Optional, Generator, Any
 from pathlib import Path
@@ -13,6 +15,7 @@ from openai import OpenAI, APITimeoutError, APIError, RateLimitError
 
 from apps.api.core.config import settings
 from apps.api.core.database import DatabasePool
+from apps.api.core.cache import cache as redis_cache
 from packages.ai_agents.state import AgentState
 from packages.ai_agents.wardrobe_client import wardrobe_client
 from packages.utils.bazi_calculator import (
@@ -22,10 +25,12 @@ from packages.utils.bazi_calculator import (
 )
 from packages.utils.scene_mapper import (
     extract_scene_from_text,
+    extract_scene_multidimensional,
     get_scene_elements,
     get_color_by_element,
     build_search_query,
 )
+from packages.utils.scene_mapping import calculate_scene_match_score
 from packages.utils.wuxing_rules import ELEMENT_COLOR_MAP
 
 logger = logging.getLogger(__name__)
@@ -33,21 +38,30 @@ logger = logging.getLogger(__name__)
 # ============================================================
 # LLM 配置与重试机制
 # ============================================================
-# 默认重试参数
-DEFAULT_MAX_RETRIES = 3
-DEFAULT_MIN_WAIT = 2.0  # 秒
-DEFAULT_MAX_WAIT = 10.0  # 秒
+# 默认重试参数（优化：减少重试次数，加快失败响应）
+DEFAULT_MAX_RETRIES = 1  # 从 3 降低到 1，失败快速降级
+DEFAULT_MIN_WAIT = 1.0  # 秒（从 2.0 降低）
+DEFAULT_MAX_WAIT = 3.0  # 秒（从 10.0 降低）
 
 
-def get_llm_client(timeout: int = 60) -> OpenAI:
+def get_llm_client(timeout: int = 15) -> OpenAI:
     """
     获取阿里百炼千问客户端
     
     Args:
-        timeout: 请求超时时间（秒）
+        timeout: 请求超时时间（秒）- 优化：从 60s 降低到 15s
     """
+    api_key = settings.dashscope_api_key
+    
+    # 调试日志：验证 API Key 是否加载
+    if not api_key:
+        logger.error("[Agent] ❌ DASHSCOPE_API_KEY 未设置！")
+        raise ValueError("DASHSCOPE_API_KEY 未配置，请检查 .env 文件")
+    
+    logger.info(f"[Agent] ✅ LLM 客户端初始化，API Key: {api_key[:20]}...")
+    
     return OpenAI(
-        api_key=settings.dashscope_api_key,
+        api_key=api_key,
         base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
         timeout=timeout,
         max_retries=0,  # 我们自己实现重试
@@ -156,21 +170,68 @@ def analyze_intent_node(state: AgentState) -> Dict:
     bazi_result = None
     if bazi_input:
         try:
-            bazi_result = calculate_bazi(
-                birth_year=bazi_input["birth_year"],
-                birth_month=bazi_input["birth_month"],
-                birth_day=bazi_input["birth_day"],
-                birth_hour=bazi_input["birth_hour"],
-                gender=bazi_input["gender"]
-            )
+            # 生成缓存键：基于用户出生信息
+            bazi_cache_key = f"bazi:{bazi_input['birth_year']}:{bazi_input['birth_month']}:{bazi_input['birth_day']}:{bazi_input['birth_hour']}"
+            
+            # 尝试从缓存获取（同步方式）
+            cached_bazi = None
+            if settings.redis_enabled and settings.upstash_redis_rest_url:
+                try:
+                    import requests
+                    response = requests.post(
+                        f"{settings.upstash_redis_rest_url}/get/{bazi_cache_key}",
+                        headers={"Authorization": f"Bearer {settings.upstash_redis_rest_token}"},
+                        timeout=2.0
+                    )
+                    if response.status_code == 200:
+                        data = response.json()
+                        if data.get("result") is not None:
+                            cached_bazi = json.loads(data["result"])
+                            logger.info(f"[Agent] ✅ 八字缓存命中: {bazi_cache_key}")
+                except Exception as e:
+                    logger.debug(f"缓存读取失败: {e}")
+            
+            if cached_bazi:
+                bazi_result = cached_bazi
+            else:
+                # 缓存未命中，计算并缓存
+                bazi_result = calculate_bazi(
+                    birth_year=bazi_input["birth_year"],
+                    birth_month=bazi_input["birth_month"],
+                    birth_day=bazi_input["birth_day"],
+                    birth_hour=bazi_input["birth_hour"],
+                    gender=bazi_input["gender"]
+                )
+                # 缓存 24 小时（同步方式）
+                if settings.redis_enabled and settings.upstash_redis_rest_url:
+                    try:
+                        import requests
+                        serialized = json.dumps(bazi_result, ensure_ascii=False, default=str)
+                        requests.post(
+                            f"{settings.upstash_redis_rest_url}/set/{bazi_cache_key}/{serialized}",
+                            headers={"Authorization": f"Bearer {settings.upstash_redis_rest_token}"},
+                            timeout=2.0
+                        )
+                        requests.post(
+                            f"{settings.upstash_redis_rest_url}/expire/{bazi_cache_key}/{settings.cache_ttl_bazi}",
+                            headers={"Authorization": f"Bearer {settings.upstash_redis_rest_token}"},
+                            timeout=2.0
+                        )
+                        logger.info(f"[Agent] 💾 八字已缓存: {bazi_cache_key}")
+                    except Exception as e:
+                        logger.debug(f"缓存写入失败: {e}")
         except Exception as e:
             print(f"[Agent] 八字计算失败: {e}")
     
     # 2. 意图推断
     intent_result = infer_elements_from_text(user_input)
     
-    # 3. 提取场景
-    scene = state.get("scene") or extract_scene_from_text(user_input)
+    # 3. Task 03: 提取场曷（多维度识别）
+    scene_data = extract_scene_multidimensional(user_input)
+    scene = state.get("scene") or scene_data.get("main_scene")
+    sub_scene = scene_data.get("sub_scene")  # 子场景
+    emotion = scene_data.get("emotion")  # 情感倾向
+    
     scene_result = get_scene_elements(scene) if scene else None
     
     # 4. 合并推荐五行（八字 + 场景 + 意图 + 天气）
@@ -210,6 +271,8 @@ def analyze_intent_node(state: AgentState) -> Dict:
     
     return {
         "scene": scene,
+        "sub_scene": sub_scene,  # Task 03: 子场景
+        "emotion": emotion,  # Task 03: 情感倾向
         "bazi_result": bazi_result,
         "intent_result": intent_result,
         "target_elements": target_elements,
@@ -286,6 +349,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
     search_query = state["search_query"]
     target_elements = state["target_elements"]
     scene = state.get("scene")
+    sub_scene = state.get("sub_scene")  # 新增：子场景
     bazi_result = state.get("bazi_result")
     user_gender = state.get("user_gender")
     weather_info = state.get("weather_info")
@@ -371,7 +435,8 @@ def retrieve_items_node(state: AgentState) -> Dict:
                 limit=top_k * 2,
                 user_gender=user_gender,
                 weather_info=weather_info,
-                scene=scene  # 传入场景参数
+                scene=scene,  # 传入场景参数
+                sub_scene=sub_scene  # 传入子场景
             )
             
             # 标记公共库物品
@@ -395,7 +460,8 @@ def retrieve_items_node(state: AgentState) -> Dict:
             limit=50, 
             user_gender=user_gender,
             weather_info=weather_info,
-            scene=scene  # 传入场景参数
+            scene=scene,  # 传入场景参数
+            sub_scene=sub_scene  # 传入子场景
         )
         
         # 标记来源
@@ -435,16 +501,23 @@ def retrieve_items_node(state: AgentState) -> Dict:
     # 动态计算权重
     semantic_weight = 0.6
     wuxing_weight = 0.4
+    scene_weight = 0.0  # Task 01: 新增场景权重
     
     if bazi_result and scene:
         semantic_weight = 0.5
-        wuxing_weight = 0.5
+        wuxing_weight = 0.3
+        scene_weight = 0.2
     elif bazi_result:
         semantic_weight = 0.55
         wuxing_weight = 0.45
+        scene_weight = 0.0
     elif scene:
-        semantic_weight = 0.65
-        wuxing_weight = 0.35
+        semantic_weight = 0.6
+        wuxing_weight = 0.2
+        scene_weight = 0.2
+    
+    # Task 01: 提取子场景（如果有多维度场景识别）
+    sub_scene = state.get("sub_scene")
     
     # 计算加权分数
     scored_items = []
@@ -461,15 +534,28 @@ def retrieve_items_node(state: AgentState) -> Dict:
         if secondary and secondary in target_elements:
             wuxing_score += 0.3
         
+        # Task 01: 计算场景匹配分（新增）
+        scene_score = 0.5  # 默认基础分
+        if scene and scene_weight > 0:
+            scene_score = calculate_scene_match_score(item, scene, sub_scene)
+        
         # 加权最终分数
-        final_score = semantic_score * semantic_weight + wuxing_score * wuxing_weight
+        final_score = (
+            semantic_score * semantic_weight +
+            wuxing_score * wuxing_weight +
+            scene_score * scene_weight
+        )
         
         scored_items.append({
             **item,
             "semantic_score": semantic_score,
             "wuxing_score": wuxing_score,
+            "scene_score": scene_score,
             "final_score": final_score,
         })
+    
+    # 过滤掉场景分为0的物品（硬排除）
+    scored_items = [item for item in scored_items if item.get("scene_score", 0.5) > 0]
     
     # 按分数排序，取 Top K
     scored_items.sort(key=lambda x: x["final_score"], reverse=True)
@@ -608,7 +694,8 @@ def _vector_search(
     limit: int = 20, 
     user_gender: Optional[str] = None,
     weather_info: Optional[Dict] = None,
-    scene: Optional[str] = None  # 新增场景参数
+    scene: Optional[str] = None,  # 新增场景参数
+    sub_scene: Optional[str] = None  # 新增子场景参数
 ) -> List[Dict]:
     """
     向量搜索（支持性别过滤、天气过滤和场景过滤）
@@ -621,6 +708,7 @@ def _vector_search(
         user_gender: 用户性别（男/女），用于过滤专属物品
         weather_info: 天气信息 {"temperature": int, "weather_desc": str}
         scene: 场景名称，用于过滤不合适的衣物
+        sub_scene: 子场景名称，用于更精细的过滤
     """
     import numpy as np
     
@@ -645,7 +733,7 @@ def _vector_search(
                 weather_filter = _build_weather_filter(weather_info)
                 
                 # 场景过滤逻辑（新增）
-                scene_filter = _build_scene_filter(scene)
+                scene_filter = _build_scene_filter(scene, sub_scene)
                 
                 # 调试日志
                 if scene:
@@ -776,17 +864,15 @@ def _build_weather_filter(weather_info: Optional[Dict]) -> str:
     return " AND ".join(conditions) if conditions else ""
 
 
-def _build_scene_filter(scene: Optional[str]) -> str:
+def _build_scene_filter(scene: Optional[str], sub_scene: Optional[str] = None) -> str:
     """
     构建场景过滤SQL条件
     
-    根据场景排除不合适的衣物类型：
-    - 运动场景：排除风衣、围巾、西装等
-    - 商务场景：排除运动装、睡衣等
-    - 居家场景：排除正装、礼服等
+    根据场景排除不合适的衣物类型（与 scene_mapping.py 保持一致）
     
     Args:
         scene: 场景名称
+        sub_scene: 子场景名称（可选）
     
     Returns:
         str: SQL过滤条件
@@ -794,42 +880,41 @@ def _build_scene_filter(scene: Optional[str]) -> str:
     if not scene:
         return ""
     
-    # 场景排除规则：某些场景下不应该出现的衣物类别
+    # 场景排除规则：与 scene_mapping.py 保持一致
     scene_exclusions = {
         "运动": {
-            "categories": ["外套", "配饰"],  # 排除外套、配饰（围巾等）
-            "keywords": ["风衣", "大衣", "围巾", "西装", "礼服", "睡衣"],
-            "require_functionality": ["透气", "速干", "运动"],  # 优先运动功能
+            "categories": ["外套", "配饰"],  # 排除外套、配饰（不包含泳装）
+            "keywords": ["风衣", "大衣", "围巾", "西装", "礼服", "睡衣", "拖鞋", "卫衣", "毛衣", "棉袄", "羽绒服"],  # 不包含泳衣、泳裤
+            "require_functionality": ["透气", "速干", "运动"],
         },
         "商务": {
-            "categories": [],  # 不排除类别
-            "keywords": ["运动裤", "睡衣", "泳衣", "拖鞋"],
+            "categories": [],
+            "keywords": ["运动裤", "睡衣", "泳衣", "拖鞋", "短裤", "T恤"],
             "require_functionality": [],
         },
         "居家": {
-            "categories": ["外套"],  # 排除外套
-            "keywords": ["西装", "礼服", "高跟鞋"],
+            "categories": ["外套", "鞋履"],  # 排除外套、鞋履
+            "keywords": ["西装", "礼服", "高跟鞋", "正装"],
             "require_functionality": [],
         },
         "婚礼": {
             "categories": [],
-            "keywords": ["运动裤", "睡衣", "拖鞋", "泳衣"],
+            "keywords": ["运动裤", "睡衣", "拖鞋", "泳衣", "短裤"],
             "require_functionality": [],
         },
         "派对": {
             "categories": [],
-            "keywords": ["睡衣", "运动裤", "泳衣"],
+            "keywords": ["睡衣", "运动裤", "泳衣", "正装"],
             "require_functionality": [],
         },
         "面试": {
             "categories": [],
-            "keywords": ["运动裤", "睡衣", "拖鞋", "泳衣", "短裤"],
+            "keywords": ["运动裤", "睡衣", "拖鞋", "泳衣", "短裤", "T恤"],
             "require_functionality": [],
         },
         "旅行": {
             "categories": [],
-            "keywords": ["毛衣", "卫衣", "棉袄", "羽绒服"],  # 排除厚重衣物
-            "thickness_exclude": ["厚重", "中厚"],  # 排除厚重和中厚
+            "keywords": ["睡衣", "泳衣", "拖鞋", "毛衣", "卫衣", "棉袄", "羽绒服"],  # 新增睡衣、泳衣
             "require_functionality": [],
         },
     }
@@ -854,13 +939,27 @@ def _build_scene_filter(scene: Optional[str]) -> str:
         if keyword_conditions:
             conditions.append(" AND ".join(keyword_conditions))
     
+    # 2.1 子场景特殊排除关键词（新增）
+    if sub_scene:
+        from packages.utils.scene_mapping import get_sub_scene_rules
+        sub_rules = get_sub_scene_rules(sub_scene)
+        if sub_rules and "extra_excluded_keywords" in sub_rules:
+            for keyword in sub_rules["extra_excluded_keywords"]:
+                conditions.append(f"name NOT LIKE '%%{keyword}%%'")
+    
     # 3. 排除特定厚度的衣物（新增）
     if rules.get("thickness_exclude"):
         thickness_str = ",".join([f"'{t}'" for t in rules["thickness_exclude"]])
         conditions.append(f"thickness_level NOT IN ({thickness_str})")
     
-    # 4. 优先特定功能（作为排序因子，不做硬过滤）
-    # 这个逻辑会在评分时体现，不在SQL过滤
+    # 4. 运动场景功能硬过滤（新增）
+    if scene == "运动" and rules.get("require_functionality"):
+        # 运动场景：必须至少具备一个运动功能（透气/速干/运动）
+        func_conditions = []
+        for func in rules["require_functionality"]:
+            func_conditions.append(f"(functionality->>'{func}')::boolean = true")
+        if func_conditions:
+            conditions.append(f"({' OR '.join(func_conditions)})")
     
     return " AND ".join(conditions) if conditions else ""
 
@@ -1069,7 +1168,7 @@ def generate_advice_node(state: AgentState) -> Dict:
             client=client,
             messages=[{"role": "user", "content": prompt}],
             model=settings.qwen_model,
-            max_tokens=300,
+            max_tokens=200,  # 优化：从 300 降低到 200，理由通常不需要这么多
             stream=False,
         )
         

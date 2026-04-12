@@ -57,10 +57,10 @@ async def bazi_calculate(request: BaziCalculateRequest):
     **依赖**: `packages/utils/bazi_calculator.py:calculate_bazi()`
     """
     # 生成缓存键
-    birth_key = f"{request.birth_year}-{request.birth_month}-{request.birth_day}-{request.birth_hour}-{request.gender}"
+    birth_key = f"bazi:{request.birth_year}:{request.birth_month}:{request.birth_day}:{request.birth_hour}:{request.gender}"
     
     # 尝试读取缓存
-    cached = cache.get_bazi(birth_key)
+    cached = await cache.get(birth_key)
     if cached:
         print(f"[Cache] 八字缓存命中: {birth_key}")
         return cached
@@ -74,8 +74,8 @@ async def bazi_calculate(request: BaziCalculateRequest):
             gender=request.gender,
         )
         
-        # 写入缓存
-        cache.set_bazi(birth_key, result)
+        # 写入缓存（24小时）
+        await cache.set(birth_key, result, ttl=86400)
         return result
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"八字计算失败: {str(e)}")

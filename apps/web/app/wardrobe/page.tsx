@@ -173,19 +173,19 @@ export default function WardrobePage() {
   }
 
   return (
-    <div className="min-h-full relative overflow-visible py-8">
-      {/* 顶部艺术化标题区 */}
+    <div className="min-h-full relative overflow-visible py-4 md:py-8">
+      {/* 顶部艺术化标题区 - 移动端优化 */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="mb-8"
+        className="mb-6 md:mb-8"
       >
-        <div className="flex items-end justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4">
           <div>
             <motion.h1 
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
-              className="text-4xl font-bold text-stone-800 tracking-tight"
+              className="text-2xl md:text-4xl font-bold text-stone-800 tracking-tight"
               style={{ fontFamily: 'serif' }}
             >
               我的衣橱
@@ -194,7 +194,7 @@ export default function WardrobePage() {
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               transition={{ delay: 0.1 }}
-              className="text-stone-500 mt-2 flex items-center gap-2"
+              className="text-stone-500 mt-2 flex items-center gap-2 text-sm md:text-base"
             >
               <span className="inline-block w-2 h-2 rounded-full bg-gradient-to-r from-rose-400 to-pink-400" />
               共收藏 <span className="font-medium text-stone-700">{total}</span> 件衣物
@@ -208,10 +208,10 @@ export default function WardrobePage() {
             whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleAddNew}
-            className="relative group px-6 py-3 rounded-2xl bg-gradient-to-r from-stone-800 to-stone-700 text-white font-medium shadow-xl shadow-stone-300/30 overflow-hidden"
+            className="relative group px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl bg-gradient-to-r from-stone-800 to-stone-700 text-white font-medium shadow-xl shadow-stone-300/30 overflow-hidden touch-feedback w-full sm:w-auto"
           >
-            <span className="relative z-10 flex items-center gap-2">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <span className="relative z-10 flex items-center justify-center gap-2 text-sm md:text-base">
+              <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               添加衣物
@@ -226,19 +226,19 @@ export default function WardrobePage() {
         </div>
       </motion.div>
 
-      {/* 五行能量分布图 */}
+      {/* 五行能量分布图 - 移动端优化 */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15 }}
-        className="mb-8 p-6 bg-white/70 backdrop-blur-xl rounded-3xl border border-white/50 shadow-xl shadow-stone-200/20"
+        className="mb-6 md:mb-8 p-4 md:p-6 bg-white/70 backdrop-blur-xl rounded-2xl md:rounded-3xl border border-white/50 shadow-xl shadow-stone-200/20"
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium text-stone-500 uppercase tracking-wider">五行能量分布</h3>
+          <h3 className="text-xs md:text-sm font-medium text-stone-500 uppercase tracking-wider">五行能量分布</h3>
           <div className="flex gap-2">
             <button
               onClick={() => setViewMode('flow')}
-              className={`p-2 rounded-lg transition-all ${viewMode === 'flow' ? 'bg-stone-800 text-white' : 'text-[#6B7F72] hover:text-stone-600'}`}
+              className={`p-2 rounded-lg transition-all touch-feedback ${viewMode === 'flow' ? 'bg-stone-800 text-white' : 'text-[#6B7F72] hover:text-stone-600'}`}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -246,7 +246,7 @@ export default function WardrobePage() {
             </button>
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-stone-800 text-white' : 'text-[#6B7F72] hover:text-stone-600'}`}
+              className={`p-2 rounded-lg transition-all touch-feedback ${viewMode === 'grid' ? 'bg-stone-800 text-white' : 'text-[#6B7F72] hover:text-stone-600'}`}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -255,8 +255,8 @@ export default function WardrobePage() {
           </div>
         </div>
         
-        {/* 五行条形图 */}
-        <div className="flex gap-3">
+        {/* 五行条形图 - 移动端横向滚动 */}
+        <div className="flex gap-2 md:gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1 md:mx-0 md:px-0 md:pb-0">
           {WUXING_ELEMENTS.map((element, index) => {
             const config = WUXING_CONFIG[element]
             const count = elementStats[element] || 0
@@ -270,7 +270,7 @@ export default function WardrobePage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 + index * 0.05 }}
                 onClick={() => handleFilterChange(isActive ? null : element)}
-                className={`flex-1 group relative overflow-hidden rounded-2xl p-4 transition-all ${
+                className={`flex-shrink-0 w-[60px] md:flex-1 group relative overflow-hidden rounded-xl md:rounded-2xl p-3 md:p-4 transition-all touch-feedback ${
                   isActive 
                     ? 'ring-2 ring-offset-2 scale-105 shadow-lg' 
                     : 'hover:scale-102 hover:shadow-md'
@@ -281,12 +281,12 @@ export default function WardrobePage() {
                 }}
               >
                 <div className="text-center relative z-10">
-                  <span className="text-2xl mb-2 block">{config.emoji}</span>
-                  <span className="text-lg font-bold text-stone-700">{element}</span>
-                  <div className="mt-1 text-2xl font-bold" style={{ color: config.gradientFrom }}>
+                  <span className="text-xl md:text-2xl mb-1 md:mb-2 block">{config.emoji}</span>
+                  <span className="text-sm md:text-lg font-bold text-stone-700">{element}</span>
+                  <div className="mt-0.5 md:mt-1 text-xl md:text-2xl font-bold" style={{ color: config.gradientFrom }}>
                     {count}
                   </div>
-                  <span className="text-xs text-[#6B7F72]">{percentage}%</span>
+                  <span className="text-[10px] md:text-xs text-[#6B7F72]">{percentage}%</span>
                 </div>
                 
                 {/* 背景进度条 */}

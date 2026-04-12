@@ -139,6 +139,12 @@ def _extract_context_from_query(user_input: str) -> dict:
 2. temperature: 气温（数字，单位摄氏度）
 3. weather_desc: 天气描述（闷热/炎热/寒冷/雨天/雪天/晴天/多云/大风）
 
+**重要场景识别规则**：
+- 如果提到"游泳"、"海边游泳"、"泳池"等，场景应该是"运动"（不是"旅行"）
+- 如果提到"马拉松"、"跑步"、"健身"、"瑜伽"等，场景应该是"运动"
+- 如果提到"三亚"、"海边"、"度假"但**没有**提到具体运动，场景才是"旅行"
+- 运动场景优先级 > 旅行场景
+
 返回严格的 JSON 格式，不要有任何其他内容。如果某个信息不存在，使用 null。
 
 示例格式：
@@ -485,6 +491,9 @@ def run_agent_stream(
             "primary_element": item.get("primary_element", ""),
             "secondary_element": item.get("secondary_element"),
             "final_score": round(item.get("final_score", 0), 3),
+            "semantic_score": round(item.get("semantic_score", 0.5), 3),  # Task 05
+            "wuxing_score": round(item.get("wuxing_score", 0), 3),  # Task 05
+            "scene_score": round(item.get("scene_score", 0.5), 3),  # Task 05
             "source": item.get("source") or "public",
             "item_id": item.get("id"),
             "image_url": item.get("image_url"),

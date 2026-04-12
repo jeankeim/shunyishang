@@ -140,7 +140,8 @@ async def get_weather(
     **依赖**: `get_element_by_weather()` - 天气到五行的映射函数
     """
     # 尝试读取缓存
-    cached = cache.get_weather(city)
+    cache_key = f"weather:{city}"
+    cached = await cache.get(cache_key)
     if cached:
         print(f"[Cache] 天气缓存命中: {city}")
         return WeatherResponse(**cached)
@@ -180,7 +181,7 @@ async def get_weather(
         )
         
         # 写入缓存
-        cache.set_weather(city, result.model_dump())
+        await cache.set(cache_key, result.model_dump(), ttl=1800)  # 缓存30分钟
         return result
     
     # 调用真实天气API
@@ -233,7 +234,7 @@ async def get_weather(
             )
             
             # 写入缓存
-            cache.set_weather(city, result.model_dump())
+            await cache.set(cache_key, result.model_dump(), ttl=1800)  # 缓存30分钟
             return result
     
     except httpx.TimeoutException:
@@ -266,7 +267,7 @@ async def get_weather(
     )
     
     # 写入缓存
-    cache.set_weather(city, result.model_dump())
+    await cache.set(cache_key, result.model_dump(), ttl=1800)  # 缓存30分钟
     return result
 
 

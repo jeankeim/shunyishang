@@ -141,3 +141,19 @@ async def health_check():
                 env=settings.app_env
             ).model_dump()
         )
+
+
+@app.get("/debug/config", tags=["debug"])
+async def debug_config():
+    """调试接口：检查配置加载状态（仅开发环境）"""
+    if settings.app_env != "development":
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Only available in development")
+    
+    return {
+        "app_env": settings.app_env,
+        "dashscope_api_key": settings.dashscope_api_key[:20] + "..." if settings.dashscope_api_key else "❌ 未加载",
+        "qwen_model": settings.qwen_model,
+        "database_url": settings.database_url[:50] + "...",
+        "cors_origins": settings.cors_origins_list
+    }

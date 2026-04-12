@@ -128,10 +128,59 @@ export function RecommendCard({ item, index, sessionId, onFeedback }: RecommendC
         {item.color && (
           <p className="text-xs text-stone-500 mt-1">颜色：{item.color}</p>
         )}
-        <div className="flex items-center justify-between mt-2">
+        
+        {/* Task 05: 多维度评分展示 */}
+        <div className="mt-3 space-y-2">
+          {/* 语义匹配 */}
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-stone-500">匹配度</span>
-            <span className="font-medium text-amber-600">
+            <span className="text-stone-500 w-16">语义匹配</span>
+            <div className="flex-1 h-1.5 bg-stone-200 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all"
+                style={{ width: `${(item.semantic_score || 0.5) * 100}%` }}
+              />
+            </div>
+            <span className="text-stone-600 font-medium w-10 text-right">
+              {((item.semantic_score || 0.5) * 100).toFixed(0)}%
+            </span>
+          </div>
+          
+          {/* 五行匹配 */}
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-stone-500 w-16">五行匹配</span>
+            <div className="flex-1 h-1.5 bg-stone-200 rounded-full overflow-hidden">
+              <div 
+                className={`h-full rounded-full transition-all ${config.gradientClass}`}
+                style={{ width: `${(item.wuxing_score || 0) * 100}%` }}
+              />
+            </div>
+            <span className="text-stone-600 font-medium w-10 text-right">
+              {((item.wuxing_score || 0) * 100).toFixed(0)}%
+            </span>
+          </div>
+          
+          {/* 场景适配（如果有场景分数） */}
+          {item.scene_score !== undefined && item.scene_score > 0 && (
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-stone-500 w-16">场景适配</span>
+              <div className="flex-1 h-1.5 bg-stone-200 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-amber-400 to-amber-600 rounded-full transition-all"
+                  style={{ width: `${item.scene_score * 100}%` }}
+                />
+              </div>
+              <span className="text-stone-600 font-medium w-10 text-right">
+                {(item.scene_score * 100).toFixed(0)}%
+              </span>
+            </div>
+          )}
+        </div>
+        
+        {/* 综合匹配度 */}
+        <div className="flex items-center justify-between mt-3 pt-3 border-t border-stone-200">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-stone-500">综合匹配</span>
+            <span className="font-bold text-amber-600 text-base">
               {(item.final_score * 100).toFixed(0)}%
             </span>
           </div>

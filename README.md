@@ -94,7 +94,9 @@ wuxing-fashion/
 │   ├── WEEK_03_FRONTEND_CORE/
 │   ├── WEEK_04_USER_WARDROBE/
 │   ├── WEEK_05_AI_ENHANCEMENT/
-│   └── WEEK_06_DEPLOY_OPTIMIZE/
+│   ├── WEEK_06_DEPLOY_OPTIMIZE/
+│   ├── WEEK_07_SCENE_OPTIMIZATION/
+│   └── WEEK_07_5_MOBILE_RESPONSIVE/  # 🔴 紧急: 移动端适配
 ├── docker-compose.yml         # 开发环境配置
 ├── docker-compose.prod.yml    # 生产环境配置
 └── README.md                  # 项目说明
