@@ -59,13 +59,14 @@ WUXING_THEMES = {
 
 def get_font(size: int, weight: str = 'normal') -> ImageFont.FreeTypeFont:
     """获取字体（优先使用系统中文字体）"""
-    # 中文字体路径（macOS + Linux + Windows）
+    # 中文字体路径（Linux Docker + macOS + Windows）
     font_paths = [
-        # Linux (Docker) - Noto CJK
-        '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
-        '/usr/share/fonts/truetype/noto/NotoSerifCJK-Regular.ttc',
+        # Linux (Docker) - Noto CJK - opentype 目录
         '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
         '/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc',
+        # Linux (Docker) - Noto CJK - truetype 目录（备用）
+        '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
+        '/usr/share/fonts/truetype/noto/NotoSerifCJK-Regular.ttc',
         # macOS
         '/System/Library/Fonts/PingFang.ttc',
         '/System/Library/Fonts/STHeiti Light.ttc',
