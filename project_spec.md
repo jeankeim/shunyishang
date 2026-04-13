@@ -73,10 +73,8 @@ wuxing-ai-stylist/
 │   ├── WEEK_04_USER_WARDROBE/  # ✅ 已完成
 │   ├── WEEK_05_AI_ENHANCEMENT/ # ✅ 已完成
 │   ├── WEEK_06_DEPLOY_OPTIMIZE/# ⚠️ 部分完成（采用 Vercel + Zeabur 部署）
-│   ├── WEEK_07/                # ✅ 主体完成（场景优化 + 移动端适配）
-│   │   ├── 01_VIRTUAL_TRYON/   # ⏳ 待开发
-│   │   └── WEEK_07_SCENE_OPTIMIZATION/  # ✅ 已完成（合并场景优化 + 移动端）
-│   └── README.md               # 任务总体说明
+│   ├── WEEK_07_SCENE_MOBILE/   # ✅ 已完成（场景优化 + 移动端适配）
+│   └── WEEK_08_VIRTUAL_TRYON/  # ⏳ 待开发（虚拟试衣功能）
 │
 ├── apps/                       # [Application Layer] 核心业务代码
 │   ├── api/                    # FastAPI 后端应用
@@ -184,9 +182,13 @@ AI 需根据当前日期和以下里程碑判断当前应聚焦的任务：
 
 ### ✅ Phase 7: 场景优化 + 移动端适配 (Week 7) - **[COMPLETED]**
 - **完成日期**: 2026-04-11
-- **场景优化**: 软过滤、场景映射、多维度识别、天气过滤（87.5%）
+- **场景优化**: 软过滤、场景映射、多维度识别、天气过滤（100%）
 - **移动端适配**: 响应式布局、手势交互、PWA 支持（100%）
-- **虚拟试衣**: ⏳ 待开发（Week 7.1）
+
+### ⏳ Phase 8: 虚拟试衣 (Week 8) - **[PENDING]**
+- **优先级**: P1 - 中优先级
+- **预估工时**: 8-10 小时
+- **功能**: Canvas 图片叠加试衣、交互优化、试衣海报生成
 
 ---
 
