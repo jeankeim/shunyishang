@@ -4,10 +4,12 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useWardrobeStore } from '@/store/wardrobe'
 import { AddWardrobeModal } from '@/components/features/AddWardrobeModal'
+import { SwipeToDelete } from '@/components/features/SwipeToDelete'
 import { initAuthToken } from '@/lib/api'
 import { WUXING_ELEMENTS, WUXING_CONFIG, getWuxingConfig } from '@/lib/wuxing-config'
 import type { WardrobeItem } from '@/lib/api'
 import { EmptyState, SkeletonList } from '@/components/ui'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 
 // 五行数据配置 - 春分优化版
 const WUXING_THEME: Record<string, { color: string; gradient: string; symbol: string; pattern: string }> = {
@@ -28,6 +30,9 @@ export default function WardrobePage() {
   const [editItem, setEditItem] = useState<WardrobeItem | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [viewMode, setViewMode] = useState<'grid' | 'flow'>('flow')
+  
+  // 判断是否移动端
+  const isMobile = useMediaQuery('(max-width: 768px)')
 
   // 辅助函数：将相对路径转换为完整 URL
   const getImageUrl = (url: string | undefined | null): string | undefined => {
@@ -329,7 +334,7 @@ export default function WardrobePage() {
                 const config = getWuxingConfig(item.primary_element)
                 const theme = WUXING_THEME[item.primary_element] || WUXING_THEME['金']
 
-                return (
+                const ItemCard = (
                   <motion.div
                     key={item.id}
                     layout
@@ -449,6 +454,19 @@ export default function WardrobePage() {
                       </h3>
                     </div>
                   </motion.div>
+                )
+                
+                // 移动端使用手势删除，桌面端直接显示
+                return isMobile ? (
+                  <SwipeToDelete
+                    key={item.id}
+                    onSwipe={async () => handleDelete(item.id)}
+                    threshold={80}
+                  >
+                    {ItemCard}
+                  </SwipeToDelete>
+                ) : (
+                  ItemCard
                 )
               })}
             </AnimatePresence>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect, lazy, Suspense, useCallback } from 'react'
 import { FiveElementRadar } from '@/components/features/FiveElementRadar'
 import { FiveElementList } from '@/components/features/FiveElementList'
 import { ChatInterface } from '@/components/features/ChatInterface'
@@ -11,6 +11,7 @@ import { UserProfile } from '@/components/features/UserProfile'
 import { Sidebar } from '@/components/features/Sidebar'
 import { Header } from '@/components/features/Header'
 import { MobileControlPanel } from '@/components/features/MobileControlPanel'
+import { PullToRefresh } from '@/components/features/PullToRefresh'
 import { useChatStore } from '@/store/chat'
 import { useUserStore } from '@/store/user'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
@@ -85,7 +86,28 @@ export default function Home() {
     setSidebarCollapsed(!sidebarCollapsed)
   }
 
+  // 下拉刷新功能
+  const handleRefresh = useCallback(async () => {
+    console.log('[HomePage] 下拉刷新')
+    // 清空当前对话和推荐结果
+    useChatStore.getState().clearConversations()
+    useChatStore.getState().setRadarData({
+      currentData: { '金': 20, '木': 20, '水': 20, '火': 20, '土': 20 },
+      suggestedData: { '金': 20, '木': 20, '水': 20, '火': 20, '土': 20 },
+      xiyongShen: [],
+    })
+    setScene('')
+    setSceneElement('')
+    setWeatherElement('')
+    setWeatherInfo(null)
+    // 等待一小段时间让用户看到刷新反馈
+    await new Promise(resolve => setTimeout(resolve, 500))
+  }, [])
+
+  const isMobile = useMediaQuery('(max-width: 768px)')
+
   return (
+    <PullToRefresh onRefresh={handleRefresh} threshold={80}>
     <div className="flex h-screen bg-gradient-to-br from-[#F8FAF9] via-[#F5F9F7] to-[#F0F7F4] overflow-hidden">
       {/* Sidebar - 聊天记录面板 */}
       <Sidebar 
@@ -356,5 +378,6 @@ export default function Home() {
         onWeatherChange={handleWeatherChange}
       />
     </div>
+    </PullToRefresh>
   )
 }

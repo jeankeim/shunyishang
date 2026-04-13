@@ -59,21 +59,31 @@ WUXING_THEMES = {
 
 def get_font(size: int, weight: str = 'normal') -> ImageFont.FreeTypeFont:
     """获取字体（优先使用系统中文字体）"""
-    # macOS 中文字体路径
+    # 中文字体路径（macOS + Linux）
     font_paths = [
-        '/System/Library/Fonts/PingFang.ttc',  # macOS
+        # Linux (Docker) - Noto CJK
+        '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
+        '/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc',
+        '/usr/share/fonts/truetype/noto/NotoSerifCJK-Regular.ttc',
+        # macOS
+        '/System/Library/Fonts/PingFang.ttc',
         '/System/Library/Fonts/STHeiti Light.ttc',
         '/Library/Fonts/Arial Unicode.ttf',
+        # Windows
+        'C:/Windows/Fonts/msyh.ttc',  # 微软雅黑
+        'C:/Windows/Fonts/simsun.ttc',  # 宋体
     ]
     
     for font_path in font_paths:
         if os.path.exists(font_path):
             try:
                 return ImageFont.truetype(font_path, size)
-            except:
+            except Exception as e:
+                logger.debug(f"字体加载失败 {font_path}: {e}")
                 continue
     
-    # 回退到默认字体
+    # 回退到默认字体（不支持中文）
+    logger.warning("未找到中文字体，使用默认字体（中文将显示为方块）")
     return ImageFont.load_default()
 
 

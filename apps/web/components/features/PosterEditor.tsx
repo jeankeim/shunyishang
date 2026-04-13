@@ -23,18 +23,18 @@ export const PosterEditor: React.FC<PosterEditorProps> = ({
   theme,
   onThemeChange,
 }) => {
-  // 输入框通用样式
-  const inputBaseStyle = "w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 focus:outline-none focus:ring-0 text-stone-800 placeholder:text-stone-500";
+  // 输入框通用样式 - 移动端优化
+  const inputBaseStyle = "w-full px-3 md:px-4 py-3 rounded-xl border-2 transition-all duration-200 focus:outline-none focus:ring-0 text-stone-800 placeholder:text-stone-500 text-base md:text-sm";
   
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* 标题编辑 */}
       <div className="group">
-        <label className="flex items-center gap-2 text-sm font-bold mb-3" style={{ color: '#374151' }}>
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white">
-            <Type className="w-4 h-4" />
+        <label className="flex items-center gap-2 text-sm font-bold mb-2 md:mb-3" style={{ color: '#374151' }}>
+          <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white">
+            <Type className="w-3.5 h-3.5 md:w-4 md:h-4" />
           </div>
-          海报标题
+          <span className="text-sm md:text-base">海报标题</span>
         </label>
         <div className="relative">
           <input
@@ -54,11 +54,11 @@ export const PosterEditor: React.FC<PosterEditorProps> = ({
 
       {/* 推荐文案 */}
       <div className="group">
-        <label className="flex items-center gap-2 text-sm font-bold mb-3" style={{ color: '#374151' }}>
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white">
-            <MessageSquare className="w-4 h-4" />
+        <label className="flex items-center gap-2 text-sm font-bold mb-2 md:mb-3" style={{ color: '#374151' }}>
+          <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white">
+            <MessageSquare className="w-3.5 h-3.5 md:w-4 md:h-4" />
           </div>
-          推荐文案
+          <span className="text-sm md:text-base">推荐文案</span>
         </label>
         <div className="relative">
           <textarea
@@ -78,11 +78,11 @@ export const PosterEditor: React.FC<PosterEditorProps> = ({
 
       {/* 个人签名 */}
       <div className="group">
-        <label className="flex items-center gap-2 text-sm font-bold mb-3" style={{ color: '#374151' }}>
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white">
-            <PenTool className="w-4 h-4" />
+        <label className="flex items-center gap-2 text-sm font-bold mb-2 md:mb-3" style={{ color: '#374151' }}>
+          <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white">
+            <PenTool className="w-3.5 h-3.5 md:w-4 md:h-4" />
           </div>
-          个人签名
+          <span className="text-sm md:text-base">个人签名</span>
         </label>
         <div className="relative">
           <input
@@ -102,20 +102,21 @@ export const PosterEditor: React.FC<PosterEditorProps> = ({
 
       {/* 配色主题 */}
       <div className="group">
-        <label className="flex items-center gap-2 text-sm font-bold mb-4" style={{ color: '#374151' }}>
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white">
-            <Palette className="w-4 h-4" />
+        <label className="flex items-center gap-2 text-sm font-bold mb-3 md:mb-4" style={{ color: '#374151' }}>
+          <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white">
+            <Palette className="w-3.5 h-3.5 md:w-4 md:h-4" />
           </div>
-          配色主题
+          <span className="text-sm md:text-base">配色主题</span>
         </label>
-        <div className="grid grid-cols-5 gap-3" role="radiogroup" aria-label="五行配色主题">
+        {/* 移动端横向滚动，桌面端网格 */}
+        <div className="flex md:grid md:grid-cols-5 gap-2 md:gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1 md:mx-0 md:px-0 md:pb-0" role="radiogroup" aria-label="五行配色主题">
           {Object.entries(WUXING_THEMES).map(([key, t]) => {
             const isSelected = theme.name === t.name;
             return (
               <button
                 key={key}
                 onClick={() => onThemeChange(t)}
-                className={`relative group/theme p-3 rounded-xl border-2 transition-all duration-300 min-h-[72px] focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                className={`relative group/theme flex-shrink-0 w-[70px] md:w-auto p-2 md:p-3 rounded-xl border-2 transition-all duration-300 min-h-[64px] md:min-h-[72px] focus:outline-none focus:ring-2 focus:ring-purple-500 touch-feedback ${
                   isSelected
                     ? 'border-white shadow-lg scale-105'
                     : 'border-transparent hover:border-white/50 hover:shadow-md'
@@ -134,7 +135,7 @@ export const PosterEditor: React.FC<PosterEditorProps> = ({
 
                 {/* 颜色预览 */}
                 <div
-                  className="w-full h-12 rounded-lg mb-2 shadow-sm group-hover/theme:scale-110 transition-transform duration-300"
+                  className="w-full h-10 md:h-12 rounded-lg mb-1.5 md:mb-2 shadow-sm group-hover/theme:scale-110 transition-transform duration-300"
                   style={{ 
                     background: `linear-gradient(135deg, ${t.primary}, ${t.secondary})`,
                     boxShadow: `0 4px 12px ${t.primary}40`,
@@ -143,7 +144,7 @@ export const PosterEditor: React.FC<PosterEditorProps> = ({
                 />
                 
                 {/* 名称 */}
-                <p className="text-xs text-center font-bold" style={{ color: '#374151' }}>
+                <p className="text-[10px] md:text-xs text-center font-bold" style={{ color: '#374151' }}>
                   {t.name}
                 </p>
               </button>

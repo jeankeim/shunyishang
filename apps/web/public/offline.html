@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>离线 - 顺衣尚</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+      background: linear-gradient(135deg, #F8FAF9 0%, #F0F7F4 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      text-align: center;
+      max-width: 400px;
+    }
+    
+    .icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+      animation: float 3s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    h1 {
+      font-size: 24px;
+      color: #2D4A38;
+      margin-bottom: 12px;
+    }
+    
+    p {
+      font-size: 16px;
+      color: #6B7F72;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    
+    .tips {
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      margin-top: 24px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    
+    .tips h3 {
+      font-size: 14px;
+      color: #3DA35D;
+      margin-bottom: 12px;
+    }
+    
+    .tips ul {
+      list-style: none;
+      text-align: left;
+    }
+    
+    .tips li {
+      font-size: 14px;
+      color: #6B7F72;
+      padding: 8px 0;
+      border-bottom: 1px solid #F0F7F4;
+    }
+    
+    .tips li:last-child {
+      border-bottom: none;
+    }
+    
+    .tips li::before {
+      content: '☯ ';
+      color: #3DA35D;
+    }
+    
+    button {
+      background: linear-gradient(135deg, #3DA35D, #4A90C4);
+      color: white;
+      border: none;
+      padding: 12px 32px;
+      border-radius: 24px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 4px 12px rgba(61,163,93,0.3);
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(61,163,93,0.4);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">📡</div>
+    <h1>网络 disconnected</h1>
+    <p>当前无法连接到网络，请检查网络连接后重试</p>
+    
+    <button onclick="window.location.reload()">
+      重新加载
+    </button>
+    
+    <div class="tips">
+      <h3>离线期间你可以：</h3>
+      <ul>
+        <li>查看已缓存的衣橱数据</li>
+        <li>浏览之前查看过的推荐</li>
+        <li>检查网络连接设置</li>
+      </ul>
+    </div>
+  </div>
+  
+  <script>
+    // 监听网络状态变化
+    window.addEventListener('online', () => {
+      window.location.reload()
+    })
+  </script>
+</body>
+</html>
