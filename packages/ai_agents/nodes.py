@@ -400,6 +400,26 @@ def retrieve_items_node(state: AgentState) -> Dict:
             limit=50
         )
         
+        # 调试日志：检查返回的 items
+        logger.info(f"[衣橱检索] 返回物品数量: {len(items)}")
+        if items:
+            logger.info(f"[衣橱检索] 第一个物品类型: {type(items[0])}")
+            logger.info(f"[衣橱检索] 第一个物品: {items[0] if isinstance(items[0], dict) else 'N/A'}")
+        
+        # 防御性检查：确保 items 是列表且每个元素都是字典
+        if not isinstance(items, list):
+            logger.error(f"[衣橱检索] 错误: items 不是列表类型，type={type(items)}")
+            items = []
+        else:
+            # 过滤掉非字典类型的元素
+            valid_items = []
+            for idx, item in enumerate(items):
+                if isinstance(item, dict):
+                    valid_items.append(item)
+                else:
+                    logger.error(f"[衣橱检索] 错误: items[{idx}] 不是字典类型，type={type(item)}")
+            items = valid_items
+        
         # 标记来源
         for item in items:
             item_sources[str(item.get("id"))] = "wardrobe"
@@ -521,7 +541,12 @@ def retrieve_items_node(state: AgentState) -> Dict:
     
     # 计算加权分数
     scored_items = []
-    for item in items:
+    for idx, item in enumerate(items):
+        # 防御性检查：确保 item 是字典
+        if not isinstance(item, dict):
+            logger.error(f"[检索节点] 错误: items[{idx}] 不是字典类型，type={type(item)}, value={item}")
+            continue
+        
         semantic_score = item.get("semantic_score", 0.5)
         
         # 计算五行匹配分
@@ -599,6 +624,17 @@ def _ensure_category_diversity(items: List[Dict], limit: int) -> List[Dict]:
     result = []
     category_count = {}
     
+    # 防御性检查：过滤掉非字典类型的元素
+    valid_items = []
+    for idx, item in enumerate(items):
+        if isinstance(item, dict):
+            valid_items.append(item)
+        else:
+            logger.error(f"[分类多样性] 错误: items[{idx}] 不是字典类型，type={type(item)}")
+    
+    if not valid_items:
+        return []
+    
     # 分类限制：核心服装最多2件，配饰/鞋履最多1件
     max_per_category = {
         "上装": 2,
@@ -610,9 +646,9 @@ def _ensure_category_diversity(items: List[Dict], limit: int) -> List[Dict]:
     }
     
     # 先遍历一次，记录配饰在排序中的位置
-    accessory_items = [item for item in items if item.get("category") == "配饰"]
+    accessory_items = [item for item in valid_items if item.get("category") == "配饰"]
     
-    for item in items:
+    for item in valid_items:
         category = item.get("category", "其他")
         
         # 获取该分类的限制

@@ -212,16 +212,28 @@ def calculate_scene_match_score(item: Dict, scene: str, sub_scene: Optional[str]
     
     # 3. 功能加分
     functionality = item.get("functionality", {})
-    if isinstance(functionality, str):
+    
+    # 处理 functionality 可能是列表或字典的情况
+    if isinstance(functionality, list):
+        # 如果是列表，检查是否有匹配的功能
+        for func in rules["preferred_functionality"]:
+            if func in functionality:
+                current_bonus += 0.05
+    elif isinstance(functionality, str):
+        # 如果是字符串，尝试解析为 JSON
         import json
         try:
             functionality = json.loads(functionality)
+            for func in rules["preferred_functionality"]:
+                if functionality.get(func) is True or functionality.get(func) == "true":
+                    current_bonus += 0.05
         except:
-            functionality = {}
-    
-    for func in rules["preferred_functionality"]:
-        if functionality.get(func) is True or functionality.get(func) == "true":
-            current_bonus += 0.05
+            pass
+    elif isinstance(functionality, dict):
+        # 如果是字典，按原逻辑处理
+        for func in rules["preferred_functionality"]:
+            if functionality.get(func) is True or functionality.get(func) == "true":
+                current_bonus += 0.05
     
     # 4. 关键词扣分
     item_name = item.get("name", "")
@@ -261,8 +273,13 @@ def calculate_scene_match_score(item: Dict, scene: str, sub_scene: Optional[str]
         if sub_rules:
             # 额外功能加分
             for func, bonus in sub_rules.get("extra_functionality_bonus", {}).items():
-                if functionality.get(func) is True or functionality.get(func) == "true":
-                    current_bonus += bonus
+                # 处理 functionality 可能是列表或字典的情况
+                if isinstance(functionality, list):
+                    if func in functionality:
+                        current_bonus += bonus
+                elif isinstance(functionality, dict):
+                    if functionality.get(func) is True or functionality.get(func) == "true":
+                        current_bonus += bonus
             
             # 额外关键词扣分
             for keyword in sub_rules.get("extra_excluded_keywords", []):
