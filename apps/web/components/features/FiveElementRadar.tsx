@@ -169,22 +169,22 @@ export function FiveElementRadar({
               { key: 'day', label: '日柱' },
               { key: 'hour', label: '时柱' },
             ].map(({ key, label }) => (
-              <div key={key} className="bg-muted/50 rounded-lg p-2">
-                <div className="text-xs text-[#6B7F72] mb-1">{label}</div>
-                <div className="text-lg font-semibold tracking-wider">
+              <div key={key} className="bg-muted/30 rounded-lg p-3 border border-border/50">
+                <div className="text-xs text-[#6B7F72] mb-2 font-medium">{label}</div>
+                <div className="text-lg font-bold tracking-wider text-[#2D4A38]">
                   {pillars[key] || '--'}
                 </div>
               </div>
             ))}
           </div>
           {eightChars && (
-            <div className="mt-3 flex justify-center gap-1 text-sm">
+            <div className="mt-4 flex justify-center gap-2 text-base font-bold">
               {eightChars.map((char, i) => (
                 <span
                   key={i}
                   className={cn(
-                    'w-6 h-6 flex items-center justify-center rounded',
-                    i % 2 === 0 ? 'bg-primary/10 text-primary' : 'bg-muted'
+                    'w-8 h-8 flex items-center justify-center rounded-lg shadow-sm',
+                    i % 2 === 0 ? 'bg-primary/20 text-[#2D7A45] border border-[#3DA35D]/30' : 'bg-[#F5F7F9] text-[#6B7F8C] border border-[#8A9BA8]/30'
                   )}
                   title={i % 2 === 0 ? '天干' : '地支'}
                 >
