@@ -31,6 +31,32 @@ const SimpleTemplate: React.FC<PosterTemplateProps> = ({
   signature,
   theme,
 }) => {
+  // URL 转换函数：将相对路径转换为完整 URL
+  const getImageUrl = (url: string | undefined): string | undefined => {
+    if (!url) return undefined
+    
+    // 如果已经是完整 URL（http/https），直接返回
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url
+    }
+    
+    // 公共库图片（/images/seed/...）使用 R2 存储
+    if (url.startsWith('/images/')) {
+      const R2_BASE = 'https://pub-886048e02a0443e2b0a3b749d8c30f46.r2.dev'
+      return `${R2_BASE}${url}`
+    }
+    
+    // 用户上传的图片（/uploads/...）使用后端 API
+    if (url.startsWith('/uploads/')) {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      return `${API_BASE}${encodeURI(url)}`
+    }
+    
+    // 其他相对路径使用后端 API
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    return `${API_BASE}${url}`
+  }
+
   return (
     <div
       className="w-full h-full flex flex-col relative overflow-hidden"
@@ -100,7 +126,7 @@ const SimpleTemplate: React.FC<PosterTemplateProps> = ({
                     border: '2px solid rgba(0,0,0,0.08)'
                   }}>
                     <img
-                      src={item.image_url}
+                      src={getImageUrl(item.image_url)}
                       alt={item.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                       crossOrigin="anonymous"
@@ -211,6 +237,32 @@ const WuxingTemplate: React.FC<PosterTemplateProps> = ({
   signature,
   theme,
 }) => {
+  // URL 转换函数：将相对路径转换为完整 URL
+  const getImageUrl = (url: string | undefined): string | undefined => {
+    if (!url) return undefined
+    
+    // 如果已经是完整 URL（http/https），直接返回
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url
+    }
+    
+    // 公共库图片（/images/seed/...）使用 R2 存储
+    if (url.startsWith('/images/')) {
+      const R2_BASE = 'https://pub-886048e02a0443e2b0a3b749d8c30f46.r2.dev'
+      return `${R2_BASE}${url}`
+    }
+    
+    // 用户上传的图片（/uploads/...）使用后端 API
+    if (url.startsWith('/uploads/')) {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      return `${API_BASE}${encodeURI(url)}`
+    }
+    
+    // 其他相对路径使用后端 API
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    return `${API_BASE}${url}`
+  }
+
   return (
     <div
       className="w-full h-full flex flex-col relative overflow-hidden"
@@ -304,7 +356,7 @@ const WuxingTemplate: React.FC<PosterTemplateProps> = ({
                       border: '2px solid rgba(255,255,255,0.2)',
                     }}>
                       <img
-                        src={item.image_url}
+                        src={getImageUrl(item.image_url)}
                         alt={item.name}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                         crossOrigin="anonymous"
@@ -404,6 +456,32 @@ const CardTemplate: React.FC<PosterTemplateProps> = ({
   theme,
   username,
 }) => {
+  // URL 转换函数：将相对路径转换为完整 URL
+  const getImageUrl = (url: string | undefined): string | undefined => {
+    if (!url) return undefined
+    
+    // 如果已经是完整 URL（http/https），直接返回
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url
+    }
+    
+    // 公共库图片（/images/seed/...）使用 R2 存储
+    if (url.startsWith('/images/')) {
+      const R2_BASE = 'https://pub-886048e02a0443e2b0a3b749d8c30f46.r2.dev'
+      return `${R2_BASE}${url}`
+    }
+    
+    // 用户上传的图片（/uploads/...）使用后端 API
+    if (url.startsWith('/uploads/')) {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      return `${API_BASE}${encodeURI(url)}`
+    }
+    
+    // 其他相对路径使用后端 API
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    return `${API_BASE}${url}`
+  }
+
   return (
     <div
       className="w-full h-full flex flex-col relative overflow-hidden"
@@ -485,7 +563,7 @@ const CardTemplate: React.FC<PosterTemplateProps> = ({
               {item.image_url ? (
                 <div className="relative w-full h-28 overflow-hidden">
                   <img
-                    src={item.image_url}
+                    src={getImageUrl(item.image_url)}
                     alt={item.name}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                     crossOrigin="anonymous"
