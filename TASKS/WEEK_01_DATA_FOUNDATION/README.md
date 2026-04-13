@@ -1,7 +1,8 @@
 # 📅 Week 1: 数据基石与向量库构建
-**状态**: 🟢 进行中 (In Progress)  
+**状态**: ✅ 已完成 (Completed)  
 **目标**: 搭建支持 `pgvector` 的数据库环境，完成 100 条种子数据的清洗、向量化导入，并验证语义搜索的有效性。  
 **关键产出**: `docker-compose.yml`, `init_db.sql`, `import_seed.py`, `test_semantic_search.py`
+**完成日期**: 2026-03-20
 
 ---
 
