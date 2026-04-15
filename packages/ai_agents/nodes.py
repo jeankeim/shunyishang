@@ -58,11 +58,11 @@ def get_llm_client(timeout: int = 8) -> OpenAI:
         logger.error("[Agent] ❌ DASHSCOPE_API_KEY 未设置！")
         raise ValueError("DASHSCOPE_API_KEY 未配置，请检查 .env 文件")
     
-    logger.info(f"[Agent] ✅ LLM 客户端初始化，API Key: {api_key[:20]}..., Base URL: https://dashscope.aliyuncs.com/compatible-mode/v1")
+    logger.info(f"[Agent] ✅ LLM 客户端初始化，API Key: {api_key[:20]}..., Base URL: {settings.dashscope_base_url}")
     
     return OpenAI(
         api_key=api_key,
-        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        base_url=settings.dashscope_base_url,
         timeout=timeout,
         max_retries=0,  # 我们自己实现重试
     )
@@ -252,13 +252,22 @@ def analyze_intent_node(state: AgentState) -> Dict:
         if elem not in xiyong_elements:
             added_elements.append(elem)
     
-    # 5. 生成搜索查询（优化：移除 LLM 增强，直接使用规则结果）
-    # 直接使用规则匹配结果，避免 LLM 调用导致 45s 延迟
-    search_query = build_search_query(
-        target_elements=target_elements,
-        scene=scene,
-        user_query=user_input
-    )
+    # 5. 生成搜索查询
+    # 如果规则已足够，直接构建查询
+    if intent_result["method"] == "rule" and target_elements:
+        search_query = build_search_query(
+            target_elements=target_elements,
+            scene=scene,
+            user_query=user_input
+        )
+    else:
+        # 需要 LLM 兜底增强
+        search_query = _enhance_query_with_llm(
+            user_input=user_input,
+            scene=scene,
+            bazi_result=bazi_result,
+            target_elements=target_elements
+        )
     
     return {
         "scene": scene,
@@ -703,7 +712,12 @@ def _encode_text_with_dashscope(text: str) -> list:
     Returns:
         embedding 向量 (1024 维)
     """
+    import dashscope
     from dashscope import TextEmbedding
+    
+    # 确保使用国际端点
+    if 'intl' in settings.dashscope_base_url:
+        dashscope.base_http_api_url = 'https://dashscope-intl.aliyuncs.com/api/v1'
     
     response = TextEmbedding.call(
         model='text-embedding-v3',

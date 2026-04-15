@@ -25,7 +25,7 @@ class AITaggingService:
     def __init__(self):
         self.client = AsyncOpenAI(
             api_key=settings.dashscope_api_key,
-            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"
+            base_url=settings.dashscope_base_url
         )
         self.model = settings.qwen_model
         self.timeout = 30.0

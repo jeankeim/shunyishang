@@ -12,11 +12,14 @@ import dashscope
 
 logger = logging.getLogger(__name__)
 
-# 模块加载时初始化 API Key（避免每次调用都设置）
+# 模块加载时初始化 API Key 和 Base URL
 from apps.api.core.config import settings
 if settings.dashscope_api_key:
     dashscope.api_key = settings.dashscope_api_key
     os.environ['DASHSCOPE_API_KEY'] = settings.dashscope_api_key
+    # 设置国际端点（新加坡）
+    if 'intl' in settings.dashscope_base_url:
+        dashscope.base_http_api_url = 'https://dashscope-intl.aliyuncs.com/api/v1'
 
 
 def _encode_text_with_dashscope(text: str) -> List[float]:

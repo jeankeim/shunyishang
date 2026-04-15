@@ -26,7 +26,8 @@ class Settings(BaseSettings):
     
     # === 阿里百炼千问 LLM 配置 ===
     dashscope_api_key: str = ""
-    qwen_model: str = "qwen-plus"  # qwen-flash 流式响应不稳定，回退到 qwen-plus
+    dashscope_base_url: str = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"  # 国际端点（新加坡）
+    qwen_model: str = "qwen-flash"  # 国际端点使用 qwen-flash
     
     # === OpenAI 配置 (备用) ===
     openai_api_key: str = ""
