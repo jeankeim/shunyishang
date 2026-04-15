@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     
     # === 阿里百炼千问 LLM 配置 ===
     dashscope_api_key: str = ""
+    dashscope_api_key_us: str = ""  # 全球版 API Key（美国弗吉尼亚）
+    use_dashscope_us: bool = False  # 是否使用全球版（Zeabur 部署时启用）
     qwen_model: str = "qwen-plus"  # qwen-flash 流式响应不稳定，回退到 qwen-plus
     
     # === OpenAI 配置 (备用) ===
