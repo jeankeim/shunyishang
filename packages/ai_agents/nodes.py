@@ -40,16 +40,16 @@ logger = logging.getLogger(__name__)
 # ============================================================
 # 默认重试参数（优化：减少重试次数，加快失败响应）
 DEFAULT_MAX_RETRIES = 1  # 从 3 降低到 1，失败快速降级
-DEFAULT_MIN_WAIT = 1.0  # 秒（从 2.0 降低）
-DEFAULT_MAX_WAIT = 3.0  # 秒（从 10.0 降低）
+DEFAULT_MIN_WAIT = 0.5  # 秒（优化：从 1.0 降低到 0.5，加快重试）
+DEFAULT_MAX_WAIT = 1.5  # 秒（优化：从 3.0 降低到 1.5）
 
 
-def get_llm_client(timeout: int = 15) -> OpenAI:
+def get_llm_client(timeout: int = 8) -> OpenAI:
     """
     获取阿里百炼千问客户端
     
     Args:
-        timeout: 请求超时时间（秒）- 优化：从 60s 降低到 15s
+        timeout: 请求超时时间（秒）- 优化：从 15s 降低到 8s，qwen-flash 响应更快
     """
     api_key = settings.dashscope_api_key
     

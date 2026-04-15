@@ -158,7 +158,7 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
                 }
                 serialized = json.dumps(cache_data, ensure_ascii=False, default=str)
                 
-                # 写入缓存（5分钟）
+                # 写入缓存（15分钟，优化：从 5 分钟增加到 15 分钟，提升命中率）
                 import requests
                 # Upstash REST API SET 方法
                 requests.post(
@@ -171,7 +171,7 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
                 requests.post(
                     settings.upstash_redis_rest_url,
                     headers={"Authorization": f"Bearer {settings.upstash_redis_rest_token}"},
-                    json=["EXPIRE", cache_key, "300"],
+                    json=["EXPIRE", cache_key, "900"],  # 15分钟 = 900秒
                     timeout=1.0
                 )
                 print(f"[Cache] 💾 推荐结果已缓存: {cache_key}")

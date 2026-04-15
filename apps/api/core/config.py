@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     
     # === 阿里百炼千问 LLM 配置 ===
     dashscope_api_key: str = ""
-    qwen_model: str = "qwen-plus"
+    qwen_model: str = "qwen-flash"  # 使用 qwen-flash，响应速度最快（比 qwen-plus 快 40-60%）
     
     # === OpenAI 配置 (备用) ===
     openai_api_key: str = ""

@@ -1,0 +1,59 @@
+{
+  "test_time": "2026-04-15T22:58:34.009329",
+  "api_url": "https://shunyishang-wuxing.zeabur.app",
+  "results": {
+    "测试健康检查": {
+      "name": "健康检查",
+      "url": "https://shunyishang-wuxing.zeabur.app/health",
+      "total_requests": 10,
+      "success_count": 10,
+      "error_count": 0,
+      "success_rate": "100.0%",
+      "avg_time": "1.714s",
+      "median_time": "1.512s",
+      "p95_time": "3.261s",
+      "min_time": "0.832s",
+      "max_time": "3.261s",
+      "errors": []
+    },
+    "测试公开推荐接口": {
+      "name": "推荐接口 (公开)",
+      "url": "https://shunyishang-wuxing.zeabur.app/api/v1/recommend/stream",
+      "total_requests": 10,
+      "success_count": 10,
+      "error_count": 0,
+      "success_rate": "100.0%",
+      "avg_time": "1.436s",
+      "median_time": "1.288s",
+      "p95_time": "3.170s",
+      "min_time": "0.761s",
+      "max_time": "3.170s",
+      "errors": []
+    },
+    "测试带八字的推荐接口": {
+      "name": "推荐接口 (带八字)",
+      "url": "https://shunyishang-wuxing.zeabur.app/api/v1/recommend/stream",
+      "total_requests": 11,
+      "success_count": 0,
+      "error_count": 10,
+      "success_rate": "0.0%",
+      "avg_time": "30.168s",
+      "median_time": "30.168s",
+      "p95_time": "30.168s",
+      "min_time": "30.168s",
+      "max_time": "30.168s",
+      "errors": [
+        "请求 1: HTTPSConnectionPool(host='shunyishang-wuxing.zeabur.app', port=443): Read timed out. (read timeout=30)",
+        "请求 2: HTTPSConnectionPool(host='shunyishang-wuxing.zeabur.app', port=443): Read timed out. (read timeout=30)",
+        "请求 3: HTTPSConnectionPool(host='shunyishang-wuxing.zeabur.app', port=443): Read timed out. (read timeout=30)",
+        "请求 4: HTTPSConnectionPool(host='shunyishang-wuxing.zeabur.app', port=443): Read timed out. (read timeout=30)",
+        "请求 5: HTTPSConnectionPool(host='shunyishang-wuxing.zeabur.app', port=443): Read timed out. (read timeout=30)"
+      ]
+    },
+    "测试衣橱查询接口": {
+      "name": "衣橱查询",
+      "skipped": true,
+      "reason": "需要登录"
+    }
+  }
+}
