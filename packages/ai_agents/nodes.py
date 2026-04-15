@@ -50,33 +50,19 @@ def get_llm_client(timeout: int = 8) -> OpenAI:
     
     Args:
         timeout: 请求超时时间（秒）- 优化：从 15s 降低到 8s
-        
-    部署范围选择：
-    - 中国内地: dashscope.aliyuncs.com（北京节点）
-    - 全球: dashscope-us.aliyuncs.com（美国弗吉尼亚，适合 Zeabur 部署）
     """
-    # 根据配置选择 API Key 和 Base URL
-    if settings.use_dashscope_us and settings.dashscope_api_key_us:
-        # 使用全球版（美国弗吉尼亚）
-        api_key = settings.dashscope_api_key_us
-        base_url = "https://dashscope-us.aliyuncs.com/compatible-mode/v1"
-        logger.info("[Agent] ✅ 使用全球版 LLM (美国弗吉尼亚)")
-    else:
-        # 使用中国内地版（北京）
-        api_key = settings.dashscope_api_key
-        base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-        logger.info("[Agent] ✅ 使用中国内地版 LLM (北京)")
+    api_key = settings.dashscope_api_key
     
     # 调试日志：验证 API Key 是否加载
     if not api_key:
         logger.error("[Agent] ❌ DASHSCOPE_API_KEY 未设置！")
         raise ValueError("DASHSCOPE_API_KEY 未配置，请检查 .env 文件")
     
-    logger.info(f"[Agent] ✅ LLM 客户端初始化，API Key: {api_key[:20]}..., Base URL: {base_url}")
+    logger.info(f"[Agent] ✅ LLM 客户端初始化，API Key: {api_key[:20]}..., Base URL: https://dashscope.aliyuncs.com/compatible-mode/v1")
     
     return OpenAI(
         api_key=api_key,
-        base_url=base_url,
+        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
         timeout=timeout,
         max_retries=0,  # 我们自己实现重试
     )
