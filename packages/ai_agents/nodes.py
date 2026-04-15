@@ -252,22 +252,13 @@ def analyze_intent_node(state: AgentState) -> Dict:
         if elem not in xiyong_elements:
             added_elements.append(elem)
     
-    # 5. 生成搜索查询
-    # 如果规则已足够，直接构建查询
-    if intent_result["method"] == "rule" and target_elements:
-        search_query = build_search_query(
-            target_elements=target_elements,
-            scene=scene,
-            user_query=user_input
-        )
-    else:
-        # 需要 LLM 兜底增强
-        search_query = _enhance_query_with_llm(
-            user_input=user_input,
-            scene=scene,
-            bazi_result=bazi_result,
-            target_elements=target_elements
-        )
+    # 5. 生成搜索查询（优化：移除 LLM 增强，直接使用规则结果）
+    # 直接使用规则匹配结果，避免 LLM 调用导致 45s 延迟
+    search_query = build_search_query(
+        target_elements=target_elements,
+        scene=scene,
+        user_query=user_input
+    )
     
     return {
         "scene": scene,
