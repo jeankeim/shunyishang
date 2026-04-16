@@ -57,7 +57,8 @@ function RetrievalModeToggle({ isAuthenticated }: { isAuthenticated: boolean }) 
               onClick={() => setRetrievalMode(mode)}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className={`relative px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              aria-label={`切换到${config.label}模式`}
+              className={`relative px-3 py-2 min-h-[44px] rounded-lg text-xs font-medium transition-all duration-200 ${
                 isActive
                   ? 'text-stone-800'
                   : 'text-stone-500 hover:text-stone-700 hover:bg-stone-100'
@@ -72,7 +73,7 @@ function RetrievalModeToggle({ isAuthenticated }: { isAuthenticated: boolean }) 
                 />
               )}
               <span className="relative z-10 flex items-center gap-1">
-                <span>{config.icon}</span>
+                <span aria-hidden="true">{config.icon}</span>
                 <span className="hidden sm:inline">{config.label}</span>
               </span>
             </motion.button>
@@ -484,7 +485,9 @@ export function ChatInterface({ scene, weatherElement, weatherInfo }: ChatInterf
                       exit={{ opacity: 0, y: -20 }}
                       transition={{ delay: index * 0.1, duration: 0.3 }}
                       onClick={() => handleSend(prompt)}
-                      className="px-4 py-2.5 text-sm bg-gradient-to-br from-amber-100/60 to-orange-100/40 border border-amber-200/40 rounded-xl hover:from-amber-200/60 hover:to-orange-200/40 transition-all shadow-sm hover:shadow-md hover:scale-105"
+                      aria-label={`发送推荐请求：${prompt}`}
+                      whileTap={{ scale: 0.95 }}
+                      className="px-4 py-3 min-h-[44px] text-sm bg-gradient-to-br from-amber-100/60 to-orange-100/40 border border-amber-200/40 rounded-xl hover:from-amber-200/60 hover:to-orange-200/40 transition-all duration-200 shadow-sm hover:shadow-md touch-manipulation"
                     >
                       {prompt}
                     </motion.button>

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import './accessibility.css'
 import { ThemeProvider } from '@/components/providers/ThemeProvider'
 import { ToastProvider } from '@/components/providers/ToastProvider'
 

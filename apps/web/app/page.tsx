@@ -12,6 +12,7 @@ import { Sidebar } from '@/components/features/Sidebar'
 import { Header } from '@/components/features/Header'
 import { MobileControlPanel } from '@/components/features/MobileControlPanel'
 import { PullToRefresh } from '@/components/features/PullToRefresh'
+import { MobileBottomNav } from '@/components/features/MobileBottomNav'
 import { useChatStore } from '@/store/chat'
 import { useUserStore } from '@/store/user'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
@@ -251,13 +252,17 @@ export default function Home() {
                 setActiveTab('chat')
                 window.location.hash = ''
               }}
-              className={`relative px-4 md:px-6 py-4 font-medium text-sm transition-all duration-300 hover:-translate-y-0.5 touch-feedback ${
+              aria-label="切换到智能推荐页面"
+              className={`relative px-4 md:px-6 py-3 min-h-[44px] font-medium text-sm transition-all duration-200 touch-feedback ${
                 activeTab === 'chat'
                   ? 'text-[#3DA35D]'
                   : 'text-[#6B7F72] hover:text-[#3DA35D]/80'
               }`}
             >
-              智能推荐
+              <span className="flex items-center gap-2">
+                <span aria-hidden="true">✨</span>
+                <span>智能推荐</span>
+              </span>
               {activeTab === 'chat' && (
                 <motion.div 
                   layoutId="tabIndicator"
@@ -272,13 +277,17 @@ export default function Home() {
                 setActiveTab('wardrobe')
                 window.location.hash = '#wardrobe'
               }}
-              className={`relative px-4 md:px-6 py-4 font-medium text-sm transition-all duration-300 hover:-translate-y-0.5 touch-feedback ${
+              aria-label="切换到我的衣橱页面"
+              className={`relative px-4 md:px-6 py-3 min-h-[44px] font-medium text-sm transition-all duration-200 touch-feedback ${
                 activeTab === 'wardrobe'
                   ? 'text-[#D4656B]'
                   : 'text-[#6B7F72] hover:text-[#D4656B]/80'
               }`}
             >
-              我的衣橱
+              <span className="flex items-center gap-2">
+                <span aria-hidden="true">👔</span>
+                <span>我的衣橱</span>
+              </span>
               {activeTab === 'wardrobe' && (
                 <motion.div
                   layoutId="tabIndicator"
@@ -293,13 +302,17 @@ export default function Home() {
                 setActiveTab('profile')
                 window.location.hash = '#profile'
               }}
-              className={`relative px-4 md:px-6 py-4 font-medium text-sm transition-all duration-300 hover:-translate-y-0.5 touch-feedback ${
+              aria-label="切换到个人资料页面"
+              className={`relative px-4 md:px-6 py-3 min-h-[44px] font-medium text-sm transition-all duration-200 touch-feedback ${
                 activeTab === 'profile'
                   ? 'text-[#4A90C4]'
                   : 'text-[#6B7F72] hover:text-[#4A90C4]/80'
               }`}
             >
-              个人资料
+              <span className="flex items-center gap-2">
+                <span aria-hidden="true">👤</span>
+                <span>个人资料</span>
+              </span>
               {activeTab === 'profile' && (
                 <motion.div 
                   layoutId="tabIndicator"
@@ -318,6 +331,7 @@ export default function Home() {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3, ease: "easeOut" }}
           className="flex-1 overflow-y-auto overflow-x-visible bg-gradient-to-b from-white/80 via-[#F8FAF9]/50 to-[#F0F7F4]/30 backdrop-blur-sm p-4 md:p-6 pb-24 md:pb-6"
+          style={{ paddingBottom: 'max(6rem, 6rem)' }} // 为移动端底部导航预留空间
         >
           <AnimatePresence mode="wait">
             {activeTab === 'chat' && (
@@ -376,6 +390,19 @@ export default function Home() {
       <MobileControlPanel
         onSceneChange={handleSceneChange}
         onWeatherChange={handleWeatherChange}
+      />
+      
+      {/* 移动端底部导航 */}
+      <MobileBottomNav
+        activeTab={activeTab}
+        onTabChange={(tab) => {
+          setActiveTab(tab)
+          if (tab === 'chat') {
+            window.location.hash = ''
+          } else {
+            window.location.hash = `#${tab}`
+          }
+        }}
       />
     </div>
     </PullToRefresh>

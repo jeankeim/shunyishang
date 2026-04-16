@@ -1,0 +1,137 @@
+/* 全局无障碍和优化样式 */
+
+/* 减少动画偏好支持 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  /* Framer Motion 动画也会尊重这个设置 */
+  [data-framer-motion] {
+    transition: none !important;
+  }
+}
+
+/* 触摸优化 */
+@media (hover: none) and (pointer: coarse) {
+  /* 确保所有可点击元素有足够的触摸区域 */
+  button,
+  [role="button"],
+  a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* 移除 hover 效果，改用 active */
+  .hover\\:shadow-lg:hover {
+    box-shadow: none;
+  }
+  
+  .hover\\:shadow-lg:active {
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  }
+}
+
+/* 安全区域支持 */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0);
+}
+
+/* 高对比度模式支持 */
+@media (prefers-contrast: high) {
+  :root {
+    --contrast-border: 2px;
+  }
+  
+  button,
+  input,
+  select,
+  textarea {
+    border-width: var(--contrast-border);
+  }
+}
+
+/* 强制颜色模式支持 */
+@media (forced-colors: active) {
+  button {
+    border: 1px solid ButtonText;
+  }
+  
+  .bg-gradient-to-r {
+    background: ButtonFace !important;
+  }
+}
+
+/* 焦点可见性增强 */
+*:focus-visible {
+  outline: 2px solid #3DA35D;
+  outline-offset: 2px;
+}
+
+/* 屏幕阅读器专用 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* 触摸反馈优化 */
+.touch-feedback {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.touch-feedback:active {
+  opacity: 0.7;
+  transform: scale(0.98);
+}
+
+/* 滚动优化 */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* 文本渲染优化 */
+.antialiased {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 图片加载优化 */
+img {
+  content-visibility: auto;
+}
+
+/* 打印样式 */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  body {
+    background: white !important;
+    color: black !important;
+  }
+}

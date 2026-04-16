@@ -416,7 +416,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="衣物名称/描述"
-                className="w-full px-3 py-2 rounded-lg bg-white/90 backdrop-blur-sm border-0 text-stone-800 placeholder:text-[#8A9F92] text-sm"
+                className="w-full px-3 py-2 rounded-lg bg-white/90 backdrop-blur-sm border-0 text-stone-800 placeholder:text-[#8A9F92] text-base md:text-sm"
               />
             </div>
           </div>
@@ -509,7 +509,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
                 type="text"
                 value={analysis.color || ''}
                 onChange={(e) => updateAnalysisField('color', e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-emerald-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all outline-none text-sm"
+                className="w-full px-3 py-2 rounded-xl border border-emerald-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all outline-none text-base md:text-sm"
               />
             </div>
             
@@ -540,7 +540,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
                 type="text"
                 value={analysis.material || ''}
                 onChange={(e) => updateAnalysisField('material', e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-emerald-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all outline-none text-sm"
+                className="w-full px-3 py-2 rounded-xl border border-emerald-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all outline-none text-base md:text-sm"
               />
             </div>
             

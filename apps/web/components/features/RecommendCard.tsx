@@ -77,7 +77,9 @@ export function RecommendCard({ item, index, sessionId, onFeedback }: RecommendC
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1, duration: 0.3 }}
-      className="bg-card rounded-lg border overflow-hidden hover:shadow-lg transition-shadow"
+      whileTap={{ scale: 0.98 }}
+      className="bg-card rounded-lg border overflow-hidden hover:shadow-lg transition-shadow touch-manipulation"
+      style={{ willChange: 'transform' }}
     >
       {/* 元素渐变占位图 */}
       {shouldShowImage ? (
