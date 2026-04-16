@@ -44,29 +44,34 @@ DEFAULT_MIN_WAIT = 0.5  # 秒（优化：从 1.0 降低到 0.5，加快重试）
 DEFAULT_MAX_WAIT = 1.5  # 秒（优化：从 3.0 降低到 1.5）
 
 
-_llm_client: Optional[OpenAI] = None  # 保留变量（暂时不用单例，对照测试）
+_llm_client: Optional[OpenAI] = None  # 模块级单例，避免每次请求重新建连
 
 def get_llm_client(timeout: int = 8) -> OpenAI:
     """
-    获取阿里百炼千问客户端（每次新建，对照测试用）
+    获取阿里百炼千问客户端（单例模式，复用 HTTP 连接池）
     
     Args:
         timeout: 请求超时时间（秒）
     """
+    global _llm_client
+    if _llm_client is not None:
+        return _llm_client
+
     api_key = settings.dashscope_api_key
-    
+
     if not api_key:
         logger.error("[Agent] ❌ DASHSCOPE_API_KEY 未设置！")
         raise ValueError("DASHSCOPE_API_KEY 未配置，请检查 .env 文件")
-    
-    logger.info(f"[Agent] ✅ LLM 客户端初始化（每次新建），Base URL: {settings.dashscope_base_url}")
-    
-    return OpenAI(
+
+    logger.info(f"[Agent] ✅ LLM 客户端初始化（单例），Base URL: {settings.dashscope_base_url}")
+
+    _llm_client = OpenAI(
         api_key=api_key,
         base_url=settings.dashscope_base_url,
         timeout=timeout,
         max_retries=0,  # 我们自己实现重试
     )
+    return _llm_client
 
 
 def call_llm_with_retry(
