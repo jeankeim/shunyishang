@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { createPortal } from 'react-dom';
 import { PosterTemplate, PosterTemplateSelector } from './PosterTemplate';
 import { PosterEditor } from './PosterEditor';
 import { usePoster } from '@/hooks/usePoster';
@@ -45,14 +46,14 @@ export const PosterGenerator: React.FC<PosterGeneratorProps> = ({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[100] p-4 md:p-6"
+          className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[9999] p-4 md:p-6"
           role="dialog"
           aria-modal="true"
           aria-labelledby="poster-dialog-title"
@@ -250,7 +251,7 @@ export const PosterGenerator: React.FC<PosterGeneratorProps> = ({
             </div>
 
             {/* 海报预览 */}
-            <div className="relative">
+            <div className="relative z-10">
               {/* 阴影效果 */}
               <div className="absolute inset-0 bg-black/20 blur-2xl rounded-2xl transform scale-[0.98] translate-y-4" />
               
@@ -283,6 +284,7 @@ export const PosterGenerator: React.FC<PosterGeneratorProps> = ({
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 };

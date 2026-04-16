@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { createPortal } from 'react-dom'
 
 interface ImageLightboxProps {
   imageUrl: string
@@ -41,13 +42,13 @@ export function ImageLightbox({ imageUrl, onClose }: ImageLightboxProps) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onClose])
 
-  return (
+  return createPortal(
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/95 backdrop-blur-md z-[200] flex items-center justify-center p-4 md:p-8"
+        className="fixed inset-0 bg-black/95 backdrop-blur-md z-[9999] flex items-center justify-center p-4 md:p-8"
         onClick={onClose}
         role="dialog"
         aria-modal="true"
@@ -124,6 +125,7 @@ export function ImageLightbox({ imageUrl, onClose }: ImageLightboxProps) {
           )}
         </motion.div>
       </motion.div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   )
 }

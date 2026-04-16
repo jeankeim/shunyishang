@@ -18,6 +18,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
   const [feedback, setFeedback] = useState<'like' | 'dislike' | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [imageError, setImageError] = useState(false)
+  const [showDetails, setShowDetails] = useState(false)  // 新增：详情展开状态
   const config = getWuxingConfig(item.primary_element)
 
   // 构建完整的图片 URL，并对特殊字符（空格等）进行编码
@@ -154,92 +155,120 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
           <p className="text-xs text-stone-500 mt-1">颜色：{item.color}</p>
         )}
         
-        {/* Task 05: 多维度评分展示 */}
-        <div className="mt-3 space-y-2">
-          {/* 语义匹配 */}
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-stone-500 w-16">语义匹配</span>
-            <div className="flex-1 h-1.5 bg-stone-200 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all"
-                style={{ width: `${(item.semantic_score || 0.5) * 100}%` }}
-              />
-            </div>
-            <span className="text-stone-600 font-medium w-10 text-right">
-              {((item.semantic_score || 0.5) * 100).toFixed(0)}%
-            </span>
-          </div>
-          
-          {/* 五行匹配 */}
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-stone-500 w-16">五行匹配</span>
-            <div className="flex-1 h-1.5 bg-stone-200 rounded-full overflow-hidden">
-              <div 
-                className={`h-full rounded-full transition-all ${config.gradientClass}`}
-                style={{ width: `${(item.wuxing_score || 0) * 100}%` }}
-              />
-            </div>
-            <span className="text-stone-600 font-medium w-10 text-right">
-              {((item.wuxing_score || 0) * 100).toFixed(0)}%
-            </span>
-          </div>
-          
-          {/* 场景适配（如果有场景分数） */}
-          {item.scene_score !== undefined && item.scene_score > 0 && (
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-stone-500 w-16">场景适配</span>
-              <div className="flex-1 h-1.5 bg-stone-200 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-amber-400 to-amber-600 rounded-full transition-all"
-                  style={{ width: `${item.scene_score * 100}%` }}
-                />
+        {/* 综合匹配度 + 展开详情 */}
+        <div className="mt-3 pt-3 border-t border-stone-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-stone-500 text-xs">综合匹配</span>
+                <span className="font-bold text-amber-600 text-lg">
+                  {(item.final_score * 100).toFixed(0)}%
+                </span>
               </div>
-              <span className="text-stone-600 font-medium w-10 text-right">
-                {(item.scene_score * 100).toFixed(0)}%
-              </span>
+              {/* 展开/收起按钮 */}
+              <button
+                onClick={() => setShowDetails(!showDetails)}
+                className="p-1.5 rounded-lg hover:bg-stone-100 transition-all"
+                aria-label={showDetails ? '收起详情' : '展开详情'}
+              >
+                <svg 
+                  className={`w-4 h-4 text-stone-400 transition-transform duration-200 ${showDetails ? 'rotate-180' : ''}`}
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
             </div>
+            
+            {/* 反馈按钮 */}
+            <div className="flex gap-1">
+              <button
+                onClick={() => handleFeedback('like')}
+                disabled={!!feedback || isSubmitting}
+                className={`p-1.5 rounded-full transition-all ${
+                  feedback === 'like'
+                    ? 'bg-emerald-100 text-emerald-600'
+                    : 'hover:bg-stone-100 text-[#6B7F72] hover:text-emerald-500'
+                } disabled:cursor-not-allowed`}
+              >
+                <svg className="w-4 h-4" fill={feedback === 'like' ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                </svg>
+              </button>
+              <button
+                onClick={() => handleFeedback('dislike')}
+                disabled={!!feedback || isSubmitting}
+                className={`p-1.5 rounded-full transition-all ${
+                  feedback === 'dislike'
+                    ? 'bg-red-100 text-red-600'
+                    : 'hover:bg-stone-100 text-[#6B7F72] hover:text-red-500'
+                } disabled:cursor-not-allowed`}
+              >
+                <svg className="w-4 h-4" fill={feedback === 'dislike' ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+          {/* 详细评分（可折叠） */}
+          {showDetails && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="mt-3 space-y-2 overflow-hidden"
+            >
+              {/* 语义匹配 */}
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-stone-500 w-16">语义匹配</span>
+                <div className="flex-1 h-1.5 bg-stone-200 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all"
+                    style={{ width: `${(item.semantic_score || 0.5) * 100}%` }}
+                  />
+                </div>
+                <span className="text-stone-600 font-medium w-10 text-right">
+                  {((item.semantic_score || 0.5) * 100).toFixed(0)}%
+                </span>
+              </div>
+              
+              {/* 五行匹配 */}
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-stone-500 w-16">五行匹配</span>
+                <div className="flex-1 h-1.5 bg-stone-200 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full rounded-full transition-all ${config.gradientClass}`}
+                    style={{ width: `${(item.wuxing_score || 0) * 100}%` }}
+                  />
+                </div>
+                <span className="text-stone-600 font-medium w-10 text-right">
+                  {((item.wuxing_score || 0) * 100).toFixed(0)}%
+                </span>
+              </div>
+              
+              {/* 场景适配（如果有场景分数） */}
+              {item.scene_score !== undefined && item.scene_score > 0 && (
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-stone-500 w-16">场景适配</span>
+                  <div className="flex-1 h-1.5 bg-stone-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-amber-400 to-amber-600 rounded-full transition-all"
+                      style={{ width: `${item.scene_score * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-stone-600 font-medium w-10 text-right">
+                    {(item.scene_score * 100).toFixed(0)}%
+                  </span>
+                </div>
+              )}
+            </motion.div>
           )}
         </div>
         
-        {/* 综合匹配度 */}
-        <div className="flex items-center justify-between mt-3 pt-3 border-t border-stone-200">
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-stone-500">综合匹配</span>
-            <span className="font-bold text-amber-600 text-base">
-              {(item.final_score * 100).toFixed(0)}%
-            </span>
-          </div>
-          
-          {/* 反馈按钮 */}
-          <div className="flex gap-1">
-            <button
-              onClick={() => handleFeedback('like')}
-              disabled={!!feedback || isSubmitting}
-              className={`p-1.5 rounded-full transition-all ${
-                feedback === 'like'
-                  ? 'bg-emerald-100 text-emerald-600'
-                  : 'hover:bg-stone-100 text-[#6B7F72] hover:text-emerald-500'
-              } disabled:cursor-not-allowed`}
-            >
-              <svg className="w-4 h-4" fill={feedback === 'like' ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
-              </svg>
-            </button>
-            <button
-              onClick={() => handleFeedback('dislike')}
-              disabled={!!feedback || isSubmitting}
-              className={`p-1.5 rounded-full transition-all ${
-                feedback === 'dislike'
-                  ? 'bg-red-100 text-red-600'
-                  : 'hover:bg-stone-100 text-[#6B7F72] hover:text-red-500'
-              } disabled:cursor-not-allowed`}
-            >
-              <svg className="w-4 h-4" fill={feedback === 'dislike' ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" />
-              </svg>
-            </button>
-          </div>
-        </div>
         {item.reason && (
           <p className="text-xs text-stone-500 mt-2 line-clamp-2">{item.reason}</p>
         )}
