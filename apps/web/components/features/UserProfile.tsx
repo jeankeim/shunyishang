@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import { useUserStore } from '@/store/user'
 import { Calendar, MapPin, User, Save, Loader2, X, Sparkles } from 'lucide-react'
 import DatePicker from 'react-datepicker'
@@ -278,56 +279,68 @@ export function UserProfile({ onClose }: UserProfileProps) {
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-4 h-full overflow-y-auto">
-      <div className="card-primary">
-        {/* 头部区域 - 添加关闭按钮 */}
-        <div className="p-6 divider-subtle flex justify-between items-start">
-          <div>
-            <h2 className="text-xl font-bold flex items-center gap-2 text-stone-900">
-              <User className="h-5 w-5 text-amber-500" />
-              个人资料
+    <div className="max-w-2xl mx-auto h-full overflow-y-auto bg-gradient-to-br from-stone-50 to-white">
+      <div className="p-4 md:p-6 space-y-6">
+        {/* 头部区域 */}
+        <div className="flex justify-between items-start pb-4 border-b border-stone-200">
+          <div className="flex-1">
+            <h2 className="text-xl md:text-2xl font-bold flex items-center gap-3 text-stone-900">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg">
+                <User className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <span>个人资料</span>
+                <p className="text-sm font-normal text-stone-500 mt-1">
+                  管理您的个人信息，用于精准的五行推荐
+                </p>
+              </div>
             </h2>
-            <p className="text-sm text-stone-600 mt-1">
-              管理您的个人信息，这些信息将用于为您提供更精准的五行推荐
-            </p>
           </div>
           <button
             onClick={handleCancel}
-            className="p-2 rounded-lg hover:bg-amber-100/60 transition-colors text-stone-500 hover:text-stone-700"
+            className="p-2.5 rounded-xl hover:bg-stone-100 transition-all text-stone-500 hover:text-stone-700 hover:scale-105 active:scale-95"
             aria-label="关闭"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
         
-        <div className="p-6">
+        <div>
           {message && (
-            <div className={`mb-6 p-4 rounded-lg border ${
-              message.type === 'success' 
-                ? 'bg-green-50/60 border-green-200/60 text-green-700' 
-                : 'bg-red-50/60 border-red-200/60 text-red-700'
-            }`}>
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`mb-4 p-4 rounded-xl border ${
+                message.type === 'success' 
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
+                  : 'bg-red-50 border-red-200 text-red-700'
+              }`}
+            >
               {message.text}
-            </div>
+            </motion.div>
           )}
 
           {/* 八字分析状态 */}
           {analyzing && (
-            <div className="mb-6 p-4 rounded-lg bg-gradient-to-br from-amber-50/80 to-orange-50/60 text-amber-700 flex items-center gap-2 shadow-[0_1px_6px_rgba(0,0,0,0.04)]">
-              <Sparkles className="h-4 w-4 animate-pulse" />
-              <span>正在分析八字...</span>
-            </div>
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4 p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 text-amber-700 flex items-center gap-3 shadow-sm"
+            >
+              <Sparkles className="h-5 w-5 animate-pulse" />
+              <span className="font-medium">正在分析八字...</span>
+            </motion.div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* 基本信息 */}
-            <section className="space-y-4">
-              <h3 className="text-lg font-semibold text-stone-800 divider-subtle pb-3 mb-4">
+            <section className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
+              <h3 className="text-lg font-semibold text-stone-800 pb-3 mb-4 border-b border-stone-100">
                 基本信息
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-2">
-                  <label htmlFor="nickname" className="block text-sm font-semibold text-stone-700">
+                  <label htmlFor="nickname" className="block text-sm font-medium text-stone-700">
                     昵称
                   </label>
                   <input
@@ -336,12 +349,12 @@ export function UserProfile({ onClose }: UserProfileProps) {
                     value={formData.nickname || ''}
                     onChange={(e) => handleChange('nickname', e.target.value)}
                     placeholder="请输入昵称"
-                    className="input-elegant w-full px-3 py-2.5 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
+                    className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all hover:border-stone-300"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="gender" className="block text-sm font-semibold text-stone-700">
+                  <label htmlFor="gender" className="block text-sm font-medium text-stone-700">
                     性别
                   </label>
                   <select
@@ -359,18 +372,18 @@ export function UserProfile({ onClose }: UserProfileProps) {
             </section>
 
             {/* 出生信息 */}
-            <section className="space-y-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2 text-stone-800 divider-subtle pb-3 mb-4">
-                <Calendar className="h-4 w-4 text-amber-500" />
+            <section className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
+              <h3 className="text-lg font-semibold flex items-center gap-2 text-stone-800 pb-3 mb-4 border-b border-stone-100">
+                <Calendar className="h-5 w-5 text-amber-500" />
                 出生信息
               </h3>
-              <p className="text-sm text-stone-600">
+              <p className="text-sm text-stone-500 mb-5">
                 完善后可用于更精确的八字分析
               </p>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-stone-700">
+                  <label className="block text-sm font-medium text-stone-700">
                     出生日期
                   </label>
                   <div className="relative">
@@ -381,15 +394,15 @@ export function UserProfile({ onClose }: UserProfileProps) {
                       }}
                       dateFormat="yyyy/MM/dd"
                       placeholderText="请选择出生日期"
-                      className="input-elegant w-full px-3 py-2.5 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
+                      className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all hover:border-stone-300"
                       calendarClassName="bg-white rounded-lg shadow-lg"
                     />
-                    <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-stone-400 pointer-events-none" />
+                    <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-stone-400 pointer-events-none" />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="birth_time" className="block text-sm font-semibold text-stone-700">
+                  <label htmlFor="birth_time" className="block text-sm font-medium text-stone-700">
                     出生时间
                   </label>
                   <input
@@ -397,13 +410,13 @@ export function UserProfile({ onClose }: UserProfileProps) {
                     type="time"
                     value={formData.birth_time || ''}
                     onChange={(e) => handleChange('birth_time', e.target.value)}
-                    className="input-elegant w-full px-3 py-2.5 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
+                    className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all hover:border-stone-300"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label htmlFor="birth_location" className="block text-sm font-semibold text-stone-700">
+              <div className="space-y-2 mt-5">
+                <label htmlFor="birth_location" className="block text-sm font-medium text-stone-700">
                   出生地点
                 </label>
                 <input
@@ -412,20 +425,20 @@ export function UserProfile({ onClose }: UserProfileProps) {
                   value={formData.birth_location || ''}
                   onChange={(e) => handleChange('birth_location', e.target.value)}
                   placeholder="请输入出生地（省市区）"
-                  className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all shadow-sm"
+                  className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all hover:border-stone-300"
                 />
               </div>
             </section>
 
             {/* 偏好设置 */}
-            <section className="space-y-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2 text-stone-800 divider-subtle pb-3 mb-4">
-                <MapPin className="h-4 w-4 text-emerald-500" />
+            <section className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
+              <h3 className="text-lg font-semibold flex items-center gap-2 text-stone-800 pb-3 mb-4 border-b border-stone-100">
+                <MapPin className="h-5 w-5 text-emerald-500" />
                 偏好设置
               </h3>
               
               <div className="space-y-2">
-                <label htmlFor="preferred_city" className="block text-sm font-semibold text-stone-700">
+                <label htmlFor="preferred_city" className="block text-sm font-medium text-stone-700">
                   常驻城市
                 </label>
                 <div className="relative">
@@ -439,13 +452,17 @@ export function UserProfile({ onClose }: UserProfileProps) {
                     }}
                     onFocus={() => setShowCityDropdown(true)}
                     placeholder="请输入或选择城市"
-                    className="input-elegant w-full px-3 py-2.5 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
+                    className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all hover:border-stone-300"
                   />
-                  <MapPin className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-stone-400 pointer-events-none" />
+                  <MapPin className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-stone-400 pointer-events-none" />
                   
                   {/* 城市下拉选项 */}
                   {showCityDropdown && (
-                    <div className="absolute z-10 w-full mt-1 bg-white rounded-lg shadow-lg max-h-60 overflow-auto">
+                    <motion.div 
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="absolute z-20 w-full mt-2 bg-white rounded-xl shadow-lg border border-stone-200 max-h-60 overflow-auto"
+                    >
                       {filteredCities.length > 0 ? (
                         filteredCities.map((city) => (
                           <button
@@ -453,9 +470,9 @@ export function UserProfile({ onClose }: UserProfileProps) {
                             type="button"
                             onClick={() => handleCitySelect(city)}
                             className={cn(
-                              "w-full text-left px-3 py-2 text-sm hover:bg-amber-50/60 transition-colors",
+                              "w-full text-left px-4 py-3 text-sm hover:bg-amber-50 transition-colors first:rounded-t-xl last:rounded-b-xl",
                               formData.preferred_city === city 
-                                ? "bg-amber-100/60 text-amber-700" 
+                                ? "bg-amber-50 text-amber-700 font-medium" 
                                 : "text-stone-700"
                             )}
                           >
@@ -463,24 +480,24 @@ export function UserProfile({ onClose }: UserProfileProps) {
                           </button>
                         ))
                       ) : (
-                        <div className="px-3 py-2 text-sm text-stone-500">
+                        <div className="px-4 py-3 text-sm text-stone-500">
                           未找到匹配的城市
                         </div>
                       )}
-                    </div>
+                    </motion.div>
                   )}
                 </div>
               </div>
             </section>
 
             {/* 头像设置 */}
-            <section className="space-y-4">
-              <h3 className="text-lg font-semibold text-stone-800 border-b border-amber-200/30 pb-2">
+            <section className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
+              <h3 className="text-lg font-semibold text-stone-800 pb-3 mb-4 border-b border-stone-100">
                 头像设置
               </h3>
               
               <div className="space-y-2">
-                <label htmlFor="avatar_url" className="block text-sm font-semibold text-stone-700">
+                <label htmlFor="avatar_url" className="block text-sm font-medium text-stone-700">
                   头像URL
                 </label>
                 <input
@@ -489,18 +506,18 @@ export function UserProfile({ onClose }: UserProfileProps) {
                   value={formData.avatar_url || ''}
                   onChange={(e) => handleChange('avatar_url', e.target.value)}
                   placeholder="请输入头像图片链接"
-                  className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all shadow-sm"
+                  className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all hover:border-stone-300"
                 />
                 {formData.avatar_url && (
-                  <div className="mt-3">
-                    <p className="text-sm text-stone-600 mb-2">头像预览：</p>
+                  <div className="mt-4 p-4 bg-stone-50 rounded-xl">
+                    <p className="text-sm text-stone-600 mb-3">头像预览：</p>
                     <img 
                       src={formData.avatar_url} 
                       alt="预览头像" 
-                      className="w-16 h-16 rounded-full object-cover border-2 border-stone-200 shadow-sm"
+                      className="w-20 h-20 rounded-full object-cover border-2 border-white shadow-md"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
-                        target.src = 'https://placehold.co/64x64?text=Avatar';
+                        target.src = 'https://placehold.co/80x80?text=Avatar';
                       }}
                     />
                   </div>
@@ -509,27 +526,27 @@ export function UserProfile({ onClose }: UserProfileProps) {
             </section>
 
             {/* 操作按钮 */}
-            <div className="flex justify-end gap-3 pt-6 border-t border-amber-200/30">
+            <div className="flex justify-end gap-3 pt-6 border-t border-stone-200">
               <button
                 type="button"
                 onClick={handleCancel}
-                className="px-4 py-2 text-stone-600 hover:bg-amber-50/60 rounded-lg font-medium transition-colors"
+                className="px-6 py-3 text-stone-600 hover:bg-stone-100 rounded-xl font-medium transition-all hover:scale-105 active:scale-95"
               >
                 取消
               </button>
               <button 
                 type="submit" 
                 disabled={saving}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 disabled:from-stone-300 disabled:to-stone-400 text-white rounded-lg font-medium transition-all shadow-sm hover:shadow-md"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 disabled:from-stone-300 disabled:to-stone-400 text-white rounded-xl font-medium transition-all shadow-md hover:shadow-lg hover:scale-105 active:scale-95 disabled:scale-100"
               >
                 {saving ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-5 w-5 animate-spin" />
                     保存中...
                   </>
                 ) : (
                   <>
-                    <Save className="h-4 w-4" />
+                    <Save className="h-5 w-5" />
                     保存更改
                   </>
                 )}

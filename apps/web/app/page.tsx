@@ -11,7 +11,6 @@ import { UserProfile } from '@/components/features/UserProfile'
 import { Sidebar } from '@/components/features/Sidebar'
 import { Header } from '@/components/features/Header'
 import { MobileControlPanel } from '@/components/features/MobileControlPanel'
-import { PullToRefresh } from '@/components/features/PullToRefresh'
 import { MobileBottomNav } from '@/components/features/MobileBottomNav'
 import { useChatStore } from '@/store/chat'
 import { useUserStore } from '@/store/user'
@@ -108,7 +107,6 @@ export default function Home() {
   const isMobile = useMediaQuery('(max-width: 768px)')
 
   return (
-    <PullToRefresh onRefresh={handleRefresh} threshold={80}>
     <div className="flex h-screen bg-gradient-to-br from-[#F8FAF9] via-[#F5F9F7] to-[#F0F7F4] overflow-hidden">
       {/* Sidebar - 聊天记录面板 */}
       <Sidebar 
@@ -405,6 +403,5 @@ export default function Home() {
         }}
       />
     </div>
-    </PullToRefresh>
   )
 }

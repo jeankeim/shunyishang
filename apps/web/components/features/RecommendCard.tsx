@@ -11,9 +11,10 @@ interface RecommendCardProps {
   index: number
   sessionId?: string
   onFeedback?: (action: 'like' | 'dislike') => void
+  onImageClick?: (imageUrl: string) => void
 }
 
-export function RecommendCard({ item, index, sessionId, onFeedback }: RecommendCardProps) {
+export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick }: RecommendCardProps) {
   const [feedback, setFeedback] = useState<'like' | 'dislike' | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [imageError, setImageError] = useState(false)
@@ -83,13 +84,25 @@ export function RecommendCard({ item, index, sessionId, onFeedback }: RecommendC
     >
       {/* 元素渐变占位图 */}
       {shouldShowImage ? (
-        <div
-          className="h-32"
+        <motion.div
+          className="h-40 cursor-pointer relative overflow-hidden group"
           style={{ backgroundImage: `url(${fullImageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
-        />
+          onClick={() => onImageClick?.(fullImageUrl!)}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="w-10 h-10 bg-white/90 rounded-full flex items-center justify-center">
+              <svg className="w-5 h-5 text-stone-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+              </svg>
+            </div>
+          </div>
+        </motion.div>
       ) : (
         <div
-          className={`h-32 bg-gradient-to-br ${config.gradientClass} flex items-center justify-center relative`}
+          className={`h-40 bg-gradient-to-br ${config.gradientClass} flex items-center justify-center relative`}
         >
           <span className="text-4xl opacity-60">{config.emoji}</span>
           

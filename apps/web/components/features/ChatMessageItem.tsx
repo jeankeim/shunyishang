@@ -23,6 +23,7 @@ export function ChatMessageItem({
   onOpenPoster,
   onClosePoster 
 }: ChatMessageItemProps) {
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const isUser = message.role === 'user'
   const isStreaming = message.type !== 'done' && message.role === 'assistant' && message.type !== 'error'
   const isInitial = !message.content && isStreaming  // 刚开始，还没有内容
@@ -130,12 +131,13 @@ export function ChatMessageItem({
         {/* 推荐卡片 */}
         {message.metadata?.items && message.metadata.items.length > 0 && (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
+            <div className="grid grid-cols-2 gap-3 pt-2">
               {message.metadata.items.map((item: RecommendItem, index: number) => (
                 <RecommendCard 
                   key={item.item_code || `item-${index}`} 
                   item={item} 
                   index={index} 
+                  onImageClick={(imageUrl) => setSelectedImage(imageUrl)}
                 />
               ))}
             </div>
@@ -170,6 +172,44 @@ export function ChatMessageItem({
           </>
         )}
       </div>
+
+      {/* 图片灯箱 */}
+      {selectedImage && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[200] flex items-center justify-center p-4"
+          onClick={() => setSelectedImage(null)}
+        >
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.8, opacity: 0 }}
+            transition={{ type: "spring", duration: 0.4 }}
+            className="relative max-w-4xl max-h-[90vh] w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 关闭按钮 */}
+            <button
+              onClick={() => setSelectedImage(null)}
+              className="absolute -top-12 right-0 w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors"
+              aria-label="关闭图片"
+            >
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            
+            {/* 图片 */}
+            <img
+              src={selectedImage}
+              alt="推荐单品"
+              className="w-full h-full object-contain rounded-lg"
+            />
+          </motion.div>
+        </motion.div>
+      )}
     </motion.div>
   )
 }

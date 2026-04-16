@@ -46,25 +46,31 @@ export const PosterGenerator: React.FC<PosterGeneratorProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div 
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="poster-dialog-title"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ type: "spring", duration: 0.5, bounce: 0.2 }}
-        className="bg-white rounded-3xl shadow-2xl max-w-7xl w-full max-h-[92vh] overflow-hidden"
-        style={{
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05)',
-        }}
-      >
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[100] p-4 md:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="poster-dialog-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) onClose();
+          }}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            transition={{ type: "spring", duration: 0.4, bounce: 0.15 }}
+            className="bg-white rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-6xl max-h-[90vh] md:max-h-[85vh] overflow-hidden flex flex-col"
+            style={{
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
         {/* 头部 */}
         <div className="relative flex items-center justify-between px-8 py-6" style={{
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -274,7 +280,9 @@ export const PosterGenerator: React.FC<PosterGeneratorProps> = ({
             </div>
           </div>
         </div>
-      </motion.div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
