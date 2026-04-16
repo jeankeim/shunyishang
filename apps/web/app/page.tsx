@@ -237,98 +237,77 @@ export default function Home() {
           onToggleSidebar={toggleSidebar}
         />
         
-        {/* 清雅五行风格Tab导航 - 移动端优化 */}
+        {/* 优化后的Tab导航 - 更简洁大方 */}
         <motion.div 
           initial={{ y: -10, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className="bg-white/90 backdrop-blur-xl flex-shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.05)] overflow-x-auto scrollbar-hide"
+          className="bg-white/90 backdrop-blur-xl flex-shrink-0 border-b border-stone-200/60"
         >
-          <div className="flex px-4 md:px-6 py-2 min-w-max">
-            <button
-              onClick={() => {
-                setActiveTab('chat')
-                window.location.hash = ''
-              }}
-              aria-label="切换到智能推荐页面"
-              className={`relative px-4 md:px-6 py-3 min-h-[44px] font-medium text-sm transition-all duration-200 touch-feedback ${
-                activeTab === 'chat'
-                  ? 'text-[#3DA35D]'
-                  : 'text-[#6B7F72] hover:text-[#3DA35D]/80'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <span aria-hidden="true">✨</span>
-                <span>智能推荐</span>
-              </span>
-              {activeTab === 'chat' && (
-                <motion.div 
-                  layoutId="tabIndicator"
-                  className="absolute bottom-0 left-4 right-4 h-0.5 bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] rounded-full"
-                  initial={false}
-                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                />
-              )}
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab('wardrobe')
-                window.location.hash = '#wardrobe'
-              }}
-              aria-label="切换到我的衣橱页面"
-              className={`relative px-4 md:px-6 py-3 min-h-[44px] font-medium text-sm transition-all duration-200 touch-feedback ${
-                activeTab === 'wardrobe'
-                  ? 'text-[#D4656B]'
-                  : 'text-[#6B7F72] hover:text-[#D4656B]/80'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <span aria-hidden="true">👔</span>
-                <span>我的衣橱</span>
-              </span>
-              {activeTab === 'wardrobe' && (
-                <motion.div
-                  layoutId="tabIndicator"
-                  className="absolute bottom-0 left-4 right-4 h-0.5 bg-gradient-to-r from-[#D4656B] to-[#B89B5E] rounded-full"
-                  initial={false}
-                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                />
-              )}
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab('profile')
-                window.location.hash = '#profile'
-              }}
-              aria-label="切换到个人资料页面"
-              className={`relative px-4 md:px-6 py-3 min-h-[44px] font-medium text-sm transition-all duration-200 touch-feedback ${
-                activeTab === 'profile'
-                  ? 'text-[#4A90C4]'
-                  : 'text-[#6B7F72] hover:text-[#4A90C4]/80'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <span aria-hidden="true">👤</span>
-                <span>个人资料</span>
-              </span>
-              {activeTab === 'profile' && (
-                <motion.div 
-                  layoutId="tabIndicator"
-                  className="absolute bottom-0 left-4 right-4 h-0.5 bg-gradient-to-r from-[#4A90C4] to-[#3DA35D] rounded-full"
-                  initial={false}
-                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                />
-              )}
-            </button>
+          <div className="flex items-center justify-between px-4 md:px-6">
+            {/* Tab 按钮组 */}
+            <div className="flex gap-1 py-2 overflow-x-auto scrollbar-hide">
+              <button
+                onClick={() => {
+                  setActiveTab('chat')
+                  window.location.hash = ''
+                }}
+                aria-label="切换到智能推荐页面"
+                className={`relative flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
+                  activeTab === 'chat'
+                    ? 'bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 shadow-sm'
+                    : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                </svg>
+                <span className="hidden sm:inline">智能推荐</span>
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('wardrobe')
+                  window.location.hash = '#wardrobe'
+                }}
+                aria-label="切换到我的衣橱页面"
+                className={`relative flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
+                  activeTab === 'wardrobe'
+                    ? 'bg-gradient-to-r from-rose-50 to-pink-50 text-rose-700 shadow-sm'
+                    : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <span className="hidden sm:inline">我的衣橱</span>
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('profile')
+                  window.location.hash = '#profile'
+                }}
+                aria-label="切换到个人资料页面"
+                className={`relative flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
+                  activeTab === 'profile'
+                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 shadow-sm'
+                    : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span className="hidden sm:inline">个人资料</span>
+              </button>
+            </div>
           </div>
         </motion.div>
 
-        {/* 内容区域 - 移动端优化 */}
+        {/* 内容区域 - 优化间距和视觉层次 */}
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3, ease: "easeOut" }}
-          className="flex-1 overflow-y-auto overflow-x-visible bg-gradient-to-b from-white/80 via-[#F8FAF9]/50 to-[#F0F7F4]/30 backdrop-blur-sm p-4 md:p-6 pb-24 md:pb-6"
+          className="flex-1 overflow-y-auto overflow-x-visible bg-stone-50/50 backdrop-blur-sm p-4 md:p-6 pb-24 md:pb-6"
           style={{ paddingBottom: 'max(6rem, 6rem)' }} // 为移动端底部导航预留空间
         >
           <AnimatePresence mode="wait">

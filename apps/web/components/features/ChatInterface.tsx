@@ -20,34 +20,36 @@ interface ChatInterfaceProps {
   }
 }
 
-// 推荐模式切换组件
+// 推荐模式切换组件 - 优化为紧凑卡片样式
 function RetrievalModeToggle({ isAuthenticated }: { isAuthenticated: boolean }) {
   const { retrievalMode, setRetrievalMode } = useChatStore()
 
-  // 未登录时显示锁定状态
+  // 未登录时显示简化状态
   if (!isAuthenticated) {
     return (
-      <div className="flex items-center gap-2 bg-stone-100/80 rounded-xl p-1.5 border border-stone-200/60">
-        <span className="text-xs text-stone-500 px-2">推荐范围</span>
-        <div className="flex gap-1">
-          <div className="relative px-3 py-1.5 rounded-lg text-xs font-medium text-stone-800 bg-gradient-to-r from-amber-100 to-orange-100">
-            <span className="flex items-center gap-1">
-              <span>🛒</span>
-              <span className="hidden sm:inline">全局库</span>
-            </span>
+      <div className="flex items-center justify-between bg-white/80 backdrop-blur-sm rounded-2xl px-4 py-3 border border-stone-200/60 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center text-lg">
+            🛒
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-stone-800">全局推荐</p>
+            <p className="text-xs text-stone-500">优先衣橱，不足时补充</p>
           </div>
         </div>
-        <span className="text-xs text-[#6B7F72] ml-1" title="登录后可使用更多模式">
-          🔒
-        </span>
+        <div className="flex items-center gap-1 text-stone-400">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-xl p-1.5 border border-stone-200/60 shadow-sm">
-      <span className="text-xs text-stone-500 px-2">推荐范围</span>
-      <div className="flex gap-1">
+    <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-3 border border-stone-200/60 shadow-sm">
+      <p className="text-xs text-stone-500 mb-2 font-medium">推荐范围</p>
+      <div className="grid grid-cols-3 gap-2">
         {(Object.keys(RETRIEVAL_MODE_CONFIG) as RetrievalMode[]).map((mode) => {
           const config = RETRIEVAL_MODE_CONFIG[mode]
           const isActive = retrievalMode === mode
@@ -58,24 +60,22 @@ function RetrievalModeToggle({ isAuthenticated }: { isAuthenticated: boolean }) 
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               aria-label={`切换到${config.label}模式`}
-              className={`relative px-3 py-2 min-h-[44px] rounded-lg text-xs font-medium transition-all duration-200 ${
+              className={`relative flex flex-col items-center justify-center gap-1.5 px-3 py-3 min-h-[64px] rounded-xl text-xs font-medium transition-all duration-200 ${
                 isActive
                   ? 'text-stone-800'
-                  : 'text-stone-500 hover:text-stone-700 hover:bg-stone-100'
+                  : 'text-stone-500 hover:text-stone-700 hover:bg-stone-50'
               }`}
               title={config.description}
             >
               {isActive && (
                 <motion.div
                   layoutId="activeMode"
-                  className="absolute inset-0 bg-gradient-to-r from-amber-100 to-orange-100 rounded-lg"
+                  className="absolute inset-0 bg-gradient-to-br from-amber-100 to-orange-100 rounded-xl border-2 border-amber-200"
                   transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
                 />
               )}
-              <span className="relative z-10 flex items-center gap-1">
-                <span aria-hidden="true">{config.icon}</span>
-                <span className="hidden sm:inline">{config.label}</span>
-              </span>
+              <span className="relative z-10 text-xl" aria-hidden="true">{config.icon}</span>
+              <span className="relative z-10 font-semibold">{config.label}</span>
             </motion.button>
           )
         })}
@@ -414,18 +414,17 @@ export function ChatInterface({ scene, weatherElement, weatherInfo }: ChatInterf
 
   return (
     <div className="flex flex-col h-full">
-      {/* 顶部工具栏 */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white/50 backdrop-blur-sm">
+      {/* 顶部工具栏 - 简化版 */}
+      <div className="flex items-center justify-between px-4 py-3 bg-white/50 backdrop-blur-sm border-b border-stone-200/60">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-stone-700">智能推荐</span>
-          <span className="text-xs text-[#6B7F72]">·</span>
+          <span className="text-xs text-stone-400">·</span>
           <span className="text-xs text-stone-500">
             {isAuthenticated 
               ? RETRIEVAL_MODE_CONFIG[retrievalMode].description
               : '从公共种子库推荐（登录后解锁更多）'}
           </span>
         </div>
-        <RetrievalModeToggle isAuthenticated={isAuthenticated} />
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
@@ -474,6 +473,11 @@ export function ChatInterface({ scene, weatherElement, weatherInfo }: ChatInterf
               </div>
             )}
             
+            {/* 推荐范围选择器 - 放到空状态中 */}
+            <div className="w-full max-w-md mb-6">
+              <RetrievalModeToggle isAuthenticated={isAuthenticated} />
+            </div>
+                        
             <div className="flex flex-col items-center gap-4">
               <div className="flex flex-wrap justify-center gap-3 max-w-lg">
                 <AnimatePresence mode="wait">
