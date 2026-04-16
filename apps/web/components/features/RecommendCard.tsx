@@ -48,7 +48,11 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
   }
 
   const fullImageUrl = getImageUrl(item.image_url)
+  const thumbnailUrl = item.thumbnail_url ? getImageUrl(item.thumbnail_url) : null
   const shouldShowImage = fullImageUrl && !imageError
+  
+  // 优先使用缩略图，如果没有则使用原图
+  const displayImageUrl = thumbnailUrl || fullImageUrl
 
   const handleFeedback = async (action: 'like' | 'dislike') => {
     if (feedback || isSubmitting) return
@@ -86,7 +90,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
       {shouldShowImage ? (
         <motion.div
           className="h-40 cursor-pointer relative overflow-hidden group"
-          style={{ backgroundImage: `url(${fullImageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+          style={{ backgroundImage: `url(${displayImageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
           onClick={() => onImageClick?.(fullImageUrl!)}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
@@ -99,6 +103,12 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
               </svg>
             </div>
           </div>
+          {/* 缩略图标记 */}
+          {thumbnailUrl && (
+            <div className="absolute top-2 right-2 px-2 py-1 bg-black/50 backdrop-blur-sm rounded-full text-xs text-white">
+              缩略图
+            </div>
+          )}
         </motion.div>
       ) : (
         <div

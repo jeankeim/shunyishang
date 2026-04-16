@@ -22,7 +22,8 @@ export interface RecommendItem {
   scene_score?: number     // Task 05: 场景适配分数
   color?: string
   reason?: string
-  image_url?: string
+  image_url?: string       // 高清原图 URL
+  thumbnail_url?: string   // 缩略图 URL（400px 宽度）
   source?: 'wardrobe' | 'public'
   item_id?: number
 }

@@ -1,15 +1,18 @@
 """
 Cloudflare R2 对象存储服务
 用于生产环境的图片上传和存储
+支持自动缩略图生成
 """
 
 import os
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
-from typing import Optional, BinaryIO
+from typing import Optional, BinaryIO, Tuple
 from pathlib import Path
 import uuid
+from io import BytesIO
+from PIL import Image
 
 from apps.api.core.config import settings
 from apps.api.core.logging_config import get_logger
@@ -27,6 +30,10 @@ class R2StorageService:
         self.secret_access_key = getattr(settings, 'r2_secret_access_key', None)
         self.bucket_name = getattr(settings, 'r2_bucket_name', 'wuxing-wardrobe')
         self.public_url = getattr(settings, 'r2_public_url', '')
+        
+        # 缩略图配置
+        self.thumbnail_width = 400  # 缩略图宽度
+        self.thumbnail_quality = 80  # JPEG 质量
         
         if not all([self.account_id, self.access_key_id, self.secret_access_key]):
             logger.warning("R2 配置不完整，文件上传将使用本地存储")
@@ -47,6 +54,186 @@ class R2StorageService:
         )
         
         logger.info(f"R2 存储服务初始化成功: bucket={self.bucket_name}")
+    
+    def _generate_thumbnail(self, image_data: bytes, max_width: int = None) -> bytes:
+        """
+        生成图片缩略图
+        
+        Args:
+            image_data: 原始图片二进制数据
+            max_width: 最大宽度（默认使用配置值）
+            
+        Returns:
+            缩略图二进制数据
+        """
+        try:
+            width = max_width or self.thumbnail_width
+            
+            # 打开图片
+            img = Image.open(BytesIO(image_data))
+            
+            # 转换为 RGB（处理 PNG 透明通道）
+            if img.mode in ('RGBA', 'P'):
+                img = img.convert('RGB')
+            
+            # 计算缩放比例
+            ratio = width / float(img.width)
+            height = int(float(img.height) * ratio)
+            
+            # 缩放图片
+            img = img.resize((width, height), Image.Resampling.LANCZOS)
+            
+            # 保存到内存
+            output = BytesIO()
+            img.save(output, format='JPEG', quality=self.thumbnail_quality, optimize=True)
+            
+            return output.getvalue()
+            
+        except Exception as e:
+            logger.error(f"生成缩略图失败: {e}")
+            return image_data  # 失败时返回原图
+    
+    def upload_file_with_thumbnail(
+        self,
+        file_data: BinaryIO,
+        file_name: str,
+        folder: str = "uploads",
+        content_type: str = "image/png"
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """
+        上传文件到 R2 并自动生成缩略图
+        
+        Args:
+            file_data: 文件二进制数据
+            file_name: 文件名
+            folder: 文件夹路径
+            content_type: MIME 类型
+            
+        Returns:
+            (原图URL, 缩略图URL)，失败返回 (None, None)
+        """
+        if not self.client:
+            logger.error("R2 客户端未初始化")
+            return None, None
+        
+        try:
+            # 生成唯一文件名
+            unique_id = uuid.uuid4().hex[:8]
+            base_name = Path(file_name).stem
+            extension = Path(file_name).suffix.lstrip('.') or 'jpg'
+            
+            # 原图 key
+            original_key = f"{folder}/{unique_id}_{base_name}.{extension}"
+            
+            # 缩略图 key
+            thumbnail_key = f"{folder}/thumbnails/{unique_id}_{base_name}_thumb.jpg"
+            
+            # 读取文件数据
+            file_data.seek(0)
+            original_data = file_data.read()
+            
+            # 上传原图
+            self.client.put_object(
+                Bucket=self.bucket_name,
+                Key=original_key,
+                Body=original_data,
+                ContentType=content_type,
+                CacheControl='public, max-age=31536000'  # 1年缓存
+            )
+            
+            # 生成并上传缩略图（仅对图片生成）
+            thumbnail_url = None
+            if content_type.startswith('image/'):
+                thumbnail_data = self._generate_thumbnail(original_data)
+                self.client.put_object(
+                    Bucket=self.bucket_name,
+                    Key=thumbnail_key,
+                    Body=thumbnail_data,
+                    ContentType='image/jpeg',
+                    CacheControl='public, max-age=31536000'
+                )
+                
+                # 生成缩略图 URL
+                if self.public_url:
+                    thumbnail_url = f"{self.public_url}/{thumbnail_key}"
+                else:
+                    thumbnail_url = f"https://{self.bucket_name}.{self.account_id}.r2.cloudflarestorage.com/{thumbnail_key}"
+            
+            # 生成原图 URL
+            if self.public_url:
+                original_url = f"{self.public_url}/{original_key}"
+            else:
+                original_url = f"https://{self.bucket_name}.{self.account_id}.r2.cloudflarestorage.com/{original_key}"
+            
+            logger.info(f"文件上传成功: {original_key}, 缩略图: {thumbnail_key}")
+            return original_url, thumbnail_url
+            
+        except ClientError as e:
+            logger.error(f"R2 上传失败: {e}")
+            return None, None
+        except Exception as e:
+            logger.error(f"R2 上传异常: {e}")
+            return None, None
+    
+    def upload_file(
+        self,
+        file_data: BinaryIO,
+        file_name: str,
+        folder: str = "uploads",
+        content_type: str = "image/png"
+    ) -> Optional[str]:
+        """
+        上传文件到 R2（保持向后兼容）
+        
+        Args:
+            file_data: 文件二进制数据
+            file_name: 文件名（会被添加 UUID 前缀避免冲突）
+            folder: 文件夹路径
+            content_type: MIME 类型
+            
+        Returns:
+            文件的公共 URL，失败返回 None
+        """
+        original_url, _ = self.upload_file_with_thumbnail(
+            file_data, file_name, folder, content_type
+        )
+        return original_url
+    
+    def get_thumbnail_url(self, original_url: str) -> Optional[str]:
+        """
+        根据原图 URL 生成缩略图 URL
+        
+        Args:
+            original_url: 原图 URL
+            
+        Returns:
+            缩略图 URL
+        """
+        if not original_url:
+            return None
+        
+        try:
+            # 从原图 URL 提取 key
+            if self.public_url and original_url.startswith(self.public_url):
+                key = original_url.replace(f"{self.public_url}/", "")
+            else:
+                key = original_url.split('/')[-1]
+            
+            # 生成缩略图 key
+            path = Path(key)
+            folder = path.parent
+            stem = path.stem.replace('_thumb', '')  # 移除可能已有的 _thumb
+            thumbnail_key = f"{folder}/thumbnails/{stem}_thumb.jpg"
+            
+            # 生成缩略图 URL
+            if self.public_url:
+                return f"{self.public_url}/{thumbnail_key}"
+            else:
+                return f"https://{self.bucket_name}.{self.account_id}.r2.cloudflarestorage.com/{thumbnail_key}"
+                
+        except Exception as e:
+            logger.error(f"生成缩略图 URL 失败: {e}")
+            return original_url  # 失败时返回原图
     
     def upload_file(
         self,

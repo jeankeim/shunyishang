@@ -793,7 +793,7 @@ def _vector_search(
                         attributes_detail, gender,
                         applicable_weather, applicable_seasons,
                         temperature_range, functionality, thickness_level,
-                        image_url,
+                        image_url, thumbnail_url,
                         1 - (embedding <=> %s::vector) AS semantic_score
                     FROM items
                     WHERE embedding IS NOT NULL
@@ -821,7 +821,8 @@ def _vector_search(
                         "functionality": row[10],
                         "thickness_level": row[11],
                         "image_url": row[12],
-                        "semantic_score": float(row[13]) if row[13] else 0.5,
+                        "thumbnail_url": row[13] if len(row) > 13 else None,
+                        "semantic_score": float(row[14]) if len(row) > 14 and row[14] else 0.5,
                         "source": "public",
                     })
     except Exception as e:
