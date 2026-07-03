@@ -1,34 +1,106 @@
-这是一个专为 **AI Agent (如 Cursor, Devin, Claude Code)** 设计的 **项目规范说明书 (Project Specification / Spec)**。
-
-你可以直接将以下内容保存为项目根目录下的 `PROJECT_SPEC.md` 文件。当开启一个新的 AI 会话时，只需告诉 AI：“请读取 `PROJECT_SPEC.md` 并基于此生成完整的项目骨架”，AI 就能瞬间理解整个项目的架构、技术栈、目录职责以及当前的开发进度（MVP 阶段）。
-
----
-
 # 📘 项目名称：WuXing AI Stylist (五行智能衣橱)
-# 📄 文档类型：Project Master Specification (v1.0 - MVP Phase)
+# 📄 文档类型：Project Master Specification (v2.1 - Production Complete)
 
 ## 1. 🎯 项目愿景与核心目标
 构建一个基于 **中国传统五行理论 (金木水火土)** 与 **现代大语言模型 (LLM)** 相结合的智能穿搭推荐系统。
 - **核心功能**：用户输入生辰八字或当前心情/场景，系统通过 RAG (检索增强生成) 从向量数据库中检索符合五行喜用神的衣物，并生成个性化的穿搭建议海报。
 - **技术特色**：`pgvector` 语义搜索 + `LangGraph` 状态机 Agent + `Next.js` 流式交互。
-- **当前阶段**: **生产环境运行中**（Vercel + Zeabur + R2 + Upstash）
-- **当前进度**: **Week 7 已完成**（场景优化 + 移动端适配），核心功能 90% 完成
+- **当前阶段**: **生产环境运行中**（Vercel + Zeabur + R2/OSS + Upstash/Redis）
+- **当前进度**: **Week 16 全部已完成**（核心功能 100%，V2 全部完成）
 - **生产环境**: https://shunyishang.vercel.app
 
 ---
 
-## 2. 🏗️ 技术栈规范 (Tech Stack)
+## 2. 🛠️ 技术栈规范 (Tech Stack)
 
-| 层级 | 技术选型 | 版本/备注 |
+### 2.1 前端
+
+| 技术 | 版本 | 用途 |
 | :--- | :--- | :--- |
-| **前端** | Next.js 14+ (App Router) | React, TypeScript, Tailwind CSS, Shadcn/UI |
-| **可视化** | Recharts / Visx | 用于绘制“五行能量雷达图” |
-| **后端** | FastAPI | Python 3.10+, Async/Await, Pydantic V2 |
-| **AI 框架** | LangGraph | 构建有状态的推荐 Agent 工作流 |
-| **数据库** | PostgreSQL 16 + pgvector | 核心向量存储，HNSW 索引 |
-| **ORM** | SQLAlchemy (Async) | 或直接用 SQL 配合 psycopg2 |
-| **Embedding** | BGE-M3 (Local) 或 OpenAI | 多语言语义向量模型 |
-| **部署** | Vercel + Zeabur + R2 + Upstash | Serverless 架构，零运维 |
+| **Next.js** | 14.2 (App Router) | React 全栈框架，支持 SSR/SSG |
+| **React** | 18.3 | UI 组件库 |
+| **TypeScript** | 5.9 | 类型安全 |
+| **Tailwind CSS** | 4.2 | 原子化 CSS 框架 |
+| **Framer Motion** | 12.x | 高级动效与页面转场 |
+| **Zustand** | 5.x | 轻量状态管理 + persist 持久化 |
+| **Recharts** | 3.x | 五行能量雷达图可视化 |
+| **Lucide React** | 0.577 | 图标库 |
+| **html-to-image** | 1.11 | 前端 DOM 转图片（分享卡片） |
+| **react-datepicker** | 9.x | 日期选择器（八字输入） |
+| **lunar-javascript** | 1.6 | 前端农历/节气展示 |
+
+### 2.2 后端
+
+| 技术 | 版本 | 用途 |
+| :--- | :--- | :--- |
+| **FastAPI** | 0.110+ | 异步 Web 框架 |
+| **Python** | 3.11+ | 运行时（生产 3.13） |
+| **Pydantic** | V2 | 请求/响应数据验证 |
+| **psycopg2** | binary | PostgreSQL 连接池 |
+| **LangGraph** | 0.2+ | 有状态 AI Agent 工作流（4 节点） |
+| **langchain-openai** | 0.2+ | LLM SDK（兼容阿里百炼） |
+| **cnlunar** | 0.2+ | 专业八字/农历/大运计算 |
+| **Pillow** | 10+ | 后端海报图片渲染（1080x1920） |
+| **gunicorn** | 21+ | 生产级 WSGI 服务器 |
+| **tenacity** | 8+ | 重试与容错机制 |
+| **numpy** | <2.0 | 数值计算 |
+
+### 2.3 AI/ML
+
+| 技术 | 模型/服务 | 用途 |
+| :--- | :--- | :--- |
+| **DashScope** | qwen-flash | LLM 大语言模型（阿里百炼） |
+| **DashScope** | text-embedding-v3 | 多语言语义向量 Embedding |
+| **LangGraph** | 4 节点状态机 | 意图→检索→生成→格式化 |
+
+### 2.4 数据库与存储
+
+| 技术 | 版本/服务 | 用途 |
+| :--- | :--- | :--- |
+| **PostgreSQL** | 15 | 核心数据库 |
+| **pgvector** | 0.5 | 向量语义检索（HNSW 索引） |
+| **Cloudflare R2** | S3 兼容 | 对象存储（海外环境） |
+| **阿里云 OSS** | oss2 SDK | 对象存储（国内环境，统一适配器） |
+| **Upstash Redis** | REST API | 缓存（海外环境） |
+| **阿里云 Redis** | redis SDK | 缓存（国内环境） |
+
+### 2.5 部署与基础设施
+
+| 技术 | 用途 | 备注 |
+| :--- | :--- | :--- |
+| **Vercel** | 前端托管 | 自动 CI/CD |
+| **Zeabur** | 后端托管 | Docker 容器化 |
+| **Docker** | 本地开发环境 | docker-compose 编排 |
+| **OpenAI SDK** | LLM 调用 | 兼容阿里百炼 DashScope |
+| **httpx** | HTTP 客户端 | Upstash REST / 外部 API |
+
+### 2.6 测试
+
+| 技术 | 用途 |
+| :--- | :--- |
+| **pytest** + **pytest-asyncio** | 后端单元测试/异步测试 |
+| **pytest-cov** | 后端测试覆盖率（目标 93%+） |
+| **factory-boy** | 后端测试工厂 |
+| **Vitest** | 前端单元测试框架 |
+| **Testing Library** | 前端组件测试 |
+
+### 2.7 V2 新增服务（Week 8-16）
+
+| 服务模块 | 文件 | 功能 |
+| :--- | :--- | :--- |
+| **虚拟试衣** | `VirtualTryOnCanvas.tsx` + `useTryOnCanvas.ts` | Canvas 画布 + 图层交互 |
+| **穿搭日记** | `diary_service.py` + `diary/` 页面 | 日记 CRUD + AI 点评 |
+| **运势引擎** | `fortune_engine.py` + `monthly_fortune_service.py` | 五维度运势 + 月度运势 |
+| **命理进阶** | `destiny/` 路由 + `bazi_advanced.py` | 大运流年 + 十神 + 纳音 |
+| **VIP会员** | `membership_service.py` + `payment_service.py` | 三级会员 + Mock 支付 |
+| **推送通知** | `push_service.py` + `push_scheduler.py` | 多渠道推送 + 定时调度 |
+| **社区广场** | `community/` 路由 + `content_moderation.py` | 帖子/点赞/评论/关注 |
+| **游戏化** | `gamification_service.py` + `cultivation/` | 积分/成就/修炼等级 |
+| **品牌合作** | 品牌路由 + 分销追踪 | CPS 分成模式 |
+| **付费报告** | `fortune_report_service.py` | DashScope AI 深度运势报告 |
+| **智能提醒** | `smart_reminder_service.py` | 天气/运势/衣橱/场景四维提醒 |
+| **用户偏好** | `preference_service.py` | 反馈学习与推荐权重优化 |
+| **海报渲染** | `poster_service.py` (Pillow) | 后端高清海报生成 |
 
 ---
 
@@ -72,18 +144,21 @@ wuxing-ai-stylist/
 │   ├── WEEK_03_FRONTEND_CORE/  # ✅ 已完成
 │   ├── WEEK_04_USER_WARDROBE/  # ✅ 已完成
 │   ├── WEEK_05_AI_ENHANCEMENT/ # ✅ 已完成
-│   ├── WEEK_06_DEPLOY_OPTIMIZE/# ⚠️ 部分完成（采用 Vercel + Zeabur 部署）
+│   ├── WEEK_06_DEPLOY_OPTIMIZE/# ✅ 已完成（Vercel + Zeabur 部署）
 │   ├── WEEK_07_SCENE_MOBILE/   # ✅ 已完成（场景优化 + 移动端适配）
-│   └── WEEK_08_VIRTUAL_TRYON/  # ⏳ 待开发（虚拟试衣功能）
+│   └── WEEK_08_VIRTUAL_TRYON/  # ✅ 已完成（虚拟试衣）
+│   └── WEEK_09_DIARY_FORTUNE/  # ✅ 已完成（日记+运势）
+│   └── WEEK_10_MEMBERSHIP_PUSH/# ✅ 已完成（会员+推送）
+│   └── WEEK_11_12_COMMUNITY_GAMIFY/ # ✅ 已完成（社区+游戏化）
+│   └── WEEK_13_14_BRAND_PAID/  # ✅ 已完成（品牌+付费）
+│   └── WEEK_15_16_SMART_REMINDER_CULTIVATION/ # ✅ 已完成（提醒+修炼）
 │
 ├── apps/                       # [Application Layer] 核心业务代码
 │   ├── api/                    # FastAPI 后端应用
 │   │   ├── main.py             # 入口文件
 │   │   ├── core/               # 配置、安全、异常处理
-│   │   ├── models/             # SQLAlchemy 模型定义
-│   │   ├── schemas/            # Pydantic 请求/响应模型
-│   │   ├── routers/            # API 路由 (recommend, wardrobe, user)
-│   │   └── services/           # 业务逻辑层 (DB 操作, Agent 调用)
+│   │   ├── routers/            # API 路由（14 个）
+│   │   └── services/           # 业务逻辑层（20+ 服务模块）
 │   │
 │   └── web/                    # Next.js 前端应用
 │       ├── app/                # App Router 页面
@@ -92,14 +167,21 @@ wuxing-ai-stylist/
 │       └── lib/                # 工具函数 (API 客户端 hooks)
 │
 ├── packages/                   # [Shared Libraries] 跨应用共享库
-│   ├── ai-agents/              # LangGraph Agent 定义
+│   ├── ai_agents/              # LangGraph Agent 定义
 │   │   ├── graph.py            # 状态机定义
-│   │   ├── nodes.py            # 节点逻辑 (检索器、分析器、生成器)
+│   │   ├── nodes.py            # 节点逻辑 (意图/检索/生成/格式化)
+│   │   ├── wardrobe_client.py  # 衣橱数据客户端
 │   │   └── prompts/            # System Prompts 模板
 │   │
 │   ├── utils/                  # 纯工具函数
 │   │   ├── bazi_calculator.py  # 八字/五行计算逻辑
-│   │   └── weather_api.py      # 天气数据获取
+│   │   ├── bazi_advanced.py    # 大运流年/十神/纳音
+│   │   ├── ten_gods.py         # 十神计算
+│   │   ├── wuxing_rules.py     # 五行规则引擎
+│   │   ├── scene_mapping.py    # 场景五行映射
+│   │   ├── weather_api.py      # 和风天气 API
+│   │   ├── weather_forecast.py # 天气预报服务
+│   │   └── location_utils.py   # 浏览器定位工具
 │   │
 │   └── db/                     # 数据库连接池管理
 │
@@ -175,20 +257,19 @@ AI 需根据当前日期和以下里程碑判断当前应聚焦的任务：
 ### ✅ Phase 5: 多模态增强 (Week 5) - **[COMPLETED]**
 - **完成日期**: 2026-04-05
 
-### ⚠️ Phase 6: 部署与优化 (Week 6) - **[PARTIALLY COMPLETED]**
-- **完成日期**: 2026-04-05
-- **实际方案**: Vercel（前端）+ Zeabur（后端）+ R2（图片）+ Upstash（缓存）
-- **未完成**: 传统 Docker 部署、Prometheus/Grafana 监控（不需要）
+### ✅ Phase 6: 部署与优化 (Week 6) - **[COMPLETED]**
+- **完成日期**: 2026-07-01
+- **实际方案**: Vercel（前端）+ Zeabur（后端）+ R2/OSS（图片）+ Upstash/Redis（缓存）
+- **已完成**: 数据库索引优化、GZip 压缩、连接池健康检查、Docker Compose 生产配置
 
 ### ✅ Phase 7: 场景优化 + 移动端适配 (Week 7) - **[COMPLETED]**
 - **完成日期**: 2026-04-11
 - **场景优化**: 软过滤、场景映射、多维度识别、天气过滤（100%）
 - **移动端适配**: 响应式布局、手势交互、PWA 支持（100%）
 
-### ⏳ Phase 8: 虚拟试衣 (Week 8) - **[PENDING]**
-- **优先级**: P1 - 中优先级
-- **预估工时**: 8-10 小时
-- **功能**: Canvas 图片叠加试衣、交互优化、试衣海报生成
+### ✅ Phase 8: 虚拟试衣 (Week 8) - **[COMPLETED]**
+- **完成日期**: 2026-04-13
+- **功能**: Canvas 画布组件 + 交互 Hook + 工具栏 + 图层管理 + 导出分享
 
 ---
 
@@ -220,4 +301,122 @@ AI 需根据当前日期和以下里程碑判断当前应聚焦的任务：
 
 ---
 
-> **注意**: 本项目处于 **MVP 阶段**，优先保证核心链路 (数据->Agent->展示) 的跑通，非核心功能 (如复杂的用户认证、第三方支付) 可暂时 Mock 或简化。
+> **注意**: 本项目已完成 MVP 及 V2 全部功能（Week 1-16，100%），当前重点为国内部署迁移与真实支付接入。详见 [V2 路线图](TASKS/PRODUCT_V2_ROADMAP.md) 和 [国内迁移计划](MIGRATION_CHINA_PLAN.md)。
+
+---
+
+## 7. 🚀 产品2.0 规划 (Product V2 Roadmap)
+
+### 当前阶段过渡
+
+**V1 MVP** → **V2 用户粘性与商业化**
+
+| 维度 | V1 (MVP) | V2 (产品化) |
+|------|---------|------------|
+| **核心目标** | 功能可用 | 用户粘性与变现 |
+| **用户价值** | 单次推荐价值 | 持续使用价值 |
+| **商业模式** | 无 | 会员订阅+电商导流 |
+| **社交属性** | 无 | 社区+互动 |
+| **日活驱动** | 被动触发 | 主动打开 |
+
+### V2 开发阶段规划
+
+#### ✅ Phase 9: 穿搭日记与运势系统 (Week 9) - **[COMPLETED]**
+- **完成日期**: 2026-04-20
+- **目标**: 创建每日打开理由
+- **核心功能**:
+  - 穿搭日记本（记录+AI点评）
+  - 每日运势推送
+  - 五行能量统计
+  - 命理进阶：大运流年 + 十神 + 纳音五行
+- **详细文档**: [TASKS/WEEK_09_DIARY_FORTUNE/README.md](TASKS/WEEK_09_DIARY_FORTUNE/README.md)
+
+#### ✅ Phase 10: VIP会员与推送系统 (Week 10) - **[COMPLETED]**
+- **完成日期**: 2026-04-27
+- **目标**: 商业化基础设施
+- **核心功能**:
+  - VIP会员体系（免费/月度/年度）
+  - Mock 支付服务 + 权限中间件
+  - 多渠道推送通知（webpush/sms/email）
+- **详细文档**: [TASKS/WEEK_10_MEMBERSHIP_PUSH/README.md](TASKS/WEEK_10_MEMBERSHIP_PUSH/README.md)
+
+#### ✅ Phase 11-12: 穿搭广场社区 + 游戏化 (Week 11-12) - **[COMPLETED]**
+- **完成日期**: 2026-05-11
+- **目标**: 内容生态 + 用户激励
+- **核心功能**:
+  - 穿搭广场信息流 + 点赞评论 + 关注系统
+  - 积分系统 + 成就徽章 + 等级成长体系
+  - 每日签到 + 穿搭行为积分联动
+
+#### ✅ Phase 13-14: 商业化深化 (Week 13-14) - **[COMPLETED]**
+- **完成日期**: 2026-05-25
+- **目标**: 变现能力提升
+- **核心功能**:
+  - 品牌合作推荐（CPS）
+  - 付费运势报告（DashScope AI）
+  - 深度运势解读 + 五行穿搭指导
+
+#### ✅ Phase 15-16: 生态完善 (Week 15-16) - **[COMPLETED]**
+- **完成日期**: 2026-06-08
+- **目标**: 产品生态闭环
+- **核心功能**:
+  - 五行修炼系统（能量/等级/成就）
+  - 智能提醒服务（天气/运势/衣橱/场景）
+  - 修炼境界进阶（五行初识→五行大师）
+
+### V2 核心目标 (OKR)
+
+| 目标 | 关键结果 | 衡量指标 |
+|------|---------|---------|
+| **提升用户粘性** | DAU增长300% | DAU: 300 → 900 |
+| | 7日留存率提升 | 留存: 15% → 40% |
+| | 日均停留时长翻倍 | 时长: 3min → 6min |
+| **构建内容生态** | 月度日记发布量 | 1000+ 篇/月 |
+| | 穿搭广场浏览量 | 5000+ 次/日 |
+| | 用户互动率 | 15%+ |
+| **实现商业化** | 付费转化率 | 5%+ |
+| | 月度ARPU | ¥30+ |
+| | 商业化收入占比 | 30%+ |
+
+### V2 技术扩展（已实现）
+
+| 层级 | 新增技术 | 用途 | 状态 |
+|------|---------|------|:---:|
+| 前端 | Framer Motion 12.x | 高级动效与页面转场 | ✅ 已实现 |
+| | PWA + Web Push | 推送通知 | ✅ 已实现 |
+| 后端 | push_scheduler.py | 定时推送调度（替代 Celery） | ✅ 已实现 |
+| | payment_service.py | 支付服务（当前 Mock，待接真实 SDK） | ✅ Mock |
+| | Pillow | 后端海报渲染（替代前端方案） | ✅ 已实现 |
+| 数据库 | 21 张表（5 基础 + 16 V2） | V2 功能数据 | ✅ 已实现 |
+| 缓存 | Upstash Redis + httpx | 缓存 + 推送队列 | ✅ 已实现 |
+| 存储 | 统一适配器（R2/OSS 双模式） | 国内/海外存储自动切换 | ✅ 已实现 |
+
+### 数据库表清单（21 张）
+
+| 分类 | 表名 | 用途 |
+|------|------|------|
+| **基础（5）** | `items` | 公共衣物库 |
+| | `users` | 用户账户 |
+| | `user_wardrobe` | 个人衣橱 |
+| | `five_element_configs` | 五行配置 |
+| | `feedback_logs` | 反馈日志 |
+| **日记/运势（3）** | `outfit_diaries` | 穿搭日记 |
+| | `diary_outfit_items` | 日记关联衣物 |
+| | `daily_fortune` | 每日运势 |
+| **会员/推送（4）** | `subscriptions` | 会员订阅 |
+| | `payment_records` | 支付记录 |
+| | `push_notifications` | 推送通知 |
+| | `user_push_settings` | 推送偏好 |
+| **社区（3）** | `community_posts` | 社区帖子 |
+| | `post_likes` | 点赞 |
+| | `post_comments` | 评论 |
+| **游戏化（4）** | `user_points` | 用户积分 |
+| | `points_history` | 积分流水 |
+| | `achievements` | 成就定义 |
+| | `user_achievements` | 用户成就 |
+| **商业化（2）** | `paid_reports` | 付费运势报告 |
+| | `user_preferences` | 用户偏好学习 |
+
+### 完整路线图文档
+
+详见: [TASKS/PRODUCT_V2_ROADMAP.md](TASKS/PRODUCT_V2_ROADMAP.md)

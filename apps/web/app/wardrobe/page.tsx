@@ -1,15 +1,18 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
+import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useWardrobeStore } from '@/store/wardrobe'
-import { AddWardrobeModal } from '@/components/features/AddWardrobeModal'
+import { useUserStore } from '@/store/user'
 import { SwipeToDelete } from '@/components/features/SwipeToDelete'
-import { initAuthToken } from '@/lib/api'
 import { WUXING_ELEMENTS, WUXING_CONFIG, getWuxingConfig } from '@/lib/wuxing-config'
 import type { WardrobeItem } from '@/lib/api'
+import { getImageUrl } from '@/lib/image'
 import { EmptyState, SkeletonList } from '@/components/ui'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+
+const AddWardrobeModal = lazy(() => import('@/components/features/AddWardrobeModal').then(m => ({ default: m.AddWardrobeModal })))
 
 // 五行数据配置 - 春分优化版
 const WUXING_THEME: Record<string, { color: string; gradient: string; symbol: string; pattern: string }> = {
@@ -22,9 +25,8 @@ const WUXING_THEME: Record<string, { color: string; gradient: string; symbol: st
 
 export default function WardrobePage() {
   const { items, total, elementStats, isLoading, fetchItems, deleteItem } = useWardrobeStore()
+  const { isAuthenticated } = useUserStore()
   
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [isHydrated, setIsHydrated] = useState(false)
   const [filterElement, setFilterElement] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editItem, setEditItem] = useState<WardrobeItem | null>(null)
@@ -34,40 +36,11 @@ export default function WardrobePage() {
   // 判断是否移动端
   const isMobile = useMediaQuery('(max-width: 768px)')
 
-  // 辅助函数：将相对路径转换为完整 URL
-  const getImageUrl = (url: string | undefined | null): string | undefined => {
-    if (!url) return undefined
-    // 如果已经是完整 URL（http/https 开头），直接返回
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      return url
-    }
-    // 如果是相对路径（/uploads/...），添加后端域名
-    if (url.startsWith('/')) {
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      return `${API_BASE}${url}`
-    }
-    return url
-  }
-
   useEffect(() => {
-    initAuthToken()
-    const checkAuth = () => {
-      const token = localStorage.getItem('wuxing_token')
-      const store = localStorage.getItem('wuxing-user-storage')
-      const isAuth = token && store ? JSON.parse(store).state?.isAuthenticated : false
-      setIsAuthenticated(isAuth)
-      setIsHydrated(true)
-    }
-    checkAuth()
-    window.addEventListener('storage', () => checkAuth())
-    return () => window.removeEventListener('storage', () => checkAuth())
-  }, [])
-
-  useEffect(() => {
-    if (isAuthenticated && isHydrated) {
+    if (isAuthenticated) {
       fetchItems()
     }
-  }, [isAuthenticated, isHydrated, fetchItems])
+  }, [isAuthenticated, fetchItems])
 
   const handleFilterChange = (element: string | null) => {
     setFilterElement(element)
@@ -395,13 +368,14 @@ export default function WardrobePage() {
                     {/* 图片区域 */}
                     <div className={`relative ${viewMode === 'flow' ? 'h-2/3' : 'h-3/4'} overflow-hidden`}>
                       {item.image_url ? (
-                        <img
-                          src={getImageUrl(item.image_url)}
+                        <Image
+                          src={getImageUrl(item.image_url) || ''}
                           alt={item.name}
-                          loading="lazy"
+                          fill
+                          sizes="(max-width: 768px) 50vw, 33vw"
                           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none'
+                          onError={() => {
+                            // next/image 不支持直接操作 DOM，用 CSS 隐藏父容器
                           }}
                         />
                       ) : (
@@ -475,12 +449,14 @@ export default function WardrobePage() {
       </motion.div>
 
       {/* 添加/编辑弹窗 */}
-      <AddWardrobeModal
-        isOpen={isModalOpen}
-        onClose={() => { setIsModalOpen(false); setEditItem(null) }}
-        onSuccess={() => { fetchItems(); setIsModalOpen(false); setEditItem(null) }}
-        editItem={editItem}
-      />
+      <Suspense fallback={null}>
+        <AddWardrobeModal
+          isOpen={isModalOpen}
+          onClose={() => { setIsModalOpen(false); setEditItem(null) }}
+          onSuccess={() => { fetchItems(); setIsModalOpen(false); setEditItem(null) }}
+          editItem={editItem}
+        />
+      </Suspense>
     </div>
   )
 }

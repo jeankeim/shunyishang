@@ -94,8 +94,6 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
         gender: newGender,
       }
       setUserBazi(baziInput)
-      
-      console.log('[BaziInputSection] 从用户资料自动设置八字:', baziInput)
     }
   }, [hasCompleteProfileInfo, user, setUserBazi])
 
@@ -128,8 +126,6 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
             gender: newGender,
           }
           setUserBazi(baziInput)
-          
-          console.log('[BaziInputSection] 用户资料更新，重新设置八字:', baziInput)
           
           // 自动展开
           setIsExpanded(true)

@@ -1,5 +1,5 @@
 // Service Worker for PWA - 离线缓存支持
-const CACHE_NAME = 'shunyishang-v1'
+const CACHE_NAME = 'shunyishang-v2'
 const OFFLINE_URL = '/offline.html'
 
 // 需要预缓存的关键资源
@@ -7,6 +7,9 @@ const PRECACHE_URLS = [
   '/',
   '/manifest.json',
   '/offline.html',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/favicon.ico',
 ]
 
 // 安装事件 - 预缓存关键资源
@@ -29,9 +32,8 @@ self.addEventListener('activate', (event) => {
           .filter((name) => name !== CACHE_NAME)
           .map((name) => caches.delete(name))
       )
-    })
+    }).then(() => self.clients.claim())
   )
-  self.clients.claim()
 })
 
 // 网络请求拦截 - 缓存优先策略
@@ -69,8 +71,8 @@ self.addEventListener('fetch', (event) => {
       // 缓存未命中，从网络获取
       return fetch(event.request)
         .then((response) => {
-          // 只缓存成功响应和 http/https 请求
-          if (!response || response.status !== 200 || event.request.url.startsWith('http')) {
+          // 只缓存成功响应（跳过非 http/https 协议如 chrome-extension、blob、data）
+          if (!response || response.status !== 200 || !event.request.url.startsWith('http')) {
             return response
           }
 
@@ -82,10 +84,11 @@ self.addEventListener('fetch', (event) => {
           return response
         })
         .catch(() => {
-          // 网络失败，返回离线页面
+          // 网络失败，文档请求返回离线页面，其他请求返回 404
           if (event.request.destination === 'document') {
             return caches.match(OFFLINE_URL)
           }
+          return new Response('', { status: 404, statusText: 'Not Found' })
         })
     })
   )

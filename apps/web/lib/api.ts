@@ -1,31 +1,20 @@
-// 智能API地址检测：支持localhost和局域网访问
+// 智能 API 地址检测
+// - 静态导出模式（OSS 托管）：浏览器直接使用 NEXT_PUBLIC_API_URL（无 Next.js rewrites）
+// - Vercel/开发模式：浏览器使用相对路径，通过 Next.js rewrites 代理，消除 CORS
+const isStaticExport = process.env.NEXT_PUBLIC_STATIC_EXPORT === 'true'
+
 const getAPIBase = () => {
-  // 优先使用环境变量
-  const envUrl = process.env.NEXT_PUBLIC_API_URL
-  
   if (typeof window !== 'undefined') {
-    // 浏览器环境：根据访问地址自动切换
-    const hostname = window.location.hostname
-    
-    // 如果通过localhost访问，使用localhost后端
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      const apiUrl = envUrl?.includes('localhost') ? envUrl : 'http://localhost:8000'
-      console.log('[API] 检测到localhost访问 → 使用:', apiUrl)
-      return apiUrl
+    // 浏览器环境
+    if (isStaticExport) {
+      // 静态导出：无 Next.js rewrites，直接使用后端完整 URL
+      return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
     }
-    
-    // 如果通过局域网IP访问（如手机），使用同IP的后端
-    if (/^\d+\.\d+\.\d+\.\d+$/.test(hostname)) {
-      const apiUrl = `http://${hostname}:8000`
-      console.log('[API] 检测到局域网IP访问 → 使用:', apiUrl)
-      return apiUrl
-    }
+    // Vercel/开发模式：返回空字符串，使用相对路径（Next.js rewrites 代理）
+    return ''
   }
-  
-  // SSR环境或其他情况：使用环境变量或默认值
-  const apiUrl = envUrl || 'http://localhost:8000'
-  console.log('[API] SSR或其他环境 → 使用:', apiUrl)
-  return apiUrl
+  // SSR 环境：使用完整 URL（Next.js rewrites 在服务端代理请求）
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 }
 
 // 不要在这里固定API_BASE，而是在每次请求时动态获取
@@ -33,9 +22,6 @@ const getAPIBase = () => {
 
 // 调试信息：打印API地址（仅在浏览器环境）
 if (typeof window !== 'undefined') {
-  console.log('[API] 初始化检查 - 访问地址:', window.location.href)
-  console.log('[API] 动态API地址函数已就绪')
-  
   // 全局测试函数：在浏览器控制台执行 testAPI() 测试连接
   ;(window as any).testAPI = async () => {
     console.log('\n=== API 连接测试 ===')
@@ -74,7 +60,6 @@ if (typeof window !== 'undefined') {
     }
   }
   
-  console.log('💡 提示: 在控制台输入 testAPI() 测试后端连接')
 }
 
 export interface RecommendRequest {
@@ -98,10 +83,15 @@ export interface RecommendRequest {
   top_k?: number
   retrieval_mode?: 'public' | 'wardrobe' | 'hybrid'  // 推荐检索模式
   user_id?: number  // 用户ID（衣橱模式必需）
+  
+  // 旅行/出差场景参数（可选，也可从query中自动提取）
+  travel_days?: number   // 旅行天数
+  destination?: string   // 目的地城市
+  luggage_size?: '小' | '中' | '大'  // 行李箱大小
 }
 
 export interface SSEEvent {
-  type: 'analysis' | 'items' | 'token' | 'done' | 'error'
+  type: 'analysis' | 'items' | 'token' | 'done' | 'error' | 'travel_plan'
   data: any
 }
 
@@ -111,10 +101,6 @@ export interface SSEEvent {
 export async function* streamRecommendation(
   request: RecommendRequest
 ): AsyncGenerator<SSEEvent, void, unknown> {
-  const startTime = Date.now()
-  console.log('[SSE] 开始请求:', `${getAPIBase()}/api/v1/recommend/stream`)
-  console.log('[SSE] 请求参数:', JSON.stringify(request, null, 2))
-  
   const response = await fetch(`${getAPIBase()}/api/v1/recommend/stream`, {
     method: 'POST',
     headers: {
@@ -124,10 +110,6 @@ export async function* streamRecommendation(
     body: JSON.stringify(request),
   })
 
-  console.log('[SSE] 响应状态:', response.status, response.statusText)
-  console.log('[SSE] 响应头:', Object.fromEntries(response.headers.entries()))
-  console.log('[SSE] 响应耗时:', Date.now() - startTime, 'ms')
-
   if (!response.body) {
     throw new Error('No response body')
   }
@@ -135,19 +117,14 @@ export async function* streamRecommendation(
   const reader = response.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
-  let eventCount = 0
 
   while (true) {
-    const readStart = Date.now()
     const { done, value } = await reader.read()
     
     if (done) {
-      console.log('[SSE] 流结束，总事件数:', eventCount, '总耗时:', Date.now() - startTime, 'ms')
       break
     }
     
-    console.log('[SSE] 读取数据块耗时:', Date.now() - readStart, 'ms', '数据大小:', value?.length || 0, 'bytes')
-
     buffer += decoder.decode(value, { stream: true })
     const lines = buffer.split('\n\n')
     buffer = lines.pop() || ''
@@ -156,8 +133,6 @@ export async function* streamRecommendation(
       if (line.startsWith('data: ')) {
         try {
           const event: SSEEvent = JSON.parse(line.slice(6))
-          eventCount++
-          console.log(`[SSE] 事件 #${eventCount}:`, event.type, event.type === 'token' ? '(流式token)' : '')
           yield event
         } catch (e) {
           console.error('[SSE] 解析错误:', e, '原始数据:', line.slice(0, 100))
@@ -341,13 +316,7 @@ export async function login(request: LoginRequest): Promise<AuthResponse> {
   }
 
   const data = await response.json()
-  console.log('[Login] 收到响应，token:', data.access_token?.substring(0, 20) + '...')
   setAuthToken(data.access_token)
-  
-  // 验证 token 是否正确设置
-  const savedToken = getAuthToken()
-  console.log('[Login] 验证保存的 token:', savedToken?.substring(0, 20) + '...')
-  
   return data
 }
 
@@ -355,38 +324,21 @@ export async function login(request: LoginRequest): Promise<AuthResponse> {
  * 获取当前用户信息
  */
 export async function getCurrentUser(): Promise<User> {
-  const headers = getAuthHeaders()
-  console.log('[getCurrentUser] 请求 headers:', JSON.stringify(headers))
-  
   try {
     const response = await fetch(`${getAPIBase()}/api/v1/auth/me`, {
-      headers: {
-        ...headers,
-      },
+      headers: getAuthHeaders(),
     })
 
     if (!response.ok) {
-      console.log('[getCurrentUser] 请求失败，状态:', response.status)
-      
       if (response.status === 502) {
-        // 502 Bad Gateway - 服务暂时不可用
-        console.warn('[getCurrentUser] 后端服务暂时不可用 (502)，请稍后重试')
         throw new Error('后端服务暂时不可用，请稍后重试')
-      }
-      
-      if (response.status === 401) {
-        // 只在确实没有有效登录时才清除 token
-        // 不要在请求失败时立即清除，可能是临时的网络问题
-        console.log('[getCurrentUser] 401 错误，但不立即清除 token')
       }
       throw new Error('获取用户信息失败')
     }
 
     return response.json()
   } catch (error) {
-    // 网络错误或 CORS 错误
     if (error instanceof TypeError && error.message === 'Failed to fetch') {
-      console.warn('[getCurrentUser] 网络请求失败（后端可能不可用）')
       throw new Error('网络连接失败，请检查后端服务')
     }
     throw error
@@ -448,16 +400,9 @@ export async function updateProfile(request: UpdateProfileRequest): Promise<User
  * 获取完整用户资料
  */
 export async function getUserProfile(): Promise<any> {
-  const headers = getAuthHeaders()
-  console.log('[getUserProfile] 请求 headers:', JSON.stringify(headers))
-  
   const response = await fetch(`${getAPIBase()}/api/v1/auth/profile`, {
-    headers: {
-      ...headers,
-    },
+    headers: getAuthHeaders(),
   })
-
-  console.log('[getUserProfile] 响应状态:', response.status)
 
   if (!response.ok) {
     if (response.status === 401) {
@@ -618,17 +563,11 @@ export async function getWardrobeItems(params?: {
   if (params?.page) searchParams.append('page', params.page.toString())
   if (params?.limit) searchParams.append('limit', params.limit.toString())
 
-  const headers = getAuthHeaders()
-  console.log('[getWardrobeItems] 请求 headers:', JSON.stringify(headers))
-
   const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/items?${searchParams}`, {
-    headers: {
-      ...headers,
-    },
+    headers: getAuthHeaders(),
   })
 
   if (!response.ok) {
-    console.log('[getWardrobeItems] 请求失败，状态:', response.status)
     throw new Error('获取衣橱列表失败')
   }
 
@@ -702,9 +641,7 @@ export async function previewTagging(description: string, image_url?: string): P
     'Content-Type': 'application/json',
     ...getAuthHeaders(),
   }
-  
-  console.log('[previewTagging] 请求 headers:', JSON.stringify(headers))
-  
+
   const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/items/preview-tagging`, {
     method: 'POST',
     headers,
@@ -737,5 +674,510 @@ export async function submitFeedback(data: FeedbackRequest): Promise<FeedbackRes
     throw new Error(error.detail || '提交反馈失败')
   }
 
+  return response.json()
+}
+
+// ========== 日记接口 ==========
+
+export interface CreateDiaryRequest {
+  diary_date: string
+  mood?: string
+  occasion?: string
+  notes?: string
+  rating?: number
+  image_urls?: string[]
+  items?: {
+    item_source?: string
+    wardrobe_item_id?: number
+    seed_item_code?: string
+    category?: string
+    notes?: string
+  }[]
+  trigger_ai_review?: boolean
+}
+
+export interface UpdateDiaryRequest {
+  mood?: string
+  occasion?: string
+  notes?: string
+  rating?: number
+  image_urls?: string[]
+}
+
+export async function getDiaries(params?: {
+  page?: number
+  size?: number
+  mood?: string
+  date_from?: string
+  date_to?: string
+}): Promise<any> {
+  const sp = new URLSearchParams()
+  if (params?.page) sp.append('page', params.page.toString())
+  if (params?.size) sp.append('size', params.size.toString())
+  if (params?.mood) sp.append('mood', params.mood)
+  if (params?.date_from) sp.append('date_from', params.date_from)
+  if (params?.date_to) sp.append('date_to', params.date_to)
+
+  const response = await fetch(`${getAPIBase()}/api/v1/diary?${sp}`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('获取日记列表失败')
+  return response.json()
+}
+
+export async function createDiary(data: CreateDiaryRequest): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/diary`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify(data),
+  })
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.detail || '创建日记失败')
+  }
+  return response.json()
+}
+
+export async function getDiaryById(diaryId: number): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/diary/${diaryId}`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('获取日记详情失败')
+  return response.json()
+}
+
+export async function updateDiary(diaryId: number, data: UpdateDiaryRequest): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/diary/${diaryId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify(data),
+  })
+  if (!response.ok) throw new Error('更新日记失败')
+  return response.json()
+}
+
+export async function deleteDiary(diaryId: number): Promise<void> {
+  const response = await fetch(`${getAPIBase()}/api/v1/diary/${diaryId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('删除日记失败')
+}
+
+export async function getDiaryCalendar(year: number, month: number): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/diary/calendar?year=${year}&month=${month}`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('获取日历失败')
+  return response.json()
+}
+
+export async function getDiaryStats(): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/diary/stats`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('获取统计失败')
+  return response.json()
+}
+
+export async function quickCheckIn(data: {
+  image_url?: string
+  description?: string
+  mood?: string
+  weather_snapshot?: Record<string, any>
+}): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/diary/quick-checkin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify(data),
+  })
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.detail || '打卡失败')
+  }
+  return response.json()
+}
+
+export async function triggerDiaryReview(diaryId: number): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/diary/${diaryId}/review`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('AI点评失败')
+  return response.json()
+}
+
+// ========== 运势接口 ==========
+
+export async function getTodayFortune(): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/fortune/today`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('获取今日运势失败')
+  return response.json()
+}
+
+export async function getTodayCard(): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/fortune/today-card`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('获取今日运势卡片失败')
+  return response.json()
+}
+
+export async function getDailyRitual(): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/fortune/daily-ritual`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('获取每日仪式摘要失败')
+  return response.json()
+}
+
+export async function getFortuneByDate(dateStr: string): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/fortune?date=${dateStr}`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('获取运势失败')
+  return response.json()
+}
+
+export async function generateFortune(): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/fortune/generate`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('生成运势失败')
+  return response.json()
+}
+
+// ========== 命理分析接口 ==========
+
+export async function getTenGods(): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/destiny/ten-gods`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('获取十神格局失败')
+  return response.json()
+}
+
+export async function getAnnualLuck(year: number): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/destiny/annual-luck?year=${year}`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('获取流年运势失败')
+  return response.json()
+}
+
+export async function getMajorLuck(): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/destiny/major-luck`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('获取大运周期失败')
+  return response.json()
+}
+
+export async function getAdvancedBazi(): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/destiny/advanced-bazi`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('获取高级八字分析失败')
+  return response.json()
+}
+
+// ========== 会员接口 ==========
+
+export async function getMembershipStatus(): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/membership/status`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('获取会员状态失败')
+  return response.json()
+}
+
+export async function getPlans(): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/membership/plans`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('获取套餐列表失败')
+  return response.json()
+}
+
+export async function subscribe(data: { plan: string; payment_method: string }): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/membership/subscribe`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify(data),
+  })
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.detail || '订阅失败')
+  }
+  return response.json()
+}
+
+export async function cancelSubscription(subscriptionId: number): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/membership/cancel?subscription_id=${subscriptionId}`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.detail || '取消订阅失败')
+  }
+  return response.json()
+}
+
+export async function upgradeMembership(data: { new_plan: string }): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/membership/upgrade`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify(data),
+  })
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.detail || '升级失败')
+  }
+  return response.json()
+}
+
+export async function renewMembership(data: { payment_method: string }): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/membership/renew`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify(data),
+  })
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.detail || '续费失败')
+  }
+  return response.json()
+}
+
+export async function getQuota(feature: string): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/membership/quota/${feature}`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('获取配额失败')
+  return response.json()
+}
+
+// ========== 推送接口 ==========
+
+export async function getPushSettings(): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/push/settings`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('获取推送设置失败')
+  return response.json()
+}
+
+export async function updatePushSettings(data: Record<string, any>): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/push/settings`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify(data),
+  })
+  if (!response.ok) throw new Error('更新推送设置失败')
+  return response.json()
+}
+
+export async function getPushHistory(page = 1, size = 20): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/push/history?page=${page}&size=${size}`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('获取推送历史失败')
+  return response.json()
+}
+
+export async function getUnreadCount(): Promise<{ count: number }> {
+  const response = await fetch(`${getAPIBase()}/api/v1/push/unread-count`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('获取未读数量失败')
+  return response.json()
+}
+
+export async function markNotificationRead(id: number): Promise<void> {
+  const response = await fetch(`${getAPIBase()}/api/v1/push/${id}/read`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('标记已读失败')
+}
+
+// ============================================
+// 穿搭广场社区 API
+// ============================================
+
+export async function getCommunityPosts(page = 1, size = 20, element?: string): Promise<any> {
+  const params = new URLSearchParams({ page: String(page), size: String(size) })
+  if (element) params.set('element', element)
+  const response = await fetch(`${getAPIBase()}/api/v1/community/posts?${params}`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('获取帖子列表失败')
+  return response.json()
+}
+
+export async function getCommunityPost(postId: number): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/community/posts/${postId}`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('获取帖子详情失败')
+  return response.json()
+}
+
+export async function createCommunityPost(data: {
+  content: string
+  image_urls?: string[]
+  tags?: string[]
+  element?: string
+  diary_id?: number
+}): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/community/posts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify(data),
+  })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ detail: '发布失败' }))
+    throw new Error(err.detail || '发布失败')
+  }
+  return response.json()
+}
+
+export async function deleteCommunityPost(postId: number): Promise<void> {
+  const response = await fetch(`${getAPIBase()}/api/v1/community/posts/${postId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('删除帖子失败')
+}
+
+export async function togglePostLike(postId: number): Promise<{ action: string }> {
+  const response = await fetch(`${getAPIBase()}/api/v1/community/posts/${postId}/like`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('操作失败')
+  return response.json()
+}
+
+export async function getPostComments(postId: number): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/community/posts/${postId}/comments`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('获取评论失败')
+  return response.json()
+}
+
+export async function createPostComment(postId: number, data: { content: string; parent_id?: number }): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/community/posts/${postId}/comments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify(data),
+  })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ detail: '评论失败' }))
+    throw new Error(err.detail || '评论失败')
+  }
+  return response.json()
+}
+
+// ============================================
+// 游戏化 / 修炼系统 API
+// ============================================
+
+export async function getCultivationProfile(): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/cultivation/profile`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('获取修炼档案失败')
+  return response.json()
+}
+
+export async function dailyCheckin(): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/cultivation/checkin`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('签到失败')
+  return response.json()
+}
+
+export async function checkAchievements(): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/cultivation/check-achievements`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('检查成就失败')
+  return response.json()
+}
+
+export async function getPointsHistory(page = 1, size = 20): Promise<any> {
+  const params = new URLSearchParams({ page: String(page), size: String(size) })
+  const response = await fetch(`${getAPIBase()}/api/v1/cultivation/history?${params}`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('获取积分历史失败')
+  return response.json()
+}
+
+// ============================================
+// 智能提醒 API
+// ============================================
+
+export async function checkSmartReminders(weatherInfo?: any): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/push/smart-check`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify(weatherInfo || null),
+  })
+  if (!response.ok) return { alerts: [] }
+  return response.json()
+}
+
+// ============================================
+// 付费运势报告 API
+// ============================================
+
+export async function generateAnnualReport(year?: number): Promise<any> {
+  const params = year ? `?year=${year}` : ''
+  const response = await fetch(`${getAPIBase()}/api/v1/fortune/reports/annual${params}`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ detail: '生成报告失败' }))
+    throw new Error(err.detail || '生成报告失败')
+  }
+  return response.json()
+}
+
+export async function getFortuneReports(): Promise<any[]> {
+  const response = await fetch(`${getAPIBase()}/api/v1/fortune/reports`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) return []
+  return response.json()
+}
+
+export async function getFortuneReport(reportId: number): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/fortune/reports/${reportId}`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('获取报告失败')
+  return response.json()
+}
+
+export async function purchaseFortuneReport(reportId: number): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/fortune/reports/${reportId}/purchase`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ detail: '购买失败' }))
+    throw new Error(err.detail || '购买失败')
+  }
   return response.json()
 }

@@ -5,9 +5,12 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional
+import logging
 
 from packages.utils.bazi_calculator import calculate_bazi
 from apps.api.core.cache import cache
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -62,7 +65,7 @@ async def bazi_calculate(request: BaziCalculateRequest):
     # 尝试读取缓存
     cached = await cache.get(birth_key)
     if cached:
-        print(f"[Cache] 八字缓存命中: {birth_key}")
+        logger.info(f"[Cache] 八字缓存命中: {birth_key}")
         return cached
     
     try:

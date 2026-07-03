@@ -24,7 +24,7 @@ export const PosterEditor: React.FC<PosterEditorProps> = ({
   onThemeChange,
 }) => {
   // 输入框通用样式 - 移动端优化
-  const inputBaseStyle = "w-full px-3 md:px-4 py-3 rounded-xl border-2 transition-all duration-200 focus:outline-none focus:ring-0 text-stone-800 placeholder:text-stone-500 text-base md:text-sm";
+  const inputBaseStyle = "w-full px-3 md:px-4 py-3 rounded-xl border-2 transition-all duration-200 focus:outline-none focus:ring-0 text-[#2D4A38] placeholder:text-[#6B7F72] text-base md:text-sm";
   
   return (
     <div className="space-y-4 md:space-y-6">
@@ -46,7 +46,7 @@ export const PosterEditor: React.FC<PosterEditorProps> = ({
             style={{ borderColor: '#E5E7EB' }}
             placeholder="例如：今日五行穿搭推荐"
           />
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-stone-500">
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-[#6B7F72]">
             {title.length}/50
           </div>
         </div>
@@ -70,7 +70,7 @@ export const PosterEditor: React.FC<PosterEditorProps> = ({
             style={{ borderColor: '#E5E7EB' }}
             placeholder="例如：火生土，今日事业运旺"
           />
-          <div className="absolute right-3 bottom-3 text-xs font-medium text-stone-500">
+          <div className="absolute right-3 bottom-3 text-xs font-medium text-[#6B7F72]">
             {quote.length}/200
           </div>
         </div>
@@ -94,7 +94,7 @@ export const PosterEditor: React.FC<PosterEditorProps> = ({
             style={{ borderColor: '#E5E7EB' }}
             placeholder="例如：顺衣尚"
           />
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-stone-500">
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-[#6B7F72]">
             {signature.length}/30
           </div>
         </div>

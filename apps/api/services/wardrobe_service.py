@@ -56,9 +56,6 @@ class WardrobeService:
             base_query += " AND category = %s"
             params.append(category_filter)
         
-        # 获取总数
-        count_query = f"SELECT COUNT(*) as total FROM ({base_query}) sub"
-        
         # 获取列表
         list_query = base_query + " ORDER BY created_at DESC LIMIT %s OFFSET %s"
         params.extend([limit, offset])
@@ -79,9 +76,20 @@ class WardrobeService:
                 cur.execute(stats_query, [user_id])
                 stats_rows = cur.fetchall()
                 
-                # 获取总数
-                cur.execute(count_query, params[:len(params)-2] if element_filter or category_filter else [user_id])
-                total = cur.fetchone()['total'] if cur.fetchone() else 0
+                # 获取总数（单独查询，避免 count + list 参数冲突）
+                count_base_query = """
+                    SELECT COUNT(*) as total FROM user_wardrobe
+                    WHERE user_id = %s AND is_active = TRUE
+                """
+                count_params = [user_id]
+                if element_filter:
+                    count_base_query += " AND primary_element = %s"
+                    count_params.append(element_filter)
+                if category_filter:
+                    count_base_query += " AND category = %s"
+                    count_params.append(category_filter)
+                cur.execute(count_base_query, count_params)
+                total = cur.fetchone()['total']
         
         # 转换为响应格式
         items = [WardrobeItemResponse(**dict(row)) for row in rows]

@@ -43,6 +43,11 @@ class RecommendRequest(BaseModel):
         description="检索模式: public=公共库, wardrobe=私有衣橱, hybrid=混合"
     )
     
+    # 旅行/出差场景参数（可选，也可从query中自动提取）
+    travel_days: Optional[int] = Field(None, ge=1, le=30, description="旅行天数（可选，也可从提问中自动提取）")
+    destination: Optional[str] = Field(None, max_length=50, description="目的地城市（可选，也可从提问中自动提取）")
+    luggage_size: Optional[str] = Field(None, pattern="^(小|中|大)$", description="行李箱大小：小/中/大（可选，默认中）")
+    
     model_config = {
         "json_schema_extra": {
             "examples": [

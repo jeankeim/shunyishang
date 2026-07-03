@@ -4,8 +4,11 @@ LangGraph 状态机定义
 """
 
 from typing import Literal
+import logging
 
 from langgraph.graph import StateGraph, END
+
+logger = logging.getLogger(__name__)
 
 from packages.ai_agents.state import AgentState, create_initial_state
 from packages.ai_agents.nodes import (
@@ -124,6 +127,8 @@ def _extract_context_from_query(user_input: str) -> dict:
         "scene": None,
         "weather_info": None,
         "weather_element": None,
+        "travel_days": None,
+        "destination": None,
     }
     
     try:
@@ -135,20 +140,25 @@ def _extract_context_from_query(user_input: str) -> dict:
 用户输入：{user_input}
 
 请提取以下信息（如果存在）：
-1. scene: 场景（商务/面试/约会/运动/居家/婚礼/派对/旅行/上班/其他）
+1. scene: 场景（商务/面试/约会/运动/居家/婚礼/派对/旅行/出差/度假/户外探险/会议/上班/其他）
 2. temperature: 气温（数字，单位摄氏度）
 3. weather_desc: 天气描述（闷热/炎热/寒冷/雨天/雪天/晴天/多云/大风）
+4. travel_days: 旅行天数（数字，如用户提到"去北京出差3天"则为3）
+5. destination: 目的地城市（如用户提到"去三亚"则为"三亚"）
 
 **重要场景识别规则**：
 - 如果提到"游泳"、"海边游泳"、"泳池"等，场景应该是"运动"（不是"旅行"）
 - 如果提到"马拉松"、"跑步"、"健身"、"瑜伽"等，场景应该是"运动"
-- 如果提到"三亚"、"海边"、"度假"但**没有**提到具体运动，场景才是"旅行"
-- 运动场景优先级 > 旅行场景
+- 如果提到"三亚"、"海边"、"度假"但**没有**提到具体运动，场景才是"度假"
+- 如果提到"出差"、"商务旅行"，场景应该是"出差"
+- 如果提到"徒步"、"登山"、"露营"、"滑雪"等，场景应该是"户外探险"
+- 如果提到"三亚"、"海边"、"度假"但**没有**提到具体运动，场景才是"度假"
+- 运动场景优先级 > 出差/度假/旅行场景
 
 返回严格的 JSON 格式，不要有任何其他内容。如果某个信息不存在，使用 null。
 
 示例格式：
-{{"scene": "商务", "temperature": 15, "weather_desc": "多云"}}
+{{"scene": "出差", "temperature": 15, "weather_desc": "多云", "travel_days": 3, "destination": "北京"}}
 """
         
         response = client.chat.completions.create(
@@ -167,6 +177,8 @@ def _extract_context_from_query(user_input: str) -> dict:
         scene = extracted.get("scene")
         temperature = extracted.get("temperature")
         weather_desc = extracted.get("weather_desc")
+        travel_days = extracted.get("travel_days")
+        destination = extracted.get("destination")
         
         # 场景映射
         scene_mapping = {
@@ -178,13 +190,27 @@ def _extract_context_from_query(user_input: str) -> dict:
             "婚礼": "婚礼",
             "派对": "派对",
             "旅行": "旅行",
+            "出差": "出差",
+            "度假": "度假",
+            "户外探险": "户外探险",
             "上班": "商务",
             "办公": "商务",
-            "会议": "商务",
+            "会议": "会议",
         }
         
         if scene:
             result["scene"] = scene_mapping.get(scene, scene)
+        
+        # 处理旅行天数
+        if travel_days is not None:
+            try:
+                result["travel_days"] = int(travel_days)
+            except (ValueError, TypeError):
+                pass
+        
+        # 处理目的地
+        if destination:
+            result["destination"] = destination
         
         # 组装天气信息
         if temperature is not None or weather_desc:
@@ -209,10 +235,10 @@ def _extract_context_from_query(user_input: str) -> dict:
                 }
                 result["weather_element"] = weather_element_map.get(weather_desc)
         
-        print(f"[LLM提取] 场景: {result['scene']}, 天气: {weather_desc}, 温度: {temperature}")
+        logger.info(f"[LLM提取] 场景: {result['scene']}, 天气: {weather_desc}, 温度: {temperature}")
         
     except Exception as e:
-        print(f"[LLM提取] 失败，回退到规则提取: {e}")
+        logger.warning(f"[LLM提取] 失败，回退到规则提取: {e}")
         # 回退到原有的规则提取逻辑
         return _extract_context_by_rules(user_input)
     
@@ -228,6 +254,13 @@ def _extract_context_by_rules(user_input: str) -> dict:
     
     Returns:
         dict: 提取的上下文信息
+        {
+            "scene": str | None,
+            "weather_info": dict | None,
+            "weather_element": str | None,
+            "travel_days": int | None,
+            "destination": str | None,
+        }
     """
     import re
     
@@ -235,20 +268,31 @@ def _extract_context_by_rules(user_input: str) -> dict:
         "scene": None,
         "weather_info": None,
         "weather_element": None,
+        "travel_days": None,
+        "destination": None,
     }
     
     text = user_input.lower()
     
     # ==================== 1. 场景提取 ====================
-    # 先检测高优先级场景（商务、面试）
-    # 商务场景（优先级最高）
-    if any(kw in text for kw in ['商务', '会议', '见客户', '办公']):
+    # 先检测高优先级场景（出差/度假/户外探险，避免被"商务"或"旅行"吞掉）
+    # 出差场景
+    if any(kw in text for kw in ['出差', '商务旅行', '多天出差']):
+        result["scene"] = "出差"
+    # 度假场景
+    elif any(kw in text for kw in ['度假', '海边', '温泉', '三亚', '旅游度假', '去三亚', '去海边']):
+        result["scene"] = "度假"
+    # 户外探险场景
+    elif any(kw in text for kw in ['徒步', '登山', '露营', '探险', '滑雪', '户外探险']):
+        result["scene"] = "户外探险"
+    # 商务场景（在出差之后检测，避免"商务旅行"误匹配）
+    elif any(kw in text for kw in ['商务', '会议', '见客户', '办公']):
         result["scene"] = "商务"
     # 面试场景
     elif '面试' in text:
         result["scene"] = "面试"
-    # 出差/旅行场景
-    elif any(kw in text for kw in ['出差', '旅行', '旅游', '去成都', '去北京', '去上海', '去广州', '去深圳']):
+    # 旅行场景
+    elif any(kw in text for kw in ['旅行', '旅游', '去成都', '去北京', '去上海', '去广州', '去深圳']):
         result["scene"] = "旅行"
     # 运动场景
     elif any(kw in text for kw in ['马拉松', '跑步', '健身', '运动', '打球', '游泳', '瑜伽']):
@@ -268,6 +312,32 @@ def _extract_context_by_rules(user_input: str) -> dict:
     # 派对场景
     elif any(kw in text for kw in ['派对', '聚会', 'party']):
         result["scene"] = "派对"
+    
+    # ==================== 1.5 多天行程提取 ====================
+    # 匹配 "3天"、"5日"、"三天"、"七日" 等
+    day_match = re.search(r'(\d+)\s*[天日]', text)
+    if day_match:
+        result["travel_days"] = int(day_match.group(1))
+    else:
+        # 中文数字匹配
+        cn_num_map = {'一': 1, '两': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10}
+        cn_day_match = re.search(r'([一二两三四五六七八九十])\s*[天日]', text)
+        if cn_day_match:
+            cn_char = cn_day_match.group(1)
+            result["travel_days"] = cn_num_map.get(cn_char, 1)
+    
+    # ==================== 1.6 目的地城市提取 ====================
+    # 匹配 "去XX"、"到XX"、"飞XX" 后面的城市名（lazy匹配，避免捕获多余字符）
+    dest_match = re.search(
+        r'(?:去|到|飞|前往|出发去)\s*([\u4e00-\u9fa5]{2,4}?)(?=[出差旅游度假玩天日回来了\s]|$)',
+        text,
+    )
+    if dest_match:
+        city = dest_match.group(1)
+        # 过滤掉明显不是城市的词
+        non_city_words = {'什么', '哪里', '怎么', '这里', '那里', '外面', '室内', '户外', '那里', '这里'}
+        if city not in non_city_words and len(city) >= 2:
+            result["destination"] = city
     
     # ==================== 2. 气温提取 ====================
     # 匹配温度：25度、25°C、25℃、气温25
@@ -382,6 +452,9 @@ def run_agent_stream(
     user_id: int = None,
     retrieval_mode: str = "public",
     top_k: int = 5,
+    travel_days: int = None,
+    destination: str = None,
+    luggage_size: str = None,
 ):
     """
     运行 Agent（流式方式，供 SSE 使用）
@@ -395,6 +468,9 @@ def run_agent_stream(
         user_id: 用户ID（衣橱模式必需）
         retrieval_mode: 检索模式（默认 public）
         top_k: 返回数量
+        travel_days: 旅行天数（可选，优先于用户输入提取）
+        destination: 目的地城市（可选，优先于用户输入提取）
+        luggage_size: 行李箱大小（可选，小/中/大）
     
     Yields:
         dict: 状态更新
@@ -409,17 +485,31 @@ def run_agent_stream(
     final_weather_info = extracted.get("weather_info") or weather_info
     final_weather_element = extracted.get("weather_element") or weather_element
     
+    # 旅行参数：外部传入优先，其次从用户输入提取
+    final_travel_days = travel_days or extracted.get("travel_days")
+    final_destination = destination or extracted.get("destination")
+    final_luggage_size = luggage_size or "中"  # 默认中号行李箱
+    
+    # 判断是否为旅行/出差场景（有天数 + 目的地，或场景为旅行/出差）
+    is_travel_scene = (
+        final_scene in ("旅行", "出差", "度假", "户外探险")
+        and final_travel_days is not None
+        and final_travel_days >= 2
+    )
+    
     if extracted.get("scene"):
-        print(f"[推荐] 从用户提问中提取到场景: {extracted['scene']}")
+        logger.info(f"[推荐] 从用户提问中提取到场景: {extracted['scene']}")
     if extracted.get("weather_info"):
-        print(f"[推荐] 从用户提问中提取到天气: {extracted['weather_info']}")
+        logger.info(f"[推荐] 从用户提问中提取到天气: {extracted['weather_info']}")
+    if is_travel_scene:
+        logger.info(f"[推荐] 旅行场景: 目的地={final_destination}, 天数={final_travel_days}, 行李箱={final_luggage_size}")
     
     # 使用传入的 user_gender，如果没有则从八字输入中提取
     if user_gender is None and bazi_input:
         user_gender = bazi_input.get("gender")
     
     # 调试日志：打印 gender 信息
-    print(f"[推荐] user_gender={user_gender}, bazi_input.gender={bazi_input.get('gender') if bazi_input else None}")
+    logger.info(f"[推荐] user_gender={user_gender}, bazi_input.gender={bazi_input.get('gender') if bazi_input else None}")
     
     initial_state = create_initial_state(
         user_input=user_input,
@@ -431,6 +521,9 @@ def run_agent_stream(
         user_id=user_id,
         retrieval_mode=retrieval_mode,
         top_k=top_k,
+        travel_days=final_travel_days if is_travel_scene else None,
+        destination=final_destination if is_travel_scene else None,
+        luggage_size=final_luggage_size if is_travel_scene else None,
     )
     
     # 执行前三个节点（同步）
@@ -455,34 +548,56 @@ def run_agent_stream(
     
     # 输出分析结果
     bazi_result = initial_state.get("bazi_result")
+    bazi_reasoning = bazi_result.get("reasoning") if bazi_result else None
+    
+    # 注入流年/大运信息
+    if bazi_reasoning:
+        annual_luck = initial_state.get("annual_luck")
+        major_luck = initial_state.get("major_luck")
+        if annual_luck:
+            annual_info = annual_luck.get("annual_luck", {})
+            annual_score = annual_luck.get("overall_score", 0)
+            bazi_reasoning += f" 流年{annual_info.get('ganzhi', '')}({annual_info.get('element', '')})运势{annual_score}分。"
+        if major_luck:
+            bazi_reasoning += f" 当前大运{major_luck.get('ganzhi', '')}({major_luck.get('element', '')})，旺衰{major_luck.get('luck_level', '')}。"
+    
     yield {
         "type": "analysis",
         "data": {
             "target_elements": initial_state["target_elements"],
-            "bazi_reasoning": bazi_result.get("reasoning") if bazi_result else None,
+            "bazi_reasoning": bazi_reasoning,
             "intent_reasoning": initial_state["intent_result"].get("reasoning") if initial_state.get("intent_result") else None,
             "scene": initial_state.get("scene"),
             # 八字五行分布（用于雷达图当前层）
             "element_scores": bazi_result.get("five_elements_count") if bazi_result else None,
             # 喜用神（用于雷达图建议层）
             "suggested_elements": bazi_result.get("suggested_elements") if bazi_result else initial_state["target_elements"],
+            # 旅行场景标识
+            "is_travel": is_travel_scene,
+            "destination": final_destination if is_travel_scene else None,
+            "travel_days": final_travel_days if is_travel_scene else None,
         }
     }
     
+    # 输出多天行程规划（如果是旅行场景）
+    travel_plan = initial_state.get("travel_plan")
+    if travel_plan and is_travel_scene:
+        yield {"type": "travel_plan", "data": travel_plan}
+    
     # 输出物品列表（包含 source 字段）
     items = []
-    print(f"[调试] retrieved_items 总数: {len(initial_state['retrieved_items'])}")
-    print(f"[调试] retrieved_items 类型: {type(initial_state['retrieved_items'])}")
+    logger.debug(f"[调试] retrieved_items 总数: {len(initial_state['retrieved_items'])}")
+    logger.debug(f"[调试] retrieved_items 类型: {type(initial_state['retrieved_items'])}")
     
     for idx, item in enumerate(initial_state["retrieved_items"]):
         # 调试：检查 item 的类型
         if not isinstance(item, dict):
-            print(f"[错误] retrieved_items[{idx}] 不是字典，类型: {type(item)}, 值: {item}")
+            logger.error(f"[错误] retrieved_items[{idx}] 不是字典，类型: {type(item)}, 值: {item}")
             continue
         
         # 额外调试：打印 item 的所有键
         if idx == 0:
-            print(f"[调试] 第一个 item 的键: {list(item.keys())}")
+            logger.debug(f"[调试] 第一个 item 的键: {list(item.keys())}")
         
         items.append({
             "item_code": item.get("item_code", ""),
@@ -499,7 +614,7 @@ def run_agent_stream(
             "image_url": item.get("image_url"),
         })
     
-    print(f"[调试] 成功构建 items 数量: {len(items)}")
+    logger.debug(f"[调试] 成功构建 items 数量: {len(items)}")
     yield {"type": "items", "data": items}
     
     # 流式输出推荐理由

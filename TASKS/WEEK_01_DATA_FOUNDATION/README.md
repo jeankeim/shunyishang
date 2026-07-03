@@ -10,18 +10,18 @@
 
 | 任务 | 名称 | 状态 | 关键产出 |
 |:---|:---|:---:|:---|
-| 01_DB_SETUP | 数据库环境搭建 | ⏳ 待开始 | `docker-compose.yml`, `init_db.sql` |
-| 02_ETL_PIPELINE | ETL 流水线 | ⏳ 待开始 | `import_seed.py` |
-| 03_VECTOR_TEST | 语义搜索验证 | ⏳ 待开始 | `test_semantic_search.py` |
+| 01_DB_SETUP | 数据库环境搭建 | ✅ 已完成 | `docker-compose.yml`, `init_db.sql` |
+| 02_ETL_PIPELINE | ETL 流水线 | ✅ 已完成 | `import_seed.py` |
+| 03_VECTOR_TEST | 语义搜索验证 | ✅ 已完成 | `test_semantic_search.py` |
 
 ---
 
 ## 🎯 本周里程碑
 
-- [ ] Docker 容器正常运行，pgvector 扩展已激活
-- [ ] 数据库表结构创建完成，HNSW 索引就绪
-- [ ] 100 条种子数据成功导入，向量非空
-- [ ] 三个语义搜索场景验证通过
+- [x] Docker 容器正常运行，pgvector 扩展已激活
+- [x] 数据库表结构创建完成，HNSW 索引就绪
+- [x] 100 条种子数据成功导入，向量非空
+- [x] 三个语义搜索场景验证通过
 
 ---
 
@@ -43,7 +43,9 @@
 
 | 日期 | 完成任务 | 备注 |
 |:---|:---|:---|
-| - | - | - |
+| 2026-03-18 | 01_DB_SETUP 数据库环境搭建 | docker-compose.yml + init_db.sql |
+| 2026-03-19 | 02_ETL_PIPELINE ETL 流水线 | import_seed.py，100条种子数据导入 |
+| 2026-03-20 | 03_VECTOR_TEST 语义搜索验证 | 三个场景验证通过 |
 
 ---
 

@@ -144,7 +144,6 @@ export const useUserStore = create<UserState>()(
         isAuthenticated: state.isAuthenticated,
       }),
       onRehydrateStorage: () => {
-        console.log('[Zustand] 开始恢复状态...')
         return (state, error) => {
           if (error) {
             console.error('[Zustand] 状态恢复失败:', error)
@@ -152,12 +151,8 @@ export const useUserStore = create<UserState>()(
             if (typeof window !== 'undefined') {
               localStorage.removeItem('wuxing-user-storage')
             }
-          } else {
-            console.log('[Zustand] 状态恢复成功:', state)
           }
           initAuthToken()
-          const token = typeof window !== 'undefined' ? localStorage.getItem('wuxing_token') : null
-          console.log('[Zustand] Token状态:', token ? '存在' : '不存在')
         }
       },
     }

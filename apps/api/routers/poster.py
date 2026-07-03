@@ -11,7 +11,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/poster", tags=["海报生成"])
+router = APIRouter(prefix="/api/v1/poster", tags=["海报生成"])
 
 
 class PosterGenerateRequest(BaseModel):

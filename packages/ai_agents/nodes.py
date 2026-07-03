@@ -23,6 +23,10 @@ from packages.utils.bazi_calculator import (
     infer_elements_from_text,
     merge_recommendations,
 )
+from packages.utils.destiny_calculator import (
+    analyze_year_fortune,
+    get_current_major_luck,
+)
 from packages.utils.scene_mapper import (
     extract_scene_from_text,
     extract_scene_multidimensional,
@@ -179,21 +183,13 @@ def analyze_intent_node(state: AgentState) -> Dict:
             # 生成缓存键：基于用户出生信息
             bazi_cache_key = f"bazi:{bazi_input['birth_year']}:{bazi_input['birth_month']}:{bazi_input['birth_day']}:{bazi_input['birth_hour']}"
             
-            # 尝试从缓存获取（同步方式）
+            # 尝试从缓存获取（使用统一的 cache.py 同步接口）
             cached_bazi = None
-            if settings.redis_enabled and settings.upstash_redis_rest_url:
+            if settings.redis_enabled:
                 try:
-                    import requests
-                    response = requests.post(
-                        f"{settings.upstash_redis_rest_url}/get/{bazi_cache_key}",
-                        headers={"Authorization": f"Bearer {settings.upstash_redis_rest_token}"},
-                        timeout=2.0
-                    )
-                    if response.status_code == 200:
-                        data = response.json()
-                        if data.get("result") is not None:
-                            cached_bazi = json.loads(data["result"])
-                            logger.info(f"[Agent] ✅ 八字缓存命中: {bazi_cache_key}")
+                    cached_bazi = redis_cache.get_sync(bazi_cache_key)
+                    if cached_bazi:
+                        logger.info(f"[Agent] 八字缓存命中: {bazi_cache_key}")
                 except Exception as e:
                     logger.debug(f"缓存读取失败: {e}")
             
@@ -208,26 +204,47 @@ def analyze_intent_node(state: AgentState) -> Dict:
                     birth_hour=bazi_input["birth_hour"],
                     gender=bazi_input["gender"]
                 )
-                # 缓存 24 小时（同步方式）
-                if settings.redis_enabled and settings.upstash_redis_rest_url:
+                # 缓存 24 小时（使用统一的 cache.py 同步接口）
+                if settings.redis_enabled:
                     try:
-                        import requests
-                        serialized = json.dumps(bazi_result, ensure_ascii=False, default=str)
-                        requests.post(
-                            f"{settings.upstash_redis_rest_url}/set/{bazi_cache_key}/{serialized}",
-                            headers={"Authorization": f"Bearer {settings.upstash_redis_rest_token}"},
-                            timeout=2.0
-                        )
-                        requests.post(
-                            f"{settings.upstash_redis_rest_url}/expire/{bazi_cache_key}/{settings.cache_ttl_bazi}",
-                            headers={"Authorization": f"Bearer {settings.upstash_redis_rest_token}"},
-                            timeout=2.0
-                        )
-                        logger.info(f"[Agent] 💾 八字已缓存: {bazi_cache_key}")
+                        redis_cache.set_sync(bazi_cache_key, bazi_result, ttl=settings.cache_ttl_bazi)
+                        logger.info(f"[Agent] 八字已缓存: {bazi_cache_key}")
                     except Exception as e:
                         logger.debug(f"缓存写入失败: {e}")
         except Exception as e:
-            print(f"[Agent] 八字计算失败: {e}")
+            logger.warning(f"[Agent] 八字计算失败: {e}")
+    
+    # 1.1 计算流年运势和当前大运（如果有八字结果）
+    annual_luck_data = None
+    major_luck_data = None
+    if bazi_result:
+        try:
+            from datetime import date
+            current_year = date.today().year
+            
+            # 流年运势
+            annual_result = analyze_year_fortune(bazi_result, current_year)
+            annual_luck_data = annual_result
+            
+            # 计算流年 lucky_elements 对 target_elements 的增强
+            annual_lucky = annual_result.get("lucky_elements", [])
+            logger.info(f"[Agent] 流年运势: year={current_year}, lucky_elements={annual_lucky}, overall={annual_result.get('overall_score')}")
+            
+            # 当前大运
+            birth_year = bazi_input.get("birth_year")
+            if birth_year:
+                # 计算当前年龄
+                current_age = current_year - birth_year
+                gender = bazi_input.get("gender", "男")
+                major_luck_data = get_current_major_luck(
+                    bazi_result, gender, current_age,
+                    birth_year=birth_year,
+                    birth_month=bazi_input.get("birth_month"),
+                    birth_day=bazi_input.get("birth_day"),
+                )
+                logger.info(f"[Agent] 当前大运: {major_luck_data}")
+        except Exception as e:
+            logger.warning(f"[Agent] 流年/大运计算失败: {e}")
     
     # 2. 意图推断
     intent_result = infer_elements_from_text(user_input)
@@ -258,6 +275,15 @@ def analyze_intent_node(state: AgentState) -> Dict:
         if elem not in xiyong_elements:
             added_elements.append(elem)
     
+    # 4.2 流年运势增强：将流年幸运元素加入推荐五行（优先级低于喜用神）
+    if annual_luck_data:
+        annual_lucky_elements = annual_luck_data.get("lucky_elements", [])
+        for elem in annual_lucky_elements[:2]:  # 最多取前2个流年幸运元素
+            if elem not in target_elements and elem not in xiyong_elements:
+                target_elements.append(elem)
+                added_elements.append(elem)
+                logger.info(f"[Agent] 流年增强: 添加流年幸运元素 {elem}")
+    
     # 5. 生成搜索查询
     # 如果规则已足够，直接构建查询
     if intent_result["method"] == "rule" and target_elements:
@@ -280,6 +306,8 @@ def analyze_intent_node(state: AgentState) -> Dict:
         "sub_scene": sub_scene,  # Task 03: 子场景
         "emotion": emotion,  # Task 03: 情感倾向
         "bazi_result": bazi_result,
+        "annual_luck": annual_luck_data,
+        "major_luck": major_luck_data,
         "intent_result": intent_result,
         "target_elements": target_elements,
         "xiyong_elements": xiyong_elements,
@@ -524,23 +552,55 @@ def retrieve_items_node(state: AgentState) -> Dict:
         else:
             return {"error": "数据库查询无结果", "retrieved_items": [], "item_sources": {}}
     
-    # 动态计算权重
+    # 获取用户偏好（用于偏好加权评分）
+    user_prefs = {}
+    if user_id:
+        try:
+            from apps.api.services.preference_service import preference_service
+            user_prefs = preference_service.get_user_preferences(user_id)
+        except Exception as e:
+            logger.debug(f"[检索节点] 获取用户偏好失败: {e}")
+
+    # 动态计算权重（含偏好维度）
+    has_prefs = bool(user_prefs)
     semantic_weight = 0.6
     wuxing_weight = 0.4
-    scene_weight = 0.0  # Task 01: 新增场景权重
+    scene_weight = 0.0
+    pref_weight = 0.0
     
     if bazi_result and scene:
-        semantic_weight = 0.5
-        wuxing_weight = 0.3
-        scene_weight = 0.2
+        if has_prefs:
+            semantic_weight = 0.5
+            wuxing_weight = 0.25
+            scene_weight = 0.15
+            pref_weight = 0.10
+        else:
+            semantic_weight = 0.5
+            wuxing_weight = 0.3
+            scene_weight = 0.2
     elif bazi_result:
-        semantic_weight = 0.55
-        wuxing_weight = 0.45
-        scene_weight = 0.0
+        if has_prefs:
+            semantic_weight = 0.5
+            wuxing_weight = 0.35
+            pref_weight = 0.15
+        else:
+            semantic_weight = 0.55
+            wuxing_weight = 0.45
     elif scene:
-        semantic_weight = 0.6
-        wuxing_weight = 0.2
-        scene_weight = 0.2
+        if has_prefs:
+            semantic_weight = 0.55
+            wuxing_weight = 0.15
+            scene_weight = 0.20
+            pref_weight = 0.10
+        else:
+            semantic_weight = 0.6
+            wuxing_weight = 0.2
+            scene_weight = 0.2
+    else:
+        if has_prefs:
+            semantic_weight = 0.55
+            wuxing_weight = 0.30
+            pref_weight = 0.15
     
     # Task 01: 提取子场景（如果有多维度场景识别）
     sub_scene = state.get("sub_scene")
@@ -570,11 +630,20 @@ def retrieve_items_node(state: AgentState) -> Dict:
         if scene and scene_weight > 0:
             scene_score = calculate_scene_match_score(item, scene, sub_scene)
         
+        # 计算偏好匹配分
+        preference_score = 0.5  # 默认中性分
+        if user_prefs and pref_weight > 0:
+            try:
+                preference_score = preference_service.calculate_preference_score(item, user_prefs)
+            except Exception:
+                preference_score = 0.5
+        
         # 加权最终分数
         final_score = (
             semantic_score * semantic_weight +
             wuxing_score * wuxing_weight +
-            scene_score * scene_weight
+            scene_score * scene_weight +
+            preference_score * pref_weight
         )
         
         scored_items.append({
@@ -582,6 +651,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
             "semantic_score": semantic_score,
             "wuxing_score": wuxing_score,
             "scene_score": scene_score,
+            "preference_score": preference_score,
             "final_score": final_score,
         })
     
@@ -608,7 +678,166 @@ def retrieve_items_node(state: AgentState) -> Dict:
         item_id = str(item.get("id")) if item.get("source") == "wardrobe" else item.get("item_code", str(item.get("id")))
         item_sources[item_id] = item.get("source", "public")
     
-    return {"retrieved_items": top_items, "item_sources": item_sources}
+    # ========== 旅行/出差场景：生成多天行程规划 ==========
+    travel_plan = None
+    travel_days = state.get("travel_days")
+    destination = state.get("destination")
+    luggage_size = state.get("luggage_size", "中")
+    
+    if travel_days and destination and travel_days >= 2:
+        travel_plan = _generate_travel_plan(
+            state=state,
+            top_items=top_items,
+            travel_days=travel_days,
+            destination=destination,
+            luggage_size=luggage_size,
+        )
+        logger.info(f"[旅行规划] 生成{travel_days}天行程方案: {destination}")
+    
+    result = {"retrieved_items": top_items, "item_sources": item_sources}
+    if travel_plan:
+        result["travel_plan"] = travel_plan
+    
+    return result
+
+
+def _generate_travel_plan(
+    state: AgentState,
+    top_items: List[Dict],
+    travel_days: int,
+    destination: str,
+    luggage_size: str,
+) -> Optional[Dict]:
+    """
+    生成多天旅行穿搭规划
+    
+    将已有的检索结果与旅行规划服务整合：
+    1. 用用户八字信息构建 bazi 参数
+    2. 调用 travel_recommend_service 生成多天行程
+    3. 将实际检索到的衣物注入行程规划中
+    
+    Args:
+        state: 当前 Agent 状态
+        top_items: 已检索排序后的推荐物品
+        travel_days: 旅行天数
+        destination: 目的地城市
+        luggage_size: 行李箱大小
+        
+    Returns:
+        多天行程规划字典，失败返回 None
+    """
+    try:
+        from apps.api.services.travel_recommend_service import generate_travel_recommendation
+        from packages.utils.travel_planner import plan_travel_outfits, optimize_luggage, calculate_luggage_score
+        from packages.utils.weather_forecast import get_destination_weather, predict_weather_element
+        from packages.utils.wuxing_rules import WUXING_LIST
+        
+        # 构建八字信息
+        bazi_result = state.get("bazi_result")
+        bazi_info = None
+        if bazi_result:
+            bazi_info = {
+                "suggested_elements": bazi_result.get("suggested_elements", []),
+                "reasoning": bazi_result.get("reasoning"),
+            }
+        
+        # 确定每天场景（默认使用主场景，不足时填充“日常”）
+        scene = state.get("scene") or "日常"
+        scenes_per_day = [scene] * travel_days
+        
+        # 获取目的地天气
+        weather_forecast = get_destination_weather(destination, travel_days)
+        
+        # 如果有实际检索到的衣物，注入到行程规划中
+        available_items = None
+        if top_items:
+            available_items = []
+            for item in top_items:
+                available_items.append({
+                    "id": item.get("id", item.get("item_code", "")),
+                    "name": item.get("name", ""),
+                    "category": item.get("category", ""),
+                    "primary_element": item.get("primary_element", ""),
+                    "secondary_element": item.get("secondary_element"),
+                    "functionality": item.get("functionality", []),
+                    "thickness_level": item.get("thickness_level", ""),
+                    "wuxing_score": item.get("wuxing_score", 0.5),
+                    "final_score": item.get("final_score", 0.5),
+                    "image_url": item.get("image_url"),
+                    "source": item.get("source", "public"),
+                })
+        
+        # 目标五行
+        target_elements = bazi_info["suggested_elements"] if bazi_info else WUXING_LIST[:2]
+        user_bazi = {
+            "suggested_elements": target_elements,
+            "reasoning": bazi_info.get("reasoning") if bazi_info else None,
+        }
+        
+        # 生成多天穿搭计划
+        outfits_plan = plan_travel_outfits(
+            user_bazi=user_bazi,
+            destination_weather=weather_forecast,
+            days=travel_days,
+            scenes_per_day=scenes_per_day,
+            luggage_capacity=luggage_size,
+            available_items=available_items,
+        )
+        
+        # 优化行李箱
+        optimized_days = optimize_luggage(outfits_plan.get("days", []), luggage_size)
+        
+        # 收集所有唯一物品
+        all_items = []
+        seen_ids = set()
+        for day in optimized_days:
+            for item in day.get("items", []):
+                item_id = item.get("id", item.get("name", ""))
+                if item_id not in seen_ids:
+                    all_items.append(item)
+                    seen_ids.add(item_id)
+        
+        # 行李评分
+        luggage_score = calculate_luggage_score(all_items, luggage_size)
+        
+        # 五行分析
+        element_distribution = {}
+        for item in all_items:
+            elem = item.get("primary_element", "")
+            if elem:
+                element_distribution[elem] = element_distribution.get(elem, 0) + 1
+        
+        # 天气五行
+        weather_elements = []
+        for wf in weather_forecast:
+            weather_desc = wf.get("weather_desc", "")
+            element = predict_weather_element(weather_desc)
+            weather_elements.append({
+                "date": wf.get("date"),
+                "weather": weather_desc,
+                "element": element,
+            })
+        
+        return {
+            "destination": destination,
+            "days": travel_days,
+            "luggage_size": luggage_size,
+            "daily_plans": optimized_days,
+            "luggage_summary": {
+                **outfits_plan.get("luggage_summary", {}),
+                "luggage_score": luggage_score,
+            },
+            "weather_forecast": weather_forecast,
+            "wuxing_analysis": {
+                "target_elements": target_elements,
+                "weather_elements": weather_elements,
+                "item_element_distribution": element_distribution,
+                "balance_score": round(len(element_distribution) / 5.0, 3) if element_distribution else 0.0,
+            },
+        }
+    except Exception as e:
+        logger.error(f"[旅行规划] 生成失败: {e}", exc_info=True)
+        return None
 
 
 def _ensure_category_diversity(items: List[Dict], limit: int) -> List[Dict]:
@@ -793,7 +1022,7 @@ def _vector_search(
                         attributes_detail, gender,
                         applicable_weather, applicable_seasons,
                         temperature_range, functionality, thickness_level,
-                        image_url, thumbnail_url,
+                        image_url,
                         1 - (embedding <=> %s::vector) AS semantic_score
                     FROM items
                     WHERE embedding IS NOT NULL
@@ -803,7 +1032,8 @@ def _vector_search(
                     ORDER BY embedding <=> %s::vector
                     LIMIT %s
                 """
-                cur.execute(sql, (query_vector.tolist(), query_vector.tolist(), limit))
+                vector_list = query_vector.tolist()
+                cur.execute(sql, (vector_list, vector_list, limit))
                 rows = cur.fetchall()
                 
                 for row in rows:
@@ -821,14 +1051,13 @@ def _vector_search(
                         "functionality": row[10],
                         "thickness_level": row[11],
                         "image_url": row[12],
-                        "thumbnail_url": row[13] if len(row) > 13 else None,
-                        "semantic_score": float(row[14]) if len(row) > 14 and row[14] else 0.5,
+                        "semantic_score": float(row[13]) if len(row) > 13 and row[13] else 0.5,
                         "source": "public",
                     })
     except Exception as e:
         import traceback
-        print(f"[Agent] 向量搜索失败: {e}")
-        print(f"[Agent] 错误堆栈: {traceback.format_exc()}")
+        logger.error(f"[Agent] 向量搜索失败: {e}")
+        logger.error(f"[Agent] 错误堆栈: {traceback.format_exc()}")
     
     return items
 
@@ -1180,6 +1409,17 @@ def generate_advice_node(state: AgentState) -> Dict:
     
     # 准备 Prompt
     bazi_reasoning = bazi_result.get("reasoning", "无") if bazi_result else "无"
+    
+    # 注入流年/大运信息到八字推理文本
+    annual_luck = state.get("annual_luck")
+    major_luck = state.get("major_luck")
+    if annual_luck:
+        annual_info = annual_luck.get("annual_luck", {})
+        annual_score = annual_luck.get("overall_score", 0)
+        annual_advice = annual_luck.get("outfit_advice", "")
+        bazi_reasoning += f"\n流年: {annual_info.get('ganzhi', '')}({annual_info.get('element', '')})，综合运势{annual_score}分。{annual_advice}"
+    if major_luck:
+        bazi_reasoning += f"\n当前大运: {major_luck.get('ganzhi', '')}({major_luck.get('element', '')})，旺衰: {major_luck.get('luck_level', '')}"
         
     # 清晰标识各因素是否存在
     scene_display = scene if scene else "无"
@@ -1190,10 +1430,32 @@ def generate_advice_node(state: AgentState) -> Dict:
     
     # 构建天气详情
     weather_details = _build_weather_details(weather_info, retrieved_items)
+    
+    # 旅行上下文增强：如果有多天行程规划，注入到用户输入中
+    travel_plan = state.get("travel_plan")
+    effective_user_input = user_input
+    if travel_plan:
+        destination = travel_plan.get("destination", "")
+        days = travel_plan.get("days", 0)
+        luggage_score = travel_plan.get("luggage_summary", {}).get("luggage_score", 0)
+        luggage_size = travel_plan.get("luggage_size", "中")
+        travel_context = (
+            f"\n\n[旅行信息] 这是一次去{destination}的{days}天行程，"
+            f"行李箱大小：{luggage_size}，行李评分：{luggage_score:.0%}。"
+        )
+        # 添加每日天气摘要
+        weather_forecast = travel_plan.get("weather_forecast", [])
+        if weather_forecast:
+            weather_summary = "、".join([
+                f"第{i+1}天{w.get('weather_desc', '?')}({w.get('temperature_min', '?')}~{w.get('temperature_max', '?')}°C)"
+                for i, w in enumerate(weather_forecast[:days])
+            ])
+            travel_context += f"\n目的地天气：{weather_summary}"
+        effective_user_input = user_input + travel_context
         
     prompt_template = load_prompt("generator.txt")
     prompt = prompt_template.format(
-        user_input=user_input,
+        user_input=effective_user_input,
         scene=scene_display,
         weather_element=weather_display,
         target_elements="、".join(target_elements) if target_elements else "综合推荐",
@@ -1296,6 +1558,17 @@ def generate_advice_stream(state: AgentState) -> Generator[str, None, None]:
     
     bazi_reasoning = bazi_result.get("reasoning", "无") if bazi_result else "无"
     
+    # 注入流年/大运信息到八字推理文本
+    annual_luck = state.get("annual_luck")
+    major_luck = state.get("major_luck")
+    if annual_luck:
+        annual_info = annual_luck.get("annual_luck", {})
+        annual_score = annual_luck.get("overall_score", 0)
+        annual_advice = annual_luck.get("outfit_advice", "")
+        bazi_reasoning += f"\n流年: {annual_info.get('ganzhi', '')}({annual_info.get('element', '')})，综合运势{annual_score}分。{annual_advice}"
+    if major_luck:
+        bazi_reasoning += f"\n当前大运: {major_luck.get('ganzhi', '')}({major_luck.get('element', '')})，旺衰: {major_luck.get('luck_level', '')}"
+    
     # 清晰标识各因素是否存在
     scene_display = scene if scene else "无"
     weather_display = weather_element if weather_element else "无"
@@ -1306,9 +1579,30 @@ def generate_advice_stream(state: AgentState) -> Generator[str, None, None]:
     # 构建天气详情
     weather_details = _build_weather_details(weather_info, retrieved_items)
     
+    # 旅行上下文增强
+    travel_plan = state.get("travel_plan")
+    effective_user_input = user_input
+    if travel_plan:
+        destination = travel_plan.get("destination", "")
+        days = travel_plan.get("days", 0)
+        luggage_score = travel_plan.get("luggage_summary", {}).get("luggage_score", 0)
+        luggage_size = travel_plan.get("luggage_size", "中")
+        travel_context = (
+            f"\n\n[旅行信息] 这是一次去{destination}的{days}天行程，"
+            f"行李箱大小：{luggage_size}，行李评分：{luggage_score:.0%}。"
+        )
+        weather_forecast = travel_plan.get("weather_forecast", [])
+        if weather_forecast:
+            weather_summary = "、".join([
+                f"第{i+1}天{w.get('weather_desc', '?')}({w.get('temperature_min', '?')}~{w.get('temperature_max', '?')}°C)"
+                for i, w in enumerate(weather_forecast[:days])
+            ])
+            travel_context += f"\n目的地天气：{weather_summary}"
+        effective_user_input = user_input + travel_context
+    
     prompt_template = load_prompt("generator.txt")
     prompt = prompt_template.format(
-        user_input=user_input,
+        user_input=effective_user_input,
         scene=scene_display,
         weather_element=weather_display,
         target_elements="、".join(target_elements) if target_elements else "综合推荐",
@@ -1360,9 +1654,22 @@ def format_output_node(state: AgentState) -> Dict:
     scene = state.get("scene")
     
     # 构建分析结果
+    bazi_reasoning = bazi_result.get("reasoning") if bazi_result else None
+    
+    # 注入流年/大运信息到 bazi_reasoning
+    if bazi_reasoning:
+        annual_luck = state.get("annual_luck")
+        major_luck = state.get("major_luck")
+        if annual_luck:
+            annual_info = annual_luck.get("annual_luck", {})
+            annual_score = annual_luck.get("overall_score", 0)
+            bazi_reasoning += f" 流年{annual_info.get('ganzhi', '')}({annual_info.get('element', '')})运势{annual_score}分。"
+        if major_luck:
+            bazi_reasoning += f" 当前大运{major_luck.get('ganzhi', '')}({major_luck.get('element', '')})，旺衰{major_luck.get('luck_level', '')}。"
+    
     analysis = {
         "target_elements": target_elements,
-        "bazi_reasoning": bazi_result.get("reasoning") if bazi_result else None,
+        "bazi_reasoning": bazi_reasoning,
         "intent_reasoning": intent_result.get("reasoning") if intent_result else None,
         "scene": scene,
     }

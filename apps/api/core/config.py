@@ -5,8 +5,11 @@ FastAPI 应用配置模块
 
 import secrets
 import re
+import logging
 from typing import List
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -26,8 +29,8 @@ class Settings(BaseSettings):
     
     # === 阿里百炼千问 LLM 配置 ===
     dashscope_api_key: str = ""
-    dashscope_base_url: str = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"  # 国际端点（新加坡）
-    qwen_model: str = "qwen-flash"  # 国际端点使用 qwen-flash
+    dashscope_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"  # 国内端点
+    qwen_model: str = "qwen-plus"  # 国内端点使用 qwen-plus（质量更高）
     
     # === OpenAI 配置 (备用) ===
     openai_api_key: str = ""
@@ -54,6 +57,13 @@ class Settings(BaseSettings):
     r2_secret_access_key: str = ""
     r2_bucket_name: str = "wuxing-wardrobe"
     r2_public_url: str = ""
+    
+    # === 阿里云 OSS 对象存储配置（国内生产环境） ===
+    oss_access_key_id: str = ""
+    oss_access_key_secret: str = ""
+    oss_bucket_name: str = "shunyishang-images"
+    oss_endpoint: str = "https://oss-cn-hangzhou-internal.aliyuncs.com"  # ECS 内网
+    oss_public_url: str = ""  # 如 https://images.shunyishang.cn
     
     # === JWT 配置 ===
     jwt_secret_key: str = ""  # 生产环境必须设置
@@ -106,19 +116,24 @@ class Settings(BaseSettings):
         self._auto_enable_redis()
     
     def _auto_enable_redis(self):
-        """自动启用 Redis（如果配置了 Upstash）"""
-        # 如果配置了 Upstash，自动启用 Redis 缓存
-        if self.upstash_redis_rest_url and self.upstash_redis_rest_token:
+        """自动启用 Redis（优先传统 Redis，兼容 Upstash）"""
+        # 优先检测传统 Redis（阿里云 Redis，国内部署）
+        if self.redis_url and self.redis_url != "redis://localhost:6379/0":
             if not self.redis_enabled:
                 self.redis_enabled = True
-                print(f"[配置] ✅ 检测到 Upstash Redis 配置，自动启用缓存")
+                logger.info("[配置] ✅ 检测到 Redis 配置，自动启用缓存")
+        # 兼容旧版 Upstash（过渡期保留）
+        elif self.upstash_redis_rest_url and self.upstash_redis_rest_token:
+            if not self.redis_enabled:
+                self.redis_enabled = True
+                logger.info("[配置] ✅ 检测到 Upstash Redis 配置，自动启用缓存")
     
     def _validate_jwt_secret(self):
         """JWT 密钥安全校验"""
         if not self.jwt_secret_key:
             # 开发环境自动生成
             if self.app_env == "development":
-                print("⚠️  未设置 JWT_SECRET_KEY，开发环境自动生成临时密钥")
+                logger.warning("⚠️  未设置 JWT_SECRET_KEY，开发环境自动生成临时密钥")
                 self.jwt_secret_key = secrets.token_urlsafe(32)
             else:
                 raise ValueError(
@@ -135,7 +150,7 @@ class Settings(BaseSettings):
         # 开发环境警告
         if self.app_env == "development":
             if key == "your-super-secret-key" or len(key) < 32:
-                print("⚠️  JWT_SECRET_KEY 强度较弱，建议使用更强的密钥")
+                logger.warning("⚠️  JWT_SECRET_KEY 强度较弱，建议使用更强的密钥")
             return
         
         # 生产环境强制校验

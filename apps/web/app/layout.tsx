@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import './accessibility.css'
 import { ThemeProvider } from '@/components/providers/ThemeProvider'
@@ -13,12 +13,12 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
     title: '顺衣尚',
   },
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-  },
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#3DA35D' },
     { media: '(prefers-color-scheme: dark)', color: '#2D4A38' },
@@ -41,7 +41,7 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
-      <body className="font-sans">
+      <body className="font-sans" suppressHydrationWarning>
         {/* 清理可能损坏的localStorage数据 */}
         <script
           dangerouslySetInnerHTML={{
@@ -73,19 +73,27 @@ export default function RootLayout({
           </ToastProvider>
         </ThemeProvider>
         
-        {/* 注册 Service Worker */}
+        {/* Service Worker：仅生产环境注册，开发环境注销避免缓存干扰热更新 */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js')
-                    .then(function(registration) {
-                      console.log('[PWA] Service Worker 注册成功:', registration.scope);
-                    })
-                    .catch(function(error) {
-                      console.log('[PWA] Service Worker 注册失败:', error);
+                  if (process.env.NODE_ENV === 'production') {
+                    // 生产环境：注册 SW
+                    navigator.serviceWorker.register('/sw.js')
+                      .catch(function(error) {
+                        console.error('[PWA] SW 注册失败:', error);
+                      });
+                  } else {
+                    // 开发环境：注销所有 SW，清除缓存
+                    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                      registrations.forEach(function(reg) { reg.unregister(); });
                     });
+                    caches.keys().then(function(names) {
+                      names.forEach(function(name) { caches.delete(name); });
+                    });
+                  }
                 });
               }
             `,

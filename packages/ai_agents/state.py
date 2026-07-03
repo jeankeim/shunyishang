@@ -26,8 +26,16 @@ class AgentState(TypedDict):
     # === 检索模式控制 (Task 3) ===
     retrieval_mode: str                 # 检索模式: 'public' | 'wardrobe' | 'hybrid'
     
+    # === 旅行/出差场景参数 ===
+    travel_days: Optional[int]          # 旅行天数
+    destination: Optional[str]          # 目的地城市
+    luggage_size: Optional[str]         # 行李箱大小: 小/中/大
+    travel_plan: Optional[Dict]         # 多天行程规划结果
+    
     # === 分析层 ===
     bazi_result: Optional[Dict]         # 八字计算结果（来自 Task 02）
+    annual_luck: Optional[Dict]         # 流年运势（当年）
+    major_luck: Optional[Dict]          # 当前大运
     intent_result: Optional[Dict]       # 意图推断结果
     target_elements: List[str]          # 最终推荐五行（合并后）
     xiyong_elements: List[str]          # 八字喜用神（纯八字，不含场景）
@@ -89,7 +97,10 @@ def create_initial_state(
     user_id: Optional[int] = None,
     retrieval_mode: str = 'public',
     top_k: int = 5,
-    chat_history: Optional[List[Dict]] = None
+    chat_history: Optional[List[Dict]] = None,
+    travel_days: Optional[int] = None,
+    destination: Optional[str] = None,
+    luggage_size: Optional[str] = None,
 ) -> AgentState:
     """
     创建初始状态
@@ -105,6 +116,9 @@ def create_initial_state(
         retrieval_mode: 检索模式（默认public）
         top_k: 返回数量
         chat_history: 对话历史
+        travel_days: 旅行天数（可选）
+        destination: 目的地城市（可选）
+        luggage_size: 行李箱大小（可选，小/中/大）
     
     Returns:
         AgentState: 初始状态
@@ -119,7 +133,13 @@ def create_initial_state(
         user_id=user_id,
         top_k=top_k,
         retrieval_mode=retrieval_mode,
+        travel_days=travel_days,
+        destination=destination,
+        luggage_size=luggage_size,
+        travel_plan=None,
         bazi_result=None,
+        annual_luck=None,
+        major_luck=None,
         intent_result=None,
         target_elements=[],
         xiyong_elements=[],

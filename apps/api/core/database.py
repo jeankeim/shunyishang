@@ -48,7 +48,7 @@ class DatabasePool:
     def get_connection(cls) -> Generator:
         """
         获取数据库连接的上下文管理器
-        自动归还连接到连接池
+        自动归还连接到连接池，并在获取时验证连接健康
         
         Usage:
             with DatabasePool.get_connection() as conn:
@@ -61,6 +61,19 @@ class DatabasePool:
         conn = None
         try:
             conn = cls._pool.getconn()
+            # 连接健康检查：验证连接可用
+            try:
+                with conn.cursor() as check_cur:
+                    check_cur.execute("SELECT 1")
+            except Exception:
+                # 连接失效，关闭并重新获取
+                logger.warning("连接健康检查失败，尝试重新获取连接")
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                cls._pool.putconn(conn, close=True)
+                conn = cls._pool.getconn()
             yield conn
         finally:
             if conn is not None:

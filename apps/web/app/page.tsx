@@ -12,6 +12,9 @@ import { Sidebar } from '@/components/features/Sidebar'
 import { Header } from '@/components/features/Header'
 import { MobileControlPanel } from '@/components/features/MobileControlPanel'
 import { MobileBottomNav } from '@/components/features/MobileBottomNav'
+import { TodayFortuneCard } from '@/components/features/fortune/TodayFortuneCard'
+import { DailyRitualCard } from '@/components/features/DailyRitualCard'
+import { QuickCheckIn } from '@/components/features/QuickCheckIn'
 import { useChatStore } from '@/store/chat'
 import { useUserStore } from '@/store/user'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
@@ -19,20 +22,56 @@ import { motion, AnimatePresence } from 'framer-motion'
 
 // 懒加载衣橱页面，减少首页初始加载时间
 const WardrobePage = lazy(() => import('./wardrobe/page'))
+const DiaryPage = lazy(() => import('./diary/page'))
+const FortunePage = lazy(() => import('./fortune/page'))
+const DestinyPage = lazy(() => import('./destiny/page'))
+const MembershipPage = lazy(() => import('./membership/page'))
+const CommunityPage = lazy(() => import('./community/page'))
+const CultivationPage = lazy(() => import('./cultivation/page'))
+const AuthModal = lazy(() => import('@/components/features/AuthModal').then(m => ({ default: m.AuthModal })))
 
 export default function Home() {
   const { radarData, setUserBazi } = useChatStore()
   const { user, isAuthenticated } = useUserStore()
   const [scene, setScene] = useState('')
   const [sceneElement, setSceneElement] = useState('')
-  const [weatherElement, setWeatherElement] = useState('')
+    const [weatherElement, setWeatherElement] = useState('')
   const [weatherInfo, setWeatherInfo] = useState<any>(null)  // 新增：保存完整天气信息
-  const [activeTab, setActiveTab] = useState<'chat' | 'wardrobe' | 'profile'>('chat')
+  const [activeTab, setActiveTab] = useState<'chat' | 'wardrobe' | 'tryon' | 'profile' | 'diary' | 'fortune' | 'destiny' | 'membership' | 'community' | 'cultivation'>('chat')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
+  const [showCheckIn, setShowCheckIn] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [smartAlerts, setSmartAlerts] = useState<string[]>([])
   
   // 判断用户是否有八字（已登录且资料完整）
   const hasBazi = isAuthenticated && user?.bazi
   
+  // 每日首次打开自动弹出打卡弹窗
+  useEffect(() => {
+    if (isAuthenticated) {
+      const today = new Date().toDateString()
+      const lastCheckIn = localStorage.getItem('last_checkin_date')
+      if (lastCheckIn !== today) {
+        // 延迟 1.5s 弹出，避免打扰用户
+        const timer = setTimeout(() => setShowCheckIn(true), 1500)
+        return () => clearTimeout(timer)
+      }
+    }
+  }, [isAuthenticated])
+  
+  // 智能提醒检查（天气变化 + 衣橱闲置）
+  useEffect(() => {
+    if (isAuthenticated) {
+      import('@/lib/api').then(({ checkSmartReminders }) => {
+        checkSmartReminders(weatherInfo).then(data => {
+          if (data?.alerts?.length > 0) {
+            setSmartAlerts(data.alerts.map((a: any) => a.message))
+          }
+        }).catch(() => {})
+      })
+    }
+  }, [isAuthenticated])
+
   // 当用户有八字信息时，自动设置 userBazi 到 chat store
   useEffect(() => {
     if (hasBazi && user?.birth_date && user?.gender) {
@@ -45,7 +84,6 @@ export default function Home() {
         gender: user.gender as '男' | '女',
       }
       setUserBazi(baziInput)
-      console.log('[HomePage] 从用户资料自动设置八字:', baziInput)
     }
   }, [hasBazi, user, setUserBazi])
 
@@ -56,6 +94,20 @@ export default function Home() {
         setActiveTab('profile')
       } else if (window.location.hash === '#wardrobe') {
         setActiveTab('wardrobe')
+      } else if (window.location.hash === '#tryon') {
+        setActiveTab('tryon')
+      } else if (window.location.hash === '#diary') {
+        setActiveTab('diary')
+      } else if (window.location.hash === '#fortune') {
+        setActiveTab('fortune')
+      } else if (window.location.hash === '#destiny') {
+        setActiveTab('destiny')
+      } else if (window.location.hash === '#membership') {
+        setActiveTab('membership')
+      } else if (window.location.hash === '#community') {
+        setActiveTab('community')
+      } else if (window.location.hash === '#cultivation') {
+        setActiveTab('cultivation')
       } else {
         setActiveTab('chat')
       }
@@ -79,7 +131,6 @@ export default function Home() {
       humidity: weather.humidity,
       wind_level: parseInt(weather.wind?.replace('级', '') || '0'),
     })
-    console.log('[HomePage] 天气信息:', weather)
   }
 
   const toggleSidebar = () => {
@@ -88,7 +139,6 @@ export default function Home() {
 
   // 下拉刷新功能
   const handleRefresh = useCallback(async () => {
-    console.log('[HomePage] 下拉刷新')
     // 清空当前对话和推荐结果
     useChatStore.getState().clearConversations()
     useChatStore.getState().setRadarData({
@@ -107,7 +157,7 @@ export default function Home() {
   const isMobile = useMediaQuery('(max-width: 768px)')
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-[#F8FAF9] via-[#F5F9F7] to-[#F0F7F4] overflow-hidden">
+    <div className="flex h-dvh bg-stone-50 overflow-hidden">
       {/* Sidebar - 聊天记录面板 */}
       <Sidebar 
         collapsed={sidebarCollapsed} 
@@ -121,8 +171,8 @@ export default function Home() {
         transition={{ duration: 0.5, ease: "easeOut" }}
         className={`bg-white/90 backdrop-blur-xl overflow-y-auto transition-all duration-300 scrollbar-hide ${
           hasBazi 
-            ? 'w-[300px] lg:w-[340px]' 
-            : 'w-[320px] lg:w-[360px]'
+            ? 'w-[280px] lg:w-[320px]' 
+            : 'w-[300px] lg:w-[340px]'
         } hidden md:block`}
       >
         <div className="space-y-5">
@@ -231,28 +281,67 @@ export default function Home() {
 
       {/* 右侧：主要内容区 - 移动端优化 */}
       <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-        {/* Header */}
-        <Header 
-          sidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={toggleSidebar}
-        />
+        {/* Header - 简化版，移动端隐藏 */}
+        <div className="hidden md:block">
+          <Header 
+            sidebarCollapsed={sidebarCollapsed}
+            onToggleSidebar={toggleSidebar}
+          />
+        </div>
+
+        {/* 移动端头部栏 - 仅移动端显示，提供用户头像入口 */}
+        <div className="md:hidden flex items-center justify-between px-4 h-12 bg-white/90 backdrop-blur-xl border-b border-stone-200/60 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🌿</span>
+            <span className="font-semibold text-sm bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] bg-clip-text text-transparent font-serif">顺衣尚</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* 登录后显示用户名 */}
+            {isAuthenticated && user && (
+              <span className="text-sm font-medium text-stone-700 max-w-[100px] truncate">
+                {user.nickname || user.phone || '用户'}
+              </span>
+            )}
+            <button
+              onClick={() => {
+                if (isAuthenticated) {
+                  setActiveTab('profile')
+                  window.location.hash = '#profile'
+                } else {
+                  setShowAuthModal(true)
+                }
+              }}
+              aria-label={isAuthenticated ? '打开个人中心' : '登录'}
+              className="w-8 h-8 rounded-full bg-gradient-to-br from-[#3DA35D]/20 to-[#4A90C4]/20 flex items-center justify-center active:scale-95 transition-transform"
+            >
+              {isAuthenticated && user?.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={user.avatar_url} alt="头像" className="w-7 h-7 rounded-full object-cover" />
+              ) : (
+                <svg className="w-4 h-4 text-[#5A7A66]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              )}
+            </button>
+          </div>
+        </div>
         
-        {/* 优化后的Tab导航 - 更简洁大方 */}
+        {/* 优化后的Tab导航 - 移动端底部导航，桌面端顶部显示 */}
         <motion.div 
           initial={{ y: -10, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className="bg-white/90 backdrop-blur-xl flex-shrink-0 border-b border-stone-200/60"
+          className="hidden md:block bg-white border-b border-stone-200/60"
         >
-          <div className="flex items-center justify-between px-4 md:px-6">
-            {/* Tab 按钮组 */}
-            <div className="flex gap-1 py-2 overflow-x-auto scrollbar-hide">
+          <div className="flex items-center px-6">
+                        {/* Tab 按钮组 */}
+            <div className="flex gap-2 py-3">
               <button
                 onClick={() => {
                   setActiveTab('chat')
                   window.location.hash = ''
                 }}
-                aria-label="切换到智能推荐页面"
+                aria-label="切换到推荐页面"
                 className={`relative flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
                   activeTab === 'chat'
                     ? 'bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 shadow-sm'
@@ -262,14 +351,14 @@ export default function Home() {
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                 </svg>
-                <span className="hidden sm:inline">智能推荐</span>
+                <span className="hidden sm:inline">推荐</span>
               </button>
               <button
                 onClick={() => {
                   setActiveTab('wardrobe')
                   window.location.hash = '#wardrobe'
                 }}
-                aria-label="切换到我的衣橱页面"
+                aria-label="切换到衣橱页面"
                 className={`relative flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
                   activeTab === 'wardrobe'
                     ? 'bg-gradient-to-r from-rose-50 to-pink-50 text-rose-700 shadow-sm'
@@ -279,25 +368,118 @@ export default function Home() {
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
-                <span className="hidden sm:inline">我的衣橱</span>
+                <span className="hidden sm:inline">衣橱</span>
               </button>
               <button
                 onClick={() => {
-                  setActiveTab('profile')
-                  window.location.hash = '#profile'
+                  setActiveTab('tryon')
+                  window.location.hash = '#tryon'
                 }}
-                aria-label="切换到个人资料页面"
+                aria-label="切换到试衣页面"
                 className={`relative flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
-                  activeTab === 'profile'
-                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 shadow-sm'
+                  activeTab === 'tryon'
+                    ? 'bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 shadow-sm'
                     : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
                 }`}
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <span className="hidden sm:inline">个人资料</span>
+                <span className="hidden sm:inline">试衣</span>
               </button>
+              <button
+                onClick={() => {
+                  setActiveTab('diary')
+                  window.location.hash = '#diary'
+                }}
+                aria-label="切换到日记页面"
+                className={`relative flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
+                  activeTab === 'diary'
+                    ? 'bg-gradient-to-r from-emerald-50 to-cyan-50 text-emerald-700 shadow-sm'
+                    : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
+                }`}
+              >
+                <span className="text-base">📓</span>
+                <span className="hidden sm:inline">日记</span>
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('community')
+                  window.location.hash = '#community'
+                }}
+                aria-label="切换到广场页面"
+                className={`relative flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
+                  activeTab === 'community'
+                    ? 'bg-gradient-to-r from-pink-50 to-rose-50 text-pink-700 shadow-sm'
+                    : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
+                }`}
+              >
+                <span className="text-base">🏛️</span>
+                <span className="hidden sm:inline">广场</span>
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('cultivation')
+                  window.location.hash = '#cultivation'
+                }}
+                aria-label="切换到修炼页面"
+                className={`relative flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
+                  activeTab === 'cultivation'
+                    ? 'bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-700 shadow-sm'
+                    : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
+                }`}
+              >
+                <span className="text-base">🏔️</span>
+                <span className="hidden sm:inline">修炼</span>
+              </button>
+              {/* 命理玄学 — 运势+命理合并下拉 */}
+              <div className="relative group">
+                <button
+                  aria-label="命理玄学"
+                  className={`relative flex items-center gap-1.5 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
+                    activeTab === 'fortune' || activeTab === 'destiny'
+                      ? 'bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-700 shadow-sm'
+                      : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
+                  }`}
+                >
+                  <span className="text-base">☯️</span>
+                  <span className="hidden sm:inline">命理玄学</span>
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {/* 下拉菜单 */}
+                <div className="absolute top-full right-0 mt-1 w-40 bg-white rounded-xl shadow-lg border border-stone-200/60 py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                  <button
+                    onClick={() => {
+                      setActiveTab('fortune')
+                      window.location.hash = '#fortune'
+                    }}
+                    className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+                      activeTab === 'fortune'
+                        ? 'text-violet-700 bg-violet-50'
+                        : 'text-stone-600 hover:bg-stone-50'
+                    }`}
+                  >
+                    <span>🔮</span>
+                    <span>运势</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab('destiny')
+                      window.location.hash = '#destiny'
+                    }}
+                    className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+                      activeTab === 'destiny'
+                        ? 'text-indigo-700 bg-indigo-50'
+                        : 'text-stone-600 hover:bg-stone-50'
+                    }`}
+                  >
+                    <span>☯️</span>
+                    <span>命理</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </motion.div>
@@ -307,8 +489,8 @@ export default function Home() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3, ease: "easeOut" }}
-          className="flex-1 overflow-y-auto overflow-x-visible bg-stone-50/50 backdrop-blur-sm p-4 md:p-6 pb-24 md:pb-6"
-          style={{ paddingBottom: 'max(6rem, 6rem)' }} // 为移动端底部导航预留空间
+          className="flex-1 overflow-y-auto overflow-x-visible bg-stone-50/50 backdrop-blur-sm p-3 md:p-4 pb-24 md:pb-4"
+          style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom, 0px))' }} // 为移动端底部导航预留空间
         >
           <AnimatePresence mode="wait">
             {activeTab === 'chat' && (
@@ -319,6 +501,57 @@ export default function Home() {
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.2, ease: "easeOut" }}
               >
+                {/* 智能提醒横幅 */}
+                {smartAlerts.length > 0 && (
+                  <div className="mb-3 space-y-2">
+                    {smartAlerts.map((msg, i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="flex items-start gap-2 px-4 py-3 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200/60 rounded-xl text-sm text-blue-700"
+                      >
+                        <span className="text-base mt-0.5">🔔</span>
+                        <span className="flex-1">{msg}</span>
+                        <button
+                          onClick={() => setSmartAlerts(prev => prev.filter((_, idx) => idx !== i))}
+                          className="text-blue-400 hover:text-blue-600"
+                        >
+                          ✕
+                        </button>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+
+                {/* 每日仪式卡片 — 运势摘要 + 打卡状态 + 连续天数 + 修炼等级 */}
+                {isAuthenticated && (
+                  <div className="mb-4">
+                    <DailyRitualCard
+                      onCheckIn={() => setShowCheckIn(true)}
+                      onNavigateToFortune={() => {
+                        setActiveTab('fortune')
+                        window.location.hash = '#fortune'
+                      }}
+                      onNavigateToCultivation={() => {
+                        setActiveTab('cultivation')
+                        window.location.hash = '#cultivation'
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* 未登录时仍显示运势卡片（如果有八字） */}
+                {!isAuthenticated && hasBazi && (
+                  <div className="mb-4">
+                    <TodayFortuneCard
+                      onNavigateToFortune={() => {
+                        setActiveTab('fortune')
+                        window.location.hash = '#fortune'
+                      }}
+                    />
+                  </div>
+                )}
                 <ChatInterface 
                   scene={scene} 
                   weatherElement={weatherElement}
@@ -359,6 +592,125 @@ export default function Home() {
                 />
               </motion.div>
             )}
+            {activeTab === 'tryon' && (
+              <motion.div
+                key="tryon"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="h-[calc(100vh-200px)] min-h-[400px]"
+              >
+                <iframe
+                  src="/tryon"
+                  className="w-full h-full border-0 rounded-xl"
+                  title="虚拟试衣"
+                  aria-label="虚拟试衣页面"
+                />
+              </motion.div>
+            )}
+            {activeTab === 'diary' && (
+              <motion.div
+                key="diary"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+              >
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-64">
+                    <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#3DA35D] border-t-transparent"></div>
+                  </div>
+                }>
+                  <DiaryPage />
+                </Suspense>
+              </motion.div>
+            )}
+            {activeTab === 'fortune' && (
+              <motion.div
+                key="fortune"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+              >
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-64">
+                    <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#3DA35D] border-t-transparent"></div>
+                  </div>
+                }>
+                  <FortunePage />
+                </Suspense>
+              </motion.div>
+            )}
+            {activeTab === 'destiny' && (
+              <motion.div
+                key="destiny"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+              >
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-64">
+                    <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#3DA35D] border-t-transparent"></div>
+                  </div>
+                }>
+                  <DestinyPage />
+                </Suspense>
+              </motion.div>
+            )}
+            {activeTab === 'membership' && (
+              <motion.div
+                key="membership"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+              >
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-64">
+                    <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#3DA35D] border-t-transparent"></div>
+                  </div>
+                }>
+                  <MembershipPage />
+                </Suspense>
+              </motion.div>
+            )}
+            {activeTab === 'community' && (
+              <motion.div
+                key="community"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+              >
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-64">
+                    <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#3DA35D] border-t-transparent"></div>
+                  </div>
+                }>
+                  <CommunityPage />
+                </Suspense>
+              </motion.div>
+            )}
+            {activeTab === 'cultivation' && (
+              <motion.div
+                key="cultivation"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+              >
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-64">
+                    <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#3DA35D] border-t-transparent"></div>
+                  </div>
+                }>
+                  <CultivationPage />
+                </Suspense>
+              </motion.div>
+            )}
           </AnimatePresence>
         </motion.div>
       </div>
@@ -371,8 +723,8 @@ export default function Home() {
       
       {/* 移动端底部导航 */}
       <MobileBottomNav
-        activeTab={activeTab}
-        onTabChange={(tab) => {
+        activeTab={activeTab as any}
+        onTabChange={(tab: any) => {
           setActiveTab(tab)
           if (tab === 'chat') {
             window.location.hash = ''
@@ -381,6 +733,24 @@ export default function Home() {
           }
         }}
       />
+
+      {/* 快捷打卡弹窗 */}
+      <QuickCheckIn
+        isOpen={showCheckIn}
+        onClose={() => {
+          setShowCheckIn(false)
+          localStorage.setItem('last_checkin_date', new Date().toDateString())
+        }}
+        onSuccess={(diaryId) => {
+          localStorage.setItem('last_checkin_date', new Date().toDateString())
+        }}
+                weatherInfo={weatherInfo}
+      />
+
+      {/* 登录弹窗 — 移动端未登录时点击头像触发 */}
+      <Suspense fallback={null}>
+        <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+      </Suspense>
     </div>
   )
 }

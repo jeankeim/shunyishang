@@ -1,0 +1,183 @@
+'use client'
+
+import { motion } from 'framer-motion'
+import type { TenGodsData } from '@/store/destiny'
+
+// 十神颜色映射
+const TEN_GOD_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  '比肩': { bg: 'bg-[#8A9BA8]/10', text: 'text-[#6B7F8C]', border: 'border-[#8A9BA8]/30' },
+  '劫财': { bg: 'bg-[#D4656B]/10', text: 'text-[#B5494F]', border: 'border-[#D4656B]/30' },
+  '食神': { bg: 'bg-[#3DA35D]/10', text: 'text-[#2D7A45]', border: 'border-[#3DA35D]/30' },
+  '伤官': { bg: 'bg-[#9B59B6]/10', text: 'text-[#7D3C98]', border: 'border-[#9B59B6]/30' },
+  '偏财': { bg: 'bg-[#B89B5E]/10', text: 'text-[#9A7E47]', border: 'border-[#B89B5E]/30' },
+  '正财': { bg: 'bg-[#D4A574]/10', text: 'text-[#B8865A]', border: 'border-[#D4A574]/30' },
+  '七杀': { bg: 'bg-[#2C3E50]/10', text: 'text-[#1A252F]', border: 'border-[#2C3E50]/30' },
+  '正官': { bg: 'bg-[#4A90C4]/10', text: 'text-[#3570A0]', border: 'border-[#4A90C4]/30' },
+  '偏印': { bg: 'bg-[#6B5B95]/10', text: 'text-[#5A4D7F]', border: 'border-[#6B5B95]/30' },
+  '正印': { bg: 'bg-[#5DADE2]/10', text: 'text-[#2E86C1]', border: 'border-[#5DADE2]/30' },
+  '日主': { bg: 'bg-gradient-to-br from-[#3DA35D]/15 to-[#4A90C4]/15', text: 'text-[#2D4A38]', border: 'border-[#3DA35D]/40' },
+}
+
+// 十神描述映射
+const TEN_GOD_DESC: Record<string, string> = {
+  '比肩': '独立自主，竞争合作',
+  '劫财': '行动力强，破财之兆',
+  '食神': '才华横溢，福禄之兆',
+  '伤官': '聪明叛逆，创新之兆',
+  '偏财': '意外之财，投资之兆',
+  '正财': '正当收入，稳定之兆',
+  '七杀': '权威压力，挑战之兆',
+  '正官': '事业地位，名声之兆',
+  '偏印': '学习深造，偏门之兆',
+  '正印': '贵人相助，学业之兆',
+}
+
+// 柱名映射
+const PILLAR_NAMES: Record<string, string> = {
+  year: '年柱',
+  month: '月柱',
+  day: '日柱',
+  hour: '时柱',
+}
+
+interface TenGodsCardProps {
+  data: TenGodsData
+}
+
+export function TenGodsCard({ data }: TenGodsCardProps) {
+  const { pillars, hidden_gods, dominant_gods, weak_gods, god_distribution, analysis } = data
+
+  // 计算十神分布的最大值（用于归一化柱状图）
+  const maxCount = Math.max(...Object.values(god_distribution), 1)
+
+  return (
+    <div className="space-y-4">
+      {/* 四柱十神 */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
+        <h3 className="text-sm font-semibold text-stone-800 mb-4 flex items-center gap-2">
+          <span className="w-1.5 h-1.5 bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] rounded-full" />
+          四柱十神
+        </h3>
+        <div className="grid grid-cols-4 gap-3">
+          {['year', 'month', 'day', 'hour'].map((pillarName) => {
+            const pillar = pillars[pillarName]
+            if (!pillar) return null
+            const colors = TEN_GOD_COLORS[pillar.ten_god] || TEN_GOD_COLORS['比肩']
+            const isDayMaster = pillar.ten_god === '日主'
+
+            return (
+              <motion.div
+                key={pillarName}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-center"
+              >
+                <p className="text-[10px] text-stone-500 mb-1.5">{PILLAR_NAMES[pillarName]}</p>
+                <div className={`rounded-xl p-2.5 ${colors.bg} border ${colors.border}`}>
+                  <p className="text-lg font-bold text-stone-800 mb-0.5">{pillar.ganzhi}</p>
+                  <p className={`text-xs font-medium ${colors.text}`}>
+                    {isDayMaster ? '日主' : pillar.ten_god}
+                  </p>
+                  {!isDayMaster && (
+                    <p className="text-[10px] text-stone-400 mt-1 leading-tight">
+                      {TEN_GOD_DESC[pillar.ten_god]?.slice(0, 4)}
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* 十神分布 */}
+      {Object.keys(god_distribution).length > 0 && (
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
+          <h3 className="text-sm font-semibold text-stone-800 mb-4 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 bg-gradient-to-r from-[#B89B5E] to-[#D4656B] rounded-full" />
+            十神分布
+          </h3>
+          <div className="space-y-2">
+            {Object.entries(god_distribution)
+              .sort(([, a], [, b]) => b - a)
+              .map(([god, count]) => {
+                const colors = TEN_GOD_COLORS[god] || TEN_GOD_COLORS['比肩']
+                const percentage = (count / maxCount) * 100
+                const isDominant = dominant_gods.includes(god)
+                const isWeak = weak_gods.includes(god)
+
+                return (
+                  <div key={god} className="flex items-center gap-2">
+                    <span className={`text-xs font-medium w-8 ${colors.text}`}>{god}</span>
+                    <div className="flex-1 h-5 bg-stone-50 rounded-full overflow-hidden relative">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${percentage}%` }}
+                        transition={{ duration: 0.6, ease: 'easeOut' }}
+                        className={`h-full rounded-full ${colors.bg.replace('/10', '/40')}`}
+                      />
+                      <span className="absolute inset-0 flex items-center justify-center text-[10px] text-stone-600 font-medium">
+                        {count.toFixed(1)}
+                      </span>
+                    </div>
+                    {isDominant && (
+                      <span className="text-[10px] px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded-full">旺</span>
+                    )}
+                    {isWeak && (
+                      <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded-full">弱</span>
+                    )}
+                  </div>
+                )
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* 格局分析 */}
+      {analysis && (
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
+          <h3 className="text-sm font-semibold text-stone-800 mb-3 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 bg-gradient-to-r from-[#4A90C4] to-[#9B59B6] rounded-full" />
+            格局分析
+          </h3>
+          <p className="text-sm text-stone-600 leading-relaxed">{analysis}</p>
+        </div>
+      )}
+
+      {/* 藏干十神 */}
+      {hidden_gods && hidden_gods.length > 0 && (
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
+          <h3 className="text-sm font-semibold text-stone-800 mb-3 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 bg-gradient-to-r from-[#6B5B95] to-[#5DADE2] rounded-full" />
+            地支藏干
+          </h3>
+          <div className="grid grid-cols-4 gap-3">
+            {['year', 'month', 'day', 'hour'].map((pillarName) => {
+              const pillarGods = hidden_gods.filter(g => g.pillar === pillarName)
+              if (pillarGods.length === 0) return null
+
+              return (
+                <div key={pillarName} className="text-center">
+                  <p className="text-[10px] text-stone-500 mb-1.5">{PILLAR_NAMES[pillarName]}</p>
+                  <div className="space-y-1">
+                    {pillarGods.map((god, idx) => {
+                      const colors = TEN_GOD_COLORS[god.ten_god] || TEN_GOD_COLORS['比肩']
+                      return (
+                        <div
+                          key={idx}
+                          className={`text-xs px-2 py-1 rounded-lg ${colors.bg} ${colors.text} font-medium`}
+                        >
+                          {god.hidden_stem}·{god.ten_god}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { motion } from 'framer-motion'
 import { ChatMessage, RecommendItem } from '@/types'
 import { RecommendCard } from './RecommendCard'
-import { PosterGenerator } from './PosterGenerator'
+import { TravelPlanCard } from './TravelPlanCard'
+const PosterGenerator = lazy(() => import('./PosterGenerator').then(m => ({ default: m.PosterGenerator })))
 import { ImageLightbox } from './ImageLightbox'
 import { cn } from '@/lib/utils'
 import { Sparkles } from 'lucide-react'
@@ -129,6 +130,11 @@ export function ChatMessageItem({
           {isStreaming && message.content && <span className="inline-block w-0.5 h-4 bg-amber-500 ml-0.5 animate-pulse align-middle" />}
         </div>
 
+        {/* 多天行程规划卡片 */}
+        {message.metadata?.travelPlan && (
+          <TravelPlanCard data={message.metadata.travelPlan} />
+        )}
+
         {/* 推荐卡片 */}
         {message.metadata?.items && message.metadata.items.length > 0 && (
           <>
@@ -155,6 +161,7 @@ export function ChatMessageItem({
             </div>
 
             {/* 海报生成器 */}
+            <Suspense fallback={null}>
             <PosterGenerator
               isOpen={isPosterOpen}
               onClose={handleClosePoster}
@@ -170,6 +177,7 @@ export function ChatMessageItem({
               quote={message.content}
               username="用户"
             />
+            </Suspense>
           </>
         )}
       </div>

@@ -166,7 +166,7 @@ export function BaziCard({ onEdit }: BaziCardProps) {
       
       {/* 出生信息 */}
       {(user.birth_date || user.birth_time) && (
-        <div className="mt-3 pt-3 divider-subtle flex items-center gap-4 text-xs text-[#8A9F92]">
+        <div className="mt-3 pt-3 divider-subtle flex items-center gap-4 text-xs text-[#6B7F72]">
           {user.birth_date && (
             <span className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />

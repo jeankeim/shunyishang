@@ -63,4 +63,5 @@ class HealthResponse(BaseModel):
     """健康检查响应"""
     status: str = Field(..., description="状态：ok/error")
     db: str = Field(..., description="数据库状态：connected/disconnected")
+    cache: str = Field("disabled", description="缓存状态：connected/disconnected/disabled")
     env: str = Field(..., description="环境：development/production")

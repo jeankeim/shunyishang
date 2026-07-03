@@ -1,6 +1,10 @@
 """
-Upstash Redis 缓存服务
-使用 REST API 而非传统连接，适合 Serverless 环境
+[DEPRECATED] Upstash Redis 缓存服务
+
+此模块已被 apps/api/core/cache.py 的统一 RedisCache 替代。
+国内迁移后使用阿里云 Redis（传统 redis-py 协议），由 cache.py 自动处理。
+保留此文件仅为兼容旧测试代码，新代码请使用:
+    from apps.api.core.cache import cache
 """
 
 import os

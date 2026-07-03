@@ -9,14 +9,17 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from apps.api.core.config import settings
 from apps.api.core.database import DatabasePool, check_db_health
+from apps.api.core.cache import cache
 from apps.api.core.logging_config import init_logging, get_logger
 from apps.api.schemas.response import HealthResponse
-from apps.api.routers import recommend, bazi, weather, auth, wardrobe, poster
+from apps.api.routers import recommend, bazi, weather, auth, wardrobe, poster, diary, fortune, membership, travel, destiny, community, cultivation
+from apps.api.routers.push import router as push_router, payment_router
 
 # 初始化日志系统
 init_logging()
@@ -55,9 +58,16 @@ async def lifespan(app: FastAPI):
     # 注意：Embedding 模型已改用 DashScope API，无需预热
     # 之前加载本地 BGE-M3 模型会占用大量内存（~400MB），导致 OOM
     
+    # 启动推送调度器
+    from apps.api.services.push_scheduler import push_scheduler
+    await push_scheduler.start()
+    
     logger.info("应用启动完成")
     
     yield
+    
+    # 停止推送调度器
+    await push_scheduler.stop()
     
     # 关闭时清理连接池
     DatabasePool.close_pool()
@@ -83,6 +93,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# GZip 压缩中间件（压缩 >1KB 的响应，减少网络传输）
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
 
 # 请求日志中间件
 @app.middleware("http")
@@ -102,6 +115,15 @@ app.include_router(weather.router, prefix="/api/v1/weather", tags=["weather"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(wardrobe.router, prefix="/api/v1", tags=["wardrobe"])
 app.include_router(poster.router, tags=["poster"])
+app.include_router(diary.router, prefix="/api/v1", tags=["diary"])
+app.include_router(fortune.router, prefix="/api/v1", tags=["fortune"])
+app.include_router(membership.router, prefix="/api/v1", tags=["membership"])
+app.include_router(push_router, prefix="/api/v1", tags=["push"])
+app.include_router(payment_router, prefix="/api/v1", tags=["payments"])
+app.include_router(travel.router, prefix="/api/v1", tags=["travel"])
+app.include_router(destiny.router, prefix="/api/v1", tags=["destiny"])
+app.include_router(community.router, prefix="/api/v1", tags=["community"])
+app.include_router(cultivation.router, prefix="/api/v1", tags=["cultivation"])
 
 # 挂载静态文件服务（图片上传）
 UPLOAD_DIR = Path(__file__).parent.parent.parent / "data" / "uploads"
@@ -120,14 +142,18 @@ async def health_check():
     """
     健康检查接口
     
-    检查服务状态和数据库连接
+    检查服务状态、数据库连接和缓存连接
     """
     db_connected = check_db_health()
+    cache_connected = cache.check_health()
+    
+    cache_status = "connected" if cache_connected else ("disabled" if not cache.enabled else "disconnected")
     
     if db_connected:
         return HealthResponse(
             status="ok",
             db="connected",
+            cache=cache_status,
             env=settings.app_env
         )
     else:
@@ -138,6 +164,7 @@ async def health_check():
             detail=HealthResponse(
                 status="error",
                 db="disconnected",
+                cache=cache_status,
                 env=settings.app_env
             ).model_dump()
         )
@@ -152,8 +179,8 @@ async def debug_config():
     
     return {
         "app_env": settings.app_env,
-        "dashscope_api_key": settings.dashscope_api_key[:20] + "..." if settings.dashscope_api_key else "❌ 未加载",
+        "dashscope_api_key": "已配置" if settings.dashscope_api_key else "未加载",
         "qwen_model": settings.qwen_model,
-        "database_url": settings.database_url[:50] + "...",
+        "database_url": "已配置" if settings.database_url else "未配置",
         "cors_origins": settings.cors_origins_list
     }

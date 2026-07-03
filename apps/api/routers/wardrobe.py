@@ -28,7 +28,7 @@ from apps.api.schemas.wardrobe import (
 )
 from apps.api.services.ai_tagging_service import ai_tagging_service
 from apps.api.services.embedding_service import embedding_service, build_wardrobe_embedding_text
-from apps.api.services.r2_storage import get_r2_service
+from apps.api.services.storage import get_storage_service
 
 logger = logging.getLogger(__name__)
 
@@ -57,14 +57,14 @@ async def upload_wardrobe_image(
     current_user: dict = Depends(get_current_user)
 ):
     """
-    上传衣物图片到 Cloudflare R2
+    上传衣物图片到对象存储（OSS/R2）
     
     **源码位置**: `apps/api/routers/wardrobe.py:upload_wardrobe_image()`
     
     **核心逻辑**:
     1. 验证文件类型（JPG/PNG/WebP）和大小（≤5MB）
     2. 生成唯一文件名：{user_id}_{timestamp}_{uuid}_{filename}
-    3. 上传到 R2 存储桶：uploads/wardrobe/{user_id}/
+    3. 上传到对象存储：uploads/wardrobe/{user_id}/
     4. 返回完整的公共 URL
     
     **用途**: 用户添加衣物时上传图片，用于推荐结果展示
@@ -103,11 +103,11 @@ async def upload_wardrobe_image(
         original_filename = file.filename or "image.jpg"
         safe_filename = f"{user_id}_{timestamp}_{unique_id}_{original_filename}"
         
-        # 4. 上传到 R2
-        r2_service = get_r2_service()
+        # 4. 上传到对象存储
+        storage_service = get_storage_service()
         from io import BytesIO
         
-        image_url = r2_service.upload_file(
+        image_url = storage_service.upload_file(
             file_data=BytesIO(content),
             file_name=safe_filename,
             folder="uploads/wardrobe",
@@ -639,7 +639,7 @@ async def create_feedback(
     """
     创建推荐反馈
     
-    用户对推荐结果点赞/点踩
+    用户对推荐结果点赞/点踩，同时更新用户偏好学习
     """
     user_id = user.get("id")
     if not user_id:
@@ -670,5 +670,53 @@ async def create_feedback(
             cur.execute(query, params)
             row = cur.fetchone()
             conn.commit()
+
+    # 偏好学习：根据反馈更新用户偏好
+    try:
+        from apps.api.services.preference_service import preference_service
+        item_attrs = _get_item_attributes(request.item_id, request.item_code, request.item_source)
+        if item_attrs:
+            preference_service.update_preference(user_id, item_attrs, request.action)
+    except Exception as e:
+        logger.warning(f"[Feedback] 偏好学习失败: {e}")
     
     return FeedbackResponse(**dict(row))
+
+
+def _get_item_attributes(item_id, item_code, item_source) -> dict:
+    """获取物品属性用于偏好学习"""
+    try:
+        with DatabasePool.get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                if item_source == 'wardrobe' and item_id:
+                    cur.execute(
+                        "SELECT name, category, primary_element, attributes_detail FROM items WHERE id = %s",
+                        [item_id]
+                    )
+                elif item_code:
+                    cur.execute(
+                        "SELECT name, category, primary_element, attributes_detail FROM items WHERE item_code = %s",
+                        [item_code]
+                    )
+                else:
+                    return {}
+                row = cur.fetchone()
+        
+        if not row:
+            return {}
+        
+        attrs = dict(row)
+        # 从 attributes_detail 提取颜色
+        detail = attrs.get('attributes_detail', {})
+        if isinstance(detail, str):
+            import json
+            detail = json.loads(detail)
+        
+        return {
+            'color': detail.get('颜色', {}).get('主色', '') if isinstance(detail.get('颜色'), dict) else '',
+            'primary_element': attrs.get('primary_element', ''),
+            'category': attrs.get('category', ''),
+        }
+    except Exception as e:
+        logger.debug(f"[Feedback] 获取物品属性失败: {e}")
+        return {}

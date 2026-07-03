@@ -20,6 +20,7 @@ export interface RecommendItem {
   semantic_score?: number  // Task 05: 语义匹配分数
   wuxing_score?: number    // Task 05: 五行匹配分数
   scene_score?: number     // Task 05: 场景适配分数
+  preference_score?: number // Task 2.4: 偏好匹配分数
   color?: string
   reason?: string
   image_url?: string       // 高清原图 URL
@@ -37,6 +38,7 @@ export interface ChatMessageMetadata {
   elementScores?: Record<string, number>
   suggestedElements?: string[]
   scene?: string
+  travelPlan?: any  // 多天行程规划数据
 }
 
 export interface ChatMessage {
@@ -69,3 +71,151 @@ export type {
   User,
   BaziCalculateResponse,
 } from '@/lib/api'
+
+// ========== 日记相关类型 ==========
+
+export interface DiaryOutfitItem {
+  id: number
+  diary_id: number
+  item_source: 'wardrobe' | 'seed'
+  wardrobe_item_id?: number
+  seed_item_code?: string
+  category?: string
+  notes?: string
+  name?: string
+  image_url?: string
+  primary_element?: string
+  created_at: string
+}
+
+export interface OutfitDiary {
+  id: number
+  user_id: number
+  diary_date: string
+  mood?: 'happy' | 'neutral' | 'sad' | 'excited' | 'calm'
+  weather_snapshot?: Record<string, any>
+  occasion?: string
+  notes?: string
+  rating?: number
+  ai_review?: {
+    score?: number
+    comment?: string
+    suggestions?: string[]
+    wuxing_analysis?: Record<string, any>
+  }
+  image_urls?: string[]
+  items: DiaryOutfitItem[]
+  created_at: string
+  updated_at: string
+}
+
+export interface DiaryCalendarEntry {
+  date: string
+  mood?: string
+  rating?: number
+  has_items: boolean
+}
+
+export interface DiaryStats {
+  total_diaries: number
+  avg_rating?: number
+  mood_distribution: Record<string, number>
+  streak_days: number
+  total_items: number
+}
+
+// ========== 运势相关类型 ==========
+
+export interface FortuneScores {
+  career: number
+  wealth: number
+  love: number
+  health: number
+  study: number
+}
+
+export interface LuckyElements {
+  colors: string[]
+  materials: string[]
+  directions: string[]
+  elements: string[]
+}
+
+export interface DailyFortune {
+  id: number
+  user_id: number
+  fortune_date: string
+  scores: FortuneScores
+  overall_score: number
+  advice_text?: string
+  lucky_elements: LuckyElements
+  outfit_suggestion?: string
+  bazi_snapshot?: Record<string, any>
+  created_at: string
+}
+
+// ========== 会员相关类型 ==========
+
+export interface MembershipStatus {
+  plan: 'free' | 'monthly' | 'yearly'
+  status: 'active' | 'cancelled' | 'expired' | 'suspended'
+  started_at?: string
+  expires_at?: string
+  auto_renew: boolean
+  days_remaining?: number
+}
+
+export interface PlanInfo {
+  name: string
+  plan_key: string
+  price_monthly: number
+  price_yearly: number
+  features: string[]
+  limits: Record<string, any>
+}
+
+export interface SubscribeRequest {
+  plan: 'monthly' | 'yearly'
+  payment_method: 'wechat' | 'alipay' | 'mock'
+}
+
+export interface SubscribeResponse {
+  subscription_id: number
+  status: string
+  payment_url?: string
+}
+
+export interface PushSettings {
+  enabled: boolean
+  fortune_push: boolean
+  fortune_push_time: string
+  diary_reminder: boolean
+  diary_reminder_time: string
+  marketing: boolean
+  vibrate: boolean
+}
+
+export interface PushNotification {
+  id: number
+  type: string
+  title: string
+  body?: string
+  data: Record<string, any>
+  sent_at: string
+  read_at?: string
+}
+
+export interface PushHistoryResponse {
+  notifications: PushNotification[]
+  total: number
+  page: number
+  size: number
+}
+
+export interface QuotaInfo {
+  feature: string
+  allowed: boolean
+  used: number
+  limit?: number
+  plan_required?: string
+}

@@ -7,10 +7,12 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 import httpx
+import logging
 
 from apps.api.core.config import settings
 from apps.api.core.cache import cache
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -143,7 +145,7 @@ async def get_weather(
     cache_key = f"weather:{city}"
     cached = await cache.get(cache_key)
     if cached:
-        print(f"[Cache] 天气缓存命中: {city}")
+        logger.info(f"[Cache] 天气缓存命中: {city}")
         return WeatherResponse(**cached)
     
     # 检查是否有天气API配置
@@ -151,10 +153,10 @@ async def get_weather(
     
     if not weather_api_key:
         # 未配置API Key，使用模拟数据
-        print("[Weather] 未配置天气API Key，使用模拟数据")
+        logger.warning("[Weather] 未配置天气API Key，使用模拟数据")
         use_mock_data = True
     else:
-        print(f"[Weather] 尝试使用API Key: {weather_api_key[:8]}...")
+        logger.info("[Weather] 天气API Key已配置，使用真实数据")
         use_mock_data = False
     
     if use_mock_data:
@@ -186,7 +188,7 @@ async def get_weather(
     
     # 调用真实天气API
     try:
-        print(f"[API] 调用和风天气API: {city}")
+        logger.info(f"[API] 调用和风天气API: {city}")
         async with httpx.AsyncClient(timeout=10.0) as client:
             # 使用自定义API Host和官方认证方式
             api_host = "nh6pg8qvv4.re.qweatherapi.com"
@@ -199,7 +201,7 @@ async def get_weather(
             city_id = CITY_ID_MAP.get(city)
             if not city_id:
                 # 如果城市不在映射表中，使用模拟数据
-                print(f"[API] 城市 {city} 不在支持列表中，使用模拟数据")
+                logger.warning(f"[API] 城市 {city} 不在支持列表中，使用模拟数据")
                 raise Exception("城市不在支持列表中")
             
             weather_url = f"https://{api_host}/v7/weather/now"
@@ -212,7 +214,7 @@ async def get_weather(
             
             if weather_data.get("code") != "200":
                 # 如果城市名称失败，尝试使用模拟数据
-                print(f"[API] 天气API返回错误: {weather_data.get('code')}, 使用模拟数据")
+                logger.warning(f"[API] 天气API返回错误: {weather_data.get('code')}, 使用模拟数据")
                 raise Exception("API调用失败，使用模拟数据")
             
             now = weather_data["now"]
@@ -238,12 +240,12 @@ async def get_weather(
             return result
     
     except httpx.TimeoutException:
-        print(f"[API] 天气API超时，使用模拟数据")
+        logger.warning("[API] 天气API超时，使用模拟数据")
     except Exception as e:
-        print(f"[API] 天气API异常: {e}，使用模拟数据")
+        logger.warning(f"[API] 天气API异常: {e}，使用模拟数据")
     
     # API调用失败，返回模拟数据
-    print(f"[Mock] 使用模拟天气数据: {city}")
+    logger.info(f"[Mock] 使用模拟天气数据: {city}")
     mock_data = {
         "北京": ("晴", 22, 45, "南风2级"),
         "上海": ("多云", 25, 60, "东南风3级"),

@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { RecommendItem } from '@/types'
 import { submitFeedback } from '@/lib/api'
 import { getWuxingConfig } from '@/lib/wuxing-config'
+import { getImageUrl } from '@/lib/image'
 
 interface RecommendCardProps {
   item: RecommendItem
@@ -20,33 +21,6 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
   const [imageError, setImageError] = useState(false)
   const [showDetails, setShowDetails] = useState(false)  // 新增：详情展开状态
   const config = getWuxingConfig(item.primary_element)
-
-  // 构建完整的图片 URL，并对特殊字符（空格等）进行编码
-  const getImageUrl = (url: string | undefined) => {
-    if (!url) return null
-    
-    // 如果已经是完整 URL（http/https），直接返回
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      return url
-    }
-    
-    // 公共库图片（/images/seed/...）直接使用相对路径，前端会自动处理
-    if (url.startsWith('/images/')) {
-      return url
-    }
-    
-    // 用户上传的图片（/uploads/...）需要拼接后端 baseURL
-    if (url.startsWith('/uploads/')) {
-      const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      // 使用 encodeURI 编码整个 URL，处理空格等特殊字符
-      const encodedPath = encodeURI(url)
-      return `${baseURL}${encodedPath}`
-    }
-    
-    // 其他情况，尝试拼接 baseURL
-    const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-    return `${baseURL}${url}`
-  }
 
   const fullImageUrl = getImageUrl(item.image_url)
   const thumbnailUrl = item.thumbnail_url ? getImageUrl(item.thumbnail_url) : null
@@ -262,6 +236,26 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
                   </div>
                   <span className="text-stone-600 font-medium w-10 text-right">
                     {(item.scene_score * 100).toFixed(0)}%
+                  </span>
+                </div>
+              )}
+
+              {/* 偏好匹配（如果有偏好分数且不是默认中性值） */}
+              {item.preference_score !== undefined && item.preference_score !== 0.5 && (
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-stone-500 w-16">偏好匹配</span>
+                  <div className="flex-1 h-1.5 bg-stone-200 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full transition-all ${
+                        item.preference_score > 0.5 
+                          ? 'bg-gradient-to-r from-emerald-400 to-emerald-600' 
+                          : 'bg-gradient-to-r from-red-300 to-red-500'
+                      }`}
+                      style={{ width: `${item.preference_score * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-stone-600 font-medium w-10 text-right">
+                    {(item.preference_score * 100).toFixed(0)}%
                   </span>
                 </div>
               )}

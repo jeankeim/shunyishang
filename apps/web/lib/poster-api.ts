@@ -3,7 +3,7 @@
  * 调用后端 Pillow 服务生成高质量海报
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
 
 export interface PosterGenerateParams {
   layout: 'simple' | 'wuxing' | 'card';
@@ -26,7 +26,7 @@ export interface PosterGenerateParams {
  */
 export async function generateAndDownloadPoster(params: PosterGenerateParams): Promise<void> {
   try {
-    const response = await fetch(`${API_BASE}/api/poster/generate`, {
+    const response = await fetch(`${API_BASE}/api/v1/poster/generate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -65,7 +65,7 @@ export async function generatePosterBase64(params: PosterGenerateParams): Promis
   size: number;
 }> {
   try {
-    const response = await fetch(`${API_BASE}/api/poster/generate-base64`, {
+    const response = await fetch(`${API_BASE}/api/v1/poster/generate-base64`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

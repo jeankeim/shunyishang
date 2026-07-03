@@ -225,9 +225,11 @@ class WardrobeClient:
         # 天气状况过滤
         if "雨" in weather_desc or "雪" in weather_desc:
             # 雨雪天：排除不宜沾水的衣物（如丝绸）
+            # 注意：%% 转义是 psycopg2 要求，当 SQL 使用命名参数 %(name)s 时，
+            # 字面量 % 必须写成 %%，否则 psycopg2 会将 %丝绸% 误判为参数占位符
             conditions.append(
                 "(attributes_detail::jsonb->>'material' IS NULL OR "
-                "attributes_detail::jsonb->>'material' NOT LIKE '%丝绸%')"
+                "attributes_detail::jsonb->>'material' NOT LIKE '%%丝绸%%')"
             )
         
         if conditions:
@@ -252,18 +254,21 @@ class WardrobeClient:
                 logger.debug(f"[衣橱缓存] 命中: user_id={user_id}, is_empty={cached_result}")
                 return cached_result
         
-        # 缓存未命中，查询数据库
+        # 缓存未命中，查询数据库（使用 EXISTS 优化，避免 COUNT(*) 全表扫描）
         query = """
-            SELECT COUNT(*) FROM user_wardrobe
-            WHERE user_id = %s AND is_active = TRUE
+            SELECT EXISTS(
+                SELECT 1 FROM user_wardrobe
+                WHERE user_id = %s AND is_active = TRUE
+                LIMIT 1
+            )
         """
         
         try:
             with DatabasePool.get_connection() as conn:
                 with conn.cursor() as cur:
                     cur.execute(query, (user_id,))
-                    count = cur.fetchone()[0]
-                    is_empty = count == 0
+                    has_items = cur.fetchone()[0]
+                    is_empty = not has_items
                     
                     # 更新缓存
                     self._empty_cache[user_id] = (is_empty, now)

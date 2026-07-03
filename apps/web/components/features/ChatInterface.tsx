@@ -164,6 +164,16 @@ export function ChatInterface({ scene, weatherElement, weatherInfo }: ChatInterf
     '创意行业穿搭建议',
     '金融行业穿搭风格',
     
+    // ========== ✈️ 旅行/出差场景（多天规划）==========
+    '去北京出差3天穿什么',
+    '去三亚度假5天穿搭推荐',
+    '去上海出差2天带什么衣服',
+    '去成都旅行4天穿搭建议',
+    '去哈尔滨旅游3天怎么穿',
+    '去深圳出差一周穿搭规划',
+    '去大理度假5天带什么衣服',
+    '去西安旅行3天穿搭推荐',
+    
     // ========== ❤️ 复杂场景（24个）- 多维度综合推荐 ==========
     // 八字 + 天气 + 场景
     '明天要去见客户，气温15度多云，我八字喜用水，想要专业又有亲和力的搭配',
@@ -263,28 +273,16 @@ export function ChatInterface({ scene, weatherElement, weatherInfo }: ChatInterf
     // 使用传入的 bazi 参数，如果没有传入则使用 store 中的 userBazi
     const effectiveBazi = bazi ?? userBazi
     
-    // 调试：打印八字信息
-    console.log('[推荐请求] bazi 参数:', bazi)
-    console.log('[推荐请求] userBazi (store):', userBazi)
-    console.log('[推荐请求] effectiveBazi:', effectiveBazi)
-
     // 流式请求
     // 优先从用户资料获取性别，其次从八字输入获取
     const userGender = (user?.gender as '男' | '女' | undefined) || effectiveBazi?.gender
-    
-    // 调试日志：打印 gender 信息
-    console.log('[推荐请求] user?.gender:', user?.gender)
-    console.log('[推荐请求] effectiveBazi?.gender:', effectiveBazi?.gender)
-    console.log('[推荐请求] 最终使用的 userGender:', userGender)
     
     // 未登录时强制使用 public 模式
     const effectiveRetrievalMode = isAuthenticated ? retrievalMode : 'public'
     
     // 获取用户ID（衣橱模式需要）
     const userId = user?.id
-    console.log('[推荐请求] userId:', userId, 'retrievalMode:', effectiveRetrievalMode, 'isAuthenticated:', isAuthenticated)
-    
-    // 调试：打印完整请求参数
+    // 构建请求参数
     const requestParams = {
       query: content,
       scene: scene || undefined,
@@ -303,17 +301,10 @@ export function ChatInterface({ scene, weatherElement, weatherInfo }: ChatInterf
       retrieval_mode: effectiveRetrievalMode,
       user_id: userId,
     }
-    console.log('[推荐请求] 完整请求参数:', JSON.stringify(requestParams, null, 2))
-    console.log('[推荐请求] 准备调用 streamRecommendation...')
-    
     try {
-      // 调试：记录开始时间
       const startTime = Date.now()
-      console.log('[推荐请求] 开始时间:', new Date(startTime).toISOString())
       
       for await (const event of streamRecommendation(requestParams)) {
-        // 调试：打印收到的事件类型
-        console.log('[推荐请求] 收到事件:', event.type, event.type === 'token' ? '(流式)' : '')
         switch (event.type) {
           case 'analysis':
             updateMessage(convId, aiMessageId, {
@@ -341,6 +332,11 @@ export function ChatInterface({ scene, weatherElement, weatherInfo }: ChatInterf
               }
               setRadarData(radarData)
             }
+            break
+
+          case 'travel_plan':
+            // 保存多天行程规划数据到消息 metadata
+            mergeMessageMetadata(convId, aiMessageId, { travelPlan: event.data })
             break
 
           case 'items':
@@ -399,7 +395,7 @@ export function ChatInterface({ scene, weatherElement, weatherInfo }: ChatInterf
             break
         }
       }
-      console.log('[推荐请求] 流式处理完成，耗时:', Date.now() - startTime, 'ms')
+      // 流式处理完成
     } catch (error) {
       console.error('[推荐请求] 异常:', error)
       updateMessage(convId, aiMessageId, {
@@ -474,13 +470,13 @@ export function ChatInterface({ scene, weatherElement, weatherInfo }: ChatInterf
             )}
             
             {/* 推荐范围选择器 - 放到空状态中 */}
-            <div className="w-full max-w-md mb-6">
+            <div className="w-full max-w-lg mb-6">
               <RetrievalModeToggle isAuthenticated={isAuthenticated} />
             </div>
                         
             <div className="flex flex-col items-center gap-4">
-              <div className="flex flex-wrap justify-center gap-3 max-w-lg">
-                <AnimatePresence mode="wait">
+              <div className="flex flex-wrap justify-center gap-3 max-w-2xl">
+                <AnimatePresence mode="popLayout">
                   {currentPrompts.map((prompt, index) => (
                     <motion.button
                       key={prompt}
@@ -512,7 +508,7 @@ export function ChatInterface({ scene, weatherElement, weatherInfo }: ChatInterf
             </div>
           </div>
         ) : (
-          <div className="max-w-3xl mx-auto py-4 space-y-4 px-4">
+          <div className="max-w-5xl mx-auto py-4 space-y-4 px-4">
             {messages.map((message) => (
               <ChatMessageItem 
                 key={message.id} 

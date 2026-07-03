@@ -6,6 +6,7 @@
 import json
 import asyncio
 import hashlib
+import logging
 from typing import AsyncGenerator
 from datetime import datetime
 
@@ -16,7 +17,9 @@ from apps.api.schemas.request import RecommendRequest
 from apps.api.schemas.response import RecommendResponse
 from packages.ai_agents.graph import run_agent_stream
 from apps.api.core.config import settings
+from apps.api.core.cache import cache
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -51,27 +54,15 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
         cache_key_raw = "|".join(cache_key_parts)
         cache_key = f"recommend:{hashlib.md5(cache_key_raw.encode()).hexdigest()}"
         
-        # 尝试从缓存获取（同步方式，避免事件循环冲突）
+        # 尝试从缓存获取（使用统一的 cache.py 异步接口）
         cached_result = None
-        if settings.redis_enabled and settings.upstash_redis_rest_url:
+        if settings.redis_enabled:
             try:
-                import requests
-                # Upstash REST API GET 方法
-                response = requests.post(
-                    settings.upstash_redis_rest_url,
-                    headers={"Authorization": f"Bearer {settings.upstash_redis_rest_token}"},
-                    json=["GET", cache_key],
-                    timeout=1.0
-                )
-                if response.status_code == 200:
-                    data = response.json()
-                    # Upstash 返回格式: {"result": "JSON字符串"} 或 {"result": null}
-                    result_str = data.get("result")
-                    if result_str is not None:
-                        cached_result = json.loads(result_str)
-                        print(f"[Cache] ✅ 推荐缓存命中: {cache_key}")
+                cached_result = await cache.get(cache_key)
+                if cached_result:
+                    logger.info(f"[Cache] 推荐缓存命中: {cache_key}")
             except Exception as e:
-                print(f"[Cache] 缓存读取失败: {e}")
+                logger.error(f"[Cache] 缓存读取失败: {e}")
         
         # 如果缓存命中，直接返回缓存结果
         if cached_result:
@@ -89,7 +80,7 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
             yield f"data: {json.dumps({'type': 'done', 'data': None}, ensure_ascii=False)}\n\n".encode("utf-8")
             return
         
-        print(f"[Cache] ❌ 推荐缓存未命中，开始计算: {cache_key}")
+        logger.info(f"[Cache] 推荐缓存未命中，开始计算: {cache_key}")
         
         # 准备输入参数
         bazi_input = None
@@ -130,6 +121,9 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
             user_id=request.user_id,
             retrieval_mode=request.retrieval_mode,
             top_k=request.top_k,
+            travel_days=request.travel_days,
+            destination=request.destination,
+            luggage_size=request.luggage_size,
         ):
             # 收集结果用于缓存
             if event.get("type") == "analysis":
@@ -156,27 +150,11 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
                     "reason": "".join(collected_reason),
                     "timestamp": datetime.now().isoformat()
                 }
-                serialized = json.dumps(cache_data, ensure_ascii=False, default=str)
-                
-                # 写入缓存（15分钟，优化：从 5 分钟增加到 15 分钟，提升命中率）
-                import requests
-                # Upstash REST API SET 方法
-                requests.post(
-                    settings.upstash_redis_rest_url,
-                    headers={"Authorization": f"Bearer {settings.upstash_redis_rest_token}"},
-                    json=["SET", cache_key, serialized],
-                    timeout=1.0
-                )
-                # 设置过期时间
-                requests.post(
-                    settings.upstash_redis_rest_url,
-                    headers={"Authorization": f"Bearer {settings.upstash_redis_rest_token}"},
-                    json=["EXPIRE", cache_key, "900"],  # 15分钟 = 900秒
-                    timeout=1.0
-                )
-                print(f"[Cache] 💾 推荐结果已缓存: {cache_key}")
+                # 使用统一的 cache.py 异步接口写入缓存（15分钟）
+                await cache.set(cache_key, cache_data, ttl=900)
+                logger.info(f"[Cache] 推荐结果已缓存: {cache_key}")
             except Exception as e:
-                print(f"[Cache] 缓存写入失败: {e}")
+                logger.error(f"[Cache] 缓存写入失败: {e}")
                 
     except Exception as e:
         # 错误处理

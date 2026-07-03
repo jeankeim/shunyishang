@@ -103,6 +103,33 @@ SCENE_MAPPING: Dict[str, Dict] = {
         "preferred_thickness": ["适中", "中厚"],
         "temperature_range": {"min": 10, "max": 25},
     },
+    "出差": {
+        "description": "商务出差，需要正式且轻便的穿搭",
+        "preferred_categories": ["上装", "下装", "鞋履", "外套"],
+        "excluded_categories": [],
+        "preferred_functionality": ["抗皱", "轻便", "百搭"],
+        "excluded_keywords": ["睡衣", "泳衣", "拖鞋", "礼服"],
+        "preferred_thickness": ["轻薄", "适中"],
+        "temperature_range": {"min": 5, "max": 30},
+    },
+    "度假": {
+        "description": "海边或山区度假，轻松休闲",
+        "preferred_categories": ["上装", "下装", "鞋履", "裙装", "配饰"],
+        "excluded_categories": [],
+        "preferred_functionality": ["防晒", "速干", "舒适", "休闲"],
+        "excluded_keywords": ["西装", "礼服", "正装"],
+        "preferred_thickness": ["轻薄", "极薄"],
+        "temperature_range": {"min": 15, "max": 35},
+    },
+    "户外探险": {
+        "description": "徒步、登山、露营等户外探险活动",
+        "preferred_categories": ["上装", "下装", "鞋履", "外套"],
+        "excluded_categories": [],
+        "preferred_functionality": ["防水", "耐磨", "保暖", "透气"],
+        "excluded_keywords": ["睡衣", "礼服", "高跟鞋", "拖鞋", "泳衣"],
+        "preferred_thickness": ["适中", "中厚"],
+        "temperature_range": {"min": -10, "max": 30},
+    },
 }
 
 
@@ -136,6 +163,35 @@ SUB_SCENE_RULES: Dict[str, Dict] = {
         "extra_functionality_bonus": {"轻便": 0.15, "抗皱": 0.15},
         "extra_excluded_keywords": ["厚重", "加厚"],
         "description": "商务出差，需要正式且轻便",
+    },
+    "海边度假": {
+        "parent_scene": "度假",
+        "extra_functionality_bonus": {"防晒": 0.2, "速干": 0.15},
+        "extra_excluded_keywords": ["羽绒服", "棉袄", "大衣", "毛衣"],
+        "description": "海边度假，防晒速干为加分项",
+    },
+    "温泉旅行": {
+        "parent_scene": "度假",
+        "extra_functionality_bonus": {"舒适": 0.2, "柔软": 0.15},
+        "description": "温泉旅行，舒适柔软为加分项",
+    },
+    "徒步登山": {
+        "parent_scene": "户外探险",
+        "extra_functionality_bonus": {"防水": 0.15, "耐磨": 0.15, "保暖": 0.1},
+        "extra_excluded_keywords": ["高跟鞋", "拖鞋", "裙装"],
+        "description": "徒步登山，需要防水耐磨保暖",
+    },
+    "多天出差": {
+        "parent_scene": "出差",
+        "extra_functionality_bonus": {"抗皱": 0.15, "百搭": 0.15},
+        "extra_excluded_keywords": ["厚重", "加厚", "羽绒服", "棉袄"],
+        "description": "多天出差，抗皱百搭，排除厚重衣物",
+    },
+    "滑雪旅行": {
+        "parent_scene": "户外探险",
+        "extra_functionality_bonus": {"保暖": 0.2, "防水": 0.15},
+        "extra_excluded_keywords": ["短袖", "短裤", "凉鞋", "拖鞋"],
+        "description": "滑雪旅行，保暖防水为加分项",
     },
 }
 
@@ -271,6 +327,11 @@ def calculate_scene_match_score(item: Dict, scene: str, sub_scene: Optional[str]
     if sub_scene:
         sub_rules = get_sub_scene_rules(sub_scene)
         if sub_rules:
+            # 子场景额外类别加分
+            if "preferred_categories" in sub_rules:
+                if category in sub_rules["preferred_categories"]:
+                    current_bonus += 0.1
+
             # 额外功能加分
             for func, bonus in sub_rules.get("extra_functionality_bonus", {}).items():
                 # 处理 functionality 可能是列表或字典的情况
