@@ -16,9 +16,10 @@ from openai import OpenAI
 logger = logging.getLogger(__name__)
 
 # 报告定价（分）
+# 个人备案版：所有报告免费，价格设为 0
 REPORT_PRICES = {
-    "annual_fortune": 9900,    # 年度运势详批 99 元
-    "love_fortune": 3900,      # 爱情运势 39 元
+    "annual_fortune": 0,    # 年度运势详批 - 免费
+    "love_fortune": 0,      # 爱情运势 - 免费
 }
 
 _MONTH_NAMES = [
@@ -112,7 +113,7 @@ class FortuneReportService:
             "report_type": "annual_fortune",
             "year": year,
             "content": report_content,
-            "status": "generated",
+            "status": "paid",
         }
 
     def get_report(self, user_id: int, report_id: int) -> Optional[Dict[str, Any]]:

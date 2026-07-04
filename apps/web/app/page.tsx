@@ -25,7 +25,6 @@ const WardrobePage = lazy(() => import('./wardrobe/page'))
 const DiaryPage = lazy(() => import('./diary/page'))
 const FortunePage = lazy(() => import('./fortune/page'))
 const DestinyPage = lazy(() => import('./destiny/page'))
-const MembershipPage = lazy(() => import('./membership/page'))
 const CommunityPage = lazy(() => import('./community/page'))
 const CultivationPage = lazy(() => import('./cultivation/page'))
 const AuthModal = lazy(() => import('@/components/features/AuthModal').then(m => ({ default: m.AuthModal })))
@@ -37,7 +36,7 @@ export default function Home() {
   const [sceneElement, setSceneElement] = useState('')
     const [weatherElement, setWeatherElement] = useState('')
   const [weatherInfo, setWeatherInfo] = useState<any>(null)  // 新增：保存完整天气信息
-  const [activeTab, setActiveTab] = useState<'chat' | 'wardrobe' | 'tryon' | 'profile' | 'diary' | 'fortune' | 'destiny' | 'membership' | 'community' | 'cultivation'>('chat')
+  const [activeTab, setActiveTab] = useState<'chat' | 'wardrobe' | 'tryon' | 'profile' | 'diary' | 'fortune' | 'destiny' | 'community' | 'cultivation'>('chat')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [showCheckIn, setShowCheckIn] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
@@ -102,8 +101,6 @@ export default function Home() {
         setActiveTab('fortune')
       } else if (window.location.hash === '#destiny') {
         setActiveTab('destiny')
-      } else if (window.location.hash === '#membership') {
-        setActiveTab('membership')
       } else if (window.location.hash === '#community') {
         setActiveTab('community')
       } else if (window.location.hash === '#cultivation') {
@@ -657,23 +654,6 @@ export default function Home() {
                   </div>
                 }>
                   <DestinyPage />
-                </Suspense>
-              </motion.div>
-            )}
-            {activeTab === 'membership' && (
-              <motion.div
-                key="membership"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-              >
-                <Suspense fallback={
-                  <div className="flex items-center justify-center h-64">
-                    <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#3DA35D] border-t-transparent"></div>
-                  </div>
-                }>
-                  <MembershipPage />
                 </Suspense>
               </motion.div>
             )}

@@ -369,14 +369,14 @@ async def get_daily_ritual(user: dict = Depends(get_current_user)):
     return result
 
 
-# ========== 付费运势报告 API ==========
+# ========== 运势报告 API（个人备案版：免费） ==========
 
 @router.post("/reports/annual")
 async def generate_annual_report(
     year: int = Query(None, description="报告年份，默认当前年+1"),
     user: dict = Depends(get_current_user),
 ):
-    """生成年度运势详批报告（付费 99 元）"""
+    """生成年度运势详批报告（个人备案版：免费）"""
     user_id = user.get("id")
     if not user_id:
         raise HTTPException(status_code=401, detail="用户未登录")
@@ -418,15 +418,8 @@ async def get_report(report_id: int, user: dict = Depends(get_current_user)):
     return report
 
 
-@router.post("/reports/{report_id}/purchase")
-async def purchase_report(report_id: int, user: dict = Depends(get_current_user)):
-    """购买运势报告（Mock 支付，待企业备案后接入微信支付）"""
-    user_id = user.get("id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="用户未登录")
-
-    from apps.api.services.fortune_report_service import fortune_report_service
-    result = fortune_report_service.purchase_report(user_id, report_id)
-    if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    return result
+# 个人备案版：购买端点已禁用，报告生成后自动可用
+# @router.post("/reports/{report_id}/purchase")
+# async def purchase_report(report_id: int, user: dict = Depends(get_current_user)):
+#     """购买运势报告（个人备案版：已禁用）"""
+#     ...

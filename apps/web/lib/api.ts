@@ -884,82 +884,82 @@ export async function getAdvancedBazi(): Promise<any> {
   return response.json()
 }
 
-// ========== 会员接口 ==========
+// ========== 会员接口（个人备案版：已禁用） ==========
 
-export async function getMembershipStatus(): Promise<any> {
-  const response = await fetch(`${getAPIBase()}/api/v1/membership/status`, {
-    headers: getAuthHeaders(),
-  })
-  if (!response.ok) throw new Error('获取会员状态失败')
-  return response.json()
-}
-
-export async function getPlans(): Promise<any> {
-  const response = await fetch(`${getAPIBase()}/api/v1/membership/plans`, {
-    headers: getAuthHeaders(),
-  })
-  if (!response.ok) throw new Error('获取套餐列表失败')
-  return response.json()
-}
-
-export async function subscribe(data: { plan: string; payment_method: string }): Promise<any> {
-  const response = await fetch(`${getAPIBase()}/api/v1/membership/subscribe`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-    body: JSON.stringify(data),
-  })
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.detail || '订阅失败')
-  }
-  return response.json()
-}
-
-export async function cancelSubscription(subscriptionId: number): Promise<any> {
-  const response = await fetch(`${getAPIBase()}/api/v1/membership/cancel?subscription_id=${subscriptionId}`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-  })
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.detail || '取消订阅失败')
-  }
-  return response.json()
-}
-
-export async function upgradeMembership(data: { new_plan: string }): Promise<any> {
-  const response = await fetch(`${getAPIBase()}/api/v1/membership/upgrade`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-    body: JSON.stringify(data),
-  })
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.detail || '升级失败')
-  }
-  return response.json()
-}
-
-export async function renewMembership(data: { payment_method: string }): Promise<any> {
-  const response = await fetch(`${getAPIBase()}/api/v1/membership/renew`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-    body: JSON.stringify(data),
-  })
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.detail || '续费失败')
-  }
-  return response.json()
-}
-
-export async function getQuota(feature: string): Promise<any> {
-  const response = await fetch(`${getAPIBase()}/api/v1/membership/quota/${feature}`, {
-    headers: getAuthHeaders(),
-  })
-  if (!response.ok) throw new Error('获取配额失败')
-  return response.json()
-}
+// export async function getMembershipStatus(): Promise<any> {
+//   const response = await fetch(`${getAPIBase()}/api/v1/membership/status`, {
+//     headers: getAuthHeaders(),
+//   })
+//   if (!response.ok) throw new Error('获取会员状态失败')
+//   return response.json()
+// }
+//
+// export async function getPlans(): Promise<any> {
+//   const response = await fetch(`${getAPIBase()}/api/v1/membership/plans`, {
+//     headers: getAuthHeaders(),
+//   })
+//   if (!response.ok) throw new Error('获取套餐列表失败')
+//   return response.json()
+// }
+//
+// export async function subscribe(data: { plan: string; payment_method: string }): Promise<any> {
+//   const response = await fetch(`${getAPIBase()}/api/v1/membership/subscribe`, {
+//     method: 'POST',
+//     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+//     body: JSON.stringify(data),
+//   })
+//   if (!response.ok) {
+//     const error = await response.json()
+//     throw new Error(error.detail || '订阅失败')
+//   }
+//   return response.json()
+// }
+//
+// export async function cancelSubscription(subscriptionId: number): Promise<any> {
+//   const response = await fetch(`${getAPIBase()}/api/v1/membership/cancel?subscription_id=${subscriptionId}`, {
+//     method: 'POST',
+//     headers: getAuthHeaders(),
+//   })
+//   if (!response.ok) {
+//     const error = await response.json()
+//     throw new Error(error.detail || '取消订阅失败')
+//   }
+//   return response.json()
+// }
+//
+// export async function upgradeMembership(data: { new_plan: string }): Promise<any> {
+//   const response = await fetch(`${getAPIBase()}/api/v1/membership/upgrade`, {
+//     method: 'POST',
+//     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+//     body: JSON.stringify(data),
+//   })
+//   if (!response.ok) {
+//     const error = await response.json()
+//     throw new Error(error.detail || '升级失败')
+//   }
+//   return response.json()
+// }
+//
+// export async function renewMembership(data: { payment_method: string }): Promise<any> {
+//   const response = await fetch(`${getAPIBase()}/api/v1/membership/renew`, {
+//     method: 'POST',
+//     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+//     body: JSON.stringify(data),
+//   })
+//   if (!response.ok) {
+//     const error = await response.json()
+//     throw new Error(error.detail || '续费失败')
+//   }
+//   return response.json()
+// }
+//
+// export async function getQuota(feature: string): Promise<any> {
+//   const response = await fetch(`${getAPIBase()}/api/v1/membership/quota/${feature}`, {
+//     headers: getAuthHeaders(),
+//   })
+//   if (!response.ok) throw new Error('获取配额失败')
+//   return response.json()
+// }
 
 // ========== 推送接口 ==========
 

@@ -3,13 +3,14 @@
  */
 import { create } from 'zustand'
 import type { MembershipStatus, PlanInfo, PushSettings, PushNotification } from '@/types'
+// 个人备案版：会员 API 已禁用，保留推送相关功能
 import {
-  getMembershipStatus,
-  getPlans,
-  subscribe as apiSubscribe,
-  cancelSubscription as apiCancelSubscription,
-  upgradeMembership as apiUpgrade,
-  renewMembership as apiRenew,
+  // getMembershipStatus,   // 已禁用
+  // getPlans,              // 已禁用
+  // subscribe as apiSubscribe,           // 已禁用
+  // cancelSubscription as apiCancelSubscription,  // 已禁用
+  // upgradeMembership as apiUpgrade,     // 已禁用
+  // renewMembership as apiRenew,         // 已禁用
   getPushSettings,
   updatePushSettings as apiUpdatePushSettings,
   getPushHistory,
@@ -50,69 +51,27 @@ export const useMembershipStore = create<MembershipState>()((set, get) => ({
   error: null,
 
   fetchStatus: async () => {
-    try {
-      const data = await getMembershipStatus()
-      set({ status: data })
-    } catch (error) {
-      set({ error: error instanceof Error ? error.message : '获取会员状态失败' })
-    }
+    // 个人备案版：会员功能已禁用
   },
 
   fetchPlans: async () => {
-    try {
-      const data = await getPlans()
-      set({ plans: data.plans || [] })
-    } catch (error) {
-      set({ error: error instanceof Error ? error.message : '获取套餐失败' })
-    }
+    // 个人备案版：会员功能已禁用
   },
 
-  subscribe: async (plan: string, paymentMethod: string) => {
-    set({ isLoading: true, error: null })
-    try {
-      await apiSubscribe({ plan, payment_method: paymentMethod })
-      await get().fetchStatus()
-      set({ isLoading: false })
-    } catch (error) {
-      set({ error: error instanceof Error ? error.message : '订阅失败', isLoading: false })
-      throw error
-    }
+  subscribe: async (_plan: string, _paymentMethod: string) => {
+    // 个人备案版：会员功能已禁用
   },
 
-  cancel: async (subscriptionId: number) => {
-    set({ isLoading: true, error: null })
-    try {
-      await apiCancelSubscription(subscriptionId)
-      await get().fetchStatus()
-      set({ isLoading: false })
-    } catch (error) {
-      set({ error: error instanceof Error ? error.message : '取消失败', isLoading: false })
-      throw error
-    }
+  cancel: async (_subscriptionId: number) => {
+    // 个人备案版：会员功能已禁用
   },
 
-  upgrade: async (newPlan: string) => {
-    set({ isLoading: true, error: null })
-    try {
-      await apiUpgrade({ new_plan: newPlan })
-      await get().fetchStatus()
-      set({ isLoading: false })
-    } catch (error) {
-      set({ error: error instanceof Error ? error.message : '升级失败', isLoading: false })
-      throw error
-    }
+  upgrade: async (_newPlan: string) => {
+    // 个人备案版：会员功能已禁用
   },
 
-  renew: async (paymentMethod: string) => {
-    set({ isLoading: true, error: null })
-    try {
-      await apiRenew({ payment_method: paymentMethod })
-      await get().fetchStatus()
-      set({ isLoading: false })
-    } catch (error) {
-      set({ error: error instanceof Error ? error.message : '续费失败', isLoading: false })
-      throw error
-    }
+  renew: async (_paymentMethod: string) => {
+    // 个人备案版：会员功能已禁用
   },
 
   fetchPushSettings: async () => {

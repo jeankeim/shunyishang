@@ -146,7 +146,6 @@ export function NotificationBell() {
                 <div className="py-8 text-center">
                   <Bell className="w-8 h-8 text-stone-300 mx-auto mb-2" />
                   <p className="text-sm text-stone-400">暂无通知</p>
-                  <p className="text-xs text-stone-300 mt-1">订阅会员后将收到运势推送和日记提醒</p>
                 </div>
               ) : (
                 notifications.map((notification) => (
@@ -159,20 +158,6 @@ export function NotificationBell() {
               )}
             </div>
 
-            {/* 底部链接 */}
-            {notifications.length > 0 && (
-              <div className="border-t border-stone-100 px-4 py-2.5 bg-stone-50/50">
-                <button
-                  onClick={() => {
-                    setIsOpen(false)
-                    window.location.hash = '#membership'
-                  }}
-                  className="w-full text-center text-xs text-emerald-600 hover:text-emerald-700 font-medium transition-colors"
-                >
-                  查看会员中心 →
-                </button>
-              </div>
-            )}
           </motion.div>
         )}
       </AnimatePresence>

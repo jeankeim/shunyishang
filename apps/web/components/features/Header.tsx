@@ -3,7 +3,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { useTheme } from '@/hooks/useTheme'
 import { useUserStore } from '@/store/user'
-import { Leaf, User, LogOut, Settings, X, Menu, Crown } from 'lucide-react'
+import { Leaf, User, LogOut, Settings, X, Menu } from 'lucide-react'
 import { NotificationBell } from './membership/NotificationBell'
 import { motion } from 'framer-motion'
 const AuthModal = lazy(() => import('./AuthModal').then(m => ({ default: m.AuthModal })))
@@ -97,20 +97,6 @@ export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
 
           {/* 通知铃铛 - 仅登录用户显示 */}
           {isAuthenticated && <NotificationBell />}
-
-          {/* 会员中心入口 */}
-          {isAuthenticated && (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => { window.location.hash = '#membership' }}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200/60 hover:from-amber-100 hover:to-yellow-100 transition-all"
-              title="会员中心"
-            >
-              <Crown className="w-4 h-4 text-amber-600" />
-              <span className="text-xs font-medium text-amber-700">VIP</span>
-            </motion.button>
-          )}
 
           {/* 用户菜单 */}
           {isAuthenticated && user ? (
@@ -209,18 +195,6 @@ export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
             >
               <span className="text-sm">🔮</span>
               <span className="font-medium">每日运势</span>
-            </motion.button>
-            <motion.button
-              whileHover={{ x: 2 }}
-              onClick={() => {
-                setShowUserMenu(false)
-                window.location.hash = '#membership'
-              }}
-              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#2D4A38] hover:bg-[#FDF9E8] transition-colors cursor-pointer"
-            >
-              <Crown className="w-4 h-4 text-amber-600" />
-              <span className="font-medium">会员中心</span>
-              <span className="ml-auto text-xs px-1.5 py-0.5 bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-700 rounded-full font-medium">VIP</span>
             </motion.button>
             <div className="border-t border-[#E8F0EB]/50 my-1" />
             <motion.button
