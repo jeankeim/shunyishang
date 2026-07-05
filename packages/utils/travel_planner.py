@@ -28,6 +28,17 @@ LUGGAGE_CAPACITY_MAP: Dict[str, int] = {
 # 百搭功能关键词，用于识别可复用单品
 REUSABLE_FUNCTIONALITY = {"百搭", "轻便", "舒适", "休闲", "抗皱"}
 
+# 品类复用间隔（天数）：0=可全程复用，1=隔1天可复用，-1=不复用
+CATEGORY_REUSE_INTERVAL: Dict[str, int] = {
+    "外套": 0,   # 外套可全程复用
+    "鞋履": 0,   # 鞋履可全程复用
+    "配饰": 0,   # 配饰可全程复用
+    "上装": 1,   # 上装隔1天可复用
+    "下装": 1,   # 下装隔1天可复用
+    "裙装": 1,   # 裙装隔1天可复用
+    "内衣": -1,  # 内衣不复用
+}
+
 
 # ============================================================
 # 核心函数
@@ -100,6 +111,7 @@ def plan_travel_outfits(
     daily_outfits = []
     selected_items_per_day: List[List[Dict]] = []
     used_item_ids: set = set()
+    item_last_used_day: Dict[str, int] = {}  # 物品最后使用天数（用于复用间隔计算）
 
     for day_idx in range(days):
         scene = scenes_per_day[day_idx]
@@ -111,7 +123,7 @@ def plan_travel_outfits(
             parts = scene.split(":", 1)
             scene, sub_scene = parts[0], parts[1]
 
-        # 为该天选择最适合的衣物
+        # 为该天选择最适合的衣物（支持跨天复用）
         day_items = _select_items_for_day(
             items_pool=items_pool,
             scene=scene,
@@ -120,16 +132,20 @@ def plan_travel_outfits(
             target_elements=target_elements,
             used_item_ids=used_item_ids,
             max_per_day=4,
+            day_idx=day_idx,
+            item_last_used_day=item_last_used_day,
         )
 
-        # 标记已使用
+        # 标记已使用（更新复用记录）
         for item in day_items:
-            used_item_ids.add(item.get("id", item.get("name", "")))
+            item_id = item.get("id", item.get("name", ""))
+            used_item_ids.add(item_id)
+            item_last_used_day[item_id] = day_idx
 
         selected_items_per_day.append(day_items)
 
         # 生成每日笔记
-        notes = _generate_day_notes(scene, sub_scene, weather, day_items)
+        notes = _generate_day_notes(scene, sub_scene, weather, day_items, day_idx)
 
         daily_outfits.append({
             "day": day_idx + 1,
@@ -232,15 +248,20 @@ def optimize_luggage(outfits_plan: List[Dict], capacity: str = "中") -> List[Di
     return outfits_plan
 
 
-def calculate_luggage_score(items: List[Dict], capacity: str = "中") -> float:
+def calculate_luggage_score(
+    items: List[Dict],
+    capacity: str = "中",
+    daily_items: Optional[List[List[Dict]]] = None,
+) -> float:
     """
     行李箱评分
-
-    综合评分 = 五行平衡度 40% + 场景覆盖率 30% + 行李紧凑度 30%
-
+    
+    综合评分 = 五行平衡度 30% + 场景覆盖率 20% + 行李紧凑度 20% + 天数覆盖率 30%
+    
     Args:
         items: 行李箱中的所有物品列表
         capacity: 行李箱容量
+        daily_items: 每天物品列表（用于计算天数覆盖率）
 
     Returns:
         0.0 - 1.0 的综合评分
@@ -248,16 +269,27 @@ def calculate_luggage_score(items: List[Dict], capacity: str = "中") -> float:
     if not items:
         return 0.0
 
-    # 1. 五行平衡度 (40%)
+    # 1. 五行平衡度 (30%)
     wuxing_balance = _calculate_wuxing_balance(items)
 
-    # 2. 场景覆盖率 (30%)
+    # 2. 场景覆盖率 (20%)
     scene_coverage = _calculate_scene_coverage(items)
 
-    # 3. 行李紧凑度 (30%)
+    # 3. 行李紧凑度 (20%)
     compactness = _calculate_compactness(items, capacity)
 
-    score = wuxing_balance * 0.4 + scene_coverage * 0.3 + compactness * 0.3
+    # 4. 天数覆盖率 (30%)
+    daily_coverage = 0.5  # 默认值
+    if daily_items:
+        days_with_enough = sum(1 for day_items in daily_items if len(day_items) >= 2)
+        daily_coverage = days_with_enough / len(daily_items) if daily_items else 0.0
+
+    score = (
+        wuxing_balance * 0.3 +
+        scene_coverage * 0.2 +
+        compactness * 0.2 +
+        daily_coverage * 0.3
+    )
     return round(max(0.0, min(1.0, score)), 3)
 
 
@@ -302,48 +334,58 @@ def _default_weather(day_offset: int = 0) -> Dict:
 
 
 def _generate_default_items() -> List[Dict]:
-    """生成默认的模拟衣物列表（当未提供可用衣物时使用）"""
+    """生成默认的模拟衣物列表（当未提供可用衣物时使用），覆盖五行+多品类"""
     return [
-        {
-            "id": 1, "name": "白色商务衬衫", "category": "上装",
-            "primary_element": "金", "functionality": ["抗皱", "百搭", "正式"],
-            "thickness_level": "适中", "wuxing_score": 0.8, "final_score": 0.85,
-        },
-        {
-            "id": 2, "name": "黑色西裤", "category": "下装",
-            "primary_element": "水", "functionality": ["百搭", "正式"],
-            "thickness_level": "适中", "wuxing_score": 0.7, "final_score": 0.75,
-        },
-        {
-            "id": 3, "name": "休闲T恤", "category": "上装",
-            "primary_element": "木", "functionality": ["舒适", "休闲", "百搭"],
-            "thickness_level": "轻薄", "wuxing_score": 0.6, "final_score": 0.7,
-        },
-        {
-            "id": 4, "name": "牛仔裤", "category": "下装",
-            "primary_element": "土", "functionality": ["耐磨", "百搭"],
-            "thickness_level": "适中", "wuxing_score": 0.65, "final_score": 0.72,
-        },
-        {
-            "id": 5, "name": "防风外套", "category": "外套",
-            "primary_element": "金", "functionality": ["防水", "保暖"],
-            "thickness_level": "中厚", "wuxing_score": 0.75, "final_score": 0.78,
-        },
-        {
-            "id": 6, "name": "速干短袖", "category": "上装",
-            "primary_element": "火", "functionality": ["速干", "透气", "防晒"],
-            "thickness_level": "轻薄", "wuxing_score": 0.55, "final_score": 0.65,
-        },
-        {
-            "id": 7, "name": "运动鞋", "category": "鞋履",
-            "primary_element": "木", "functionality": ["舒适", "耐磨"],
-            "thickness_level": "适中", "wuxing_score": 0.6, "final_score": 0.68,
-        },
-        {
-            "id": 8, "name": "连衣裙", "category": "裙装",
-            "primary_element": "水", "functionality": ["优雅", "舒适"],
-            "thickness_level": "轻薄", "wuxing_score": 0.7, "final_score": 0.72,
-        },
+        # 原始8件
+        {"id": 1, "name": "白色商务衬衫", "category": "上装",
+         "primary_element": "金", "functionality": ["抗皱", "百搭", "正式"],
+         "thickness_level": "适中", "wuxing_score": 0.8, "final_score": 0.85},
+        {"id": 2, "name": "黑色西裤", "category": "下装",
+         "primary_element": "水", "functionality": ["百搭", "正式"],
+         "thickness_level": "适中", "wuxing_score": 0.7, "final_score": 0.75},
+        {"id": 3, "name": "休闲T恤", "category": "上装",
+         "primary_element": "木", "functionality": ["舒适", "休闲", "百搭"],
+         "thickness_level": "轻薄", "wuxing_score": 0.6, "final_score": 0.7},
+        {"id": 4, "name": "牛仔裤", "category": "下装",
+         "primary_element": "土", "functionality": ["耐磨", "百搭"],
+         "thickness_level": "适中", "wuxing_score": 0.65, "final_score": 0.72},
+        {"id": 5, "name": "防风外套", "category": "外套",
+         "primary_element": "金", "functionality": ["防水", "保暖"],
+         "thickness_level": "中厚", "wuxing_score": 0.75, "final_score": 0.78},
+        {"id": 6, "name": "速干短袖", "category": "上装",
+         "primary_element": "火", "functionality": ["速干", "透气", "防晒"],
+         "thickness_level": "轻薄", "wuxing_score": 0.55, "final_score": 0.65},
+        {"id": 7, "name": "运动鞋", "category": "鞋履",
+         "primary_element": "木", "functionality": ["舒适", "耐磨"],
+         "thickness_level": "适中", "wuxing_score": 0.6, "final_score": 0.68},
+        {"id": 8, "name": "连衣裙", "category": "裙装",
+         "primary_element": "水", "functionality": ["优雅", "舒适"],
+         "thickness_level": "轻薄", "wuxing_score": 0.7, "final_score": 0.72},
+        # 新增8件（覆盖五行+品类）
+        {"id": 9, "name": "针织开衫", "category": "外套",
+         "primary_element": "土", "functionality": ["保暖", "百搭", "舒适"],
+         "thickness_level": "适中", "wuxing_score": 0.65, "final_score": 0.70},
+        {"id": 10, "name": "丝绒半裙", "category": "裙装",
+         "primary_element": "火", "functionality": ["优雅", "时尚"],
+         "thickness_level": "适中", "wuxing_score": 0.68, "final_score": 0.73},
+        {"id": 11, "name": "棉麻衬衫", "category": "上装",
+         "primary_element": "木", "functionality": ["透气", "休闲", "百搭"],
+         "thickness_level": "轻薄", "wuxing_score": 0.62, "final_score": 0.68},
+        {"id": 12, "name": "皮革腰带", "category": "配饰",
+         "primary_element": "金", "functionality": ["百搭", "正式"],
+         "thickness_level": "适中", "wuxing_score": 0.5, "final_score": 0.60},
+        {"id": 13, "name": "羊毛围巾", "category": "配饰",
+         "primary_element": "土", "functionality": ["保暖", "百搭"],
+         "thickness_level": "适中", "wuxing_score": 0.55, "final_score": 0.62},
+        {"id": 14, "name": "卡其休闲裤", "category": "下装",
+         "primary_element": "土", "functionality": ["百搭", "休闲", "舒适"],
+         "thickness_level": "适中", "wuxing_score": 0.6, "final_score": 0.68},
+        {"id": 15, "name": "皮靴", "category": "鞋履",
+         "primary_element": "金", "functionality": ["保暖", "百搭", "正式"],
+         "thickness_level": "中厚", "wuxing_score": 0.65, "final_score": 0.70},
+        {"id": 16, "name": "真丝丝巾", "category": "配饰",
+         "primary_element": "水", "functionality": ["优雅", "百搭"],
+         "thickness_level": "轻薄", "wuxing_score": 0.58, "final_score": 0.65},
     ]
 
 
@@ -355,12 +397,18 @@ def _select_items_for_day(
     target_elements: List[str],
     used_item_ids: set,
     max_per_day: int = 4,
+    day_idx: int = 0,
+    item_last_used_day: Optional[Dict[str, int]] = None,
 ) -> List[Dict]:
-    """为某一天选择最佳穿搭物品"""
+    """为某一天选择最佳穿搭物品（支持跨天复用）"""
+    if item_last_used_day is None:
+        item_last_used_day = {}
+    
     scored_items = []
 
     for item in items_pool:
         item_id = item.get("id", item.get("name", ""))
+        category = item.get("category", "")
 
         # 场景匹配度评分
         scene_score = calculate_scene_match_score(item, scene, sub_scene)
@@ -375,8 +423,25 @@ def _select_items_for_day(
         # 天气适配评分
         weather_score = _weather_item_score(item, weather)
 
-        # 综合评分
-        total_score = scene_score * 0.4 + wuxing_score * 0.35 + weather_score * 0.25
+        # 跨天复用惩罚分
+        reuse_penalty = 0.0
+        reuse_interval = CATEGORY_REUSE_INTERVAL.get(category, 1)
+        if item_id in used_item_ids:
+            if reuse_interval == -1:
+                # 不复用的品类，跳过
+                continue
+            elif reuse_interval == 0:
+                # 可全程复用，无惩罚
+                pass
+            else:
+                last_day = item_last_used_day.get(item_id, -999)
+                gap = day_idx - last_day
+                if gap < reuse_interval:
+                    # 未达到复用间隔，施加扣分
+                    reuse_penalty = 0.3 * (reuse_interval - gap) / reuse_interval
+
+        # 综合评分（减去复用惩罚）
+        total_score = scene_score * 0.4 + wuxing_score * 0.35 + weather_score * 0.25 - reuse_penalty
 
         scored_items.append({
             "item": item,
@@ -396,13 +461,18 @@ def _select_items_for_day(
     for scored in scored_items:
         item = scored["item"]
         category = item.get("category", "")
-
-        # 优先选择未被使用过的物品
         item_id = item.get("id", item.get("name", ""))
-        if item_id in used_item_ids:
-            # 如果是百搭单品，可以复用
-            if not _is_reusable(item):
+
+        # 百搭单品可复用
+        if item_id in used_item_ids and not _is_reusable(item):
+            # 检查是否因复用间隔可复用
+            reuse_interval = CATEGORY_REUSE_INTERVAL.get(category, 1)
+            if reuse_interval == -1:
                 continue
+            elif reuse_interval > 0:
+                last_day = item_last_used_day.get(item_id, -999)
+                if day_idx - last_day < reuse_interval:
+                    continue
 
         # 每个类别最多选1件（除非还有余量）
         if category in selected_categories:
@@ -495,6 +565,7 @@ def _generate_day_notes(
     sub_scene: Optional[str],
     weather: Dict,
     items: List[Dict],
+    day_idx: int = 0,
 ) -> str:
     """生成每日穿搭建议笔记"""
     weather_desc = weather.get("weather_desc", "未知")
@@ -502,7 +573,7 @@ def _generate_day_notes(
     temp_min = weather.get("temperature_min", "?")
 
     scene_label = f"{scene}" + (f"（{sub_scene}）" if sub_scene else "")
-    notes = f"第{scene_label}天，天气{weather_desc}，{temp_min}~{temp_max}°C。"
+    notes = f"第{day_idx + 1}天，{scene_label}，天气{weather_desc}，{temp_min}~{temp_max}°C。"
 
     if items:
         categories = [item.get("category", "") for item in items]

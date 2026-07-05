@@ -18,6 +18,7 @@ interface ChatInterfaceProps {
     humidity?: number
     wind_level?: number
   }
+  userCity?: string  // 用户当前城市
 }
 
 // 推荐模式切换组件 - 优化为紧凑卡片样式
@@ -84,7 +85,7 @@ function RetrievalModeToggle({ isAuthenticated }: { isAuthenticated: boolean }) 
   )
 }
 
-export function ChatInterface({ scene, weatherElement, weatherInfo }: ChatInterfaceProps) {
+export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: ChatInterfaceProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [currentPrompts, setCurrentPrompts] = useState<string[]>([])
   const {
@@ -300,6 +301,7 @@ export function ChatInterface({ scene, weatherElement, weatherInfo }: ChatInterf
       gender: userGender,
       retrieval_mode: effectiveRetrievalMode,
       user_id: userId,
+      user_city: userCity || undefined,
     }
     try {
       const startTime = Date.now()

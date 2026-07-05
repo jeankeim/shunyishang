@@ -3,10 +3,13 @@
 使用 cnlunar 库进行四柱排盘，计算五行分布和喜用神
 """
 
-from typing import Dict, List, Optional, TypedDict
+from typing import Dict, List, Optional, Tuple, TypedDict
 from collections import Counter
+import logging
 
 import cnlunar
+
+logger = logging.getLogger(__name__)
 
 from packages.utils.wuxing_rules import (
     TIANGAN_WUXING,
@@ -297,16 +300,36 @@ def infer_elements_from_text(text: str) -> IntentResult:
     )
 
 
+# 五行相生关系：A生B
+GENERATING_CYCLE: Dict[str, str] = {
+    "金": "水",  # 金生水
+    "水": "木",  # 水生木
+    "木": "火",  # 木生火
+    "火": "土",  # 火生土
+    "土": "金",  # 土生金
+}
+
+
+def _check_generates_xiyong(elem: str, xiyong_elements: List[str]) -> bool:
+    """检查 elem 是否通过相生关系生成某个喜用神"""
+    generated = GENERATING_CYCLE.get(elem, "")
+    return generated in xiyong_elements
+
+
 def merge_recommendations(
     bazi_result: Optional[BaziResult],
     intent_result: Optional[IntentResult],
     scene_result: Optional[Dict],
     weather_element: Optional[str] = None
-) -> List[str]:
+) -> Tuple[List[str], List[str]]:
     """
     合并多层推荐结果
     
     优先级：八字喜用神 > 天气 > 场景 > 意图
+    
+    当场景/天气五行与忌神冲突时，检查相生关系：
+    - 若该五行生某个喜用神 → 加入 boost_elements（评分加分但不进 target）
+    - 若无相生关系 → 跳过
     
     Args:
         bazi_result: 八字计算结果
@@ -315,18 +338,27 @@ def merge_recommendations(
         weather_element: 天气对应的五行
     
     Returns:
-        List[str]: 最终推荐五行列表（去重，最多3个）
+        Tuple[List[str], List[str]]: (target_elements, boost_elements)
+            - target_elements: 最终推荐五行列表（去重，最多3个）
+            - boost_elements: 相生辅助五行（忌神但生喜用神，评分加分）
     """
     elements = []
+    boost_elements = []
+    
+    xiyong_elements = bazi_result["suggested_elements"] if bazi_result else []
+    avoid_elements = bazi_result.get("avoid_elements", []) if bazi_result else []
     
     # 1. 八字喜用神（最高优先级）
     if bazi_result:
-        elements.extend(bazi_result["suggested_elements"])
+        elements.extend(xiyong_elements)
     
     # 2. 天气五行（次优先级，不与喜用神冲突）
     if weather_element and weather_element not in elements:
-        if bazi_result and weather_element in bazi_result.get("avoid_elements", []):
-            pass  # 天气五行与忌神冲突，跳过
+        if weather_element in avoid_elements:
+            # 忌神但可能相生喜用神
+            if _check_generates_xiyong(weather_element, xiyong_elements):
+                boost_elements.append(weather_element)
+                logger.info(f"[五行相生] 天气五行 {weather_element} 虽为忌神，但生 {GENERATING_CYCLE[weather_element]}（喜用神），加入加分列表")
         else:
             elements.append(weather_element)
     
@@ -334,8 +366,12 @@ def merge_recommendations(
     if scene_result:
         for elem in scene_result.get("primary", []):
             if elem not in elements:
-                # 检查是否与忌神冲突
-                if bazi_result and elem in bazi_result.get("avoid_elements", []):
+                if elem in avoid_elements:
+                    # 忌神但可能相生喜用神
+                    if _check_generates_xiyong(elem, xiyong_elements):
+                        if elem not in boost_elements:
+                            boost_elements.append(elem)
+                            logger.info(f"[五行相生] 场景五行 {elem} 虽为忌神，但生 {GENERATING_CYCLE[elem]}（喜用神），加入加分列表")
                     continue
                 elements.append(elem)
     
@@ -346,4 +382,7 @@ def merge_recommendations(
                 elements.append(elem)
     
     # 去重，最多3个
-    return list(dict.fromkeys(elements))[:3]
+    target = list(dict.fromkeys(elements))[:3]
+    boost = list(dict.fromkeys(boost_elements))
+    
+    return target, boost

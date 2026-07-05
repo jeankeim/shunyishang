@@ -333,7 +333,7 @@ class TestMergeRecommendations:
             "suggested_elements": ["金", "水"],
             "avoid_elements": ["火"],
         }
-        result = merge_recommendations(bazi, None, None)
+        result, boost = merge_recommendations(bazi, None, None)
         assert "金" in result
         assert "水" in result
 
@@ -343,7 +343,7 @@ class TestMergeRecommendations:
             "suggested_elements": ["金"],
             "avoid_elements": ["火"],
         }
-        result = merge_recommendations(bazi, None, None, weather_element="水")
+        result, boost = merge_recommendations(bazi, None, None, weather_element="水")
         assert "金" in result
         assert "水" in result
 
@@ -353,7 +353,7 @@ class TestMergeRecommendations:
             "suggested_elements": ["金"],
             "avoid_elements": ["火"],
         }
-        result = merge_recommendations(bazi, None, None, weather_element="火")
+        result, boost = merge_recommendations(bazi, None, None, weather_element="火")
         assert "金" in result
         assert "火" not in result  # 被忌神排除
 
@@ -364,7 +364,7 @@ class TestMergeRecommendations:
             "avoid_elements": ["火"],
         }
         scene = {"primary": ["水", "木"]}
-        result = merge_recommendations(bazi, None, scene)
+        result, boost = merge_recommendations(bazi, None, scene)
         assert "金" in result
         assert "水" in result
         assert "木" in result
@@ -376,7 +376,7 @@ class TestMergeRecommendations:
             "avoid_elements": ["火"],
         }
         scene = {"primary": ["火", "水"]}
-        result = merge_recommendations(bazi, None, scene)
+        result, boost = merge_recommendations(bazi, None, scene)
         assert "金" in result
         assert "水" in result
         assert "火" not in result  # 被忌神排除
@@ -391,7 +391,7 @@ class TestMergeRecommendations:
             "elements": ["木", "水"],
             "method": "rule",
         }
-        result = merge_recommendations(bazi, intent, None)
+        result, boost = merge_recommendations(bazi, intent, None)
         assert "金" in result
         assert "木" in result
         assert "水" in result
@@ -406,14 +406,15 @@ class TestMergeRecommendations:
             "elements": ["木"],
             "method": "llm_needed",
         }
-        result = merge_recommendations(bazi, intent, None)
+        result, boost = merge_recommendations(bazi, intent, None)
         assert "金" in result
         assert "木" not in result  # llm_needed不使用
 
     def test_all_none(self):
         """所有输入都为None"""
-        result = merge_recommendations(None, None, None)
+        result, boost = merge_recommendations(None, None, None)
         assert result == []
+        assert boost == []
 
     def test_max_three_elements(self):
         """最多3个五行"""
@@ -426,7 +427,7 @@ class TestMergeRecommendations:
             "elements": ["土"],
             "method": "rule",
         }
-        result = merge_recommendations(bazi, intent, scene, weather_element="土")
+        result, boost = merge_recommendations(bazi, intent, scene, weather_element="土")
         assert len(result) <= 3
 
     def test_dedup(self):
@@ -440,19 +441,19 @@ class TestMergeRecommendations:
             "elements": ["金"],
             "method": "rule",
         }
-        result = merge_recommendations(bazi, intent, scene)
+        result, boost = merge_recommendations(bazi, intent, scene)
         assert result.count("金") == 1
         assert result.count("水") == 1
 
     def test_weather_without_bazi(self):
         """无八字时有天气"""
-        result = merge_recommendations(None, None, None, weather_element="水")
+        result, boost = merge_recommendations(None, None, None, weather_element="水")
         assert "水" in result
 
     def test_scene_without_bazi(self):
         """无八字时有场景"""
         scene = {"primary": ["木", "火"]}
-        result = merge_recommendations(None, None, scene)
+        result, boost = merge_recommendations(None, None, scene)
         assert "木" in result
         assert "火" in result
 
@@ -462,5 +463,5 @@ class TestMergeRecommendations:
             "elements": ["土"],
             "method": "rule",
         }
-        result = merge_recommendations(None, intent, None)
+        result, boost = merge_recommendations(None, intent, None)
         assert "土" in result

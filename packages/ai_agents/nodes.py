@@ -259,7 +259,7 @@ def analyze_intent_node(state: AgentState) -> Dict:
     
     # 4. 合并推荐五行（八字 + 场景 + 意图 + 天气）
     weather_element = state.get("weather_element")
-    target_elements = merge_recommendations(
+    target_elements, boost_elements = merge_recommendations(
         bazi_result=bazi_result,
         intent_result=intent_result,
         scene_result=scene_result,
@@ -312,6 +312,7 @@ def analyze_intent_node(state: AgentState) -> Dict:
         "target_elements": target_elements,
         "xiyong_elements": xiyong_elements,
         "added_elements": added_elements,
+        "boost_elements": boost_elements,
         "search_query": search_query,
     }
 
@@ -390,6 +391,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
     user_id = state.get("user_id")
     retrieval_mode = state.get("retrieval_mode", "public")
     top_k = state.get("top_k", 5)
+    boost_elements = state.get("boost_elements", [])  # 相生辅助五行
     
     if not search_query:
         return {"error": "搜索查询为空", "retrieved_items": [], "item_sources": {}}
@@ -625,6 +627,65 @@ def retrieve_items_node(state: AgentState) -> Dict:
         if secondary and secondary in target_elements:
             wuxing_score += 0.3
         
+        # 相生加分：忌神但生喜用神的五行，给予额外加分
+        if boost_elements:
+            if primary in boost_elements:
+                wuxing_score += 0.15
+            if secondary and secondary in boost_elements:
+                wuxing_score += 0.10
+        
+        # wear_count 联动：穿着次数少的物品略加分（鼓励轮换）
+        wear_count = item.get("wear_count", 0)
+        if wear_count is not None and isinstance(wear_count, (int, float)) and wear_count >= 0:
+            wuxing_score += max(0, 0.1 - wear_count * 0.02)  # 0次=+0.1, 5次=0
+        
+        # 温度匹配评分（新增）
+        temp_score = _calculate_temp_score(item, weather_info)
+        
+        # 极端温度时提升温度权重
+        temp_weight = 0.0
+        if weather_info:
+            temp = weather_info.get("temperature", 25)
+            if temp <= 5 or temp >= 32:  # 极端温度
+                temp_weight = 0.25
+                # 重新分配其他权重
+                if bazi_result and scene:
+                    if has_prefs:
+                        semantic_weight = 0.40
+                        wuxing_weight = 0.20
+                        scene_weight = 0.10
+                        pref_weight = 0.05
+                    else:
+                        semantic_weight = 0.40
+                        wuxing_weight = 0.25
+                        scene_weight = 0.10
+                elif bazi_result:
+                    if has_prefs:
+                        semantic_weight = 0.40
+                        wuxing_weight = 0.25
+                        pref_weight = 0.10
+                    else:
+                        semantic_weight = 0.45
+                        wuxing_weight = 0.30
+                elif scene:
+                    if has_prefs:
+                        semantic_weight = 0.40
+                        wuxing_weight = 0.15
+                        scene_weight = 0.15
+                        pref_weight = 0.05
+                    else:
+                        semantic_weight = 0.45
+                        wuxing_weight = 0.15
+                        scene_weight = 0.15
+                else:
+                    if has_prefs:
+                        semantic_weight = 0.40
+                        wuxing_weight = 0.25
+                        pref_weight = 0.10
+                    else:
+                        semantic_weight = 0.50
+                        wuxing_weight = 0.25
+        
         # Task 01: 计算场景匹配分（新增）
         scene_score = 0.5  # 默认基础分
         if scene and scene_weight > 0:
@@ -643,7 +704,8 @@ def retrieve_items_node(state: AgentState) -> Dict:
             semantic_score * semantic_weight +
             wuxing_score * wuxing_weight +
             scene_score * scene_weight +
-            preference_score * pref_weight
+            preference_score * pref_weight +
+            temp_score * temp_weight
         )
         
         scored_items.append({
@@ -652,18 +714,53 @@ def retrieve_items_node(state: AgentState) -> Dict:
             "wuxing_score": wuxing_score,
             "scene_score": scene_score,
             "preference_score": preference_score,
+            "temp_score": temp_score,
             "final_score": final_score,
         })
     
     # 过滤掉场景分为0的物品（硬排除）
     scored_items = [item for item in scored_items if item.get("scene_score", 0.5) > 0]
     
+    # 温度硬过滤：极端温度下排除不合适厚度的衣物
+    if weather_info:
+        temp = weather_info.get("temperature")
+        if temp is not None:
+            temp_filtered = []
+            for item in scored_items:
+                thickness = item.get("thickness_level", "")
+                if temp >= 30 and thickness in ("厚重", "中厚"):
+                    # 高温排除厚重衣物
+                    continue
+                if temp <= 5 and thickness in ("极薄", "轻薄"):
+                    # 低温排除极薄衣物
+                    continue
+                temp_filtered.append(item)
+            if temp_filtered:  # 只在过滤后有剩余时才应用
+                scored_items = temp_filtered
+    
     # 按分数排序，取 Top K
     scored_items.sort(key=lambda x: x["final_score"], reverse=True)
     top_items = scored_items[:top_k]
     
-    # 分类多样性优化
+    # 分类多样性优化（含温度安全检查）
     top_items = _ensure_category_diversity(scored_items, top_k)
+    
+    # 温度安全检查：确保推荐结果中没有极端不合适的物品
+    if weather_info:
+        temp = weather_info.get("temperature")
+        if temp is not None and (temp <= 5 or temp >= 32):
+            # 在极端温度下，替换 temp_score < 0.3 的物品
+            temp_safe_items = [i for i in top_items if i.get("temp_score", 1.0) >= 0.3]
+            if len(temp_safe_items) < len(top_items) and scored_items:
+                # 从备选中找温度安全的物品补充
+                used_ids = {i.get("id") for i in temp_safe_items}
+                for candidate in scored_items:
+                    if candidate.get("id") not in used_ids and candidate.get("temp_score", 0) >= 0.3:
+                        temp_safe_items.append(candidate)
+                        used_ids.add(candidate.get("id"))
+                        if len(temp_safe_items) >= top_k:
+                            break
+                top_items = temp_safe_items[:top_k]
     
     # 检查是否全部五行不匹配 → 降级策略
     if all(item["wuxing_score"] == 0 for item in top_items):
@@ -741,9 +838,8 @@ def _generate_travel_plan(
                 "reasoning": bazi_result.get("reasoning"),
             }
         
-        # 确定每天场景（默认使用主场景，不足时填充“日常”）
-        scene = state.get("scene") or "日常"
-        scenes_per_day = [scene] * travel_days
+        # 智能构建多天场景（第1天可穿插面板场景，其余天旅行主场景）
+        scenes_per_day = _build_travel_scenes(state, travel_days)
         
         # 获取目的地天气
         weather_forecast = get_destination_weather(destination, travel_days)
@@ -797,8 +893,9 @@ def _generate_travel_plan(
                     all_items.append(item)
                     seen_ids.add(item_id)
         
-        # 行李评分
-        luggage_score = calculate_luggage_score(all_items, luggage_size)
+        # 行李评分（传入每日物品以计算天数覆盖率）
+        daily_items = [day.get("items", []) for day in optimized_days]
+        luggage_score = calculate_luggage_score(all_items, luggage_size, daily_items)
         
         # 五行分析
         element_distribution = {}
@@ -925,6 +1022,79 @@ def _get_versatile_items(target_elements: List[str], limit: int) -> List[Dict]:
     items = _vector_search(versatile_query, limit=limit)
     
     return items if items else []
+
+
+def _calculate_temp_score(item: Dict, weather_info: Optional[Dict]) -> float:
+    """计算物品的温度适配分（0.0-1.0）"""
+    if not weather_info:
+        return 0.5
+    
+    temp = weather_info.get("temperature")
+    if temp is None:
+        return 0.5
+    
+    score = 0.5
+    thickness = item.get("thickness_level", "")
+    functionality = item.get("functionality", [])
+    if isinstance(functionality, str):
+        import json
+        try:
+            functionality = json.loads(functionality)
+        except Exception:
+            functionality = []
+    
+    # 高温场景
+    if temp >= 30:
+        if thickness in ("极薄", "轻薄"):
+            score += 0.3
+        elif thickness == "适中":
+            score += 0.1
+        elif thickness in ("中厚", "厚重"):
+            score -= 0.3
+        if any(f in functionality for f in ["透气", "速干", "防晒"]):
+            score += 0.2
+    # 低温场景
+    elif temp <= 5:
+        if thickness in ("厚重", "中厚"):
+            score += 0.3
+        elif thickness == "适中":
+            score += 0.1
+        elif thickness in ("极薄", "轻薄"):
+            score -= 0.3
+        if any(f in functionality for f in ["保暖", "防风"]):
+            score += 0.2
+    # 适中温度
+    else:
+        if thickness == "适中":
+            score += 0.2
+    
+    return max(0.0, min(1.0, score))
+
+
+def _build_travel_scenes(state: AgentState, travel_days: int) -> List[str]:
+    """
+    构建多天旅行场景列表（多样化）
+    
+    策略：第1天可安排面板场景，其余天使用旅行主场景
+    """
+    panel_scene = state.get("scene")
+    user_input = state.get("user_input", "")
+    
+    # 从用户输入提取旅行主场景
+    from packages.utils.scene_mapper import extract_scene_multidimensional
+    travel_scene_data = extract_scene_multidimensional(user_input)
+    travel_main_scene = travel_scene_data.get("main_scene", "旅行")
+    
+    scenes = []
+    for day in range(travel_days):
+        if day == 0 and panel_scene and panel_scene != travel_main_scene:
+            # 第1天安排面板选择的场景（如商务）
+            scenes.append(panel_scene)
+        else:
+            # 其余天使用旅行主场景
+            scenes.append(travel_main_scene)
+    
+    return scenes
 
 
 # 全局模型单例
@@ -1672,6 +1842,7 @@ def format_output_node(state: AgentState) -> Dict:
         "bazi_reasoning": bazi_reasoning,
         "intent_reasoning": intent_result.get("reasoning") if intent_result else None,
         "scene": scene,
+        "boost_elements": state.get("boost_elements", []),
     }
     
     # 构建物品列表

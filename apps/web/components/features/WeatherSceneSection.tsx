@@ -1,18 +1,77 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Cloud, Sun, CloudRain, Wind, MapPin, Briefcase, Coffee, Heart, Users, Plane, Locate, Loader2 } from 'lucide-react'
+import { Cloud, Sun, CloudRain, Wind, MapPin, Briefcase, Coffee, Heart, Users, Plane, Locate, Loader2, Dumbbell, GraduationCap, PartyPopper, Home, Gift, X } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
-// 常用场景定义
+// 场景时间段定义（用于智能排序）
+const TIME_SLOTS: Record<string, { start: number; end: number }> = {
+  '商务': { start: 9, end: 12 },
+  '会议': { start: 10, end: 12 },
+  '面试': { start: 9, end: 11 },
+  '日常': { start: 8, end: 18 },
+  '约会': { start: 18, end: 22 },
+  '运动': { start: 6, end: 9 },
+  '派对': { start: 20, end: 24 },
+  '旅行': { start: 7, end: 19 },
+  '居家': { start: 19, end: 24 },
+  '婚礼': { start: 10, end: 16 },
+}
+
+// 常用场景定义 — ID 与后端 SCENE_ELEMENT_MAP 中文 key 完全一致
 const COMMON_SCENES = [
-  { id: 'work', label: '职场办公', icon: Briefcase, element: '金', desc: '正式、专业' },
-  { id: 'date', label: '约会聚会', icon: Heart, element: '火', desc: '浪漫、热情' },
-  { id: 'casual', label: '休闲日常', icon: Coffee, element: '木', desc: '舒适、自然' },
-  { id: 'business', label: '商务会议', icon: Users, element: '土', desc: '稳重、可靠' },
-  { id: 'travel', label: '出行旅游', icon: Plane, element: '水', desc: '随性、流动' },
+  { id: '商务', label: '商务办公', icon: Briefcase, element: '金', desc: '专业沉稳' },
+  { id: '会议', label: '会议汇报', icon: Users, element: '金', desc: '正式专业' },
+  { id: '面试', label: '面试求职', icon: GraduationCap, element: '金', desc: '职业干练' },
+  { id: '日常', label: '休闲日常', icon: Coffee, element: '土', desc: '舒适自然' },
+  { id: '约会', label: '约会聚会', icon: Heart, element: '火', desc: '浪漫活力' },
+  { id: '运动', label: '运动健身', icon: Dumbbell, element: '木', desc: '活力清爽' },
+  { id: '旅行', label: '出行旅游', icon: Plane, element: '木', desc: '自由灵动' },
+  { id: '派对', label: '派对聚会', icon: PartyPopper, element: '火', desc: '热情闪耀' },
+  { id: '居家', label: '居家休闲', icon: Home, element: '土', desc: '温暖舒适' },
+  { id: '婚礼', label: '婚礼婚宴', icon: Gift, element: '火', desc: '喜庆华丽' },
 ]
+
+// 获取当前时间段的场景排序
+function getSortedScenes(): typeof COMMON_SCENES {
+  const hour = new Date().getHours()
+  const usageFreq = getSceneUsageFrequency()
+
+  return [...COMMON_SCENES].sort((a, b) => {
+    const aFreq = usageFreq[a.id] || 0
+    const bFreq = usageFreq[b.id] || 0
+    const aSlot = TIME_SLOTS[a.id]
+    const bSlot = TIME_SLOTS[b.id]
+    const aInSlot = aSlot ? (hour >= aSlot.start && hour < aSlot.end ? 1 : 0) : 0
+    const bInSlot = bSlot ? (hour >= bSlot.start && hour < bSlot.end ? 1 : 0) : 0
+
+    // 1. 当前时间段优先
+    if (aInSlot !== bInSlot) return bInSlot - aInSlot
+    // 2. 使用频率次之
+    if (aFreq !== bFreq) return bFreq - aFreq
+    // 3. 默认顺序
+    return 0
+  })
+}
+
+// 场景使用频率（localStorage 持久化）
+function getSceneUsageFrequency(): Record<string, number> {
+  try {
+    const data = localStorage.getItem('scene_usage_frequency')
+    return data ? JSON.parse(data) : {}
+  } catch {
+    return {}
+  }
+}
+
+function recordSceneUsage(sceneId: string) {
+  try {
+    const freq = getSceneUsageFrequency()
+    freq[sceneId] = (freq[sceneId] || 0) + 1
+    localStorage.setItem('scene_usage_frequency', JSON.stringify(freq))
+  } catch {}
+}
 
 // 天气图标映射
 const WEATHER_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -370,10 +429,32 @@ export function WeatherSceneSection({
     fetchWeather(city)
   }, [])
 
-  // 处理场景选择
+  // 排序后的场景列表（按时间段 + 使用频率）
+  const [sortedScenes, setSortedScenes] = useState(COMMON_SCENES)
+
+  // 初始化排序
+  useEffect(() => {
+    setSortedScenes(getSortedScenes())
+  }, [])
+
+  // 处理场景选择（支持 toggle 取消）
   const handleSceneSelect = (sceneId: string, element: string) => {
-    setSelectedScene(sceneId)
-    onSceneChange?.(sceneId, element)
+    if (selectedScene === sceneId) {
+      // 再次点击取消选择
+      setSelectedScene('')
+      onSceneChange?.('', '')
+    } else {
+      setSelectedScene(sceneId)
+      onSceneChange?.(sceneId, element)
+      recordSceneUsage(sceneId)
+      setSortedScenes(getSortedScenes()) // 重新排序
+    }
+  }
+
+  // 清除场景选择
+  const handleClearScene = () => {
+    setSelectedScene('')
+    onSceneChange?.('', '')
   }
 
   // 获取天气图标
@@ -458,15 +539,31 @@ export function WeatherSceneSection({
 
       {/* 场景选择区域 */}
       <div className="pt-3 border-t border-[#E8F0EB]/50">
-        <div className="flex items-center gap-2 mb-3">
-          <Briefcase className="h-4 w-4 text-[#3DA35D]" />
-          <h3 className="font-medium text-[#2D4A38]">常用场景</h3>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Briefcase className="h-4 w-4 text-[#3DA35D]" />
+            <h3 className="font-medium text-[#2D4A38]">常用场景</h3>
+          </div>
+          {selectedScene && (
+            <button
+              onClick={handleClearScene}
+              className="flex items-center gap-1 text-xs text-[#6B7F72] hover:text-[#2D4A38] transition-colors"
+            >
+              <X className="h-3 w-3" />
+              清除选择
+            </button>
+          )}
         </div>
         
         <div className="grid grid-cols-2 gap-2">
-          {COMMON_SCENES.map((scene) => {
+          {sortedScenes.map((scene) => {
             const Icon = scene.icon
             const isSelected = selectedScene === scene.id
+            const usageFreq = getSceneUsageFrequency()
+            const isFrequent = (usageFreq[scene.id] || 0) >= 3
+            const slot = TIME_SLOTS[scene.id]
+            const hour = new Date().getHours()
+            const isCurrentSlot = slot ? (hour >= slot.start && hour < slot.end) : false
             return (
               <motion.button
                 key={scene.id}
@@ -474,17 +571,23 @@ export function WeatherSceneSection({
                 whileTap={{ scale: 0.98 }}
                 onClick={() => handleSceneSelect(scene.id, scene.element)}
                 className={cn(
-                  'flex items-center gap-2 p-2 rounded-lg border text-left transition-all duration-200',
+                  'relative flex items-center gap-2 p-2 rounded-lg border text-left transition-all duration-200',
                   isSelected
                     ? 'border-[#3DA35D] bg-[#F0F7F4] shadow-sm'
                     : 'border-[#E8F0EB]/60 hover:border-[#3DA35D]/50 hover:bg-[#F5F9F7]'
                 )}
               >
-                <Icon className={cn('h-4 w-4', isSelected ? 'text-[#3DA35D]' : 'text-[#8A9F92]')} />
+                <Icon className={cn('h-4 w-4 shrink-0', isSelected ? 'text-[#3DA35D]' : 'text-[#8A9F92]')} />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate text-[#2D4A38]">{scene.label}</div>
                   <div className="text-[10px] text-[#6B7F72]">{scene.desc} · {scene.element}</div>
                 </div>
+                {isCurrentSlot && !isSelected && (
+                  <span className="absolute top-0.5 right-0.5 text-[9px] px-1 rounded bg-[#3DA35D]/10 text-[#3DA35D]">当前</span>
+                )}
+                {isFrequent && !isCurrentSlot && (
+                  <span className="absolute top-0.5 right-0.5 text-[9px] px-1 rounded bg-[#4A90C4]/10 text-[#4A90C4]">常用</span>
+                )}
               </motion.button>
             )
           })}

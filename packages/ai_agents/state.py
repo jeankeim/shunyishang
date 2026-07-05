@@ -40,6 +40,7 @@ class AgentState(TypedDict):
     target_elements: List[str]          # 最终推荐五行（合并后）
     xiyong_elements: List[str]          # 八字喜用神（纯八字，不含场景）
     added_elements: List[str]           # 场景/天气额外添加的五行
+    boost_elements: List[str]           # 相生辅助五行（忌神但生喜用神，评分加分）
     
     # === 检索层 ===
     search_query: str                   # 优化后的向量搜索文本
@@ -144,6 +145,7 @@ def create_initial_state(
         target_elements=[],
         xiyong_elements=[],
         added_elements=[],
+        boost_elements=[],
         search_query="",
         retrieved_items=[],
         item_sources={},

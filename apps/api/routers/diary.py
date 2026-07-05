@@ -27,6 +27,7 @@ from apps.api.schemas.diary import (
 from apps.api.services.diary_service import diary_service
 from apps.api.services.ai_review_service import generate_ai_review
 from apps.api.services.ai_tagging_service import ai_tagging_service
+from apps.api.services.diary_feedback_service import diary_feedback_service
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,12 @@ async def create_diary(
             outfit_items = [_item_to_dict(it) for it in diary.items]
             review = generate_ai_review(user_bazi, outfit_items, None, request.occasion)
             diary = diary_service.update_ai_review(diary.id, user_id, review) or diary
+
+        # 穿搭日记反馈回流：评分转化为偏好信号
+        try:
+            diary_feedback_service.process_diary_feedback(user_id, diary.id, request.rating)
+        except Exception as e:
+            logger.warning(f"[Diary] 反馈回流失败: {e}")
 
         return diary
     except Exception as e:
@@ -212,6 +219,14 @@ async def update_diary(
     diary = diary_service.update_diary(diary_id, user_id, request)
     if not diary:
         raise HTTPException(status_code=404, detail="日记不存在或无权访问")
+
+    # 穿搭日记反馈回流：评分更新时重新学习偏好
+    if request.rating is not None:
+        try:
+            diary_feedback_service.process_diary_feedback(user_id, diary_id, request.rating)
+        except Exception as e:
+            logger.warning(f"[Diary] 反馈回流失败: {e}")
+
     return diary
 
 

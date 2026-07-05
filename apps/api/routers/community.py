@@ -20,6 +20,7 @@ from apps.api.schemas.community import (
     CommentListResponse,
 )
 from apps.api.services.content_moderation import check_content, check_images
+from apps.api.services.preference_service import preference_service
 
 logger = logging.getLogger(__name__)
 
@@ -256,6 +257,7 @@ async def toggle_like(
                     [post_id],
                 )
                 action = "unliked"
+                pref_action = "dislike"
             else:
                 # 添加点赞
                 cur.execute(
@@ -267,8 +269,35 @@ async def toggle_like(
                     [post_id],
                 )
                 action = "liked"
+                pref_action = "like"
+
+            # 获取帖子五行属性用于偏好学习
+            cur.execute(
+                "SELECT element, tags FROM community_posts WHERE id = %s",
+                [post_id],
+            )
+            post_row = cur.fetchone()
 
             conn.commit()
+
+    # 偏好回流：点赞 = 喜欢该五行，取消点赞 = 不喜欢
+    if post_row and post_row.get("element"):
+        try:
+            preference_service.update_preference(
+                user_id,
+                {"primary_element": post_row["element"]},
+                pref_action,
+            )
+            # tags 中的风格关键词也参与偏好学习
+            for tag in (post_row.get("tags") or [])[:3]:
+                if tag and len(tag) <= 20:
+                    preference_service.update_preference(
+                        user_id,
+                        {"style": tag},
+                        pref_action,
+                    )
+        except Exception as e:
+            logger.warning(f"[Community] 偏好回流失败: {e}")
 
     return {"action": action}
 

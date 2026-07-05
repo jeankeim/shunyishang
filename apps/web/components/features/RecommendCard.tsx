@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { useState, useEffect, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { RecommendItem } from '@/types'
-import { submitFeedback } from '@/lib/api'
+import { submitFeedback, reportBehavior } from '@/lib/api'
 import { getWuxingConfig } from '@/lib/wuxing-config'
 import { getImageUrl } from '@/lib/image'
 
@@ -19,8 +19,35 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
   const [feedback, setFeedback] = useState<'like' | 'dislike' | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [imageError, setImageError] = useState(false)
-  const [showDetails, setShowDetails] = useState(false)  // 新增：详情展开状态
+  const [showDetails, setShowDetails] = useState(false)
+  const [showDislikeReasons, setShowDislikeReasons] = useState(false)
+  const [selectedReason, setSelectedReason] = useState<string | null>(null)
+  const dwellTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const hasReportedView = useRef(false)
+  const hasReportedDwell = useRef(false)
   const config = getWuxingConfig(item.primary_element)
+
+  // 行为埋点：卡片曝光（view）
+  useEffect(() => {
+    if (!hasReportedView.current) {
+      hasReportedView.current = true
+      reportBehavior(undefined, item.item_id || item.item_code || '', 'view')
+    }
+  }, [item.item_id, item.item_code])
+
+  // 行为埋点：停留检测（dwell > 3秒）
+  useEffect(() => {
+    dwellTimerRef.current = setTimeout(() => {
+      if (!hasReportedDwell.current) {
+        hasReportedDwell.current = true
+        reportBehavior(undefined, item.item_id || item.item_code || '', 'dwell', 3)
+      }
+    }, 3000)
+
+    return () => {
+      if (dwellTimerRef.current) clearTimeout(dwellTimerRef.current)
+    }
+  }, [item.item_id, item.item_code])
 
   const fullImageUrl = getImageUrl(item.image_url)
   const thumbnailUrl = item.thumbnail_url ? getImageUrl(item.thumbnail_url) : null
@@ -29,8 +56,31 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
   // 优先使用缩略图，如果没有则使用原图
   const displayImageUrl = thumbnailUrl || fullImageUrl
 
+  // 行为埋点：展开详情
+  const handleToggleDetails = () => {
+    if (!showDetails) {
+      reportBehavior(undefined, item.item_id || item.item_code || '', 'expand')
+    }
+    setShowDetails(!showDetails)
+  }
+
+  // 行为埋点：点击图片
+  const handleImageClick = (url: string) => {
+    reportBehavior(undefined, item.item_id || item.item_code || '', 'image_click')
+    onImageClick?.(url)
+  }
+
   const handleFeedback = async (action: 'like' | 'dislike') => {
     if (feedback || isSubmitting) return
+
+    // 行为埋点：点击反馈
+    reportBehavior(undefined, item.item_id || item.item_code || '', 'click')
+
+    if (action === 'dislike') {
+      // dislike 先展示原因选择器，不立即提交
+      setShowDislikeReasons(true)
+      return
+    }
 
     setIsSubmitting(true)
     try {
@@ -50,6 +100,36 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
     }
   }
 
+  const handleDislikeReason = async (reason: string) => {
+    setSelectedReason(reason)
+    setShowDislikeReasons(false)
+    setIsSubmitting(true)
+    try {
+      await submitFeedback({
+        session_id: sessionId,
+        item_id: item.item_id,
+        item_code: item.item_code,
+        item_source: item.source || 'public',
+        action: 'dislike',
+        feedback_reason: reason,
+      })
+      setFeedback('dislike')
+      onFeedback?.('dislike')
+    } catch (error) {
+      console.error('反馈提交失败:', error)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const DISLIKE_REASONS = [
+    { value: 'style', label: '风格不符' },
+    { value: 'color', label: '颜色不喜欢' },
+    { value: 'scene', label: '不适合场景' },
+    { value: 'thickness', label: '太厚/太薄' },
+    { value: 'other', label: '其他' },
+  ]
+
   const isFromWardrobe = item.source === 'wardrobe'
 
   return (
@@ -66,7 +146,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
         <motion.div
           className="h-40 cursor-pointer relative overflow-hidden group"
           style={{ backgroundImage: `url(${displayImageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
-          onClick={() => onImageClick?.(fullImageUrl!)}
+          onClick={() => handleImageClick(fullImageUrl!)}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
@@ -141,7 +221,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
               </div>
               {/* 展开/收起按钮 */}
               <button
-                onClick={() => setShowDetails(!showDetails)}
+                onClick={handleToggleDetails}
                 className="p-1.5 rounded-lg hover:bg-stone-100 transition-all"
                 aria-label={showDetails ? '收起详情' : '展开详情'}
               >
@@ -157,7 +237,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
             </div>
             
             {/* 反馈按钮 */}
-            <div className="flex gap-1">
+            <div className="flex gap-1 relative">
               <button
                 onClick={() => handleFeedback('like')}
                 disabled={!!feedback || isSubmitting}
@@ -184,6 +264,36 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" />
                 </svg>
               </button>
+
+              {/* Dislike 原因选择器 */}
+              <AnimatePresence>
+                {showDislikeReasons && !feedback && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 top-full mt-1 z-20 bg-white rounded-lg shadow-lg border border-stone-200 p-2 min-w-[140px]"
+                  >
+                    <p className="text-xs text-stone-500 mb-1.5 px-1">不喜欢的原因：</p>
+                    {DISLIKE_REASONS.map((r) => (
+                      <button
+                        key={r.value}
+                        onClick={() => handleDislikeReason(r.value)}
+                        className="w-full text-left px-2 py-1.5 text-xs rounded-md hover:bg-red-50 hover:text-red-600 text-stone-600 transition-colors"
+                      >
+                        {r.label}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setShowDislikeReasons(false)}
+                      className="w-full text-center px-2 py-1 text-xs text-stone-400 hover:text-stone-600 mt-1 border-t border-stone-100 pt-1"
+                    >
+                      取消
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
           

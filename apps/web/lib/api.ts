@@ -83,6 +83,7 @@ export interface RecommendRequest {
   top_k?: number
   retrieval_mode?: 'public' | 'wardrobe' | 'hybrid'  // 推荐检索模式
   user_id?: number  // 用户ID（衣橱模式必需）
+  user_city?: string  // 用户当前城市（用于城市五行计算）
   
   // 旅行/出差场景参数（可选，也可从query中自动提取）
   travel_days?: number   // 旅行天数
@@ -93,6 +94,31 @@ export interface RecommendRequest {
 export interface SSEEvent {
   type: 'analysis' | 'items' | 'token' | 'done' | 'error' | 'travel_plan'
   data: any
+}
+
+/**
+ * 上报用户行为（隐性反馈）
+ */
+export async function reportBehavior(
+  userId: number | undefined,
+  itemId: string | number,
+  action: 'view' | 'click' | 'expand' | 'image_click' | 'dwell',
+  dwellDuration?: number
+): Promise<void> {
+  try {
+    await fetch(`${getAPIBase()}/api/v1/wardrobe/behavior`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: userId,
+        item_id: itemId,
+        action,
+        dwell_duration: dwellDuration,
+      }),
+    })
+  } catch (e) {
+    // 静默失败，不影响用户体验
+  }
 }
 
 /**

@@ -31,11 +31,14 @@ class PreferenceService:
         """
         delta = 1 if action == 'like' else -1
 
-        # 提取可学习的属性维度
+        # 提取可学习的属性维度（3→6维）
         mappings = [
             ('color', item_attributes.get('color', '')),
             ('element', item_attributes.get('primary_element', '')),
             ('category', item_attributes.get('category', '')),
+            ('style', item_attributes.get('style', '')),
+            ('material', item_attributes.get('material', '')),
+            ('thickness', item_attributes.get('thickness_level', '')),
         ]
 
         with DatabasePool.get_connection() as conn:
@@ -67,7 +70,8 @@ class PreferenceService:
             }
         """
         query = """
-            SELECT pref_type, pref_key, weight
+            SELECT pref_type, pref_key, weight,
+                   EXTRACT(EPOCH FROM (NOW() - updated_at)) / 86400 AS days_old
             FROM user_preferences
             WHERE user_id = %s AND weight != 0
             ORDER BY pref_type, ABS(weight) DESC
@@ -77,12 +81,15 @@ class PreferenceService:
                 cur.execute(query, [user_id])
                 rows = cur.fetchall()
 
-        prefs: Dict[str, Dict[str, int]] = {}
+        prefs: Dict[str, Dict[str, float]] = {}
         for row in rows:
             pt = row['pref_type']
             if pt not in prefs:
                 prefs[pt] = {}
-            prefs[pt][row['pref_key']] = row['weight']
+            # 时间衰减：每日衰减 2%，最低保留 10%
+            days_old = row.get('days_old', 0)
+            decay_factor = max(0.1, 1.0 - days_old * 0.02)
+            prefs[pt][row['pref_key']] = row['weight'] * decay_factor
 
         return prefs
 
@@ -125,6 +132,27 @@ class PreferenceService:
         category = item.get('category', '')
         if category and 'category' in user_prefs:
             weight = user_prefs['category'].get(category, 0)
+            total_score += self._weight_to_score(weight)
+            count += 1
+
+        # 检查风格偏好
+        style = item.get('style', '')
+        if style and 'style' in user_prefs:
+            weight = user_prefs['style'].get(style, 0)
+            total_score += self._weight_to_score(weight)
+            count += 1
+
+        # 检查材质偏好
+        material = item.get('material', '')
+        if material and 'material' in user_prefs:
+            weight = user_prefs['material'].get(material, 0)
+            total_score += self._weight_to_score(weight)
+            count += 1
+
+        # 检查厚度偏好
+        thickness = item.get('thickness_level', '')
+        if thickness and 'thickness' in user_prefs:
+            weight = user_prefs['thickness'].get(thickness, 0)
             total_score += self._weight_to_score(weight)
             count += 1
 

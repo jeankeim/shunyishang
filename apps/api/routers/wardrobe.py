@@ -684,18 +684,22 @@ async def create_feedback(
 
 
 def _get_item_attributes(item_id, item_code, item_source) -> dict:
-    """获取物品属性用于偏好学习"""
+    """获取物品属性用于偏好学习（6维）"""
     try:
         with DatabasePool.get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 if item_source == 'wardrobe' and item_id:
                     cur.execute(
-                        "SELECT name, category, primary_element, attributes_detail FROM items WHERE id = %s",
+                        """SELECT name, category, primary_element, attributes_detail,
+                                  color, style, material, thickness_level
+                           FROM items WHERE id = %s""",
                         [item_id]
                     )
                 elif item_code:
                     cur.execute(
-                        "SELECT name, category, primary_element, attributes_detail FROM items WHERE item_code = %s",
+                        """SELECT name, category, primary_element, attributes_detail,
+                                  color, style, material, thickness_level
+                           FROM items WHERE item_code = %s""",
                         [item_code]
                     )
                 else:
@@ -706,17 +710,62 @@ def _get_item_attributes(item_id, item_code, item_source) -> dict:
             return {}
         
         attrs = dict(row)
-        # 从 attributes_detail 提取颜色
+        # 从 attributes_detail 提取补充属性
         detail = attrs.get('attributes_detail', {})
         if isinstance(detail, str):
-            import json
             detail = json.loads(detail)
         
+        color = attrs.get('color') or (
+            detail.get('颜色', {}).get('主色', '') if isinstance(detail.get('颜色'), dict) else ''
+        )
+        
         return {
-            'color': detail.get('颜色', {}).get('主色', '') if isinstance(detail.get('颜色'), dict) else '',
+            'color': color,
             'primary_element': attrs.get('primary_element', ''),
             'category': attrs.get('category', ''),
+            'style': attrs.get('style') or detail.get('style', ''),
+            'material': attrs.get('material') or detail.get('material', ''),
+            'thickness_level': attrs.get('thickness_level') or detail.get('thickness_level', ''),
         }
     except Exception as e:
         logger.debug(f"[Feedback] 获取物品属性失败: {e}")
         return {}
+
+
+# ========== 用户行为追踪 ==========
+
+class BehaviorRequest(BaseModel):
+    """用户行为上报请求"""
+    user_id: Optional[int] = None
+    item_id: str
+    action: str = Field(..., description="行为类型: view/click/expand/image_click/dwell")
+    item_source: str = Field('public', description="物品来源: public/wardrobe")
+    dwell_duration: Optional[int] = Field(None, description="停留时长（秒）")
+    session_id: Optional[str] = None
+
+
+@router.post("/behavior")
+async def report_behavior(request: BehaviorRequest):
+    """记录用户行为（隐性反馈）"""
+    try:
+        with DatabasePool.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """INSERT INTO user_behaviors
+                       (user_id, item_id, item_source, action, dwell_duration, session_id)
+                       VALUES (%s, %s, %s, %s, %s, %s)""",
+                    [
+                        request.user_id,
+                        request.item_id,
+                        request.item_source,
+                        request.action,
+                        request.dwell_duration,
+                        request.session_id,
+                    ],
+                )
+                conn.commit()
+    except Exception as e:
+        # 行为追踪失败不影响用户体验，静默处理
+        logger.debug(f"[Behavior] 记录失败: {e}")
+
+    return {"status": "ok"}

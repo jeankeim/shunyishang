@@ -36,6 +36,7 @@ export default function Home() {
   const [sceneElement, setSceneElement] = useState('')
     const [weatherElement, setWeatherElement] = useState('')
   const [weatherInfo, setWeatherInfo] = useState<any>(null)  // 新增：保存完整天气信息
+  const [userCity, setUserCity] = useState<string>('')  // 用户当前城市
   const [activeTab, setActiveTab] = useState<'chat' | 'wardrobe' | 'tryon' | 'profile' | 'diary' | 'fortune' | 'destiny' | 'community' | 'cultivation'>('chat')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [showCheckIn, setShowCheckIn] = useState(false)
@@ -128,6 +129,7 @@ export default function Home() {
       humidity: weather.humidity,
       wind_level: parseInt(weather.wind?.replace('级', '') || '0'),
     })
+    setUserCity(weather.city || '')  // 保存城市名
   }
 
   const toggleSidebar = () => {
@@ -553,6 +555,7 @@ export default function Home() {
                   scene={scene} 
                   weatherElement={weatherElement}
                   weatherInfo={weatherInfo}
+                  userCity={userCity}
                 />
               </motion.div>
             )}
