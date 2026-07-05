@@ -29,6 +29,24 @@ COMMENT ON TABLE user_behaviors IS '用户行为追踪表，记录隐性反馈�
 COMMENT ON COLUMN user_behaviors.action IS '行为类型: view/click/expand/image_click/dwell';
 COMMENT ON COLUMN user_behaviors.dwell_duration IS '停留时长（秒），仅 dwell 动作有效';
 
--- 4. 更新已有 items 表：确保 wear_count 有默认值（兼容旧数据）
-ALTER TABLE items ALTER COLUMN wear_count SET DEFAULT 0;
-UPDATE items SET wear_count = 0 WHERE wear_count IS NULL;
+-- 4. 为 items 表新增 color/style/material 列（从 attributes_detail JSONB 提取）
+-- 颜色
+ALTER TABLE items ADD COLUMN IF NOT EXISTS color VARCHAR(50);
+UPDATE items SET color = attributes_detail->'颜色'->>'名称' WHERE color IS NULL AND attributes_detail->'颜色'->>'名称' IS NOT NULL;
+
+-- 风格（从 款式.形状 提取）
+ALTER TABLE items ADD COLUMN IF NOT EXISTS style VARCHAR(50);
+UPDATE items SET style = attributes_detail->'款式'->>'形状' WHERE style IS NULL AND attributes_detail->'款式'->>'形状' IS NOT NULL;
+
+-- 材质（从 面料 提取）
+ALTER TABLE items ADD COLUMN IF NOT EXISTS material VARCHAR(50);
+UPDATE items SET material = attributes_detail->'面料'->>'名称' WHERE material IS NULL AND attributes_detail->'面料'->>'名称' IS NOT NULL;
+
+-- 5. 为 user_wardrobe 表也添加 color/style/material 列
+ALTER TABLE user_wardrobe ADD COLUMN IF NOT EXISTS color VARCHAR(50);
+ALTER TABLE user_wardrobe ADD COLUMN IF NOT EXISTS style VARCHAR(50);
+ALTER TABLE user_wardrobe ADD COLUMN IF NOT EXISTS material VARCHAR(50);
+
+UPDATE user_wardrobe SET color = attributes_detail->'颜色'->>'名称' WHERE color IS NULL AND attributes_detail->'颜色'->>'名称' IS NOT NULL;
+UPDATE user_wardrobe SET style = attributes_detail->'款式'->>'形状' WHERE style IS NULL AND attributes_detail->'款式'->>'形状' IS NOT NULL;
+UPDATE user_wardrobe SET material = attributes_detail->'面料'->>'名称' WHERE material IS NULL AND attributes_detail->'面料'->>'名称' IS NOT NULL;
