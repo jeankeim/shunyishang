@@ -28,16 +28,20 @@ LUGGAGE_CAPACITY_MAP: Dict[str, int] = {
 # 百搭功能关键词，用于识别可复用单品
 REUSABLE_FUNCTIONALITY = {"百搭", "轻便", "舒适", "休闲", "抗皱"}
 
-# 品类复用间隔（天数）：0=可全程复用，1=隔1天可复用，-1=不复用
+# 品类复用间隔（天数）：0=可全程复用，N=隔N天才能复用，-1=不复用
+# 优化：上装/下装/裙装复用间隔从1天提升到2天，确保多日行程有足够多样性
 CATEGORY_REUSE_INTERVAL: Dict[str, int] = {
     "外套": 0,   # 外套可全程复用
     "鞋履": 0,   # 鞋履可全程复用
     "配饰": 0,   # 配饰可全程复用
-    "上装": 1,   # 上装隔1天可复用
-    "下装": 1,   # 下装隔1天可复用
-    "裙装": 1,   # 裙装隔1天可复用
+    "上装": 2,   # 上装隔2天才能复用（原为1，优化为2）
+    "下装": 2,   # 下装隔2天才能复用（原为1，优化为2）
+    "裙装": 2,   # 裙装隔2天才能复用（原为1，优化为2）
     "内衣": -1,  # 内衣不复用
 }
+
+# 复用惩罚强度：未用过物品 vs 已用过物品的分数差距
+FRESH_ITEM_BONUS = 0.3  # 未使用过的物品获得额外加分，强制优先选新物品
 
 
 # ============================================================
@@ -423,25 +427,32 @@ def _select_items_for_day(
         # 天气适配评分
         weather_score = _weather_item_score(item, weather)
 
-        # 跨天复用惩罚分
+        # 跨天复用惩罚分（优化：加强惩罚 + 新品加分）
         reuse_penalty = 0.0
+        fresh_bonus = 0.0
         reuse_interval = CATEGORY_REUSE_INTERVAL.get(category, 1)
         if item_id in used_item_ids:
             if reuse_interval == -1:
                 # 不复用的品类，跳过
                 continue
             elif reuse_interval == 0:
-                # 可全程复用，无惩罚
+                # 可全程复用，无惩罚（外套/鞋履/配饰）
                 pass
             else:
                 last_day = item_last_used_day.get(item_id, -999)
                 gap = day_idx - last_day
                 if gap < reuse_interval:
-                    # 未达到复用间隔，施加扣分
-                    reuse_penalty = 0.3 * (reuse_interval - gap) / reuse_interval
+                    # 未达到复用间隔，施加强惩罚（原为0.3，优化为0.6）
+                    reuse_penalty = 0.6 * (reuse_interval - gap) / reuse_interval
+                else:
+                    # 已过复用间隔，但仍比全新物品分数低
+                    reuse_penalty = 0.1
+        else:
+            # 全新物品，给予额外加分，强制优先选择未使用过的物品
+            fresh_bonus = FRESH_ITEM_BONUS
 
-        # 综合评分（减去复用惩罚）
-        total_score = scene_score * 0.4 + wuxing_score * 0.35 + weather_score * 0.25 - reuse_penalty
+        # 综合评分 = 场景*0.4 + 五行*0.35 + 天气*0.25 - 复用惩罚 + 新品加分
+        total_score = scene_score * 0.4 + wuxing_score * 0.35 + weather_score * 0.25 - reuse_penalty + fresh_bonus
 
         scored_items.append({
             "item": item,
@@ -504,43 +515,74 @@ def _format_item_output(item: Dict, scored: Dict) -> Dict:
 
 
 def _weather_item_score(item: Dict, weather: Dict) -> float:
-    """根据天气评估物品适配度"""
+    """根据天气评估物品适配度（带强烈温度惩罚）"""
     score = 0.5
     weather_desc = weather.get("weather_desc", "")
     temp_max = weather.get("temperature_max", 25)
     temp_min = weather.get("temperature_min", 15)
     avg_temp = (temp_max + temp_min) / 2
 
-    functionality = item.get("functionality", [])
+    thickness = item.get("thickness_level", "")
+    functionality = _parse_functionality(item.get("functionality", []))
+
+    # ===== 温度适配（核心逻辑，强惩罚）=====
+    # 高温场景（>=28°C）
+    if avg_temp >= 28:
+        if thickness in ("轻薄", "极薄"):
+            score += 0.2
+        elif thickness == "适中":
+            score += 0.05
+        elif thickness in ("中厚", "厚重"):
+            score -= 0.5  # 强烈惩罚！32°C不应推荐羽绒服/厚外套
+        if any(f in functionality for f in ["透气", "速干", "防晒"]):
+            score += 0.15
+        if any(f in functionality for f in ["保暖", "防风"]):
+            score -= 0.2  # 高温天推荐保暖功能不合理
+
+    # 低温场景（<=10°C）
+    elif avg_temp <= 10:
+        if thickness in ("厚重", "中厚"):
+            score += 0.2
+        elif thickness == "适中":
+            score += 0.05
+        elif thickness in ("极薄", "轻薄"):
+            score -= 0.4  # 寒冷天不应推荐极薄衣物
+        if "保暖" in functionality:
+            score += 0.2
+        if any(f in functionality for f in ["防风"]):
+            score += 0.1
+
+    # 适中温度（10-28°C）
+    else:
+        if thickness == "适中":
+            score += 0.15
+        elif thickness in ("轻薄", "中厚"):
+            score += 0.05
+
+    # ===== 天气状况加分 =====
+    if any(kw in weather_desc for kw in ["雨", "雪"]):
+        if "防水" in functionality:
+            score += 0.15
+        # 雨雪天不推荐丝绸/真丝
+        if "丝绸" in str(item.get("name", "")) or "真丝" in str(item.get("name", "")):
+            score -= 0.2
+
+    return max(0.0, min(1.0, score))
+
+
+def _parse_functionality(functionality) -> list:
+    """解析功能性字段（兼容 list/dict/str 格式）"""
     if isinstance(functionality, str):
         import json
         try:
             functionality = json.loads(functionality)
         except Exception:
-            functionality = []
-
-    # 雨/雪天 -> 防水加分
-    if any(kw in weather_desc for kw in ["雨", "雪"]):
-        if "防水" in functionality:
-            score += 0.2
-
-    # 高温 -> 透气/速干加分
-    if avg_temp >= 28:
-        if any(f in functionality for f in ["透气", "速干", "防晒"]):
-            score += 0.15
-        thickness = item.get("thickness_level", "")
-        if thickness in ("轻薄", "极薄"):
-            score += 0.1
-
-    # 低温 -> 保暖加分
-    if avg_temp <= 10:
-        if "保暖" in functionality:
-            score += 0.2
-        thickness = item.get("thickness_level", "")
-        if thickness in ("中厚", "厚"):
-            score += 0.1
-
-    return min(1.0, score)
+            return []
+    if isinstance(functionality, dict):
+        return [k for k, v in functionality.items() if v]
+    if isinstance(functionality, list):
+        return functionality
+    return []
 
 
 def _is_reusable(item: Dict) -> bool:

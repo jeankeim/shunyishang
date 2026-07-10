@@ -428,14 +428,35 @@ def run_agent(
     # 从八字输入中提取性别
     user_gender = bazi_input.get("gender") if bazi_input else None
     
+    # 优化：从用户输入中提取场景/天气/旅行参数（与 run_agent_stream 保持一致）
+    extracted = _extract_context_from_query(user_input)
+    final_scene = extracted.get("scene") or scene
+    final_weather_info = extracted.get("weather_info") or weather_info
+    final_weather_element = extracted.get("weather_element") or weather_element
+    final_travel_days = extracted.get("travel_days")
+    final_destination = extracted.get("destination")
+    
+    # 判断是否为旅行/出差场景
+    is_travel_scene = (
+        final_scene in ("旅行", "出差", "度假", "户外探险")
+        and final_travel_days is not None
+        and final_travel_days >= 2
+    )
+    
+    if is_travel_scene:
+        logger.info(f"[推荐-sync] 旅行场景: 目的地={final_destination}, 天数={final_travel_days}")
+    
     initial_state = create_initial_state(
         user_input=user_input,
-        scene=scene,
-        weather_element=weather_element,
-        weather_info=weather_info,
+        scene=final_scene,
+        weather_element=final_weather_element,
+        weather_info=final_weather_info,
         bazi_input=bazi_input,
         user_gender=user_gender,
         top_k=top_k,
+        travel_days=final_travel_days if is_travel_scene else None,
+        destination=final_destination if is_travel_scene else None,
+        luggage_size="中" if is_travel_scene else None,
     )
     
     result = app.invoke(initial_state)

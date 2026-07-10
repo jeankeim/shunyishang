@@ -405,7 +405,7 @@ async def list_wardrobe_items(
             stats_rows = cur.fetchall()
     
     items = [WardrobeItemResponse(**dict(row)) for row in rows]
-    element_stats = {row['primary_element']: row['count'] for row in stats_rows}
+    element_stats = {row['primary_element']: row['count'] for row in stats_rows if row['primary_element'] is not None}
     
     return WardrobeItemListResponse(
         items=items,

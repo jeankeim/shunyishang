@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bell, X, Check } from 'lucide-react'
 import { useMembershipStore } from '@/store/membership'
+import { useUserStore } from '@/store/user'
 import type { PushNotification } from '@/types'
 
 const typeConfig: Record<string, { label: string; icon: string; color: string }> = {
@@ -65,13 +66,17 @@ function NotificationItem({ notification, onRead }: {
 
 export function NotificationBell() {
   const { notifications, unreadCount, fetchNotifications, fetchUnreadCount, markAsRead } = useMembershipStore()
+  const { isAuthenticated, isLoading } = useUserStore()
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    fetchUnreadCount()
-    fetchNotifications()
-  }, [fetchUnreadCount, fetchNotifications])
+    // 仅在认证完成且已登录时获取数据
+    if (isAuthenticated && !isLoading) {
+      fetchUnreadCount()
+      fetchNotifications()
+    }
+  }, [isAuthenticated, isLoading, fetchUnreadCount, fetchNotifications])
 
   // 点击外部关闭
   useEffect(() => {

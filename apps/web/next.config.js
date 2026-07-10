@@ -22,6 +22,8 @@ const ossHostname = extractHostname(OSS_BASE, '')
 const remotePatterns = [
   // R2（海外，兼容旧数据）
   { protocol: 'https', hostname: r2Hostname },
+  // R2 当前实际公开域名
+  { protocol: 'https', hostname: 'pub-851399ad134d447ea68cd62dbadd90a4.r2.dev' },
   // API 服务器（本地开发）
   {
     protocol: process.env.NODE_ENV === 'production' ? 'https' : 'http',

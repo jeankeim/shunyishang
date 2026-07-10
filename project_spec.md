@@ -125,14 +125,13 @@ wuxing-ai-stylist/
 │   │   └── annotation_guide.md          # 数据标注指南文档
 │   ├── seeds/                  # 种子数据源
 │   │   ├── seed_data_100.json           # 100 条预定义的五行衣物数据
-│   │   ├── wuxing_elements.json         # 五行基础数据表
-│   │   └── init_mappings.sql            # 初始化五行映射表 SQL
+│   │   └── wuxing_elements.json         # 五行基础数据表
 │   └── postgres/               # (Git Ignored) PG 数据持久化目录
 │
-├── scripts/                    # [DevOps & Tools] 一次性脚本与工具
+├── scripts/                    # [DevOps & Tools] 迁移脚本（12 个）与工具脚本
 │   ├── init_db.sql             # [W1] 数据库 DDL (建表、扩展、索引)
 │   ├── import_seed.py          # [W1] ETL 脚本：JSON -> Embedding -> DB
-│   └── test_semantic_search.py # [W1] 语义搜索验证脚本
+│   └── migrations/             # [W1-W16] 增量迁移脚本（12 个）
 │
 ├── TASKS/                      # [🚀 Project Command Center] 敏捷开发指挥中心
 │   │                         # ⚠️ 所有开发指令和验收标准均在此目录下
@@ -158,7 +157,7 @@ wuxing-ai-stylist/
 │   │   ├── main.py             # 入口文件
 │   │   ├── core/               # 配置、安全、异常处理
 │   │   ├── routers/            # API 路由（14 个）
-│   │   └── services/           # 业务逻辑层（20+ 服务模块）
+│   │   └── services/           # 业务逻辑层（23 个服务模块）
 │   │
 │   └── web/                    # Next.js 前端应用
 │       ├── app/                # App Router 页面
@@ -186,9 +185,8 @@ wuxing-ai-stylist/
 │   └── db/                     # 数据库连接池管理
 │
 └── tests/                      # [Testing] 单元测试与集成测试
-    ├── test_api/
-    ├── test_agents/
-    └── conftest.py
+    ├── apps/api/tests/         # 后端测试（46 个测试文件）
+    └── apps/web/tests/         # 前端测试（17 个测试文件）
 ```
 
 ---
@@ -197,17 +195,17 @@ wuxing-ai-stylist/
 
 AI 需根据当前日期和以下里程碑判断当前应聚焦的任务：
 
-### ✅ Phase 1: 数据基石 (Week 1) - **[COMPLETED]**
+### ✅ Week 1: 数据基石 - **[COMPLETED]**
 - **完成日期**: 2026-03-20
 - **目标**: 完成数据库搭建，导入 100 条种子数据并验证语义搜索。
 - **关键产出**: `docker-compose.yml`, `init_db.sql`, `import_seed.py`, 验证通过的向量库。
-- **验收标准**: ✅ 运行 `test_semantic_search.py`，搜索“神秘”能命中“深紫色丝绒”衣物。
+- **验收标准**: ✅ 向量搜索验证通过，语义检索能正确命中目标衣物。
 
-### ✅ Phase 2: 后端大脑 (Week 2) - **[COMPLETED]**
+### ✅ Week 2: 后端大脑 - **[COMPLETED]**
 - **完成日期**: 2026-03-27
 - **目标**: 搭建 FastAPI 后端，实现正式版八字+场景推荐逻辑，构建 LangGraph 状态机 Agent，暴露 SSE 流式 API。
 - **关键产出**: `apps/api/main.py`，`packages/utils/bazi_calculator.py`，`packages/ai_agents/graph.py`，`POST /api/v1/recommend/stream`
-- **验收标准**: ✅ `scripts/test_agent_flow.py` 跑通全流程；SSE 接口首字延迟 < 1.5s；推荐结果必须引用真实 `item_code`，拒绝幻觉。
+- **验收标准**: ✅ Agent 全流程跑通；SSE 接口首字延迟 < 1.5s；推荐结果必须引用真实 `item_code`，拒绝幻觉。
 - **技术决策**（已确认）:
   - LLM：阿里百炼千问（`DASHSCOPE_API_KEY`，兼容 OpenAI SDK）
   - 数据库层：保持 psycopg2 连接池，不引入 SQLAlchemy
@@ -221,7 +219,7 @@ AI 需根据当前日期和以下里程碑判断当前应聚焦的任务：
   - ✅ `03_LANGGRAPH_AGENT`：4 节点状态机（意图→检索→生成→格式化）
   - ✅ `04_API_EXPOSE`：SSE 流式接口 + 错误处理
 
-### ✅ Phase 3: 前端核心与可视化交互 (Week 3) - **[COMPLETED]**
+### ✅ Week 3: 前端核心与可视化交互 - **[COMPLETED]**
 - **完成日期**: 2026-04-01
 - **目标**: Next.js 首页，五行雷达图可视化，流式对话 UI，24 节气自适应主题。
 - **关键产出**: 
@@ -251,23 +249,23 @@ AI 需根据当前日期和以下里程碑判断当前应聚焦的任务：
   - `03_PAGE_DASHBOARD`: 侧边栏布局 + 24 节气主题系统 + Header
   - `04_STREAMING_UI`: 流式解析 + TypewriterText + AnimatePresence 卡片动画
 
-### ✅ Phase 4: 个性化闭环 (Week 4) - **[COMPLETED]**
+### ✅ Week 4: 个性化闭环 - **[COMPLETED]**
 - **完成日期**: 2026-03-26
 
-### ✅ Phase 5: 多模态增强 (Week 5) - **[COMPLETED]**
+### ✅ Week 5: 多模态增强 - **[COMPLETED]**
 - **完成日期**: 2026-04-05
 
-### ✅ Phase 6: 部署与优化 (Week 6) - **[COMPLETED]**
+### ✅ Week 6: 部署与优化 - **[COMPLETED]**
 - **完成日期**: 2026-07-01
 - **实际方案**: Vercel（前端）+ Zeabur（后端）+ R2/OSS（图片）+ Upstash/Redis（缓存）
 - **已完成**: 数据库索引优化、GZip 压缩、连接池健康检查、Docker Compose 生产配置
 
-### ✅ Phase 7: 场景优化 + 移动端适配 (Week 7) - **[COMPLETED]**
+### ✅ Week 7: 场景优化 + 移动端适配 - **[COMPLETED]**
 - **完成日期**: 2026-04-11
 - **场景优化**: 软过滤、场景映射、多维度识别、天气过滤（100%）
 - **移动端适配**: 响应式布局、手势交互、PWA 支持（100%）
 
-### ✅ Phase 8: 虚拟试衣 (Week 8) - **[COMPLETED]**
+### ✅ Week 8: 虚拟试衣 - **[COMPLETED]**
 - **完成日期**: 2026-04-13
 - **功能**: Canvas 画布组件 + 交互 Hook + 工具栏 + 图层管理 + 导出分享
 
@@ -301,7 +299,7 @@ AI 需根据当前日期和以下里程碑判断当前应聚焦的任务：
 
 ---
 
-> **注意**: 本项目已完成 MVP 及 V2 全部功能（Week 1-16，100%），当前重点为国内部署迁移与真实支付接入。详见 [V2 路线图](TASKS/PRODUCT_V2_ROADMAP.md) 和 [国内迁移计划](MIGRATION_CHINA_PLAN.md)。
+> **注意**: 本项目已完成 MVP 及 V2 全部功能（Week 1-16，100%），生产环境运行中。后续规划详见 [V2 路线图](TASKS/PRODUCT_V2_ROADMAP.md)，国内部署迁移详见 [迁移计划](MIGRATION_CHINA_PLAN.md) 。
 
 ---
 
@@ -321,7 +319,7 @@ AI 需根据当前日期和以下里程碑判断当前应聚焦的任务：
 
 ### V2 开发阶段规划
 
-#### ✅ Phase 9: 穿搭日记与运势系统 (Week 9) - **[COMPLETED]**
+#### ✅ Week 9: 穿搭日记与运势系统 - **[COMPLETED]**
 - **完成日期**: 2026-04-20
 - **目标**: 创建每日打开理由
 - **核心功能**:
@@ -331,7 +329,7 @@ AI 需根据当前日期和以下里程碑判断当前应聚焦的任务：
   - 命理进阶：大运流年 + 十神 + 纳音五行
 - **详细文档**: [TASKS/WEEK_09_DIARY_FORTUNE/README.md](TASKS/WEEK_09_DIARY_FORTUNE/README.md)
 
-#### ✅ Phase 10: VIP会员与推送系统 (Week 10) - **[COMPLETED]**
+#### ✅ Week 10: VIP会员与推送系统 - **[COMPLETED]**
 - **完成日期**: 2026-04-27
 - **目标**: 商业化基础设施
 - **核心功能**:
@@ -340,7 +338,7 @@ AI 需根据当前日期和以下里程碑判断当前应聚焦的任务：
   - 多渠道推送通知（webpush/sms/email）
 - **详细文档**: [TASKS/WEEK_10_MEMBERSHIP_PUSH/README.md](TASKS/WEEK_10_MEMBERSHIP_PUSH/README.md)
 
-#### ✅ Phase 11-12: 穿搭广场社区 + 游戏化 (Week 11-12) - **[COMPLETED]**
+#### ✅ Week 11-12: 穿搭广场社区 + 游戏化 - **[COMPLETED]**
 - **完成日期**: 2026-05-11
 - **目标**: 内容生态 + 用户激励
 - **核心功能**:
@@ -348,7 +346,7 @@ AI 需根据当前日期和以下里程碑判断当前应聚焦的任务：
   - 积分系统 + 成就徽章 + 等级成长体系
   - 每日签到 + 穿搭行为积分联动
 
-#### ✅ Phase 13-14: 商业化深化 (Week 13-14) - **[COMPLETED]**
+#### ✅ Week 13-14: 商业化深化 - **[COMPLETED]**
 - **完成日期**: 2026-05-25
 - **目标**: 变现能力提升
 - **核心功能**:
@@ -356,7 +354,7 @@ AI 需根据当前日期和以下里程碑判断当前应聚焦的任务：
   - 付费运势报告（DashScope AI）
   - 深度运势解读 + 五行穿搭指导
 
-#### ✅ Phase 15-16: 生态完善 (Week 15-16) - **[COMPLETED]**
+#### ✅ Week 15-16: 生态完善 - **[COMPLETED]**
 - **完成日期**: 2026-06-08
 - **目标**: 产品生态闭环
 - **核心功能**:

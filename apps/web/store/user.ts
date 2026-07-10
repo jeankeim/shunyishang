@@ -53,11 +53,18 @@ export const useUserStore = create<UserState>()(
         const token = typeof window !== 'undefined' ? localStorage.getItem('wuxing_token') : null
         const state = get()
 
-        if (state.isAuthenticated && !token) {
-          set({ isAuthenticated: false, user: null })
-        } else if (token && !state.isAuthenticated) {
-          set({ isAuthenticated: true })
-          get().fetchUserInfo()
+        if (!token) {
+          // 无 token 但 isAuthenticated 为 true → 清除状态
+          if (state.isAuthenticated) {
+            set({ isAuthenticated: false, user: null })
+          }
+        } else {
+          // 有 token 时始终验证有效性（避免过期 token 导致 401）
+          // 先设为 loading 状态，防止组件在验证完成前发起 API 请求
+          set({ isLoading: true })
+          get().fetchUserInfo().finally(() => {
+            set({ isLoading: false })
+          })
         }
       },
 
@@ -108,6 +115,10 @@ export const useUserStore = create<UserState>()(
           const user = await getCurrentUser()
           set({ user, isAuthenticated: true })
         } catch {
+          // token 无效/过期，清除本地凭证
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('wuxing_token')
+          }
           set({ user: null, isAuthenticated: false })
         }
       },
@@ -139,6 +150,7 @@ export const useUserStore = create<UserState>()(
     }),
     {
       name: 'wuxing-user-storage',
+      skipHydration: true,
       partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated,

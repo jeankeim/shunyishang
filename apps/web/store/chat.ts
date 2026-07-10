@@ -212,6 +212,7 @@ export const useChatStore = create<ChatState>()(
     }),
     {
       name: 'wuxing-chat-storage',
+      skipHydration: true,
       partialize: (state) => ({
         conversations: state.conversations,
         userBazi: state.userBazi,

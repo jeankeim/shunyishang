@@ -150,6 +150,7 @@ export const useWardrobeStore = create<WardrobeState>()(
     }),
     {
       name: 'wardrobe-storage',
+      skipHydration: true,
       partialize: (state) => ({
         // 不持久化敏感数据
       }),

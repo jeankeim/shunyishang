@@ -31,7 +31,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="zh-CN">
+    <html lang="zh-CN" suppressHydrationWarning>
       <head>
         {/* PWA meta tags */}
         <meta name="mobile-web-app-capable" content="yes" />
@@ -79,7 +79,7 @@ export default function RootLayout({
             __html: `
               if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
-                  if (process.env.NODE_ENV === 'production') {
+                  if (${process.env.NODE_ENV === 'production'}) {
                     // 生产环境：注册 SW
                     navigator.serviceWorker.register('/sw.js')
                       .catch(function(error) {

@@ -32,6 +32,20 @@ const TEN_GOD_DESC: Record<string, string> = {
   '正印': '贵人相助，学业之兆',
 }
 
+// 十天干日主性格映射（基于日柱天干显示性格特质）
+const DAY_MASTER_PERSONALITY: Record<string, string> = {
+  '甲': '正直坚毅，参天大树',   // 阳木：刚直向上，不屈不挠
+  '乙': '柔韧灵活，花草藤蔓',   // 阴木：委婉适应，随遇而安
+  '丙': '热情奔放，太阳之火',   // 阳火：光明磊落，感染力强
+  '丁': '温柔细腻，烛光之暖',   // 阴火：内秀含蓄，心思缜密
+  '戊': '稳重包容，高山大地',   // 阳土：宽厚踏实，值得信赖
+  '己': '温和谦逊，田园之土',   // 阴土：内敛含蓄，善于滋养
+  '庚': '刚毅果断，刀剑之锋',   // 阳金：义气分明，执行力强
+  '辛': '精致敏锐，珠玉之质',   // 阴金：敏感细腻，审美出众
+  '壬': '智慧豪迈，江河奔流',   // 阳水：思维活跃，格局宏大
+  '癸': '聪慧灵动，雨露润泽',   // 阴水：洞察力强，善解人意
+}
+
 // 柱名映射
 const PILLAR_NAMES: Record<string, string> = {
   year: '年柱',
@@ -78,11 +92,11 @@ export function TenGodsCard({ data }: TenGodsCardProps) {
                   <p className={`text-xs font-medium ${colors.text}`}>
                     {isDayMaster ? '日主' : pillar.ten_god}
                   </p>
-                  {!isDayMaster && (
-                    <p className="text-[10px] text-stone-400 mt-1 leading-tight">
-                      {TEN_GOD_DESC[pillar.ten_god]?.slice(0, 4)}
-                    </p>
-                  )}
+                  <p className="text-[10px] text-stone-400 mt-1 leading-tight">
+                    {isDayMaster
+                      ? (DAY_MASTER_PERSONALITY[pillar.stem]?.slice(0, 4) || '')
+                      : (TEN_GOD_DESC[pillar.ten_god]?.slice(0, 4) || '')}
+                  </p>
                 </div>
               </motion.div>
             )

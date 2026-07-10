@@ -203,16 +203,83 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: 
     '明天要去面试外企，想要国际化但又符合五行的穿搭建议',
   ]
 
-  // 随机选择 3 个不重复的推荐示例
+  // 按场景分类的推荐示例库，确保每次展示覆盖多维度场景
+  const PROMPT_CATEGORIES = {
+    scene: [
+      '明天面试穿什么',
+      '周末约会推荐',
+      '参加派对穿什么',
+      '去海边怎么穿',
+      '去听音乐会穿什么',
+      '上班通勤穿什么',
+      '参加婚礼穿什么',
+      '居家休闲怎么穿',
+      '运动健身穿什么',
+      '雨天出门穿搭',
+    ],
+    wuxing: [
+      '五行缺木怎么穿',
+      '喜用神是火应该穿什么颜色',
+      '八字缺金怎么补',
+      '水命人适合什么颜色',
+      '土命人穿搭建议',
+    ],
+    season: [
+      '春天适合什么颜色',
+      '夏天怎么穿凉快',
+      '秋天外套推荐',
+      '冬天保暖穿搭',
+    ],
+    style: [
+      '休闲风格推荐',
+      '黑色裤子怎么搭配',
+      '白色T恤怎么搭',
+      '牛仔裤配什么鞋',
+      '今天穿什么好看',
+    ],
+    travel: [
+      '去北京出差3天穿什么',
+      '去三亚度假5天穿搭推荐',
+      '去成都旅行4天穿搭建议',
+      '去哈尔滨旅游3天怎么穿',
+    ],
+    complex: [
+      '商务会议穿搭，要显得专业（金属性）',
+      '第一次约会，想给对方好印象（火属性）',
+      '小个子女生显高穿搭技巧',
+      '微胖身材怎么穿显瘦',
+      '职场新人穿搭指南',
+      '周末和朋友去郊外野餐，天气晴朗25度，想要舒适又有拍照效果的穿搭',
+    ],
+  }
+
+  // 从每个分类中随机选取，确保场景多样性，共选 5 条
+  const pickDiversePrompts = (count: number) => {
+    const categories = Object.values(PROMPT_CATEGORIES)
+    const selected: string[] = []
+    // 先每个分类选1条
+    for (const cat of categories) {
+      if (selected.length >= count) break
+      const item = cat[Math.floor(Math.random() * cat.length)]
+      if (!selected.includes(item)) selected.push(item)
+    }
+    // 不够则从所有库中随机补
+    if (selected.length < count) {
+      const all = categories.flat()
+      const shuffled = all.filter(x => !selected.includes(x)).sort(() => Math.random() - 0.5)
+      selected.push(...shuffled.slice(0, count - selected.length))
+    }
+    return selected.sort(() => Math.random() - 0.5)
+  }
+
+  // 随机选择 5 个不重复的推荐示例，确保场景多样性
   useEffect(() => {
-    const shuffled = [...PROMPT_LIBRARY].sort(() => Math.random() - 0.5)
-    setCurrentPrompts(shuffled.slice(0, 3))
+    setCurrentPrompts(pickDiversePrompts(5))
   }, [])
 
   // 刷新推荐示例
   const refreshPrompts = () => {
-    const shuffled = [...PROMPT_LIBRARY].sort(() => Math.random() - 0.5)
-    setCurrentPrompts(shuffled.slice(0, 3))
+    setCurrentPrompts(pickDiversePrompts(5))
   }
 
   const scrollToBottom = useCallback(() => {
@@ -489,7 +556,7 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: 
                       onClick={() => handleSend(prompt)}
                       aria-label={`发送推荐请求：${prompt}`}
                       whileTap={{ scale: 0.95 }}
-                      className="px-4 py-3 min-h-[44px] text-sm bg-gradient-to-br from-amber-100/60 to-orange-100/40 border border-amber-200/40 rounded-xl hover:from-amber-200/60 hover:to-orange-200/40 transition-all duration-200 shadow-sm hover:shadow-md touch-manipulation"
+                      className="px-3 py-2 min-h-[36px] text-xs bg-gradient-to-br from-amber-100/60 to-orange-100/40 border border-amber-200/40 rounded-lg hover:from-amber-200/60 hover:to-orange-200/40 transition-all duration-200 shadow-sm hover:shadow-md touch-manipulation leading-snug"
                     >
                       {prompt}
                     </motion.button>

@@ -36,7 +36,7 @@ class FortuneReportService:
             api_key=settings.dashscope_api_key,
             base_url=settings.dashscope_base_url,
         )
-        self.model = settings.dashscope_model
+        self.model = settings.qwen_model
 
     def generate_annual_report(
         self, user_id: int, user_bazi: Dict[str, Any], year: int

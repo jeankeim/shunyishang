@@ -272,7 +272,7 @@ class WardrobeClient:
                     
                     # 更新缓存
                     self._empty_cache[user_id] = (is_empty, now)
-                    logger.debug(f"[衣橱缓存] 写入: user_id={user_id}, is_empty={is_empty}, count={count}")
+                    logger.debug(f"[衣橱缓存] 写入: user_id={user_id}, is_empty={is_empty}, has_items={has_items}")
                     
                     return is_empty
         except Exception as e:

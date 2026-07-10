@@ -55,17 +55,18 @@ interface DailyRitualCardProps {
 }
 
 export function DailyRitualCard({ onCheckIn, onNavigateToFortune, onNavigateToCultivation }: DailyRitualCardProps) {
-  const { isAuthenticated } = useUserStore()
+  const { isAuthenticated, isLoading: isAuthLoading } = useUserStore()
   const [data, setData] = useState<DailyRitualData | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (isAuthenticated) {
+    // 仅在认证验证完成且已登录时获取数据
+    if (isAuthenticated && !isAuthLoading) {
       fetchRitual()
-    } else {
+    } else if (!isAuthenticated && !isAuthLoading) {
       setLoading(false)
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, isAuthLoading])
 
   async function fetchRitual() {
     try {

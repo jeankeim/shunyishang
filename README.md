@@ -101,11 +101,10 @@ shunyishang/
 │   ├── utils/                 # 八字/天气/场景/旅行规划
 │   └── db/                    # 数据库连接池
 ├── data/                       # 种子数据 + 五行标准
-├── scripts/                    # 数据库迁移脚本（9 个）
+├── scripts/                    # 数据库迁移脚本（12 个）+ 工具脚本
 ├── TASKS/                      # 周迭代任务文档
 ├── PROGRESS.md                 # 项目进度说明
-├── project_spec.md             # 技术规格说明
-└── MIGRATION_CHINA_PLAN.md     # 国内部署迁移计划
+└── project_spec.md             # 技术规格说明
 ```
 
 ---
@@ -123,7 +122,6 @@ shunyishang/
 | [PROGRESS.md](PROGRESS.md) | 📄 项目进度说明（功能清单/技术亮点/后续计划） |
 | [project_spec.md](project_spec.md) | 📘 技术规格说明（架构设计/技术栈/AI 协作协议） |
 | [PRODUCT_V2_ROADMAP.md](TASKS/PRODUCT_V2_ROADMAP.md) | 🚀 V2 产品路线图（Phase 1-4 全部完成） |
-| [MIGRATION_CHINA_PLAN.md](MIGRATION_CHINA_PLAN.md) | 🇨🇳 国内部署迁移完整计划 |
 
 ---
 

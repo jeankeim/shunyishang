@@ -96,8 +96,8 @@ def get_font(size: int, weight: str = 'normal') -> ImageFont.FreeTypeFont:
     return ImageFont.load_default()
 
 
-def download_image(url: str) -> Optional[Image.Image]:
-    """下载图片并返回 PIL Image 对象"""
+def download_image(url: str, timeout: int = 15) -> Optional[Image.Image]:
+    """下载图片并返回 PIL Image 对象（带重试）"""
     try:
         # 处理相对路径
         if url.startswith('/'):
@@ -134,11 +134,18 @@ def download_image(url: str) -> Optional[Image.Image]:
             base_url = os.getenv('BACKEND_URL', 'http://localhost:8000')
             url = f"{base_url}{url}"
         
-        # HTTP 下载
-        logger.info(f"下载图片: {url}")
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        return Image.open(BytesIO(response.content)).convert('RGBA')
+        # HTTP 下载（带重试，最多 2 次）
+        for attempt in range(2):
+            try:
+                logger.info(f"下载图片(尝试{attempt+1}): {url}")
+                response = requests.get(url, timeout=timeout, stream=False)
+                response.raise_for_status()
+                return Image.open(BytesIO(response.content)).convert('RGBA')
+            except (requests.Timeout, requests.ConnectionError) as e:
+                if attempt == 0:
+                    logger.warning(f"下载超时/连接失败，重试: {url}")
+                    continue
+                raise
     except Exception as e:
         logger.error(f"下载图片失败: {url}, 错误: {e}")
         return None

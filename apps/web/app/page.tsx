@@ -31,7 +31,8 @@ const AuthModal = lazy(() => import('@/components/features/AuthModal').then(m =>
 
 export default function Home() {
   const { radarData, setUserBazi } = useChatStore()
-  const { user, isAuthenticated } = useUserStore()
+  const { user, isAuthenticated, isLoading: isAuthLoading } = useUserStore()
+  const [mounted, setMounted] = useState(false)
   const [scene, setScene] = useState('')
   const [sceneElement, setSceneElement] = useState('')
     const [weatherElement, setWeatherElement] = useState('')
@@ -44,11 +45,11 @@ export default function Home() {
   const [smartAlerts, setSmartAlerts] = useState<string[]>([])
   
   // 判断用户是否有八字（已登录且资料完整）
-  const hasBazi = isAuthenticated && user?.bazi
+  const hasBazi = isAuthenticated && !isAuthLoading && user?.bazi
   
   // 每日首次打开自动弹出打卡弹窗
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !isAuthLoading) {
       const today = new Date().toDateString()
       const lastCheckIn = localStorage.getItem('last_checkin_date')
       if (lastCheckIn !== today) {
@@ -57,11 +58,11 @@ export default function Home() {
         return () => clearTimeout(timer)
       }
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, isAuthLoading])
   
   // 智能提醒检查（天气变化 + 衣橱闲置）
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !isAuthLoading) {
       import('@/lib/api').then(({ checkSmartReminders }) => {
         checkSmartReminders(weatherInfo).then(data => {
           if (data?.alerts?.length > 0) {
@@ -70,7 +71,7 @@ export default function Home() {
         }).catch(() => {})
       })
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, isAuthLoading])
 
   // 当用户有八字信息时，自动设置 userBazi 到 chat store
   useEffect(() => {
@@ -154,6 +155,19 @@ export default function Home() {
   }, [])
 
   const isMobile = useMediaQuery('(max-width: 768px)')
+
+  // 客户端挂载后再渲染完整 UI，避免 SSR hydration 不匹配
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return (
+      <div className="flex h-dvh bg-stone-50 overflow-hidden items-center justify-center">
+        <div className="text-[#4A5F52] text-sm animate-pulse">加载中...</div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-dvh bg-stone-50 overflow-hidden">
@@ -524,7 +538,7 @@ export default function Home() {
                 )}
 
                 {/* 每日仪式卡片 — 运势摘要 + 打卡状态 + 连续天数 + 修炼等级 */}
-                {isAuthenticated && (
+                {isAuthenticated && !isAuthLoading && (
                   <div className="mb-4">
                     <DailyRitualCard
                       onCheckIn={() => setShowCheckIn(true)}
@@ -541,7 +555,7 @@ export default function Home() {
                 )}
 
                 {/* 未登录时仍显示运势卡片（如果有八字） */}
-                {!isAuthenticated && hasBazi && (
+                {!isAuthenticated && !isAuthLoading && hasBazi && (
                   <div className="mb-4">
                     <TodayFortuneCard
                       onNavigateToFortune={() => {

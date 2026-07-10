@@ -104,7 +104,6 @@ const SimpleTemplate: React.FC<PosterTemplateProps> = ({
                       src={getImageUrl(item.image_url)}
                       alt={item.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                      crossOrigin="anonymous"
                     />
                   </div>
                 </div>
@@ -308,7 +307,6 @@ const WuxingTemplate: React.FC<PosterTemplateProps> = ({
                         src={getImageUrl(item.image_url)}
                         alt={item.name}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                        crossOrigin="anonymous"
                       />
                     </div>
                   </div>
@@ -489,7 +487,6 @@ const CardTemplate: React.FC<PosterTemplateProps> = ({
                     src={getImageUrl(item.image_url)}
                     alt={item.name}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                    crossOrigin="anonymous"
                   />
                   {/* 渐变遮罩 */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />

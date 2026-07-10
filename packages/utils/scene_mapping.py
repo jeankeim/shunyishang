@@ -16,9 +16,11 @@ SCENE_MAPPING: Dict[str, Dict] = {
     "运动": {
         "description": "运动健身、跑步、瑜伽、打球等",
         "preferred_categories": ["鞋履", "下装", "上装"],
-        "excluded_categories": ["外套", "配饰"],  # 不包含泳装
+        "excluded_categories": ["外套", "配饰", "裙装"],
         "preferred_functionality": ["透气", "速干", "运动", "弹性"],
-        "excluded_keywords": ["风衣", "大衣", "围巾", "西装", "礼服", "睡衣", "拖鞋", "卫衣", "毛衣", "棉袄", "羽绒服"],  # 不包含泳衣、泳裤
+        "excluded_keywords": ["风衣", "大衣", "围巾", "西装", "礼服", "睡衣", "拖鞋", "卫衣", "毛衣", "棉袄", "羽绒服",
+                              "真丝", "丝绸", "汉服", "连衣裙", "长裙", "领带", "方巾", "高跟鞋", "皮鞋", "皮裙",
+                              "雪纺", "蕾丝", "扎染"],
         "preferred_thickness": ["轻薄", "极薄"],
         "temperature_range": {"min": 15, "max": 35},
     },
@@ -63,7 +65,8 @@ SCENE_MAPPING: Dict[str, Dict] = {
         "preferred_categories": ["上装", "下装", "裙装", "鞋履", "配饰"],
         "excluded_categories": [],
         "preferred_functionality": ["优雅", "正式", "时尚"],
-        "excluded_keywords": ["运动裤", "睡衣", "拖鞋", "泳衣", "短裤"],
+        "excluded_keywords": ["运动裤", "睡衣", "拖鞋", "泳衣", "短裤",
+                              "T恤", "T 恤", "运动鞋", "跑鞋", "扎染", "卫衣", "帽衫"],
         "preferred_thickness": ["适中"],
         "temperature_range": {"min": 15, "max": 30},
     },
@@ -77,11 +80,11 @@ SCENE_MAPPING: Dict[str, Dict] = {
         "temperature_range": {"min": 15, "max": 30},
     },
     "旅行": {
-        "description": "旅行、旅游、出差、度假",
+        "description": "旅行、旅游、度假",
         "preferred_categories": ["上装", "下装", "鞋履", "外套"],
         "excluded_categories": [],
         "preferred_functionality": ["舒适", "轻便", "百搭"],
-        "excluded_keywords": ["睡衣", "泳衣", "拖鞋"],
+        "excluded_keywords": ["睡衣", "泳衣", "拖鞋", "领带", "礼服", "正装", "羽绒服", "棉袄"],
         "preferred_thickness": ["轻薄", "适中"],
         "temperature_range": {"min": 10, "max": 30},
     },
@@ -107,8 +110,8 @@ SCENE_MAPPING: Dict[str, Dict] = {
         "description": "商务出差，需要正式且轻便的穿搭",
         "preferred_categories": ["上装", "下装", "鞋履", "外套"],
         "excluded_categories": [],
-        "preferred_functionality": ["抗皱", "轻便", "百搭"],
-        "excluded_keywords": ["睡衣", "泳衣", "拖鞋", "礼服"],
+        "preferred_functionality": ["抗皱", "轻便", "百搭", "正式"],
+        "excluded_keywords": ["睡衣", "泳衣", "拖鞋", "礼服", "运动鞋", "跑鞋", "领带", "羽绒服", "棉袄", "大衣"],
         "preferred_thickness": ["轻薄", "适中"],
         "temperature_range": {"min": 5, "max": 30},
     },
@@ -117,7 +120,7 @@ SCENE_MAPPING: Dict[str, Dict] = {
         "preferred_categories": ["上装", "下装", "鞋履", "裙装", "配饰"],
         "excluded_categories": [],
         "preferred_functionality": ["防晒", "速干", "舒适", "休闲"],
-        "excluded_keywords": ["西装", "礼服", "正装"],
+        "excluded_keywords": ["西装", "礼服", "正装", "领带", "高跟鞋", "皮鞋", "羽绒服", "棉袄", "大衣", "丝绸", "方巾"],
         "preferred_thickness": ["轻薄", "极薄"],
         "temperature_range": {"min": 15, "max": 35},
     },
@@ -291,18 +294,18 @@ def calculate_scene_match_score(item: Dict, scene: str, sub_scene: Optional[str]
             if functionality.get(func) is True or functionality.get(func) == "true":
                 current_bonus += 0.05
     
-    # 4. 关键词扣分
+    # 4. 关键词扣分（加强惩罚：每个匹配扣0.5，确保不适合的物品不会出现在推荐中）
     item_name = item.get("name", "")
     for keyword in rules["excluded_keywords"]:
         if keyword in item_name:
-            current_bonus -= 0.15
+            current_bonus -= 0.5
     
     # 5. 厚度加分
     thickness = item.get("thickness_level", "")
     if thickness in rules["preferred_thickness"]:
         current_bonus += 0.05
     
-    # 6. 温度范围匹配
+    # 6. 温度范围匹配（兼容中文键“最低/最高”和英文键“min/max”）
     temp_range = item.get("temperature_range")
     if temp_range and "temperature_range" in rules:
         try:
@@ -310,10 +313,11 @@ def calculate_scene_match_score(item: Dict, scene: str, sub_scene: Optional[str]
                 import json
                 temp_range = json.loads(temp_range)
             
-            item_min = temp_range.get("min", 0)
-            item_max = temp_range.get("max", 50)
-            scene_min = rules["temperature_range"]["min"]
-            scene_max = rules["temperature_range"]["max"]
+            # 兼容两种键名格式（None 值回退到默认值）
+            item_min = temp_range.get("最低") or temp_range.get("min") or 0
+            item_max = temp_range.get("最高") or temp_range.get("max") or 50
+            scene_min = rules["temperature_range"].get("最低") or rules["temperature_range"].get("min") or 0
+            scene_max = rules["temperature_range"].get("最高") or rules["temperature_range"].get("max") or 50
             
             # 计算重叠度
             overlap_min = max(item_min, scene_min)
@@ -342,10 +346,10 @@ def calculate_scene_match_score(item: Dict, scene: str, sub_scene: Optional[str]
                     if functionality.get(func) is True or functionality.get(func) == "true":
                         current_bonus += bonus
             
-            # 额外关键词扣分
+            # 额外关键词扣分（加强惩罚）
             for keyword in sub_rules.get("extra_excluded_keywords", []):
                 if keyword in item_name:
-                    current_bonus -= 0.2
+                    current_bonus -= 0.5
     
     # 限制在 0.0-1.0 范围内
     return max(0.0, min(1.0, score + current_bonus))

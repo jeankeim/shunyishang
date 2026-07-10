@@ -60,7 +60,7 @@ class WardrobeItemBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255, description="物品名称")
     category: Optional[str] = Field(None, max_length=50, description="分类: 上装/下装/外套/鞋履/配饰")
     image_url: Optional[str] = Field(None, max_length=500, description="图片URL")
-    primary_element: str = Field(..., max_length=10, description="主五行")
+    primary_element: Optional[str] = Field(None, max_length=10, description="主五行")
     secondary_element: Optional[str] = Field(None, max_length=10, description="次五行")
     attributes_detail: Dict[str, Any] = Field(default_factory=dict, description="AI分析详情")
     

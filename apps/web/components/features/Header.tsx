@@ -15,15 +15,15 @@ interface HeaderProps {
 
 export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
   const { currentTerm, mounted } = useTheme()
-  const { user, isAuthenticated, logout, fetchUserInfo } = useUserStore()
+  const { user, isAuthenticated, isLoading, logout, fetchUserInfo } = useUserStore()
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
 
   // 初始化时获取用户信息（仅在首次挂载时执行一次）
   useEffect(() => {
-    // 初始化 token
+    // 初始化 token（如果 isLoading 为 true，说明 initAuth 正在验证，不需要重复调用）
     const token = localStorage.getItem('wuxing_token')
-    if (token && !isAuthenticated) {
+    if (token && !isAuthenticated && !isLoading) {
       fetchUserInfo()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -95,11 +95,11 @@ export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
             </motion.div>
           )}
 
-          {/* 通知铃铛 - 仅登录用户显示 */}
-          {isAuthenticated && <NotificationBell />}
+          {/* 通知铃铛 - 仅登录用户显示（认证验证完成后） */}
+          {isAuthenticated && !isLoading && <NotificationBell />}
 
           {/* 用户菜单 */}
-          {isAuthenticated && user ? (
+          {isAuthenticated && !isLoading && user ? (
             <div className="relative">
               <motion.button
                 whileHover={{ scale: 1.02 }}

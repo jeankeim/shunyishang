@@ -3,6 +3,15 @@
  * 调用后端 Pillow 服务生成高质量海报
  */
 
+// 海报生成耗时较长（下载 R2 图片），直连后端避免 Next.js rewrites 超时/缓冲
+const getPosterAPIBase = () => {
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    return `http://${hostname}:8000`;
+  }
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+};
+
 const API_BASE = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
 
 export interface PosterGenerateParams {
@@ -26,7 +35,7 @@ export interface PosterGenerateParams {
  */
 export async function generateAndDownloadPoster(params: PosterGenerateParams): Promise<void> {
   try {
-    const response = await fetch(`${API_BASE}/api/v1/poster/generate`, {
+    const response = await fetch(`${getPosterAPIBase()}/api/v1/poster/generate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -65,7 +74,7 @@ export async function generatePosterBase64(params: PosterGenerateParams): Promis
   size: number;
 }> {
   try {
-    const response = await fetch(`${API_BASE}/api/v1/poster/generate-base64`, {
+    const response = await fetch(`${getPosterAPIBase()}/api/v1/poster/generate-base64`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

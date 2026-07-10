@@ -1,14 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { FortuneCard } from '@/components/features/fortune/FortuneCard'
 import { FortuneRadar } from '@/components/features/fortune/FortuneRadar'
 import { LuckyElements } from '@/components/features/fortune/LuckyElements'
 import { FortuneShareCard } from '@/components/features/fortune/FortuneShareCard'
 import { useFortuneStore } from '@/store/fortune'
 import { useUserStore } from '@/store/user'
-import { generateAnnualReport, getFortuneReport } from '@/lib/api'
+import { generateAnnualReport, getFortuneReport, getFortuneReports } from '@/lib/api'
+import { createPortal } from 'react-dom'
 
 export default function FortunePage() {
   const { todayFortune, isLoading, error, fetchTodayFortune, regenerateFortune, clearError } = useFortuneStore()
@@ -17,13 +18,26 @@ export default function FortunePage() {
   const [annualReport, setAnnualReport] = useState<any>(null)
   const [generatingReport, setGeneratingReport] = useState(false)
   const [reportView, setReportView] = useState<any>(null)
+  const [savedReports, setSavedReports] = useState<any[]>([])
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchTodayFortune()
+      // 加载已保存的报告
+      getFortuneReports().then(reports => {
+        setSavedReports(reports || [])
+      }).catch(() => {})
     }
     return () => clearError()
   }, [isAuthenticated, fetchTodayFortune, clearError])
+
+  // 模态框打开时阻止背景滚动
+  useEffect(() => {
+    if (reportView) {
+      document.body.style.overflow = 'hidden'
+      return () => { document.body.style.overflow = '' }
+    }
+  }, [reportView])
 
   const handleGenerateReport = async () => {
     if (generatingReport) return
@@ -31,6 +45,9 @@ export default function FortunePage() {
     try {
       const report = await generateAnnualReport()
       setAnnualReport(report)
+      // 刷新已保存的报告列表
+      const reports = await getFortuneReports()
+      setSavedReports(reports || [])
     } catch (e: any) {
       alert(e.message || '生成报告失败')
     } finally {
@@ -38,10 +55,17 @@ export default function FortunePage() {
     }
   }
 
-  const handleViewReport = async (reportId: number) => {
+  const handleViewReport = async (reportId: number, e?: React.MouseEvent) => {
+    // 阻止任何可能的默认行为和事件冒泡
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
     try {
       const report = await getFortuneReport(reportId)
       setReportView(report)
+      // 防止页面滚动到顶部
+      window.scrollTo({ top: window.scrollY, behavior: 'auto' })
     } catch (e) {
       console.error('获取报告失败:', e)
     }
@@ -66,6 +90,7 @@ export default function FortunePage() {
   }
 
   return (
+    <>
     <div className="max-w-4xl mx-auto space-y-4">
       {/* 页面标题 */}
       <div className="flex items-center justify-between">
@@ -196,7 +221,7 @@ export default function FortunePage() {
         <div className="flex items-center justify-between mb-3">
           <div>
             <h3 className="text-base font-semibold text-stone-800">年度运势详批</h3>
-            <p className="text-xs text-stone-500 mt-0.5">AI 深度解析来年运势，助您趋吉避凶</p>
+            <p className="text-xs text-stone-500 mt-0.5">AI 深度解析本年度运势，助您趋吉避凶</p>
           </div>
           <span className="text-2xl">🔮</span>
         </div>
@@ -205,7 +230,7 @@ export default function FortunePage() {
           disabled={generatingReport}
           className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium text-sm shadow-md hover:shadow-lg transition-all disabled:opacity-50"
         >
-          {generatingReport ? 'AI 正在生成报告...' : '生成年度运势报告 (¥99)'}
+          {generatingReport ? 'AI 正在生成报告...' : '生成年度运势报告'}
         </button>
 
         {/* 新生成的报告 */}
@@ -223,7 +248,7 @@ export default function FortunePage() {
             </p>
             <div className="flex gap-2">
               <button
-                onClick={() => setReportView(annualReport)}
+                onClick={(e) => { e.preventDefault(); setReportView(annualReport) }}
                 className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg text-sm font-medium"
               >
                 查看完整报告
@@ -233,72 +258,107 @@ export default function FortunePage() {
         )}
       </div>
 
-      {/* 报告详情弹窗 */}
-      {reportView && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => setReportView(null)}>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-lg bg-white rounded-2xl p-6 shadow-2xl max-h-[80vh] overflow-y-auto"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-stone-800">
-                {reportView.year || reportView.title} 运势详批
-              </h3>
-              <button onClick={() => setReportView(null)} className="text-stone-400 hover:text-stone-600 text-xl">✕</button>
-            </div>
-
-            {reportView.content && (
-              <div className="space-y-4 text-sm">
-                {[
-                  { key: 'overall', label: '整体运势', icon: '🌟' },
-                  { key: 'career', label: '事业运', icon: '💼' },
-                  { key: 'wealth', label: '财运', icon: '💰' },
-                  { key: 'love', label: '感情运', icon: '❤️' },
-                  { key: 'health', label: '健康运', icon: '🏃' },
-                ].map(({ key, label, icon }) => (
-                  reportView.content[key] && (
-                    <div key={key} className="bg-stone-50 rounded-xl p-3">
-                      <h4 className="font-medium text-stone-700 mb-1">{icon} {label}</h4>
-                      <p className="text-stone-600 leading-relaxed">{reportView.content[key]}</p>
-                    </div>
-                  )
-                ))}
-
-                {reportView.content.monthly_breakdown && (
-                  <div className="bg-stone-50 rounded-xl p-3">
-                    <h4 className="font-medium text-stone-700 mb-2">📅 月度运势</h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      {reportView.content.monthly_breakdown.map((m: string, i: number) => (
-                        <div key={i} className="text-xs text-stone-600">
-                          <span className="font-medium text-stone-500">{i + 1}月：</span>{m}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {reportView.content.lucky_months && (
-                  <div className="flex flex-wrap gap-2">
-                    <span className="text-xs text-stone-500">幸运月份：</span>
-                    {reportView.content.lucky_months.map((m: string, i: number) => (
-                      <span key={i} className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs">{m}</span>
-                    ))}
-                  </div>
-                )}
-
-                {reportView.content.style_advice && (
-                  <div className="bg-purple-50 rounded-xl p-3">
-                    <h4 className="font-medium text-purple-700 mb-1">👗 穿搭建议</h4>
-                    <p className="text-purple-600 text-sm">{reportView.content.style_advice}</p>
-                  </div>
-                )}
+      {/* 已保存的报告列表 */}
+      {savedReports.length > 0 && (
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
+          <h3 className="text-sm font-semibold text-stone-800 mb-3">我的运势报告</h3>
+          <div className="space-y-2">
+            {savedReports.map((report) => (
+              <div
+                key={report.id}
+                className="flex items-center justify-between p-3 bg-stone-50 rounded-xl hover:bg-stone-100 transition-colors"
+              >
+                <div>
+                  <p className="text-sm font-medium text-stone-700">{report.title || `${report.report_year}年运势详批`}</p>
+                  <p className="text-xs text-stone-500 mt-0.5">
+                    {report.report_type === 'annual_fortune' ? '年度运势' : report.report_type}
+                    {report.created_at && ` · ${new Date(report.created_at).toLocaleDateString('zh-CN')}`}
+                  </p>
+                </div>
+                <button
+                  onClick={(e) => handleViewReport(report.id, e)}
+                  className="px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg text-xs font-medium"
+                >
+                  查看
+                </button>
               </div>
-            )}
-          </motion.div>
+            ))}
+          </div>
         </div>
       )}
     </div>
+
+    {/* 报告详情弹窗 - 使用 Portal 渲染到 body，确保不受父容器影响 */}
+    {reportView && typeof document !== 'undefined' && createPortal(
+      <div 
+        className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+        onClick={() => setReportView(null)}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          className="w-full max-w-lg bg-white rounded-2xl p-6 shadow-2xl max-h-[80vh] overflow-y-auto"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-stone-800">
+              {reportView.year || reportView.title} 运势详批
+            </h3>
+            <button onClick={() => setReportView(null)} className="text-stone-400 hover:text-stone-600 text-xl">✕</button>
+          </div>
+
+          {reportView.content && (
+            <div className="space-y-4 text-sm">
+              {[
+                { key: 'overall', label: '整体运势', icon: '🌟' },
+                { key: 'career', label: '事业运', icon: '💼' },
+                { key: 'wealth', label: '财运', icon: '' },
+                { key: 'love', label: '感情运', icon: '❤️' },
+                { key: 'health', label: '健康运', icon: '' },
+              ].map(({ key, label, icon }) => (
+                reportView.content[key] && (
+                  <div key={key} className="bg-stone-50 rounded-xl p-3">
+                    <h4 className="font-medium text-stone-700 mb-1">{icon} {label}</h4>
+                    <p className="text-stone-600 leading-relaxed">{reportView.content[key]}</p>
+                  </div>
+                )
+              ))}
+
+              {reportView.content.monthly_breakdown && (
+                <div className="bg-stone-50 rounded-xl p-3">
+                  <h4 className="font-medium text-stone-700 mb-2">📅 月度运势</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {reportView.content.monthly_breakdown.map((m: string, i: number) => (
+                      <div key={i} className="text-xs text-stone-600">
+                        <span className="font-medium text-stone-500">{i + 1}月：</span>{m}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {reportView.content.lucky_months && (
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-xs text-stone-500">幸运月份：</span>
+                  {reportView.content.lucky_months.map((m: string, i: number) => (
+                    <span key={i} className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs">{m}</span>
+                  ))}
+                </div>
+              )}
+
+              {reportView.content.style_advice && (
+                <div className="bg-purple-50 rounded-xl p-3">
+                  <h4 className="font-medium text-purple-700 mb-1">👗 穿搭建议</h4>
+                  <p className="text-purple-600 text-sm">{reportView.content.style_advice}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </motion.div>
+      </div>,
+      document.body
+    )}
+    </>
   )
 }

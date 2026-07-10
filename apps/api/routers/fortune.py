@@ -373,7 +373,7 @@ async def get_daily_ritual(user: dict = Depends(get_current_user)):
 
 @router.post("/reports/annual")
 async def generate_annual_report(
-    year: int = Query(None, description="报告年份，默认当前年+1"),
+    year: int = Query(None, description="报告年份，默认当前年"),
     user: dict = Depends(get_current_user),
 ):
     """生成年度运势详批报告（个人备案版：免费）"""
@@ -381,7 +381,7 @@ async def generate_annual_report(
     if not user_id:
         raise HTTPException(status_code=401, detail="用户未登录")
 
-    target_year = year or (date.today().year + 1)
+    target_year = year or date.today().year
 
     # 获取用户八字
     from apps.api.routers.diary import _get_user_bazi

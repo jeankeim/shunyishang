@@ -363,6 +363,75 @@ def _enhance_query_with_llm(
 
 
 # ============================================================
+# 推荐权重配置化（替代原硬编码 if-else 链）
+# ============================================================
+
+# 基础权重预设表：(has_bazi, has_scene, has_prefs) -> weights
+_WEIGHT_PRESETS = {
+    # 有八字 + 有场景
+    (True,  True,  True):  {"semantic": 0.50, "wuxing": 0.25, "scene": 0.15, "pref": 0.10, "temp": 0.00},
+    (True,  True,  False): {"semantic": 0.50, "wuxing": 0.30, "scene": 0.20, "pref": 0.00, "temp": 0.00},
+    # 有八字 + 无场景
+    (True,  False, True):  {"semantic": 0.50, "wuxing": 0.35, "scene": 0.00, "pref": 0.15, "temp": 0.00},
+    (True,  False, False): {"semantic": 0.55, "wuxing": 0.45, "scene": 0.00, "pref": 0.00, "temp": 0.00},
+    # 无八字 + 有场景
+    (False, True,  True):  {"semantic": 0.55, "wuxing": 0.15, "scene": 0.20, "pref": 0.10, "temp": 0.00},
+    (False, True,  False): {"semantic": 0.60, "wuxing": 0.20, "scene": 0.20, "pref": 0.00, "temp": 0.00},
+    # 无八字 + 无场景
+    (False, False, True):  {"semantic": 0.55, "wuxing": 0.30, "scene": 0.00, "pref": 0.15, "temp": 0.00},
+    (False, False, False): {"semantic": 0.60, "wuxing": 0.40, "scene": 0.00, "pref": 0.00, "temp": 0.00},
+}
+
+# 极端温度时，温度维度占比
+_EXTREME_TEMP_RATIO = 0.25
+
+
+def _compute_recommend_weights(
+    has_bazi: bool,
+    has_scene: bool,
+    has_prefs: bool,
+    is_extreme_temp: bool = False,
+) -> Dict[str, float]:
+    """
+    配置化计算推荐权重（替代原 20+ 分支的 if-else 链）
+    
+    策略：
+    1. 从预设表查基础权重
+    2. 极端温度时，温度维度占 25%，其余维度按比例缩减
+    
+    Args:
+        has_bazi: 是否有八字信息
+        has_scene: 是否有场景信息
+        has_prefs: 是否有用户偏好
+        is_extreme_temp: 是否极端温度（≤5°C 或 ≥32°C）
+    
+    Returns:
+        Dict[str, float]: 各维度权重（总和=1.0）
+    """
+    preset = _WEIGHT_PRESETS.get(
+        (has_bazi, has_scene, has_prefs),
+        _WEIGHT_PRESETS[(False, False, False)],  # 默认兜底
+    ).copy()
+    
+    if is_extreme_temp:
+        preset["temp"] = _EXTREME_TEMP_RATIO
+        # 按原比例缩减其他维度，确保总和=1.0
+        remaining = 1.0 - _EXTREME_TEMP_RATIO
+        other_sum = sum(v for k, v in preset.items() if k != "temp")
+        if other_sum > 0:
+            scale = remaining / other_sum
+            for k in preset:
+                if k != "temp":
+                    preset[k] = round(preset[k] * scale, 4)
+        # 修正浮点精度
+        total = sum(preset.values())
+        if abs(total - 1.0) > 0.001:
+            preset["semantic"] = round(preset["semantic"] + (1.0 - total), 4)
+    
+    return preset
+
+
+# ============================================================
 # Node B: retrieve_items_node
 # ============================================================
 def retrieve_items_node(state: AgentState) -> Dict:
@@ -563,46 +632,24 @@ def retrieve_items_node(state: AgentState) -> Dict:
         except Exception as e:
             logger.debug(f"[检索节点] 获取用户偏好失败: {e}")
 
-    # 动态计算权重（含偏好维度）
+    # 动态计算权重（配置化：消除硬编码 if-else 链）
     has_prefs = bool(user_prefs)
-    semantic_weight = 0.6
-    wuxing_weight = 0.4
-    scene_weight = 0.0
-    pref_weight = 0.0
+    is_extreme_temp = False
+    if weather_info:
+        temp_val = weather_info.get("temperature") or 25
+        is_extreme_temp = (temp_val <= 5 or temp_val >= 32)
     
-    if bazi_result and scene:
-        if has_prefs:
-            semantic_weight = 0.5
-            wuxing_weight = 0.25
-            scene_weight = 0.15
-            pref_weight = 0.10
-        else:
-            semantic_weight = 0.5
-            wuxing_weight = 0.3
-            scene_weight = 0.2
-    elif bazi_result:
-        if has_prefs:
-            semantic_weight = 0.5
-            wuxing_weight = 0.35
-            pref_weight = 0.15
-        else:
-            semantic_weight = 0.55
-            wuxing_weight = 0.45
-    elif scene:
-        if has_prefs:
-            semantic_weight = 0.55
-            wuxing_weight = 0.15
-            scene_weight = 0.20
-            pref_weight = 0.10
-        else:
-            semantic_weight = 0.6
-            wuxing_weight = 0.2
-            scene_weight = 0.2
-    else:
-        if has_prefs:
-            semantic_weight = 0.55
-            wuxing_weight = 0.30
-            pref_weight = 0.15
+    weights = _compute_recommend_weights(
+        has_bazi=bool(bazi_result),
+        has_scene=bool(scene),
+        has_prefs=has_prefs,
+        is_extreme_temp=is_extreme_temp,
+    )
+    semantic_weight = weights["semantic"]
+    wuxing_weight = weights["wuxing"]
+    scene_weight = weights["scene"]
+    pref_weight = weights["pref"]
+    temp_weight = weights["temp"]
     
     # Task 01: 提取子场景（如果有多维度场景识别）
     sub_scene = state.get("sub_scene")
@@ -639,52 +686,8 @@ def retrieve_items_node(state: AgentState) -> Dict:
         if wear_count is not None and isinstance(wear_count, (int, float)) and wear_count >= 0:
             wuxing_score += max(0, 0.1 - wear_count * 0.02)  # 0次=+0.1, 5次=0
         
-        # 温度匹配评分（新增）
+        # 温度匹配评分
         temp_score = _calculate_temp_score(item, weather_info)
-        
-        # 极端温度时提升温度权重
-        temp_weight = 0.0
-        if weather_info:
-            temp = weather_info.get("temperature", 25)
-            if temp <= 5 or temp >= 32:  # 极端温度
-                temp_weight = 0.25
-                # 重新分配其他权重
-                if bazi_result and scene:
-                    if has_prefs:
-                        semantic_weight = 0.40
-                        wuxing_weight = 0.20
-                        scene_weight = 0.10
-                        pref_weight = 0.05
-                    else:
-                        semantic_weight = 0.40
-                        wuxing_weight = 0.25
-                        scene_weight = 0.10
-                elif bazi_result:
-                    if has_prefs:
-                        semantic_weight = 0.40
-                        wuxing_weight = 0.25
-                        pref_weight = 0.10
-                    else:
-                        semantic_weight = 0.45
-                        wuxing_weight = 0.30
-                elif scene:
-                    if has_prefs:
-                        semantic_weight = 0.40
-                        wuxing_weight = 0.15
-                        scene_weight = 0.15
-                        pref_weight = 0.05
-                    else:
-                        semantic_weight = 0.45
-                        wuxing_weight = 0.15
-                        scene_weight = 0.15
-                else:
-                    if has_prefs:
-                        semantic_weight = 0.40
-                        wuxing_weight = 0.25
-                        pref_weight = 0.10
-                    else:
-                        semantic_weight = 0.50
-                        wuxing_weight = 0.25
         
         # Task 01: 计算场景匹配分（新增）
         scene_score = 0.5  # 默认基础分
@@ -721,19 +724,44 @@ def retrieve_items_node(state: AgentState) -> Dict:
     # 过滤掉场景分为0的物品（硬排除）
     scored_items = [item for item in scored_items if item.get("scene_score", 0.5) > 0]
     
-    # 温度硬过滤：极端温度下排除不合适厚度的衣物
+    # 温度硬过滤：极端温度下排除不合适厚度的衣物（增强版：同时检查thickness_level和名称推断）
     if weather_info:
         temp = weather_info.get("temperature")
         if temp is not None:
             temp_filtered = []
             for item in scored_items:
                 thickness = item.get("thickness_level", "")
-                if temp >= 30 and thickness in ("厚重", "中厚"):
-                    # 高温排除厚重衣物
-                    continue
-                if temp <= 5 and thickness in ("极薄", "轻薄"):
-                    # 低温排除极薄衣物
-                    continue
+                item_name = item.get("name", "")
+                
+                # 数据矛盾检测：名称暗示厚重但DB标记为轻薄，以名称为准
+                heavy_name_keywords = ["羽绒", "棉袄", "棉衣", "大衣", "毛呢", "羊毛"]
+                if any(k in item_name for k in heavy_name_keywords):
+                    thickness = "厚重"  # 名称优先级高于DB标注
+                elif not thickness:
+                    # 如果thickness_level缺失且名称无明确指示，从名称推断
+                    if any(k in item_name for k in ["毛衣", "卫衣"]):
+                        thickness = "中厚"
+                    elif any(k in item_name for k in ["衬衫", "T恤", "短裤", "薄"]):
+                        thickness = "轻薄"
+                
+                # 温度硬过滤（分层级）
+                if temp >= 30:
+                    # 高温：排除厚重和中厚
+                    if thickness in ("厚重", "中厚"):
+                        continue
+                elif temp >= 25:
+                    # 中高温：排除厚重
+                    if thickness == "厚重":
+                        continue
+                elif temp <= 0:
+                    # 严寒：排除极薄和轻薄
+                    if thickness in ("极薄", "轻薄"):
+                        continue
+                elif temp <= 10:
+                    # 低温：排除极薄
+                    if thickness == "极薄":
+                        continue
+                
                 temp_filtered.append(item)
             if temp_filtered:  # 只在过滤后有剩余时才应用
                 scored_items = temp_filtered
@@ -745,17 +773,20 @@ def retrieve_items_node(state: AgentState) -> Dict:
     # 分类多样性优化（含温度安全检查）
     top_items = _ensure_category_diversity(scored_items, top_k)
     
+    # 五行多样性约束：确保 top-k 中至少覆盖 2 种不同五行属性
+    top_items = _ensure_wuxing_diversity(top_items, scored_items, top_k)
+    
     # 温度安全检查：确保推荐结果中没有极端不合适的物品
     if weather_info:
         temp = weather_info.get("temperature")
         if temp is not None and (temp <= 5 or temp >= 32):
             # 在极端温度下，替换 temp_score < 0.3 的物品
-            temp_safe_items = [i for i in top_items if i.get("temp_score", 1.0) >= 0.3]
+            temp_safe_items = [i for i in top_items if (i.get("temp_score") or 1.0) >= 0.3]
             if len(temp_safe_items) < len(top_items) and scored_items:
                 # 从备选中找温度安全的物品补充
                 used_ids = {i.get("id") for i in temp_safe_items}
                 for candidate in scored_items:
-                    if candidate.get("id") not in used_ids and candidate.get("temp_score", 0) >= 0.3:
+                    if candidate.get("id") not in used_ids and (candidate.get("temp_score") or 0) >= 0.3:
                         temp_safe_items.append(candidate)
                         used_ids.add(candidate.get("id"))
                         if len(temp_safe_items) >= top_k:
@@ -782,14 +813,16 @@ def retrieve_items_node(state: AgentState) -> Dict:
     luggage_size = state.get("luggage_size", "中")
     
     if travel_days and destination and travel_days >= 2:
+        # 传递更大的物品池给旅行规划器（至少20件，确保多日行程有足够多样性）
+        travel_item_pool = scored_items[:max(20, top_k * 4)] if len(scored_items) > len(top_items) else scored_items
         travel_plan = _generate_travel_plan(
             state=state,
-            top_items=top_items,
+            top_items=travel_item_pool,
             travel_days=travel_days,
             destination=destination,
             luggage_size=luggage_size,
         )
-        logger.info(f"[旅行规划] 生成{travel_days}天行程方案: {destination}")
+        logger.info(f"[旅行规划] 生成{travel_days}天行程方案: {destination}, 物品池={len(travel_item_pool)}件")
     
     result = {"retrieved_items": top_items, "item_sources": item_sources}
     if travel_plan:
@@ -1010,6 +1043,63 @@ def _ensure_category_diversity(items: List[Dict], limit: int) -> List[Dict]:
     return result
 
 
+def _ensure_wuxing_diversity(items: List[Dict], all_scored: List[Dict], limit: int) -> List[Dict]:
+    """
+    五行多样性约束：确保推荐结果至少覆盖 2 种不同五行属性
+    
+    策略：
+    - 如果 top-k 中所有物品都是同一五行，用次高分的不同五行物品替换最低分的重复物品
+    - 最多替换 1 件，避免过度干预排序
+    
+    Args:
+        items: 当前 top-k 物品列表
+        all_scored: 所有已评分物品（已排序）
+        limit: top-k 数量
+    
+    Returns:
+        List[Dict]: 五行多样性优化后的物品列表
+    """
+    if len(items) < 2:
+        return items
+    
+    # 统计当前五行分布
+    elements = set()
+    for item in items:
+        elem = item.get("primary_element", "")
+        if elem:
+            elements.add(elem)
+    
+    # 已满足多样性（≥2 种五行），无需调整
+    if len(elements) >= 2:
+        return items
+    
+    # 找出当前主导五行
+    dominant_element = elements.pop() if elements else None
+    
+    # 从备选物品中找分数最高的不同五行物品
+    used_ids = {str(item.get("id", item.get("item_code", ""))) for item in items}
+    best_replacement = None
+    for candidate in all_scored:
+        cand_elem = candidate.get("primary_element", "")
+        cand_id = str(candidate.get("id", candidate.get("item_code", "")))
+        if cand_elem and cand_elem != dominant_element and cand_id not in used_ids:
+            best_replacement = candidate
+            break
+    
+    if best_replacement:
+        # 替换分数最低的重复五行物品
+        for i in range(len(items) - 1, -1, -1):
+            if items[i].get("primary_element", "") == dominant_element:
+                logger.debug(
+                    f"[五行多样性] 替换: {items[i].get('name')}({dominant_element}) "
+                    f"→ {best_replacement.get('name')}({best_replacement.get('primary_element')})"
+                )
+                items[i] = best_replacement
+                break
+    
+    return items
+
+
 def _get_versatile_items(target_elements: List[str], limit: int) -> List[Dict]:
     """
     获取百搭单品兜底
@@ -1100,16 +1190,22 @@ def _build_travel_scenes(state: AgentState, travel_days: int) -> List[str]:
 # 全局模型单例
 _EMBEDDING_MODEL = None
 
+# Embedding 缓存（LRU，最多缓存 256 条，避免重复调用 DashScope API）
+_EMBEDDING_CACHE: Dict[str, list] = {}
+_EMBEDDING_CACHE_MAX = 256
+
 
 def _get_embedding_model():
     """获取 embedding 模型（使用 DashScope API，无需本地模型）"""
-    # 不再需要本地模型，直接返回 None 表示使用 API
     return None
 
 
 def _encode_text_with_dashscope(text: str) -> list:
     """
-    使用 DashScope API 生成文本向量
+    使用 DashScope API 生成文本向量（带 LRU 缓存）
+    
+    相同文本不会重复调用 API，直接返回缓存结果。
+    缓存满时自动淘汰最早插入的条目。
     
     Args:
         text: 输入文本
@@ -1117,6 +1213,11 @@ def _encode_text_with_dashscope(text: str) -> list:
     Returns:
         embedding 向量 (1024 维)
     """
+    # 查缓存
+    if text in _EMBEDDING_CACHE:
+        logger.debug(f"[Embedding缓存] 命中: {text[:30]}...")
+        return _EMBEDDING_CACHE[text]
+    
     import dashscope
     from dashscope import TextEmbedding
     
@@ -1130,7 +1231,13 @@ def _encode_text_with_dashscope(text: str) -> list:
     )
     
     if response.status_code == 200:
-        return response.output['embeddings'][0]['embedding']
+        result = response.output['embeddings'][0]['embedding']
+        # 写入缓存（超限时删除最早的一条）
+        if len(_EMBEDDING_CACHE) >= _EMBEDDING_CACHE_MAX:
+            oldest_key = next(iter(_EMBEDDING_CACHE))
+            del _EMBEDDING_CACHE[oldest_key]
+        _EMBEDDING_CACHE[text] = result
+        return result
     else:
         raise Exception(f"DashScope embedding API error: {response.code} - {response.message}")
 
@@ -1167,13 +1274,14 @@ def _vector_search(
     try:
         with DatabasePool.get_connection() as conn:
             with conn.cursor() as cur:
-                # 性别过滤逻辑
+                # 性别过滤逻辑（优化：无性别时默认排除女性专属物品）
                 if user_gender == "男":
                     gender_filter = "AND (gender = '中性' OR gender = '男')"
                 elif user_gender == "女":
                     gender_filter = "AND (gender = '中性' OR gender = '女')"
                 else:
-                    gender_filter = ""
+                    # 未指定性别时，排除女性专属物品（gender='女'），保留中性+男性
+                    gender_filter = "AND (gender = '中性' OR gender = '男' OR gender IS NULL)"
                 
                 # 天气过滤逻辑
                 weather_filter = _build_weather_filter(weather_info)
@@ -1313,9 +1421,10 @@ def _build_weather_filter(weather_info: Optional[Dict]) -> str:
 
 def _build_scene_filter(scene: Optional[str], sub_scene: Optional[str] = None) -> str:
     """
-    构建场景过滤SQL条件
+    构建场景过滤SQL条件（统一从 scene_mapping.py 读取规则）
     
-    根据场景排除不合适的衣物类型（与 scene_mapping.py 保持一致）
+    消除原先硬编码的 scene_exclusions 字典与 scene_mapping.py 的不同步问题。
+    所有场景的 excluded_categories / excluded_keywords 统一来源于 SCENE_MAPPING。
     
     Args:
         scene: 场景名称
@@ -1327,86 +1436,56 @@ def _build_scene_filter(scene: Optional[str], sub_scene: Optional[str] = None) -
     if not scene:
         return ""
     
-    # 场景排除规则：与 scene_mapping.py 保持一致
-    scene_exclusions = {
-        "运动": {
-            "categories": ["外套", "配饰"],  # 排除外套、配饰（不包含泳装）
-            "keywords": ["风衣", "大衣", "围巾", "西装", "礼服", "睡衣", "拖鞋", "卫衣", "毛衣", "棉袄", "羽绒服"],  # 不包含泳衣、泳裤
-            "require_functionality": ["透气", "速干", "运动"],
-        },
-        "商务": {
-            "categories": [],
-            "keywords": ["运动裤", "睡衣", "泳衣", "拖鞋", "短裤", "T恤"],
-            "require_functionality": [],
-        },
-        "居家": {
-            "categories": ["外套", "鞋履"],  # 排除外套、鞋履
-            "keywords": ["西装", "礼服", "高跟鞋", "正装"],
-            "require_functionality": [],
-        },
-        "婚礼": {
-            "categories": [],
-            "keywords": ["运动裤", "睡衣", "拖鞋", "泳衣", "短裤"],
-            "require_functionality": [],
-        },
-        "派对": {
-            "categories": [],
-            "keywords": ["睡衣", "运动裤", "泳衣", "正装"],
-            "require_functionality": [],
-        },
-        "面试": {
-            "categories": [],
-            "keywords": ["运动裤", "睡衣", "拖鞋", "泳衣", "短裤", "T恤"],
-            "require_functionality": [],
-        },
-        "旅行": {
-            "categories": [],
-            "keywords": ["睡衣", "泳衣", "拖鞋", "毛衣", "卫衣", "棉袄", "羽绒服"],  # 新增睡衣、泳衣
-            "require_functionality": [],
-        },
-    }
+    from packages.utils.scene_mapping import get_scene_rules, get_sub_scene_rules
     
-    if scene not in scene_exclusions:
+    rules = get_scene_rules(scene)
+    if not rules:
         return ""
     
-    rules = scene_exclusions[scene]
     conditions = []
     
-    # 1. 排除特定类别
-    if rules["categories"]:
-        categories_str = ",".join([f"'{cat}'" for cat in rules["categories"]])
+    # 1. 排除特定类别（来自 SCENE_MAPPING.excluded_categories）
+    excluded_cats = rules.get("excluded_categories", [])
+    if excluded_cats:
+        categories_str = ",".join([f"'{cat}'" for cat in excluded_cats])
         conditions.append(f"category NOT IN ({categories_str})")
     
-    # 2. 排除包含特定关键词的衣物
-    if rules["keywords"]:
+    # 2. 排除包含特定关键词的衣物（来自 SCENE_MAPPING.excluded_keywords）
+    excluded_kws = rules.get("excluded_keywords", [])
+    if excluded_kws:
         keyword_conditions = []
-        for keyword in rules["keywords"]:
-            # 使用 %% 转义 % 符号，避免与 SQL 参数占位符冲突
+        for keyword in excluded_kws:
             keyword_conditions.append(f"name NOT LIKE '%%{keyword}%%'")
-        if keyword_conditions:
-            conditions.append(" AND ".join(keyword_conditions))
+        conditions.append(" AND ".join(keyword_conditions))
     
-    # 2.1 子场景特殊排除关键词（新增）
+    # 2.1 子场景特殊排除关键词
     if sub_scene:
-        from packages.utils.scene_mapping import get_sub_scene_rules
         sub_rules = get_sub_scene_rules(sub_scene)
         if sub_rules and "extra_excluded_keywords" in sub_rules:
             for keyword in sub_rules["extra_excluded_keywords"]:
                 conditions.append(f"name NOT LIKE '%%{keyword}%%'")
     
-    # 3. 排除特定厚度的衣物（新增）
-    if rules.get("thickness_exclude"):
-        thickness_str = ",".join([f"'{t}'" for t in rules["thickness_exclude"]])
-        conditions.append(f"thickness_level NOT IN ({thickness_str})")
+    # 3. 排除特定厚度的衣物（基于 preferred_thickness 的反向过滤）
+    # 仅当场景明确指定了 preferred_thickness 时，排除不在列表中的厚度
+    preferred_thickness = rules.get("preferred_thickness", [])
+    if preferred_thickness and scene in ("运动", "度假"):
+        # 仅对极端场景做硬过滤：运动排除厚重，度假排除厚重
+        all_thickness = ["极薄", "轻薄", "适中", "中厚", "厚重"]
+        exclude_thickness = [t for t in all_thickness if t not in preferred_thickness]
+        if exclude_thickness:
+            thickness_str = ",".join([f"'{t}'" for t in exclude_thickness])
+            conditions.append(f"thickness_level NOT IN ({thickness_str})")
     
-    # 4. 运动场景功能硬过滤（新增）
-    if scene == "运动" and rules.get("require_functionality"):
-        # 运动场景：必须至少具备一个运动功能（透气/速干/运动）
-        func_conditions = []
-        for func in rules["require_functionality"]:
-            func_conditions.append(f"(functionality->>'{func}')::boolean = true")
-        if func_conditions:
-            conditions.append(f"({' OR '.join(func_conditions)})")
+    # 4. 运动场景功能硬过滤（来自 SCENE_MAPPING.preferred_functionality）
+    if scene == "运动":
+        preferred_funcs = rules.get("preferred_functionality", [])
+        sport_funcs = [f for f in preferred_funcs if f in ("透气", "速干", "运动", "弹性")]
+        if sport_funcs:
+            func_conditions = []
+            for func in sport_funcs:
+                func_conditions.append(f"(functionality->>'{func}')::boolean = true")
+            if func_conditions:
+                conditions.append(f"({' OR '.join(func_conditions)})")
     
     return " AND ".join(conditions) if conditions else ""
 
@@ -1471,39 +1550,40 @@ def _build_weather_details(weather_info: Optional[Dict], retrieved_items: List[D
             wind_desc += "（风大，注意防风）"
         details.append(wind_desc)
     
-    # 推荐物品的天气特性
+    # 推荐物品的天气特性（增强版：包含材质、风格、五行等全维度信息）
     if retrieved_items:
         item_features = []
-        for item in retrieved_items[:3]:
+        for item in retrieved_items[:5]:
+            features = []
             thickness = item.get("thickness_level")
             functionality = item.get("functionality", {})
+            material = item.get("material", "")
+            style = item.get("style", "")
             
             if thickness:
-                item_features.append(f"{item['name']}厚度【{thickness}】")
+                features.append(f"厚度【{thickness}】")
+            if material:
+                features.append(f"材质【{material}】")
             
             # 功能性（处理列表和字典两种情况）
             funcs = []
             if isinstance(functionality, dict):
-                # 字典格式：{"防水": true, "透气": false}
-                if functionality.get("防水"):
-                    funcs.append("防水")
-                if functionality.get("透气"):
-                    funcs.append("透气")
-                if functionality.get("保暖"):
-                    funcs.append("保暖")
-                if functionality.get("防晒"):
-                    funcs.append("防晒")
+                for key in ["防水", "透气", "保暖", "防晒", "抗皱", "速干", "弹性"]:
+                    if functionality.get(key):
+                        funcs.append(key)
             elif isinstance(functionality, list):
-                # 列表格式：["日常", "商务", "防水"]
                 for func in functionality:
-                    if func in ["防水", "透气", "保暖", "防晒"]:
+                    if func in ["防水", "透气", "保暖", "防晒", "抗皱", "速干", "弹性"]:
                         funcs.append(func)
             
             if funcs:
-                item_features.append(f"{item['name']}具有【{'、'.join(funcs)}】功能")
+                features.append(f"功能【{'、'.join(funcs)}】")
+            
+            if features:
+                item_features.append(f"{item['name']}：{' | '.join(features)}")
         
         if item_features:
-            details.append("推荐物品特性：" + "；".join(item_features[:3]))
+            details.append("推荐物品特性：" + "；".join(item_features[:5]))
     
     if details:
         return "\n".join(details)
@@ -1613,16 +1693,28 @@ def generate_advice_node(state: AgentState) -> Dict:
             f"\n\n[旅行信息] 这是一次去{destination}的{days}天行程，"
             f"行李箱大小：{luggage_size}，行李评分：{luggage_score:.0%}。"
         )
-        # 添加每日天气摘要
+        # 添加每日天气摘要（仅在用户未明确指定天气时作为主要参考）
         weather_forecast = travel_plan.get("weather_forecast", [])
-        if weather_forecast:
+        if weather_forecast and not weather_info:
+            # 用户未指定天气，使用行程天气预报
             weather_summary = "、".join([
                 f"第{i+1}天{w.get('weather_desc', '?')}({w.get('temperature_min', '?')}~{w.get('temperature_max', '?')}°C)"
                 for i, w in enumerate(weather_forecast[:days])
             ])
             travel_context += f"\n目的地天气：{weather_summary}"
+        elif weather_forecast and weather_info:
+            # 用户已指定天气，行程天气仅作参考，以用户指定为准
+            user_temp = weather_info.get("temperature")
+            travel_context += f"\n用户指定天气条件：{user_temp}°C（以此为准，行程天气预报仅作参考）"
         effective_user_input = user_input + travel_context
         
+    # 构建"场景/天气加成"的完整指令文本（避免 LLM 误判条件）
+    added_elements_str = "、".join(added_elements) if added_elements else ""
+    if added_elements_str:
+        added_instruction = f'接着说"结合【场景/天气】，再加入【{added_elements_str}】元素..."'
+    else:
+        added_instruction = '不要提及"再加入"或场景加成元素'
+    
     prompt_template = load_prompt("generator.txt")
     prompt = prompt_template.format(
         user_input=effective_user_input,
@@ -1630,7 +1722,8 @@ def generate_advice_node(state: AgentState) -> Dict:
         weather_element=weather_display,
         target_elements="、".join(target_elements) if target_elements else "综合推荐",
         xiyong_elements="、".join(xiyong_elements) if xiyong_elements else "无",
-        added_elements="、".join(added_elements) if added_elements else "无",
+        added_elements=added_elements_str or "无",
+        added_instruction=added_instruction,
         bazi_reasoning=bazi_reasoning,
         items_list=items_list_str,
         has_bazi=has_bazi,
@@ -1770,6 +1863,13 @@ def generate_advice_stream(state: AgentState) -> Generator[str, None, None]:
             travel_context += f"\n目的地天气：{weather_summary}"
         effective_user_input = user_input + travel_context
     
+    # 构建"场景/天气加成"的完整指令文本（避免 LLM 误判条件）
+    added_elements_str = "、".join(added_elements) if added_elements else ""
+    if added_elements_str:
+        added_instruction = f'接着说"结合【场景/天气】，再加入【{added_elements_str}】元素..."'
+    else:
+        added_instruction = '不要提及"再加入"或场景加成元素'
+    
     prompt_template = load_prompt("generator.txt")
     prompt = prompt_template.format(
         user_input=effective_user_input,
@@ -1777,7 +1877,8 @@ def generate_advice_stream(state: AgentState) -> Generator[str, None, None]:
         weather_element=weather_display,
         target_elements="、".join(target_elements) if target_elements else "综合推荐",
         xiyong_elements="、".join(xiyong_elements) if xiyong_elements else "无",
-        added_elements="、".join(added_elements) if added_elements else "无",
+        added_elements=added_elements_str or "无",
+        added_instruction=added_instruction,
         bazi_reasoning=bazi_reasoning,
         items_list=items_list_str,
         has_bazi=has_bazi,
@@ -1868,5 +1969,10 @@ def format_output_node(state: AgentState) -> Dict:
         "items": items,
         "reason": reasoning_text,
     }
+    
+    # 优化：包含旅行行程规划（如果有）
+    travel_plan = state.get("travel_plan")
+    if travel_plan:
+        final_response["travel_plan"] = travel_plan
     
     return {"final_response": final_response}

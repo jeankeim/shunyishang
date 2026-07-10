@@ -17,6 +17,16 @@ const getAPIBase = () => {
   return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 }
 
+// SSE 流式请求专用：直接访问后端（绕过 Next.js rewrites，避免流式响应被缓冲/断开）
+const getDirectAPIBase = () => {
+  if (typeof window !== 'undefined') {
+    // 浏览器环境：使用当前 hostname + 后端端口 8000
+    const hostname = window.location.hostname
+    return `http://${hostname}:8000`
+  }
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+}
+
 // 不要在这里固定API_BASE，而是在每次请求时动态获取
 // const API_BASE = getAPIBase()  // 删除这行
 
@@ -127,11 +137,13 @@ export async function reportBehavior(
 export async function* streamRecommendation(
   request: RecommendRequest
 ): AsyncGenerator<SSEEvent, void, unknown> {
-  const response = await fetch(`${getAPIBase()}/api/v1/recommend/stream`, {
+  // SSE 流式请求直连后端，避免 Next.js rewrites 缓冲/断开流式响应
+  const response = await fetch(`${getDirectAPIBase()}/api/v1/recommend/stream`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Accept': 'text/event-stream',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify(request),
   })
