@@ -20,9 +20,9 @@ const getAPIBase = () => {
 // SSE 流式请求专用：直接访问后端（绕过 Next.js rewrites，避免流式响应被缓冲/断开）
 const getDirectAPIBase = () => {
   if (typeof window !== 'undefined') {
-    // 浏览器环境：使用当前 hostname + 后端端口 8000
-    const hostname = window.location.hostname
-    return `http://${hostname}:8000`
+    // 浏览器环境：优先使用环境变量中的后端地址（生产环境为 Zeabur HTTPS 域名）
+    // 仅在未配置时回退到本地开发地址
+    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
   }
   return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 }
