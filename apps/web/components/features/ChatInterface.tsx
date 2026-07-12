@@ -545,7 +545,7 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: 
                         
             <div className="flex flex-col items-center gap-4">
               <div className="flex flex-wrap justify-center gap-3 max-w-2xl">
-                <AnimatePresence mode="popLayout">
+                <AnimatePresence mode="sync">
                   {currentPrompts.map((prompt, index) => (
                     <motion.button
                       key={prompt}
