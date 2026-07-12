@@ -375,10 +375,17 @@ def merge_recommendations(
                     continue
                 elements.append(elem)
     
-    # 4. 意图推断（补充）
+    # 4. 意图推断（补充，需检查忌神）
     if intent_result and intent_result["method"] == "rule":
         for elem in intent_result["elements"]:
             if elem not in elements:
+                if elem in avoid_elements:
+                    # 忌神元素：检查是否相生喜用神，若是则加入 boost，否则跳过
+                    if _check_generates_xiyong(elem, xiyong_elements):
+                        if elem not in boost_elements:
+                            boost_elements.append(elem)
+                            logger.info(f"[五行相生] 意图五行 {elem} 虽为忌神，但生 {GENERATING_CYCLE[elem]}（喜用神），加入加分列表")
+                    continue
                 elements.append(elem)
     
     # 去重，最多3个

@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     
     # === 阿里百炼千问 LLM 配置 ===
     dashscope_api_key: str = ""
-    dashscope_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"  # 国内端点
+    dashscope_base_url: str = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"  # 国际端点（境外服务器）
     qwen_model: str = "qwen-plus"  # 国内端点使用 qwen-plus（质量更高）
     
     # === OpenAI 配置 (备用) ===

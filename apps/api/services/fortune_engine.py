@@ -275,7 +275,7 @@ def _generate_advice(
 
     relation = _get_element_relation(day_element, day_master)
     relation_text = {
-        "sheng": "天干生扶日元，贵人相助，诸事顺遂。",
+        "sheng": "日元被天干所生，得贵人扶持，但也需注意精力外泄。",
         "bi": "天干与日元比和，平稳安宁，宜守不宜急。",
         "xie": "日元生天干，精力外泄，注意休息。",
         "hao": "日元克天干，耗气劳神，宜量力而行。",

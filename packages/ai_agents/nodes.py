@@ -278,11 +278,14 @@ def analyze_intent_node(state: AgentState) -> Dict:
     # 4.2 流年运势增强：将流年幸运元素加入推荐五行（优先级低于喜用神）
     if annual_luck_data:
         annual_lucky_elements = annual_luck_data.get("lucky_elements", [])
+        avoid_elements = bazi_result.get("avoid_elements", []) if bazi_result else []
         for elem in annual_lucky_elements[:2]:  # 最多取前2个流年幸运元素
-            if elem not in target_elements and elem not in xiyong_elements:
+            if elem not in target_elements and elem not in xiyong_elements and elem not in avoid_elements:
                 target_elements.append(elem)
                 added_elements.append(elem)
                 logger.info(f"[Agent] 流年增强: 添加流年幸运元素 {elem}")
+            elif elem in avoid_elements:
+                logger.info(f"[Agent] 流年增强: 跳过忌神 {elem}（不纳入 target_elements）")
     
     # 5. 生成搜索查询
     # 如果规则已足够，直接构建查询
@@ -674,12 +677,12 @@ def retrieve_items_node(state: AgentState) -> Dict:
         if secondary and secondary in target_elements:
             wuxing_score += 0.3
         
-        # 相生加分：忌神但生喜用神的五行，给予额外加分
+        # 相生加分：忌神但生喜用神的五行，给予适度加分（弱于 target 元素）
         if boost_elements:
             if primary in boost_elements:
-                wuxing_score += 0.15
+                wuxing_score += 0.08
             if secondary and secondary in boost_elements:
-                wuxing_score += 0.10
+                wuxing_score += 0.04
         
         # wear_count 联动：穿着次数少的物品略加分（鼓励轮换）
         wear_count = item.get("wear_count", 0)
@@ -1604,6 +1607,7 @@ def generate_advice_node(state: AgentState) -> Dict:
     target_elements = state["target_elements"]
     xiyong_elements = state.get("xiyong_elements", [])
     added_elements = state.get("added_elements", [])
+    boost_elements = state.get("boost_elements", [])  # 相生辅助五行
     retrieved_items = state["retrieved_items"]
     scene = state.get("scene")
     weather_element = state.get("weather_element")
@@ -1715,6 +1719,13 @@ def generate_advice_node(state: AgentState) -> Dict:
     else:
         added_instruction = '不要提及"再加入"或场景加成元素'
     
+    # 构建"辅助加分"指令（boost_elements：忌神但生喜用神，不可作为正面推荐）
+    boost_elements_str = "、".join(boost_elements) if boost_elements else ""
+    if boost_elements_str:
+        boost_instruction = f'注意：【{boost_elements_str}】为辅助加分元素（虽生喜用神，但属相克关系），可少量提及提升专业感/气场，不可作为主推荐元素，不可说"推荐穿X色"'
+    else:
+        boost_instruction = '无辅助加分元素'
+    
     prompt_template = load_prompt("generator.txt")
     prompt = prompt_template.format(
         user_input=effective_user_input,
@@ -1724,6 +1735,7 @@ def generate_advice_node(state: AgentState) -> Dict:
         xiyong_elements="、".join(xiyong_elements) if xiyong_elements else "无",
         added_elements=added_elements_str or "无",
         added_instruction=added_instruction,
+        boost_instruction=boost_instruction,
         bazi_reasoning=bazi_reasoning,
         items_list=items_list_str,
         has_bazi=has_bazi,
@@ -1776,6 +1788,7 @@ def generate_advice_stream(state: AgentState) -> Generator[str, None, None]:
     target_elements = state["target_elements"]
     xiyong_elements = state.get("xiyong_elements", [])
     added_elements = state.get("added_elements", [])
+    boost_elements = state.get("boost_elements", [])  # 相生辅助五行
     retrieved_items = state["retrieved_items"]
     scene = state.get("scene")
     weather_element = state.get("weather_element")
@@ -1870,6 +1883,13 @@ def generate_advice_stream(state: AgentState) -> Generator[str, None, None]:
     else:
         added_instruction = '不要提及"再加入"或场景加成元素'
     
+    # 构建"辅助加分"指令（boost_elements：忌神但生喜用神，不可作为正面推荐）
+    boost_elements_str = "、".join(boost_elements) if boost_elements else ""
+    if boost_elements_str:
+        boost_instruction = f'注意：【{boost_elements_str}】为辅助加分元素（虽生喜用神，但属相克关系），可少量提及提升专业感/气场，不可作为主推荐元素，不可说"推荐穿X色"'
+    else:
+        boost_instruction = '无辅助加分元素'
+    
     prompt_template = load_prompt("generator.txt")
     prompt = prompt_template.format(
         user_input=effective_user_input,
@@ -1879,6 +1899,7 @@ def generate_advice_stream(state: AgentState) -> Generator[str, None, None]:
         xiyong_elements="、".join(xiyong_elements) if xiyong_elements else "无",
         added_elements=added_elements_str or "无",
         added_instruction=added_instruction,
+        boost_instruction=boost_instruction,
         bazi_reasoning=bazi_reasoning,
         items_list=items_list_str,
         has_bazi=has_bazi,
