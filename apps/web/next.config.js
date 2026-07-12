@@ -41,6 +41,9 @@ if (ossHostname) {
 
 // 基础配置
 const nextConfig = {
+  // Docker/Zeabur 部署使用 standalone 输出
+  output: IS_STATIC_EXPORT ? 'export' : 'standalone',
+
   images: IS_STATIC_EXPORT
     ? { unoptimized: true }  // 静态导出不支持图片优化
     : { remotePatterns },
@@ -49,14 +52,13 @@ const nextConfig = {
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production' ? { exclude: ['error', 'warn'] } : false,
   },
+
+  // 静态导出需要尾部斜杠
+  ...(IS_STATIC_EXPORT ? { trailingSlash: true } : {}),
 }
 
-// 静态导出模式：不使用 rewrites，前端直接请求后端域名
-if (IS_STATIC_EXPORT) {
-  nextConfig.output = 'export'
-  nextConfig.trailingSlash = true  // OSS 静态托管需要尾部斜杠
-} else {
-  // 开发/Vercel 模式：使用 rewrites 代理 API 请求，消除 CORS
+// 非静态导出模式：使用 rewrites 代理 API 请求，消除 CORS
+if (!IS_STATIC_EXPORT) {
   nextConfig.rewrites = async () => [
     { source: '/api/:path*', destination: `${API_BASE}/api/:path*` },
     { source: '/health', destination: `${API_BASE}/health` },
