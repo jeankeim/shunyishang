@@ -5,11 +5,16 @@
 
 // 海报生成耗时较长（下载 R2 图片），直连后端避免 Next.js rewrites 超时/缓冲
 const getPosterAPIBase = () => {
+  // 生产环境使用 NEXT_PUBLIC_API_URL（HTTPS），避免 Mixed Content
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  // 本地开发：直连后端
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     return `http://${hostname}:8000`;
   }
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  return 'http://localhost:8000';
 };
 
 const API_BASE = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
