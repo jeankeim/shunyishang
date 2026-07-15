@@ -12,7 +12,22 @@ services:
       - "5432:5432"
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
-      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+      # 初始化脚本按文件名字母序执行（仅在数据目录为空的全新库时运行）。
+      # 基础表 → 各业务迁移，确保全新数据库拥有完整表结构（含穿搭日记/每日运势等）。
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/00_init_db.sql
+      - ./scripts/migrations/01_extend_wardrobe_tables.sql:/docker-entrypoint-initdb.d/01_extend_wardrobe_tables.sql
+      - ./scripts/migrations/02_add_wardrobe_weather_fields.sql:/docker-entrypoint-initdb.d/02_add_wardrobe_weather_fields.sql
+      - ./scripts/migrations/03_outfit_diary_fortune.sql:/docker-entrypoint-initdb.d/03_outfit_diary_fortune.sql
+      - ./scripts/migrations/04_membership_push.sql:/docker-entrypoint-initdb.d/04_membership_push.sql
+      - ./scripts/migrations/05_performance_indexes.sql:/docker-entrypoint-initdb.d/05_performance_indexes.sql
+      - ./scripts/migrations/06_user_preferences.sql:/docker-entrypoint-initdb.d/06_user_preferences.sql
+      - ./scripts/migrations/07_community_tables.sql:/docker-entrypoint-initdb.d/07_community_tables.sql
+      - ./scripts/migrations/08_gamification.sql:/docker-entrypoint-initdb.d/08_gamification.sql
+      - ./scripts/migrations/09_paid_reports.sql:/docker-entrypoint-initdb.d/09_paid_reports.sql
+      - ./scripts/migrations/10_preference_enhancement.sql:/docker-entrypoint-initdb.d/10_preference_enhancement.sql
+      - ./scripts/migrations/add_image_url_to_items.sql:/docker-entrypoint-initdb.d/11_add_image_url_to_items.sql
+      - ./scripts/migrations/add_thumbnail_url.sql:/docker-entrypoint-initdb.d/12_add_thumbnail_url.sql
+
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U wuxing_user -d wuxing_db"]
       interval: 10s

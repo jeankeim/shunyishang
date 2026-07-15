@@ -46,7 +46,7 @@ SELECT
     COUNT(*) as total_items,
     COUNT(thumbnail_url) as has_thumbnail,
     COUNT(image_url) as has_image,
-    ROUND(COUNT(thumbnail_url)::numeric / COUNT(*) * 100, 2) as thumbnail_coverage_percent
+    ROUND(COUNT(thumbnail_url)::numeric / NULLIF(COUNT(*), 0) * 100, 2) as thumbnail_coverage_percent
 FROM items
 WHERE image_url IS NOT NULL;
 

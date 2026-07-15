@@ -2,6 +2,38 @@
 FastAPI 应用入口
 """
 
+# --- 本地开发环境代理修复（必须在任何 HTTP 客户端创建前执行）---
+# 背景：macOS 的系统代理（如 ClashX/Surge 等 VPN）会被 Python 的 httpx / requests
+# 通过 urllib.request.getproxies() 自动识别并使用。但该代理无法访问国内
+# DashScope（阿里云）端点，导致 SSL 握手超时、推荐/Embedding 接口全部失败。
+# 这里将 aliyuncs.com 等域名加入 no_proxy 直连，同时保留系统代理供其他域名使用。
+# 生产环境（Zeabur/Linux）无系统代理，getproxies() 返回空，此逻辑自动跳过，无副作用。
+import os as _os
+import urllib.request as _urlreq
+
+
+def _configure_proxy_bypass() -> None:
+    sys_proxies = _urlreq.getproxies()
+    # 仅当检测到系统/环境代理时才处理
+    if not (sys_proxies.get("http") or sys_proxies.get("https")):
+        return
+    # 将系统代理显式导出为环境变量，使 no_proxy 生效
+    # （getproxies 优先读取环境变量；若仅存在系统配置，则 no_proxy 会被忽略）
+    if sys_proxies.get("http"):
+        _os.environ.setdefault("http_proxy", sys_proxies["http"])
+        _os.environ.setdefault("HTTP_PROXY", sys_proxies["http"])
+    if sys_proxies.get("https"):
+        _os.environ.setdefault("https_proxy", sys_proxies["https"])
+        _os.environ.setdefault("HTTPS_PROXY", sys_proxies["https"])
+    bypass = "localhost,127.0.0.1,::1,aliyuncs.com,.aliyuncs.com"
+    existing = _os.environ.get("no_proxy", "")
+    merged = ",".join(dict.fromkeys(filter(None, existing.split(",") + bypass.split(","))))
+    _os.environ["no_proxy"] = merged
+    _os.environ["NO_PROXY"] = merged
+
+
+_configure_proxy_bypass()
+
 import time
 import logging
 from pathlib import Path

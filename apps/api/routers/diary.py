@@ -142,49 +142,64 @@ async def quick_checkin(
             logger.warning(f"[QuickCheckIn] AI 分析失败: {e}")
 
     # 2. 检查今日是否已有日记
-    existing = diary_service.get_diaries(user_id, 1, 1, None, today, today)
-    if existing and existing.diaries:
-        existing_diary = existing.diaries[0]
-        return QuickCheckInResponse(
-            diary_id=existing_diary.id,
+    try:
+        existing = diary_service.get_diaries(user_id, 1, 1, None, today, today)
+        if existing and existing.diaries:
+            existing_diary = existing.diaries[0]
+            return QuickCheckInResponse(
+                diary_id=existing_diary.id,
+                diary_date=today,
+                ai_tags=ai_tags,
+                outfit_suggestion="",
+                created=False,
+            )
+
+        # 3. 获取今日运势穿搭建议
+        outfit_suggestion = ""
+        try:
+            from apps.api.services.fortune_engine import calculate_daily_fortune
+            user_bazi = _get_user_bazi(user_id)
+            fortune = calculate_daily_fortune(user_bazi, today)
+            outfit_suggestion = fortune.get("outfit_suggestion", "")
+        except Exception as e:
+            logger.debug(f"[QuickCheckIn] 运势获取失败: {e}")
+
+        # 4. 创建日记
+        notes_parts = []
+        if ai_tags.get("color"):
+            notes_parts.append(f"今日穿搭: {ai_tags['color']}系")
+        if ai_tags.get("style"):
+            notes_parts.append(ai_tags['style'])
+        notes = "，".join(notes_parts) if notes_parts else None
+
+        image_urls = [request.image_url] if request.image_url else []
+
+        create_req = CreateDiaryRequest(
             diary_date=today,
-            ai_tags=ai_tags,
-            outfit_suggestion="",
-            created=False,
+            mood=request.mood or "neutral",
+            occasion=None,
+            notes=notes,
+            rating=None,
+            image_urls=image_urls,
+            items=[],
+            trigger_ai_review=False,
         )
 
-    # 3. 获取今日运势穿搭建议
-    outfit_suggestion = ""
-    try:
-        from apps.api.services.fortune_engine import calculate_daily_fortune
-        user_bazi = _get_user_bazi(user_id)
-        fortune = calculate_daily_fortune(user_bazi, today)
-        outfit_suggestion = fortune.get("outfit_suggestion", "")
+        diary = diary_service.create_diary(user_id, create_req)
     except Exception as e:
-        logger.debug(f"[QuickCheckIn] 运势获取失败: {e}")
-
-    # 4. 创建日记
-    notes_parts = []
-    if ai_tags.get("color"):
-        notes_parts.append(f"今日穿搭: {ai_tags['color']}系")
-    if ai_tags.get("style"):
-        notes_parts.append(ai_tags['style'])
-    notes = "，".join(notes_parts) if notes_parts else None
-
-    image_urls = [request.image_url] if request.image_url else []
-
-    create_req = CreateDiaryRequest(
-        diary_date=today,
-        mood=request.mood or "neutral",
-        occasion=None,
-        notes=notes,
-        rating=None,
-        image_urls=image_urls,
-        items=[],
-        trigger_ai_review=False,
-    )
-
-    diary = diary_service.create_diary(user_id, create_req)
+        # 并发/重复打卡：唯一约束冲突时回退为"今日已打卡"
+        if "unique" in str(e).lower() or "duplicate" in str(e).lower():
+            existing = diary_service.get_diaries(user_id, 1, 1, None, today, today)
+            if existing and existing.diaries:
+                return QuickCheckInResponse(
+                    diary_id=existing.diaries[0].id,
+                    diary_date=today,
+                    ai_tags=ai_tags,
+                    outfit_suggestion="",
+                    created=False,
+                )
+        logger.error(f"[QuickCheckIn] 打卡失败: {e}")
+        raise HTTPException(status_code=500, detail="打卡失败，请稍后重试")
 
     return QuickCheckInResponse(
         diary_id=diary.id,

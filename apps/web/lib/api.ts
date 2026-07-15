@@ -30,6 +30,26 @@ const getDirectAPIBase = () => {
 // 不要在这里固定API_BASE，而是在每次请求时动态获取
 // const API_BASE = getAPIBase()  // 删除这行
 
+// 安全提取错误信息：兼容后端返回非 JSON 的情况（如后端未启动时 Next.js 代理返回
+// 纯文本 "Internal Server Error"，直接 response.json() 会抛出误导性的
+// "Unexpected token 'I'" 错误，掩盖真实问题）
+async function extractErrorMessage(response: Response, fallback: string): Promise<string> {
+  try {
+    const text = await response.text()
+    if (!text) return `${fallback}（${response.status}）`
+    try {
+      const data = JSON.parse(text)
+      return data?.detail || data?.message || fallback
+    } catch {
+      // 非 JSON 响应（如代理层 / 网关返回的纯文本错误）
+      if (response.status >= 500) return `服务暂时不可用，请稍后重试（${response.status}）`
+      return `${fallback}（${response.status}）`
+    }
+  } catch {
+    return fallback
+  }
+}
+
 // 调试信息：打印API地址（仅在浏览器环境）
 if (typeof window !== 'undefined') {
   // 全局测试函数：在浏览器控制台执行 testAPI() 测试连接
@@ -830,8 +850,7 @@ export async function quickCheckIn(data: {
     body: JSON.stringify(data),
   })
   if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.detail || '打卡失败')
+    throw new Error(await extractErrorMessage(response, '打卡失败'))
   }
   return response.json()
 }
@@ -841,7 +860,9 @@ export async function triggerDiaryReview(diaryId: number): Promise<any> {
     method: 'POST',
     headers: getAuthHeaders(),
   })
-  if (!response.ok) throw new Error('AI点评失败')
+  if (!response.ok) {
+    throw new Error(await extractErrorMessage(response, 'AI点评失败'))
+  }
   return response.json()
 }
 
