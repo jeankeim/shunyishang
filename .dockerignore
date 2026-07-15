@@ -6,6 +6,7 @@ __pycache__/
 .Python
 env/
 venv/
+.venv/
 ENV/
 build/
 develop-eggs/
@@ -58,6 +59,14 @@ data/postgres/
 
 # Uploads (不上传到 Git)
 data/uploads/
+
+# 生成的图片（不打入镜像）
+data/generated_images/
+
+# 测试覆盖率报告与缓存
+htmlcov/
+.pytest_cache/
+.coverage
 
 # Test files
 test_*.py
