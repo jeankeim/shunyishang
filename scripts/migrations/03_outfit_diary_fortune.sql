@@ -53,5 +53,6 @@ CREATE INDEX IF NOT EXISTS idx_diary_outfit_items_diary ON diary_outfit_items(di
 CREATE INDEX IF NOT EXISTS idx_daily_fortune_user_date ON daily_fortune(user_id, fortune_date DESC);
 
 -- updated_at 触发器
+DROP TRIGGER IF EXISTS update_outfit_diaries_updated_at ON outfit_diaries;
 CREATE TRIGGER update_outfit_diaries_updated_at BEFORE UPDATE ON outfit_diaries
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

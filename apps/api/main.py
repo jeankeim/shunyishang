@@ -90,6 +90,13 @@ async def lifespan(app: FastAPI):
     # 注意：Embedding 模型已改用 DashScope API，无需预热
     # 之前加载本地 BGE-M3 模型会占用大量内存（~400MB），导致 OOM
     
+    # 执行数据库自动迁移（补齐缺失的功能表，如 outfit_diaries、运势、报告等）
+    try:
+        from apps.api.core.migrations import run_migrations
+        run_migrations()
+    except Exception as e:
+        logger.error(f"数据库迁移执行异常（不中断启动）: {e}")
+    
     # 启动推送调度器
     from apps.api.services.push_scheduler import push_scheduler
     await push_scheduler.start()

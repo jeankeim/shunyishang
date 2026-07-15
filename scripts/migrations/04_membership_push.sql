@@ -63,17 +63,19 @@ CREATE TABLE IF NOT EXISTS user_push_settings (
 );
 
 -- 索引
-CREATE INDEX idx_subscriptions_user ON subscriptions(user_id);
-CREATE INDEX idx_subscriptions_status ON subscriptions(status);
-CREATE INDEX idx_subscriptions_expires ON subscriptions(expires_at);
-CREATE INDEX idx_payment_records_user ON payment_records(user_id);
-CREATE INDEX idx_payment_records_subscription ON payment_records(subscription_id);
-CREATE INDEX idx_payment_records_transaction ON payment_records(transaction_id);
-CREATE INDEX idx_push_notifications_user ON push_notifications(user_id, sent_at DESC);
-CREATE INDEX idx_push_notifications_type ON push_notifications(type);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_expires ON subscriptions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_payment_records_user ON payment_records(user_id);
+CREATE INDEX IF NOT EXISTS idx_payment_records_subscription ON payment_records(subscription_id);
+CREATE INDEX IF NOT EXISTS idx_payment_records_transaction ON payment_records(transaction_id);
+CREATE INDEX IF NOT EXISTS idx_push_notifications_user ON push_notifications(user_id, sent_at DESC);
+CREATE INDEX IF NOT EXISTS idx_push_notifications_type ON push_notifications(type);
 
 -- updated_at 触发器
+DROP TRIGGER IF EXISTS update_subscriptions_updated_at ON subscriptions;
 CREATE TRIGGER update_subscriptions_updated_at BEFORE UPDATE ON subscriptions
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_user_push_settings_updated_at ON user_push_settings;
 CREATE TRIGGER update_user_push_settings_updated_at BEFORE UPDATE ON user_push_settings
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
