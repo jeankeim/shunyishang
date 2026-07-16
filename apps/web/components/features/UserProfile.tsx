@@ -270,9 +270,9 @@ export function UserProfile({ onClose }: UserProfileProps) {
     <div className="max-w-4xl mx-auto h-full overflow-y-auto bg-gradient-to-br from-[#F8FAF9] to-white">
       <div className="p-4 md:p-6 space-y-6">
         {/* 头部区域 */}
-        <div className="flex justify-between items-start pb-4 border-b border-[#E8F0EB]/60">
+        <div className="flex justify-between items-start pb-4 border-b border-[var(--brand-border)]/60">
           <div className="flex-1">
-            <h2 className="text-xl md:text-2xl font-bold flex items-center gap-3 text-[#2D4A38]">
+            <h2 className="text-xl md:text-2xl font-bold flex items-center gap-3 text-[var(--brand-heading)]">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#3DA35D] to-[#4A90C4] flex items-center justify-center shadow-lg">
                 <User className="h-5 w-5 text-white" />
               </div>
@@ -286,7 +286,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
           </div>
           <button
             onClick={handleCancel}
-            className="p-2.5 rounded-xl hover:bg-[#F0F7F4] transition-all text-[#6B7F72] hover:text-[#4A5F52] hover:scale-105 active:scale-95"
+            className="p-2.5 rounded-xl hover:bg-[var(--brand-surface)] transition-all text-[#6B7F72] hover:text-[var(--brand-body)] hover:scale-105 active:scale-95"
             aria-label="关闭"
           >
             <X className="h-5 w-5" />
@@ -322,13 +322,13 @@ export function UserProfile({ onClose }: UserProfileProps) {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* 基本信息 */}
-            <section className="bg-white rounded-2xl p-5 shadow-sm border border-[#E8F0EB]/40">
-              <h3 className="text-lg font-semibold text-[#2D4A38] pb-3 mb-4 border-b border-[#E8F0EB]/40">
+            <section className="bg-white rounded-2xl p-5 shadow-sm border border-[var(--brand-border)]/40">
+              <h3 className="text-lg font-semibold text-[var(--brand-heading)] pb-3 mb-4 border-b border-[var(--brand-border)]/40">
                 基本信息
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-2">
-                  <label htmlFor="nickname" className="block text-sm font-medium text-[#4A5F52]">
+                  <label htmlFor="nickname" className="block text-sm font-medium text-[var(--brand-body)]">
                     昵称
                   </label>
                   <input
@@ -337,19 +337,19 @@ export function UserProfile({ onClose }: UserProfileProps) {
                     value={formData.nickname || ''}
                     onChange={(e) => handleChange('nickname', e.target.value)}
                                                             placeholder="请输入昵称"
-                    className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[#E8F0EB] bg-white text-[#2D4A38] placeholder:text-[#6B7F72] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
+                    className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[#6B7F72] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="gender" className="block text-sm font-medium text-[#4A5F52]">
+                  <label htmlFor="gender" className="block text-sm font-medium text-[var(--brand-body)]">
                     性别
                   </label>
                   <select
                     id="gender"
                     value={formData.gender || ''}
                     onChange={(e) => handleChange('gender', e.target.value)}
-                    className="input-elegant w-full px-3 py-2.5 text-sm text-[#2D4A38] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] transition-all"
+                    className="input-elegant w-full px-3 py-2.5 text-sm text-[var(--brand-heading)] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] transition-all"
                   >
                     <option value="">请选择</option>
                     <option value="男">男</option>
@@ -360,8 +360,8 @@ export function UserProfile({ onClose }: UserProfileProps) {
             </section>
 
             {/* 出生信息 */}
-            <section className="bg-white rounded-2xl p-5 shadow-sm border border-[#E8F0EB]/40">
-              <h3 className="text-lg font-semibold flex items-center gap-2 text-[#2D4A38] pb-3 mb-4 border-b border-[#E8F0EB]/40">
+            <section className="bg-white rounded-2xl p-5 shadow-sm border border-[var(--brand-border)]/40">
+              <h3 className="text-lg font-semibold flex items-center gap-2 text-[var(--brand-heading)] pb-3 mb-4 border-b border-[var(--brand-border)]/40">
                 <Calendar className="h-5 w-5 text-[#B89B5E]" />
                 出生信息
               </h3>
@@ -371,7 +371,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-[#4A5F52]">
+                  <label className="block text-sm font-medium text-[var(--brand-body)]">
                     出生日期
                   </label>
                   <div className="relative">
@@ -382,7 +382,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
                       }}
                       dateFormat="yyyy/MM/dd"
                                             placeholderText="请选择出生日期"
-                      className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[#E8F0EB] bg-white text-[#2D4A38] placeholder:text-[#6B7F72] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
+                      className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[#6B7F72] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
                       calendarClassName="bg-white rounded-lg shadow-lg"
                     />
                     <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-[#6B7F72] pointer-events-none" />
@@ -390,7 +390,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="birth_time" className="block text-sm font-medium text-[#4A5F52]">
+                  <label htmlFor="birth_time" className="block text-sm font-medium text-[var(--brand-body)]">
                     出生时间
                   </label>
                   <input
@@ -398,13 +398,13 @@ export function UserProfile({ onClose }: UserProfileProps) {
                     type="time"
                     value={formData.birth_time || ''}
                                         onChange={(e) => handleChange('birth_time', e.target.value)}
-                    className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[#E8F0EB] bg-white text-[#2D4A38] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
+                    className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
                   />
                 </div>
               </div>
 
               <div className="space-y-2 mt-5">
-                <label htmlFor="birth_location" className="block text-sm font-medium text-[#4A5F52]">
+                <label htmlFor="birth_location" className="block text-sm font-medium text-[var(--brand-body)]">
                   出生地点
                 </label>
                 <input
@@ -413,20 +413,20 @@ export function UserProfile({ onClose }: UserProfileProps) {
                   value={formData.birth_location || ''}
                   onChange={(e) => handleChange('birth_location', e.target.value)}
                                     placeholder="请输入出生地（省市区）"
-                  className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[#E8F0EB] bg-white text-[#2D4A38] placeholder:text-[#6B7F72] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
+                  className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[#6B7F72] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
                 />
               </div>
             </section>
 
             {/* 偏好设置 */}
-            <section className="bg-white rounded-2xl p-5 shadow-sm border border-[#E8F0EB]/40">
-              <h3 className="text-lg font-semibold flex items-center gap-2 text-[#2D4A38] pb-3 mb-4 border-b border-[#E8F0EB]/40">
+            <section className="bg-white rounded-2xl p-5 shadow-sm border border-[var(--brand-border)]/40">
+              <h3 className="text-lg font-semibold flex items-center gap-2 text-[var(--brand-heading)] pb-3 mb-4 border-b border-[var(--brand-border)]/40">
                 <MapPin className="h-5 w-5 text-[#3DA35D]" />
                 偏好设置
               </h3>
               
               <div className="space-y-2">
-                <label htmlFor="preferred_city" className="block text-sm font-medium text-[#4A5F52]">
+                <label htmlFor="preferred_city" className="block text-sm font-medium text-[var(--brand-body)]">
                   常驻城市
                 </label>
                 <div className="relative">
@@ -440,7 +440,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
                     }}
                     onFocus={() => setShowCityDropdown(true)}
                                         placeholder="请输入或选择城市"
-                    className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[#E8F0EB] bg-white text-[#2D4A38] placeholder:text-[#6B7F72] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
+                    className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[#6B7F72] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
                   />
                   <MapPin className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-[#6B7F72] pointer-events-none" />
                   
@@ -449,7 +449,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
                     <motion.div 
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="absolute z-20 w-full mt-2 bg-white rounded-xl shadow-lg border border-[#E8F0EB] max-h-60 overflow-auto"
+                      className="absolute z-20 w-full mt-2 bg-white rounded-xl shadow-lg border border-[var(--brand-border)] max-h-60 overflow-auto"
                     >
                       {filteredCities.length > 0 ? (
                         filteredCities.map((city) => (
@@ -461,7 +461,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
                               "w-full text-left px-4 py-3 text-sm hover:bg-[#F0F9F4]/60 transition-colors first:rounded-t-xl last:rounded-b-xl",
                               formData.preferred_city === city 
                                 ? "bg-[#F0F9F4] text-[#3DA35D] font-medium" 
-                                : "text-[#4A5F52]"
+                                : "text-[var(--brand-body)]"
                             )}
                           >
                             {city}
@@ -479,13 +479,13 @@ export function UserProfile({ onClose }: UserProfileProps) {
             </section>
 
             {/* 头像设置 */}
-            <section className="bg-white rounded-2xl p-5 shadow-sm border border-[#E8F0EB]/40">
-              <h3 className="text-lg font-semibold text-[#2D4A38] pb-3 mb-4 border-b border-[#E8F0EB]/40">
+            <section className="bg-white rounded-2xl p-5 shadow-sm border border-[var(--brand-border)]/40">
+              <h3 className="text-lg font-semibold text-[var(--brand-heading)] pb-3 mb-4 border-b border-[var(--brand-border)]/40">
                 头像设置
               </h3>
               
               <div className="space-y-2">
-                <label htmlFor="avatar_url" className="block text-sm font-medium text-[#4A5F52]">
+                <label htmlFor="avatar_url" className="block text-sm font-medium text-[var(--brand-body)]">
                   头像URL
                 </label>
                 <input
@@ -494,7 +494,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
                   value={formData.avatar_url || ''}
                   onChange={(e) => handleChange('avatar_url', e.target.value)}
                                     placeholder="请输入头像图片链接"
-                  className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[#E8F0EB] bg-white text-[#2D4A38] placeholder:text-[#6B7F72] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
+                  className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[#6B7F72] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
                 />
                 {formData.avatar_url && (
                   <div className="mt-4 p-4 bg-[#F8FAF9] rounded-xl">
@@ -517,11 +517,11 @@ export function UserProfile({ onClose }: UserProfileProps) {
             </section>
 
             {/* 操作按钮 */}
-            <div className="flex justify-end gap-3 pt-6 border-t border-[#E8F0EB]/60">
+            <div className="flex justify-end gap-3 pt-6 border-t border-[var(--brand-border)]/60">
               <button
                 type="button"
                 onClick={handleCancel}
-                className="px-6 py-3 text-[#6B7F72] hover:bg-[#F0F7F4] rounded-xl font-medium transition-all hover:scale-105 active:scale-95"
+                className="px-6 py-3 text-[#6B7F72] hover:bg-[var(--brand-surface)] rounded-xl font-medium transition-all hover:scale-105 active:scale-95"
               >
                 取消
               </button>

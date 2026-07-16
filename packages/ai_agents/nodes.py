@@ -47,6 +47,34 @@ DEFAULT_MAX_RETRIES = 1  # 从 3 降低到 1，失败快速降级
 DEFAULT_MIN_WAIT = 0.5  # 秒（优化：从 1.0 降低到 0.5，加快重试）
 DEFAULT_MAX_WAIT = 1.5  # 秒（优化：从 3.0 降低到 1.5）
 
+# 推荐五行数量上限（与 merge_recommendations 的截断保持一致，避免流年等增强突破上限）
+MAX_TARGET_ELEMENTS = 3
+
+# ============================================================
+# 温度分层阈值（统一"极端温度加权""温度硬过滤""温度评分"三处判定，消除阈值割裂）
+# ============================================================
+EXTREME_HOT_TEMP = 30    # ≥30°C：极端高温（触发温度权重 + 硬排除 厚重/中厚 + 温度评分偏薄）
+MILD_HOT_TEMP = 25       # ≥25°C：中高温（硬排除 厚重）
+EXTREME_COLD_TEMP = 5    # ≤5°C：极端低温（触发温度权重 + 硬排除 极薄/轻薄 + 温度评分偏厚）
+MILD_COLD_TEMP = 10      # ≤10°C：低温（硬排除 极薄）
+
+
+def _is_extreme_temp(temperature: Optional[float]) -> bool:
+    """判断是否为极端温度（与硬过滤的强排除档位一致）。"""
+    if temperature is None:
+        return False
+    return temperature <= EXTREME_COLD_TEMP or temperature >= EXTREME_HOT_TEMP
+
+
+def _canonical_item_key(item: Dict) -> str:
+    """
+    生成物品在 item_sources 中的统一 key。
+
+    统一规则：优先用 item_code（公共库稳定编码），缺失时回退到 str(id)。
+    避免衣橱物品用 id、公共库物品用 item_code 造成的键不一致。
+    """
+    return item.get("item_code") or str(item.get("id"))
+
 
 _llm_client: Optional[OpenAI] = None  # 模块级单例，避免每次请求重新建连
 
@@ -180,8 +208,8 @@ def analyze_intent_node(state: AgentState) -> Dict:
     bazi_result = None
     if bazi_input:
         try:
-            # 生成缓存键：基于用户出生信息
-            bazi_cache_key = f"bazi:{bazi_input['birth_year']}:{bazi_input['birth_month']}:{bazi_input['birth_day']}:{bazi_input['birth_hour']}"
+            # 生成缓存键：基于用户出生信息（含性别，避免男女同生辰串号）
+            bazi_cache_key = f"bazi:{bazi_input['birth_year']}:{bazi_input['birth_month']}:{bazi_input['birth_day']}:{bazi_input['birth_hour']}:{bazi_input.get('gender', '')}"
             
             # 尝试从缓存获取（使用统一的 cache.py 同步接口）
             cached_bazi = None
@@ -233,14 +261,24 @@ def analyze_intent_node(state: AgentState) -> Dict:
             # 当前大运
             birth_year = bazi_input.get("birth_year")
             if birth_year:
-                # 计算当前年龄
+                # P3-52 年龄精确计算：考虑今年生日是否已过，避免大运判断误差 1 岁
+                birth_month = bazi_input.get("birth_month")
+                birth_day = bazi_input.get("birth_day")
                 current_age = current_year - birth_year
+                today = date.today()
+                try:
+                    if birth_month and birth_day:
+                        birthday_this_year = date(current_year, int(birth_month), int(birth_day))
+                        if today < birthday_this_year:
+                            current_age -= 1  # 今年生日还未到，周岁减 1
+                except (ValueError, TypeError):
+                    pass  # 非法月/日（如 2 月 30 日）保持原估算
                 gender = bazi_input.get("gender", "男")
                 major_luck_data = get_current_major_luck(
                     bazi_result, gender, current_age,
                     birth_year=birth_year,
-                    birth_month=bazi_input.get("birth_month"),
-                    birth_day=bazi_input.get("birth_day"),
+                    birth_month=birth_month,
+                    birth_day=birth_day,
                 )
                 logger.info(f"[Agent] 当前大运: {major_luck_data}")
         except Exception as e:
@@ -265,6 +303,19 @@ def analyze_intent_node(state: AgentState) -> Dict:
         scene_result=scene_result,
         weather_element=weather_element
     )
+
+    # P3-56 防御：八字已计算但 suggested_elements 为空时，target 可能全空，
+    # 导致后续五行评分全 0、退化到纯 semantic 排序，丢失命理推荐意义。
+    # 此时用五行全集（金木水火土）减去忌神，按固定优先级补充兜底。
+    _WUXING_UNIVERSE = ["金", "木", "水", "火", "土"]
+    if bazi_result and not bazi_result.get("suggested_elements") and not target_elements:
+        avoid_set = set(bazi_result.get("avoid_elements", []))
+        fallback = [e for e in _WUXING_UNIVERSE if e not in avoid_set]
+        target_elements = fallback[:MAX_TARGET_ELEMENTS]
+        logger.warning(
+            f"[Agent] P3-56 触发: 八字 suggested_elements 为空，"
+            f"使用五行全集-忌神兜底 target_elements={target_elements}"
+        )
         
     # 4.1 区分喜用神与场景/天气添加的五行
     xiyong_elements = bazi_result["suggested_elements"] if bazi_result else []
@@ -276,10 +327,15 @@ def analyze_intent_node(state: AgentState) -> Dict:
             added_elements.append(elem)
     
     # 4.2 流年运势增强：将流年幸运元素加入推荐五行（优先级低于喜用神）
+    # 注意：target_elements 在 merge_recommendations 中已截断为最多 MAX_TARGET_ELEMENTS 个，
+    # 流年元素只能填充剩余名额，不得突破上限，避免五行数量失控、评分被稀释。
     if annual_luck_data:
         annual_lucky_elements = annual_luck_data.get("lucky_elements", [])
         avoid_elements = bazi_result.get("avoid_elements", []) if bazi_result else []
         for elem in annual_lucky_elements[:2]:  # 最多取前2个流年幸运元素
+            if len(target_elements) >= MAX_TARGET_ELEMENTS:
+                logger.info(f"[Agent] 流年增强: target 已达上限 {MAX_TARGET_ELEMENTS}，跳过 {elem}")
+                break
             if elem not in target_elements and elem not in xiyong_elements and elem not in avoid_elements:
                 target_elements.append(elem)
                 added_elements.append(elem)
@@ -426,10 +482,9 @@ def _compute_recommend_weights(
             for k in preset:
                 if k != "temp":
                     preset[k] = round(preset[k] * scale, 4)
-        # 修正浮点精度
-        total = sum(preset.values())
-        if abs(total - 1.0) > 0.001:
-            preset["semantic"] = round(preset["semantic"] + (1.0 - total), 4)
+        # P2-72 强制归一：用 semantic 吸收浮点累积误差，确保总和精确等于 1.0
+        total_without_semantic = sum(v for k, v in preset.items() if k != "semantic")
+        preset["semantic"] = round(1.0 - total_without_semantic, 4)
     
     return preset
 
@@ -530,7 +585,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
         
         # 标记来源
         for item in items:
-            item_sources[str(item.get("id"))] = "wardrobe"
+            item_sources[_canonical_item_key(item)] = "wardrobe"
             item["source"] = "wardrobe"
             item["source_label"] = "🏠 自有"
     
@@ -552,7 +607,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
             
             items.extend(wardrobe_items)
             for item in wardrobe_items:
-                item_sources[str(item.get("id"))] = "wardrobe"
+                item_sources[_canonical_item_key(item)] = "wardrobe"
                 item["source"] = "wardrobe"
                 item["source_label"] = "🏠 自有"
         
@@ -571,7 +626,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
             for item in public_items:
                 item["source"] = "public"
                 item["source_label"] = "🛒 建议"
-                item_sources[item.get("item_code", str(item.get("id")))] = "public"
+                item_sources[_canonical_item_key(item)] = "public"
             
             # 合并，避免重复
             existing_ids = {str(i.get("id")) for i in items}
@@ -596,7 +651,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
         for item in items:
             item["source"] = "public"
             item["source_label"] = "🛒 建议"
-            item_sources[item.get("item_code", str(item.get("id")))] = "public"
+            item_sources[_canonical_item_key(item)] = "public"
     
     # ========== 后续处理（保持原有逻辑） ==========
     if not items:
@@ -636,11 +691,34 @@ def retrieve_items_node(state: AgentState) -> Dict:
             logger.debug(f"[检索节点] 获取用户偏好失败: {e}")
 
     # 动态计算权重（配置化：消除硬编码 if-else 链）
+    # P2-74 偏好有效性校验：user_prefs 非空，但所有候选物品的属性都不在偏好键中时，
+    # calculate_preference_score 会全部返回 0.5 中性分，白占 pref_weight 稀释其它维度。
+    # 此时回退到 has_prefs=False 的权重方案，让其它有效维度获得完整权重。
+    _PREF_DIMENSION_MAP = {
+        "color": "color",
+        "primary_element": "element",
+        "category": "category",
+        "style": "style",
+        "material": "material",
+        "thickness_level": "thickness",
+    }
     has_prefs = bool(user_prefs)
+    if has_prefs and items:
+        pref_hit = False
+        for it in items:
+            for attr, dim in _PREF_DIMENSION_MAP.items():
+                if dim in user_prefs and it.get(attr) and it.get(attr) in user_prefs[dim]:
+                    pref_hit = True
+                    break
+            if pref_hit:
+                break
+        if not pref_hit:
+            logger.info("[检索节点] 用户偏好与当前候选物品无交集，回退到无偏好权重方案")
+            has_prefs = False
     is_extreme_temp = False
     if weather_info:
-        temp_val = weather_info.get("temperature") or 25
-        is_extreme_temp = (temp_val <= 5 or temp_val >= 32)
+        temp_val = weather_info.get("temperature")
+        is_extreme_temp = _is_extreme_temp(temp_val)
     
     weights = _compute_recommend_weights(
         has_bazi=bool(bazi_result),
@@ -678,16 +756,30 @@ def retrieve_items_node(state: AgentState) -> Dict:
             wuxing_score += 0.3
         
         # 相生加分：忌神但生喜用神的五行，给予适度加分（弱于 target 元素）
+        # P2-62 上限约束：boost 加分不得超过 base 命中分，避免忌神关联单品越过直接命中喜用神单品
         if boost_elements:
+            base_target_score = 0.0
+            if primary in target_elements:
+                base_target_score += 0.6
+            if secondary and secondary in target_elements:
+                base_target_score += 0.3
+            boost_raw = 0.0
             if primary in boost_elements:
-                wuxing_score += 0.08
+                boost_raw += 0.08
             if secondary and secondary in boost_elements:
-                wuxing_score += 0.04
+                boost_raw += 0.04
+            boost_capped = min(boost_raw, max(base_target_score, 0.05))
+            wuxing_score += boost_capped
         
-        # wear_count 联动：穿着次数少的物品略加分（鼓励轮换）
+        # 归一化：确保五行分不超过 1.0，与其它 [0,1] 维度加权时语义一致
+        wuxing_score = min(1.0, wuxing_score)
+        
+        # wear_count 轮换奖励：作为独立微调项，不再混入五行分
+        # （穿着次数少的自有衣物给予小幅加分鼓励轮换；公共库物品无 wear_count，rotation_bonus=0 不受影响）
         wear_count = item.get("wear_count", 0)
+        rotation_bonus = 0.0
         if wear_count is not None and isinstance(wear_count, (int, float)) and wear_count >= 0:
-            wuxing_score += max(0, 0.1 - wear_count * 0.02)  # 0次=+0.1, 5次=0
+            rotation_bonus = max(0.0, 0.05 - wear_count * 0.01)  # 0次=+0.05, 5次=0
         
         # 温度匹配评分
         temp_score = _calculate_temp_score(item, weather_info)
@@ -705,14 +797,14 @@ def retrieve_items_node(state: AgentState) -> Dict:
             except Exception:
                 preference_score = 0.5
         
-        # 加权最终分数
+        # 加权最终分数（各维度均为 [0,1]，加权和为 [0,1]；轮换奖励作为独立微调项叠加）
         final_score = (
             semantic_score * semantic_weight +
             wuxing_score * wuxing_weight +
             scene_score * scene_weight +
             preference_score * pref_weight +
             temp_score * temp_weight
-        )
+        ) + rotation_bonus
         
         scored_items.append({
             **item,
@@ -733,44 +825,46 @@ def retrieve_items_node(state: AgentState) -> Dict:
         if temp is not None:
             temp_filtered = []
             for item in scored_items:
-                thickness = item.get("thickness_level", "")
-                item_name = item.get("name", "")
+                # P1-32 厚度推断统一：与 _calculate_temp_score 共用同一套规则
+                thickness = _infer_item_thickness(item)
                 
-                # 数据矛盾检测：名称暗示厚重但DB标记为轻薄，以名称为准
-                heavy_name_keywords = ["羽绒", "棉袄", "棉衣", "大衣", "毛呢", "羊毛"]
-                if any(k in item_name for k in heavy_name_keywords):
-                    thickness = "厚重"  # 名称优先级高于DB标注
-                elif not thickness:
-                    # 如果thickness_level缺失且名称无明确指示，从名称推断
-                    if any(k in item_name for k in ["毛衣", "卫衣"]):
-                        thickness = "中厚"
-                    elif any(k in item_name for k in ["衬衫", "T恤", "短裤", "薄"]):
-                        thickness = "轻薄"
-                
-                # 温度硬过滤（分层级）
-                if temp >= 30:
-                    # 高温：排除厚重和中厚
+                # 温度硬过滤（分层级，阈值统一自模块常量）
+                if temp >= EXTREME_HOT_TEMP:
+                    # 极端高温：排除厚重和中厚
                     if thickness in ("厚重", "中厚"):
                         continue
-                elif temp >= 25:
+                elif temp >= MILD_HOT_TEMP:
                     # 中高温：排除厚重
                     if thickness == "厚重":
                         continue
-                elif temp <= 0:
-                    # 严寒：排除极薄和轻薄
+                elif temp <= EXTREME_COLD_TEMP:
+                    # 极端低温：排除极薄和轻薄
                     if thickness in ("极薄", "轻薄"):
                         continue
-                elif temp <= 10:
+                elif temp <= MILD_COLD_TEMP:
                     # 低温：排除极薄
                     if thickness == "极薄":
                         continue
                 
                 temp_filtered.append(item)
-            if temp_filtered:  # 只在过滤后有剩余时才应用
+            if temp_filtered:  # 过滤后仍有候选，正常应用
                 scored_items = temp_filtered
+            elif scored_items:
+                # 所有候选都被温度硬过滤排除：不再静默保留全部（会导致严寒推短袖/酷暑推羽绒），
+                # 退而保留"温度适配分最高"的一批最不坏候选，避免明显不合适的推荐。
+                max_ts = max(it.get("temp_score", 0.5) for it in scored_items)
+                least_bad = [it for it in scored_items if it.get("temp_score", 0.5) >= max_ts - 1e-9]
+                logger.warning(
+                    f"[温度过滤] 温度={temp}°C 下所有候选均不合适，回退保留温度适配分最高的 {len(least_bad)} 件"
+                )
+                scored_items = least_bad
     
     # 按分数排序，取 Top K
-    scored_items.sort(key=lambda x: x["final_score"], reverse=True)
+    # P3-69 排序稳定性：final_score 相同时用 id/item_code 作为次级键，确保缓存一致性
+    scored_items.sort(
+        key=lambda x: (x["final_score"], _canonical_item_key(x)),
+        reverse=True,
+    )
     top_items = scored_items[:top_k]
     
     # 分类多样性优化（含温度安全检查）
@@ -782,7 +876,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
     # 温度安全检查：确保推荐结果中没有极端不合适的物品
     if weather_info:
         temp = weather_info.get("temperature")
-        if temp is not None and (temp <= 5 or temp >= 32):
+        if temp is not None and _is_extreme_temp(temp):
             # 在极端温度下，替换 temp_score < 0.3 的物品
             temp_safe_items = [i for i in top_items if (i.get("temp_score") or 1.0) >= 0.3]
             if len(temp_safe_items) < len(top_items) and scored_items:
@@ -797,17 +891,33 @@ def retrieve_items_node(state: AgentState) -> Dict:
                 top_items = temp_safe_items[:top_k]
     
     # 检查是否全部五行不匹配 → 降级策略
+    # P3-63 退化防御：若所有候选 semantic_score 都是缺省 0.5（向量检索失败/无 embedding），
+    # 则按 semantic 排序无意义，改用 temp_score+scene_score 组合排序，保留有效维度信息。
     if all(item["wuxing_score"] == 0 for item in top_items):
-        scored_items.sort(key=lambda x: x["semantic_score"], reverse=True)
+        semantic_values = {item.get("semantic_score", 0.5) for item in scored_items}
+        if len(semantic_values) <= 1:
+            # semantic 无区分度，改用 temp_score + scene_score 组合
+            scored_items.sort(
+                key=lambda x: (
+                    (x.get("temp_score") or 0.5) + (x.get("scene_score") or 0.5),
+                    _canonical_item_key(x),
+                ),
+                reverse=True,
+            )
+            logger.info("[检索节点] P3-63 触发: semantic_score 全相同，降级为 temp+scene 排序")
+        else:
+            scored_items.sort(
+                key=lambda x: (x["semantic_score"], _canonical_item_key(x)),
+                reverse=True,
+            )
         top_items = _ensure_category_diversity(scored_items, top_k)
         
         if not top_items:
             top_items = _get_versatile_items(target_elements, top_k)
     
-    # 更新 item_sources
+    # 更新 item_sources（统一 key 规则，消除衣橱用 id / 公共库用 item_code 的键不一致）
     for item in top_items:
-        item_id = str(item.get("id")) if item.get("source") == "wardrobe" else item.get("item_code", str(item.get("id")))
-        item_sources[item_id] = item.get("source", "public")
+        item_sources[_canonical_item_key(item)] = item.get("source", "public")
     
     # ========== 旅行/出差场景：生成多天行程规划 ==========
     travel_plan = None
@@ -1034,8 +1144,12 @@ def _ensure_category_diversity(items: List[Dict], limit: int) -> List[Dict]:
     has_accessory = any(item.get("category") == "配饰" for item in result)
     if not has_accessory and accessory_items and len(result) >= limit:
         # 替换分数最低的非核心服装
+        # P3-92 温度安全检查：不替换温度维度上必需的物品（极端温度下唯一保暖外套等）
         for i in range(len(result) - 1, -1, -1):
             if result[i].get("category") in ["上装", "下装", "裙装", "外套", "鞋履"]:
+                # 跳过温度维度上必需的物品（temp_score>=0.7 表示该物品在温度上很合适）
+                if (result[i].get("temp_score") or 0) >= 0.7:
+                    continue
                 # 检查替换后该分类是否还有其他物品
                 cat = result[i].get("category")
                 same_cat_count = sum(1 for item in result if item.get("category") == cat)
@@ -1080,12 +1194,15 @@ def _ensure_wuxing_diversity(items: List[Dict], all_scored: List[Dict], limit: i
     dominant_element = elements.pop() if elements else None
     
     # 从备选物品中找分数最高的不同五行物品
+    # P3-94 温度安全检查：极端温度下不引入 temp_score<0.3 的候选，避免多样性替换绕过温度安全
     used_ids = {str(item.get("id", item.get("item_code", ""))) for item in items}
     best_replacement = None
     for candidate in all_scored:
         cand_elem = candidate.get("primary_element", "")
         cand_id = str(candidate.get("id", candidate.get("item_code", "")))
         if cand_elem and cand_elem != dominant_element and cand_id not in used_ids:
+            if (candidate.get("temp_score") or 0) < 0.3:
+                continue  # 跳过温度不安全的候选
             best_replacement = candidate
             break
     
@@ -1117,6 +1234,31 @@ def _get_versatile_items(target_elements: List[str], limit: int) -> List[Dict]:
     return items if items else []
 
 
+def _infer_item_thickness(item: Dict) -> str:
+    """
+    统一推断物品厚度（P1-32 厚度依据统一）
+
+    优先级：名称暗示厚重 > DB thickness_level > 名称暗示轻薄/中厚 > 空串
+    解决硬过滤与温度评分依据不同源（一个看名称、一个看 DB）的割裂问题。
+    """
+    item_name = item.get("name", "")
+    db_thickness = item.get("thickness_level", "") or ""
+
+    heavy_name_keywords = ["羽绒", "棉袄", "棉衣", "大衣", "毛呢", "羊毛"]
+    if any(k in item_name for k in heavy_name_keywords):
+        return "厚重"
+
+    if db_thickness:
+        return db_thickness
+
+    if any(k in item_name for k in ["毛衣", "卫衣"]):
+        return "中厚"
+    if any(k in item_name for k in ["衬衫", "T恤", "短裤", "薄"]):
+        return "轻薄"
+
+    return ""
+
+
 def _calculate_temp_score(item: Dict, weather_info: Optional[Dict]) -> float:
     """计算物品的温度适配分（0.0-1.0）"""
     if not weather_info:
@@ -1127,7 +1269,7 @@ def _calculate_temp_score(item: Dict, weather_info: Optional[Dict]) -> float:
         return 0.5
     
     score = 0.5
-    thickness = item.get("thickness_level", "")
+    thickness = _infer_item_thickness(item)
     functionality = item.get("functionality", [])
     if isinstance(functionality, str):
         import json
@@ -1137,7 +1279,7 @@ def _calculate_temp_score(item: Dict, weather_info: Optional[Dict]) -> float:
             functionality = []
     
     # 高温场景
-    if temp >= 30:
+    if temp >= EXTREME_HOT_TEMP:
         if thickness in ("极薄", "轻薄"):
             score += 0.3
         elif thickness == "适中":
@@ -1147,7 +1289,7 @@ def _calculate_temp_score(item: Dict, weather_info: Optional[Dict]) -> float:
         if any(f in functionality for f in ["透气", "速干", "防晒"]):
             score += 0.2
     # 低温场景
-    elif temp <= 5:
+    elif temp <= EXTREME_COLD_TEMP:
         if thickness in ("厚重", "中厚"):
             score += 0.3
         elif thickness == "适中":

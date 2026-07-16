@@ -534,7 +534,7 @@ const CardTemplate: React.FC<PosterTemplateProps> = ({
           ))}
         </div>
 
-        {/* 互动数据 */}
+        {/* 互动数据（海报分享用 - 展示五行标签和推荐信息） */}
         <div className="p-4 rounded-2xl mb-4" style={{
           background: 'rgba(255, 255, 255, 0.8)',
           backdropFilter: 'blur(20px)',
@@ -542,22 +542,21 @@ const CardTemplate: React.FC<PosterTemplateProps> = ({
         }}>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-4">
-              <button className="flex items-center gap-1.5 text-sm hover:text-red-500 transition-colors group">
-                <span className="text-lg group-hover:scale-110 transition-transform">❤️</span>
-                <span className="font-medium">128</span>
-              </button>
-              <button className="flex items-center gap-1.5 text-sm hover:text-blue-500 transition-colors">
-                <span className="text-lg">💬</span>
-                <span className="font-medium">32</span>
-              </button>
-              <button className="flex items-center gap-1.5 text-sm hover:text-green-500 transition-colors">
-                <span className="text-lg">↗️</span>
-                <span className="font-medium">分享</span>
-              </button>
+              <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                <span className="text-lg">👗</span>
+                <span className="font-medium">{items.length}件单品</span>
+              </div>
+              {scene && (
+                <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                  <span className="text-lg">🎯</span>
+                  <span className="font-medium">{scene}</span>
+                </div>
+              )}
             </div>
-            <button className="text-lg hover:scale-110 transition-transform">
-              🔖
-            </button>
+            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+              <span>✨</span>
+              <span>AI推荐</span>
+            </div>
           </div>
           
           {/* 标签 */}

@@ -42,12 +42,12 @@ export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
 
   if (!mounted) {
     return (
-      <header className="h-[60px] border-b border-[#E8F0EB]/50 flex items-center justify-between px-4 bg-white/90 backdrop-blur-xl">
+      <header className="h-[60px] border-b border-[var(--brand-border)]/50 flex items-center justify-between px-4 bg-white/90 backdrop-blur-xl">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#3DA35D]/20 to-[#4A90C4]/20 flex items-center justify-center shadow-sm">
             <Leaf className="w-5 h-5 text-[#3DA35D]" />
           </div>
-          <h1 className="font-semibold text-[#2D4A38] bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] bg-clip-text text-transparent font-serif">顺衣尚</h1>
+          <h1 className="font-semibold text-[var(--brand-heading)] bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] bg-clip-text text-transparent font-serif">顺衣尚</h1>
         </div>
       </header>
     )
@@ -62,18 +62,18 @@ export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
             onClick={onToggleSidebar}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="p-2 rounded-lg hover:bg-[#F0F7F4] transition-colors duration-200"
+            className="p-2 rounded-lg hover:bg-[var(--brand-surface)] transition-colors duration-200"
             title="聊天记录"
             aria-label="切换侧边栏"
           >
-            <Menu className="h-5 w-5 text-[#4A5F52]" />
+            <Menu className="h-5 w-5 text-[var(--brand-body)]" />
           </motion.button>
           {/* 顺衣尚 Logo */}
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#3DA35D]/20 to-[#4A90C4]/20 flex items-center justify-center shadow-sm">
               <Leaf className="w-5 h-5 text-[#3DA35D]" />
             </div>
-            <h1 className="font-semibold text-[#2D4A38] text-lg bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] bg-clip-text text-transparent font-serif tracking-tight">顺衣尚</h1>
+            <h1 className="font-semibold text-[var(--brand-heading)] text-lg bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] bg-clip-text text-transparent font-serif tracking-tight">顺衣尚</h1>
           </div>
         </div>
 
@@ -84,7 +84,7 @@ export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
               initial={{ opacity: 0, x: 10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
-              className="hidden sm:flex items-center gap-2 text-sm text-[#5A7A66]"
+              className="hidden sm:flex items-center gap-2 text-sm text-[var(--brand-subtle)]"
             >
               <Leaf className="h-4 w-4" style={{ color: currentTerm.primaryColor }} />
               <span>当前节气: {currentTerm.name}</span>
@@ -105,12 +105,12 @@ export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#F0F7F4] to-[#E8F5EC] hover:from-[#E8F5EC] hover:to-[#D4E8DC] transition-all duration-200 shadow-sm border border-[#E8F0EB]/60"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-[var(--brand-surface)] to-[var(--brand-surface-active)] hover:from-[var(--brand-surface-active)] hover:to-[#D4E8DC] transition-all duration-200 shadow-sm border border-[var(--brand-border)]/60"
               >
                 <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#3DA35D] to-[#4A90C4] flex items-center justify-center">
                   <User className="w-4 h-4 text-white" />
                 </div>
-                <span className="text-sm text-[#2D4A38] hidden sm:inline font-medium">
+                <span className="text-sm text-[var(--brand-heading)] hidden sm:inline font-medium">
                   {user.nickname || user.phone || user.email || '用户'}
                 </span>
               </motion.button>
@@ -142,12 +142,12 @@ export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ type: "spring", stiffness: 500, damping: 30 }}
-            className="absolute right-4 top-[70px] w-56 bg-white/95 backdrop-blur-xl border border-[#E8F0EB]/60 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.08)] py-1"
+            className="absolute right-4 top-[70px] w-56 bg-white/95 backdrop-blur-xl border border-[var(--brand-border)]/60 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.08)] py-1"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-4 py-3 border-b border-[#E8F0EB]/50 flex justify-between items-start">
+            <div className="px-4 py-3 border-b border-[var(--brand-border)]/50 flex justify-between items-start">
               <div>
-                <p className="text-sm text-[#2D4A38] font-semibold">{user.nickname || '用户'}</p>
+                <p className="text-sm text-[var(--brand-heading)] font-semibold">{user.nickname || '用户'}</p>
                 <p className="text-xs text-[#6B7F72] truncate mt-0.5">
                   {user.phone || user.email}
                 </p>
@@ -156,7 +156,7 @@ export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => setShowUserMenu(false)}
-                className="text-[#8A9F92] hover:text-[#4A5F52] transition-colors p-0.5"
+                className="text-[#8A9F92] hover:text-[var(--brand-body)] transition-colors p-0.5"
                 aria-label="关闭菜单"
               >
                 <X className="w-4 h-4" />
@@ -169,9 +169,9 @@ export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
                 // 跳转到用户资料页面
                 window.location.hash = '#profile'
               }}
-              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#2D4A38] hover:bg-[#F0F7F4] transition-colors cursor-pointer"
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[var(--brand-heading)] hover:bg-[var(--brand-surface)] transition-colors cursor-pointer"
             >
-              <Settings className="w-4 h-4 text-[#5A7A66]" />
+              <Settings className="w-4 h-4 text-[var(--brand-subtle)]" />
               <span className="font-medium">个人中心</span>
             </motion.button>
             <motion.button
@@ -180,7 +180,7 @@ export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
                 setShowUserMenu(false)
                 window.location.hash = '#diary'
               }}
-              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#2D4A38] hover:bg-[#F0F7F4] transition-colors cursor-pointer"
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[var(--brand-heading)] hover:bg-[var(--brand-surface)] transition-colors cursor-pointer"
             >
               <span className="text-sm">📓</span>
               <span className="font-medium">穿搭日记</span>
@@ -191,12 +191,12 @@ export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
                 setShowUserMenu(false)
                 window.location.hash = '#fortune'
               }}
-              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#2D4A38] hover:bg-[#F0F7F4] transition-colors cursor-pointer"
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[var(--brand-heading)] hover:bg-[var(--brand-surface)] transition-colors cursor-pointer"
             >
               <span className="text-sm">🔮</span>
               <span className="font-medium">每日运势</span>
             </motion.button>
-            <div className="border-t border-[#E8F0EB]/50 my-1" />
+            <div className="border-t border-[var(--brand-border)]/50 my-1" />
             <motion.button
               whileHover={{ x: 2 }}
               onClick={() => {

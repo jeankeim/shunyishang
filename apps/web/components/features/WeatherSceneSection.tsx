@@ -461,13 +461,13 @@ export function WeatherSceneSection({
   const WeatherIcon = weather ? (WEATHER_ICONS[weather.weather] || Cloud) : Cloud
 
   return (
-    <div className={cn('bg-white/80 backdrop-blur rounded-xl border border-[#E8F0EB]/60 p-4 space-y-4', className)}>
+    <div className={cn('bg-white/80 backdrop-blur rounded-xl border border-[var(--brand-border)]/60 p-4 space-y-4', className)}>
       {/* 天气区域 */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Cloud className="h-4 w-4 text-[#4A90C4]" />
-            <h3 className="font-medium text-[#2D4A38]">今日天气</h3>
+            <h3 className="font-medium text-[var(--brand-heading)]">今日天气</h3>
           </div>
           <div className="flex items-center gap-2">
             {/* 定位按钮 */}
@@ -476,7 +476,7 @@ export function WeatherSceneSection({
               whileTap={{ scale: 0.95 }}
               onClick={handleLocate}
               disabled={locating}
-              className="flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-[#F0F7F4] hover:bg-[#E8F5EC] transition-colors disabled:opacity-50 text-[#4A5F52]"
+              className="flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-[var(--brand-surface)] hover:bg-[var(--brand-surface-active)] transition-colors disabled:opacity-50 text-[var(--brand-body)]"
               title="自动定位"
             >
               {locating ? (
@@ -520,7 +520,7 @@ export function WeatherSceneSection({
               <div className="flex items-center gap-3">
                 <WeatherIcon className="h-8 w-8 text-[#4A90C4]" />
                 <div>
-                  <div className="text-2xl font-semibold text-[#2D4A38]">{weather.temperature}°</div>
+                  <div className="text-2xl font-semibold text-[var(--brand-heading)]">{weather.temperature}°</div>
                   <div className="text-xs text-[#6B7F72]">{weather.weather}</div>
                 </div>
               </div>
@@ -538,16 +538,16 @@ export function WeatherSceneSection({
       </div>
 
       {/* 场景选择区域 */}
-      <div className="pt-3 border-t border-[#E8F0EB]/50">
+      <div className="pt-3 border-t border-[var(--brand-border)]/50">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Briefcase className="h-4 w-4 text-[#3DA35D]" />
-            <h3 className="font-medium text-[#2D4A38]">常用场景</h3>
+            <h3 className="font-medium text-[var(--brand-heading)]">常用场景</h3>
           </div>
           {selectedScene && (
             <button
               onClick={handleClearScene}
-              className="flex items-center gap-1 text-xs text-[#6B7F72] hover:text-[#2D4A38] transition-colors"
+              className="flex items-center gap-1 text-xs text-[#6B7F72] hover:text-[var(--brand-heading)] transition-colors"
             >
               <X className="h-3 w-3" />
               清除选择
@@ -574,12 +574,12 @@ export function WeatherSceneSection({
                   'relative flex items-center gap-2 p-2 rounded-lg border text-left transition-all duration-200',
                   isSelected
                     ? 'border-[#3DA35D] bg-[#F0F7F4] shadow-sm'
-                    : 'border-[#E8F0EB]/60 hover:border-[#3DA35D]/50 hover:bg-[#F5F9F7]'
+                    : 'border-[var(--brand-border)]/60 hover:border-[#3DA35D]/50 hover:bg-[#F5F9F7]'
                 )}
               >
                 <Icon className={cn('h-4 w-4 shrink-0', isSelected ? 'text-[#3DA35D]' : 'text-[#8A9F92]')} />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate text-[#2D4A38]">{scene.label}</div>
+                  <div className="text-sm font-medium truncate text-[var(--brand-heading)]">{scene.label}</div>
                   <div className="text-[10px] text-[#6B7F72]">{scene.desc} · {scene.element}</div>
                 </div>
                 {isCurrentSlot && !isSelected && (

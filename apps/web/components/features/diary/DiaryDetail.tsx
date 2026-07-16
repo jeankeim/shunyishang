@@ -1,12 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X } from 'lucide-react'
+import { X, Share2, CheckCircle } from 'lucide-react'
+import { ConfirmDialog } from '@/components/ui'
 import type { OutfitDiary } from '@/types'
+import { getPostByDiary, deletePostByDiary, createCommunityPost } from '@/lib/api'
 
 const MOOD_EMOJI: Record<string, string> = {
   happy: '😊', neutral: '😐', sad: '😢', excited: '🤩', calm: '😌',
+}
+
+const MOOD_TAG: Record<string, string> = {
+  happy: '开心', neutral: '平静', sad: '低落', excited: '兴奋', calm: '平和',
 }
 
 interface DiaryDetailProps {
@@ -19,9 +25,65 @@ interface DiaryDetailProps {
 
 export function DiaryDetail({ diary, onEdit, onDelete, onTriggerReview, onBack }: DiaryDetailProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+  const [publishedPost, setPublishedPost] = useState<any>(null)
+  const [publishing, setPublishing] = useState(false)
+  const [showPublishConfirm, setShowPublishConfirm] = useState(false)
+  const [showUnpublishConfirm, setShowUnpublishConfirm] = useState(false)
   const date = new Date(diary.diary_date)
   const dateStr = `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`
-  const emoji = diary.mood ? MOOD_EMOJI[diary.mood] || '😐' : '📝'
+  const emoji = diary.mood ? MOOD_EMOJI[diary.mood] || '📝' : '📝'
+
+  // 检查日记是否已发布到广场
+  useEffect(() => {
+    getPostByDiary(diary.id)
+      .then(setPublishedPost)
+      .catch(() => setPublishedPost(null))
+  }, [diary.id])
+
+  const handlePublish = async () => {
+    setPublishing(true)
+    try {
+      // 构建帖子内容
+      const contentParts = [`${dateStr} 的穿搭记录`]
+      if (diary.mood) contentParts.push(`心情：${MOOD_TAG[diary.mood] || diary.mood}`)
+      if (diary.notes) contentParts.push(diary.notes)
+      if (diary.occasion) contentParts.push(`场合：${diary.occasion}`)
+      const content = contentParts.join('\n\n')
+
+      const tags = []
+      if (diary.mood) tags.push(MOOD_TAG[diary.mood] || diary.mood)
+      if (diary.occasion) tags.push(diary.occasion)
+      tags.push('穿搭日记')
+
+      const post = await createCommunityPost({
+        content,
+        image_urls: diary.image_urls || [],
+        tags,
+        diary_id: diary.id,
+      })
+      setPublishedPost(post)
+      setShowPublishConfirm(false)
+    } catch (err) {
+      console.error('发布失败:', err)
+      alert('发布失败，请稍后重试')
+    } finally {
+      setPublishing(false)
+    }
+  }
+
+  const handleUnpublish = async () => {
+    setShowUnpublishConfirm(true)
+  }
+
+  const doUnpublish = async () => {
+    try {
+      await deletePostByDiary(diary.id)
+      setPublishedPost(null)
+    } catch (err) {
+      console.error('取消发布失败:', err)
+      alert('取消发布失败，请稍后重试')
+    }
+  }
 
   return (
     <motion.div
@@ -177,6 +239,75 @@ export function DiaryDetail({ diary, onEdit, onDelete, onTriggerReview, onBack }
         </div>
       )}
 
+      {/* 发布到广场 */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
+        {publishedPost ? (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-emerald-600">
+              <CheckCircle className="w-5 h-5" />
+              <span className="text-sm font-medium">已发布到穿搭广场</span>
+            </div>
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={handleUnpublish}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-stone-200 text-stone-500 hover:bg-stone-50"
+            >
+              取消发布
+            </motion.button>
+          </div>
+        ) : (
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => setShowPublishConfirm(true)}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-sm"
+          >
+            <Share2 className="w-4 h-4" />
+            发布到穿搭广场
+          </motion.button>
+        )}
+      </div>
+
+      {/* 发布确认弹窗 */}
+      <AnimatePresence>
+        {showPublishConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+            onClick={() => setShowPublishConfirm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-semibold text-stone-800 mb-2">发布到穿搭广场</h3>
+              <p className="text-sm text-stone-500 mb-4">
+                将这篇日记发布到广场，其他用户将可以看到你的穿搭记录。
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowPublishConfirm(false)}
+                  className="flex-1 py-2.5 border border-stone-200 rounded-xl text-sm text-stone-600 hover:bg-stone-50"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handlePublish}
+                  disabled={publishing}
+                  className="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl text-sm font-medium disabled:opacity-50"
+                >
+                  {publishing ? '发布中...' : '确认发布'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* AI 点评 */}
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
         <div className="flex items-center justify-between mb-3">
@@ -219,6 +350,16 @@ export function DiaryDetail({ diary, onEdit, onDelete, onTriggerReview, onBack }
           <p className="text-sm text-stone-400 text-center py-4">暂无 AI 点评，点击上方按钮生成</p>
         )}
       </div>
+
+      {/* 取消发布确认弹窗 */}
+      <ConfirmDialog
+        isOpen={showUnpublishConfirm}
+        onClose={() => setShowUnpublishConfirm(false)}
+        onConfirm={doUnpublish}
+        title="取消发布"
+        description="确认从广场取消发布？"
+        confirmText="确认"
+      />
     </motion.div>
   )
 }

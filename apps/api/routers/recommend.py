@@ -35,20 +35,36 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
     """
     try:
         # 生成缓存键（基于查询条件）
+        # 注意：缓存键必须覆盖所有会影响推荐结果的输入，否则不同请求会命中错误缓存。
         cache_key_parts = [
             request.query or "",
             request.scene or "",
             request.weather_element or "",
             str(request.user_id),
-            request.retrieval_mode or "vector",
-            str(request.top_k or 10),
+            request.retrieval_mode or "public",
+            str(request.top_k),
+            # 性别影响性别过滤，必须纳入缓存键
+            request.gender or "",
+            # 旅行/出差参数直接改变多天行程规划结果
+            str(request.travel_days) if request.travel_days is not None else "",
+            request.destination or "",
+            request.luggage_size or "",
         ]
+        # 天气详情（温度/描述/湿度/风力）会改变温度过滤与评分，必须纳入缓存键
+        if request.weather:
+            cache_key_parts.extend([
+                str(request.weather.temperature) if request.weather.temperature is not None else "",
+                request.weather.weather_desc or "",
+                str(request.weather.humidity) if request.weather.humidity is not None else "",
+                str(request.weather.wind_level) if request.weather.wind_level is not None else "",
+            ])
         if request.bazi:
             cache_key_parts.extend([
                 str(request.bazi.birth_year),
                 str(request.bazi.birth_month),
                 str(request.bazi.birth_day),
                 str(request.bazi.birth_hour),
+                request.bazi.gender or "",
             ])
         
         cache_key_raw = "|".join(cache_key_parts)
@@ -71,6 +87,10 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
             
             # 快速返回缓存的物品列表
             yield f"data: {json.dumps({'type': 'items', 'data': cached_result['items']}, ensure_ascii=False)}\n\n".encode("utf-8")
+            
+            # P2-98 快速返回缓存的旅行规划（如有）
+            if cached_result.get('travel_plan'):
+                yield f"data: {json.dumps({'type': 'travel_plan', 'data': cached_result['travel_plan']}, ensure_ascii=False)}\n\n".encode("utf-8")
             
             # 一次性返回完整理由（不再逐字符模拟）
             reason = cached_result['reason']
@@ -106,6 +126,7 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
         # 运行 Agent 流式输出，并收集结果用于缓存
         collected_analysis = None
         collected_items = None
+        collected_travel_plan = None  # P2-98：收集旅行规划事件
         collected_reason = []
         
         # 优先使用 request.gender，其次从 bazi_input 中获取
@@ -130,6 +151,8 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
                 collected_analysis = event.get("data")
             elif event.get("type") == "items":
                 collected_items = event.get("data")
+            elif event.get("type") == "travel_plan":
+                collected_travel_plan = event.get("data")
             elif event.get("type") == "token":
                 collected_reason.append(event.get("data", ""))
             
@@ -150,6 +173,9 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
                     "reason": "".join(collected_reason),
                     "timestamp": datetime.now().isoformat()
                 }
+                # P2-98：将旅行规划一并缓存，避免缓存命中时丢失行程
+                if collected_travel_plan:
+                    cache_data["travel_plan"] = collected_travel_plan
                 # 使用统一的 cache.py 异步接口写入缓存（15分钟）
                 await cache.set(cache_key, cache_data, ttl=900)
                 logger.info(f"[Cache] 推荐结果已缓存: {cache_key}")

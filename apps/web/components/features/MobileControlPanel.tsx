@@ -23,11 +23,11 @@ export function MobileControlPanel({ onSceneChange, onWeatherChange }: MobileCon
   const hasBazi = isAuthenticated && user?.bazi
   
   return (
-    <div className="md:hidden fixed bottom-16 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#E8F0EB]/50 safe-bottom">
+    <div className="md:hidden fixed bottom-16 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[var(--brand-border)]/50 safe-bottom">
       {/* 展开/收起按钮 */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-center gap-2 py-3 text-sm text-[#5A7A66] hover:bg-[#F0F7F4]/50 transition-colors touch-feedback"
+        className="w-full flex items-center justify-center gap-2 py-3 text-sm text-[var(--brand-subtle)] hover:bg-[var(--brand-surface)]/50 transition-colors touch-feedback"
       >
         <span>{expanded ? '收起设置' : '展开设置'}</span>
         {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
@@ -43,7 +43,7 @@ export function MobileControlPanel({ onSceneChange, onWeatherChange }: MobileCon
             transition={{ duration: 0.3 }}
             className="overflow-hidden"
           >
-            <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto scrollbar-hide pb-20">
+            <div className="p-4 space-y-4 max-h-[50vh] overflow-y-auto scrollbar-hide pb-4">
               {/* 八字区域 */}
               {hasBazi ? (
                 <BaziCard 
@@ -55,7 +55,7 @@ export function MobileControlPanel({ onSceneChange, onWeatherChange }: MobileCon
                 <div className="card-secondary p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-2 h-2 bg-gradient-to-br from-[#3DA35D] to-[#4A90C4] rounded-full"></div>
-                    <h3 className="font-semibold text-[#2D4A38] text-sm">生辰八字</h3>
+                    <h3 className="font-semibold text-[var(--brand-heading)] text-sm">生辰八字</h3>
                   </div>
                   <BaziInputSection />
                 </div>
@@ -65,7 +65,7 @@ export function MobileControlPanel({ onSceneChange, onWeatherChange }: MobileCon
               <div className="card-secondary p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-2 h-2 bg-gradient-to-br from-[#4A90C4] to-[#3DA35D] rounded-full"></div>
-                  <h3 className="font-semibold text-[#2D4A38] text-sm">天地气象</h3>
+                  <h3 className="font-semibold text-[var(--brand-heading)] text-sm">天地气象</h3>
                 </div>
                 <WeatherSceneSection 
                   onSceneChange={onSceneChange}
@@ -78,7 +78,7 @@ export function MobileControlPanel({ onSceneChange, onWeatherChange }: MobileCon
                 <div className="card-secondary p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-2 h-2 bg-gradient-to-br from-[#3DA35D] to-[#B89B5E] rounded-full"></div>
-                    <h3 className="font-semibold text-[#2D4A38] text-sm">五行生克</h3>
+                    <h3 className="font-semibold text-[var(--brand-heading)] text-sm">五行生克</h3>
                   </div>
                   <FiveElementList
                     currentData={radarData.currentData}
@@ -91,7 +91,7 @@ export function MobileControlPanel({ onSceneChange, onWeatherChange }: MobileCon
               {/* 提示信息 */}
               {hasBazi && (
                 <div className="card-secondary p-3 bg-gradient-to-br from-[#F8FAF9]/80 to-[#F5F9F7]/60">
-                  <p className="text-xs text-[#5A7A66] text-center leading-relaxed">
+                  <p className="text-xs text-[var(--brand-subtle)] text-center leading-relaxed">
                     基于您的八字分析，已为您计算喜用神。
                     <br />
                     智能推荐将以此为依据。

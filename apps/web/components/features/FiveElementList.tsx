@@ -18,9 +18,9 @@ export function FiveElementList({ currentData, suggestedData, xiyongShen }: Five
   return (
     <div className="space-y-3 p-4 bg-white/80 rounded-xl">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-[#2D4A38]">五行分析</h3>
+        <h3 className="text-sm font-semibold text-[var(--brand-heading)]">五行分析</h3>
         {xiyongShen && xiyongShen.length > 0 && (
-          <span className="text-xs px-2 py-1 bg-gradient-to-r from-[#F0F7F4] to-[#E8F5EC] text-[#3DA35D] rounded-full font-medium">
+          <span className="text-xs px-2 py-1 bg-gradient-to-r from-[var(--brand-surface)] to-[var(--brand-surface-active)] text-[#3DA35D] rounded-full font-medium">
             喜用: {xiyongShen.join(', ')}
           </span>
         )}
@@ -32,7 +32,7 @@ export function FiveElementList({ currentData, suggestedData, xiyongShen }: Five
             <div className="flex items-center justify-between text-xs">
               <div className="flex items-center gap-1.5">
                 <span className="text-sm">{el.emoji}</span>
-                <span className="text-[#2D4A38] font-medium">{el.name}</span>
+                <span className="text-[var(--brand-heading)] font-medium">{el.name}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[#6B7F72]">现 {Math.round(el.current * 100)}%</span>
@@ -41,7 +41,7 @@ export function FiveElementList({ currentData, suggestedData, xiyongShen }: Five
                 )}
               </div>
             </div>
-            <div className="h-2 bg-[#F0F7F4] rounded-full overflow-hidden">
+            <div className="h-2 bg-[var(--brand-surface)] rounded-full overflow-hidden">
               <div 
                 className={`h-full ${el.color} transition-all duration-500 rounded-full`}
                 style={{ width: `${el.current * 100}%` }}

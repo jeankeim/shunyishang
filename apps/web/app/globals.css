@@ -43,36 +43,119 @@
   --wuxing-water: #4A90C4;  /* 春雨青 - 从 #B8D4E3 加深到 4.6:1 */
   --wuxing-fire: #D4656B;   /* 春桃粉 - 从 #F5C6B8 加深到 4.7:1 */
   --wuxing-earth: #B89B5E;  /* 春泥黄 - 从 #E8DCC4 加深到 4.5:1 */
+
+  /* 品牌语义色 - 从硬编码提取，跟随五行主题变化 */
+  --brand-heading: #2D4A38;    /* 标题/主文字 */
+  --brand-body: #4A5F52;       /* 正文/次文字 */
+  --brand-subtle: #5A7A66;     /* 辅助说明文字 */
+  --brand-surface: #F0F7F4;    /* 淡绿背景/hover */
+  --brand-border: #E8F0EB;     /* 淡绿边框 */
+  --brand-surface-active: #E8F5EC; /* 激活态背景 */
 }
 
 /* 节气主题 - 木 */
-[data-element="wood"] {
+[data-element="木"] {
   --primary: 142 76% 36%;
   --ring: 142 76% 36%;
+  --background: 145 30% 98%;
+  --accent: 142 25% 92%;
+  --muted: 142 20% 94%;
+  --border: 142 20% 88%;
+  --wuxing-metal: #C5D0D8;
+  --wuxing-wood: #3DA35D;
+  --wuxing-water: #4A90C4;
+  --wuxing-fire: #D4656B;
+  --wuxing-earth: #B89B5E;
+  --brand-heading: #1A3A28;
+  --brand-body: #2D5A3E;
+  --brand-subtle: #4A7A5E;
+  --brand-surface: #F0F7F0;
+  --brand-border: #D8E8D8;
+  --brand-surface-active: #E0F0E0;
 }
 
 /* 节气主题 - 火 */
-[data-element="fire"] {
+[data-element="火"] {
   --primary: 0 84% 60%;
   --ring: 0 84% 60%;
+  --background: 0 20% 98%;
+  --accent: 0 40% 94%;
+  --muted: 0 25% 95%;
+  --border: 0 20% 88%;
+  --wuxing-metal: #D8C5C5;
+  --wuxing-wood: #5DA36B;
+  --wuxing-water: #4A7CC4;
+  --wuxing-fire: #D4454B;
+  --wuxing-earth: #B8895E;
+  --brand-heading: #3A1A1A;
+  --brand-body: #5A3030;
+  --brand-subtle: #7A5050;
+  --brand-surface: #F7F0F0;
+  --brand-border: #E8D8D8;
+  --brand-surface-active: #F0E0E0;
 }
 
 /* 节气主题 - 土 */
-[data-element="earth"] {
+[data-element="土"] {
   --primary: 35 92% 33%;
   --ring: 35 92% 33%;
+  --background: 40 25% 97%;
+  --accent: 35 30% 92%;
+  --muted: 35 20% 94%;
+  --border: 35 20% 88%;
+  --wuxing-metal: #D8D0C5;
+  --wuxing-wood: #5DA37A;
+  --wuxing-water: #4A90B4;
+  --wuxing-fire: #D46578;
+  --wuxing-earth: #B89B5E;
+  --brand-heading: #3A2D1A;
+  --brand-body: #5A4A30;
+  --brand-subtle: #7A6A50;
+  --brand-surface: #F7F4F0;
+  --brand-border: #E8E0D8;
+  --brand-surface-active: #F0E8E0;
 }
 
 /* 节气主题 - 金 */
-[data-element="metal"] {
+[data-element="金"] {
   --primary: 48 96% 53%;
   --ring: 48 96% 53%;
+  --background: 45 20% 98%;
+  --accent: 48 30% 93%;
+  --muted: 48 20% 94%;
+  --border: 48 20% 88%;
+  --wuxing-metal: #C5CDD8;
+  --wuxing-wood: #3DA38A;
+  --wuxing-water: #4A80C4;
+  --wuxing-fire: #D4656B;
+  --wuxing-earth: #B8A05E;
+  --brand-heading: #2D3038;
+  --brand-body: #4A4D55;
+  --brand-subtle: #6A6D75;
+  --brand-surface: #F4F5F7;
+  --brand-border: #E0E3E8;
+  --brand-surface-active: #E8EBF0;
 }
 
 /* 节气主题 - 水 */
-[data-element="water"] {
+[data-element="水"] {
   --primary: 217 91% 60%;
   --ring: 217 91% 60%;
+  --background: 210 25% 98%;
+  --accent: 217 30% 93%;
+  --muted: 217 20% 94%;
+  --border: 217 20% 88%;
+  --wuxing-metal: #C5D0D8;
+  --wuxing-wood: #3DA35D;
+  --wuxing-water: #3A80C4;
+  --wuxing-fire: #D46578;
+  --wuxing-earth: #B89B6E;
+  --brand-heading: #1A2838;
+  --brand-body: #304050;
+  --brand-subtle: #506070;
+  --brand-surface: #F0F4F7;
+  --brand-border: #D8E0E8;
+  --brand-surface-active: #E0E8F0;
 }
 
 body {

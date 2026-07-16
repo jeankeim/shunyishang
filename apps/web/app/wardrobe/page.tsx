@@ -9,7 +9,7 @@ import { SwipeToDelete } from '@/components/features/SwipeToDelete'
 import { WUXING_ELEMENTS, WUXING_CONFIG, getWuxingConfig } from '@/lib/wuxing-config'
 import type { WardrobeItem } from '@/lib/api'
 import { getImageUrl } from '@/lib/image'
-import { EmptyState, SkeletonList } from '@/components/ui'
+import { EmptyState, SkeletonList, ConfirmDialog } from '@/components/ui'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 
 const AddWardrobeModal = lazy(() => import('@/components/features/AddWardrobeModal').then(m => ({ default: m.AddWardrobeModal })))
@@ -31,6 +31,7 @@ export default function WardrobePage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editItem, setEditItem] = useState<WardrobeItem | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
   const [viewMode, setViewMode] = useState<'grid' | 'flow'>('flow')
   
   // 判断是否移动端
@@ -52,12 +53,17 @@ export default function WardrobePage() {
   }
 
   const handleDelete = async (itemId: number) => {
-    if (!confirm('确定要删除这件衣物吗？')) return
-    setDeletingId(itemId)
+    setConfirmDeleteId(itemId)
+  }
+
+  const doDeleteItem = async () => {
+    if (!confirmDeleteId) return
+    setDeletingId(confirmDeleteId)
     try {
-      await deleteItem(itemId)
+      await deleteItem(confirmDeleteId)
     } finally {
       setDeletingId(null)
+      setConfirmDeleteId(null)
     }
   }
 
@@ -457,6 +463,17 @@ export default function WardrobePage() {
           editItem={editItem}
         />
       </Suspense>
+
+      {/* 删除确认弹窗 */}
+      <ConfirmDialog
+        isOpen={confirmDeleteId !== null}
+        onClose={() => setConfirmDeleteId(null)}
+        onConfirm={doDeleteItem}
+        title="删除衣物"
+        description="确定要删除这件衣物吗？此操作不可撤销。"
+        confirmText="删除"
+        danger
+      />
     </div>
   )
 }

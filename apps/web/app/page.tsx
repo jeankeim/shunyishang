@@ -19,6 +19,7 @@ import { useChatStore } from '@/store/chat'
 import { useUserStore } from '@/store/user'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Users, BookOpen, Mountain, Compass, CircleDot, MoreHorizontal } from 'lucide-react'
 
 // 懒加载衣橱页面，减少首页初始加载时间
 const WardrobePage = lazy(() => import('./wardrobe/page'))
@@ -311,7 +312,7 @@ export default function Home() {
           <div className="flex items-center gap-2">
             {/* 登录后显示用户名 */}
             {isAuthenticated && user && (
-              <span className="text-sm font-medium text-stone-700 max-w-[100px] truncate">
+              <span className="text-sm font-medium text-stone-700 max-w-[120px] truncate">
                 {user.nickname || user.phone || '用户'}
               </span>
             )}
@@ -349,6 +350,7 @@ export default function Home() {
           <div className="flex items-center px-6">
                         {/* Tab 按钮组 */}
             <div className="flex gap-2 py-3">
+              {/* 1. 推荐 */}
               <button
                 onClick={() => {
                   setActiveTab('chat')
@@ -366,6 +368,7 @@ export default function Home() {
                 </svg>
                 <span className="hidden sm:inline">推荐</span>
               </button>
+              {/* 2. 衣橱 */}
               <button
                 onClick={() => {
                   setActiveTab('wardrobe')
@@ -383,38 +386,7 @@ export default function Home() {
                 </svg>
                 <span className="hidden sm:inline">衣橱</span>
               </button>
-              <button
-                onClick={() => {
-                  setActiveTab('tryon')
-                  window.location.hash = '#tryon'
-                }}
-                aria-label="切换到试衣页面"
-                className={`relative flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
-                  activeTab === 'tryon'
-                    ? 'bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 shadow-sm'
-                    : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
-                }`}
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span className="hidden sm:inline">试衣</span>
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('diary')
-                  window.location.hash = '#diary'
-                }}
-                aria-label="切换到日记页面"
-                className={`relative flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
-                  activeTab === 'diary'
-                    ? 'bg-gradient-to-r from-emerald-50 to-cyan-50 text-emerald-700 shadow-sm'
-                    : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
-                }`}
-              >
-                <span className="text-base">📓</span>
-                <span className="hidden sm:inline">日记</span>
-              </button>
+              {/* 3. 广场 */}
               <button
                 onClick={() => {
                   setActiveTab('community')
@@ -427,9 +399,26 @@ export default function Home() {
                     : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
                 }`}
               >
-                <span className="text-base">🏛️</span>
+                <Users className="w-5 h-5" />
                 <span className="hidden sm:inline">广场</span>
               </button>
+              {/* 4. 日记 */}
+              <button
+                onClick={() => {
+                  setActiveTab('diary')
+                  window.location.hash = '#diary'
+                }}
+                aria-label="切换到日记页面"
+                className={`relative flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
+                  activeTab === 'diary'
+                    ? 'bg-gradient-to-r from-emerald-50 to-cyan-50 text-emerald-700 shadow-sm'
+                    : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
+                }`}
+              >
+                <BookOpen className="w-5 h-5" />
+                <span className="hidden sm:inline">日记</span>
+              </button>
+              {/* 5. 修炼 */}
               <button
                 onClick={() => {
                   setActiveTab('cultivation')
@@ -442,21 +431,21 @@ export default function Home() {
                     : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
                 }`}
               >
-                <span className="text-base">🏔️</span>
+                <Mountain className="w-5 h-5" />
                 <span className="hidden sm:inline">修炼</span>
               </button>
-              {/* 命理玄学 — 运势+命理合并下拉 */}
+              {/* 6. 更多 — 下拉(运势/命理/试衣) */}
               <div className="relative group">
                 <button
-                  aria-label="命理玄学"
+                  aria-label="更多功能"
                   className={`relative flex items-center gap-1.5 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
-                    activeTab === 'fortune' || activeTab === 'destiny'
+                    activeTab === 'fortune' || activeTab === 'destiny' || activeTab === 'tryon'
                       ? 'bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-700 shadow-sm'
                       : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
                   }`}
                 >
-                  <span className="text-base">☯️</span>
-                  <span className="hidden sm:inline">命理玄学</span>
+                  <MoreHorizontal className="w-5 h-5" />
+                  <span className="hidden sm:inline">更多</span>
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
@@ -474,7 +463,7 @@ export default function Home() {
                         : 'text-stone-600 hover:bg-stone-50'
                     }`}
                   >
-                    <span>🔮</span>
+                    <Compass className="w-4 h-4" />
                     <span>运势</span>
                   </button>
                   <button
@@ -488,8 +477,24 @@ export default function Home() {
                         : 'text-stone-600 hover:bg-stone-50'
                     }`}
                   >
-                    <span>☯️</span>
+                    <CircleDot className="w-4 h-4" />
                     <span>命理</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab('tryon')
+                      window.location.hash = '#tryon'
+                    }}
+                    className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+                      activeTab === 'tryon'
+                        ? 'text-amber-700 bg-amber-50'
+                        : 'text-stone-600 hover:bg-stone-50'
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span>试衣</span>
                   </button>
                 </div>
               </div>

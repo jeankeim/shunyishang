@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useUserStore } from '@/store/user'
+import { ConfirmDialog } from '@/components/ui'
 import {
   getCommunityPosts,
   createCommunityPost,
@@ -25,6 +26,7 @@ const ELEMENT_TABS = [
 interface Post {
   id: number
   user_id: number
+  diary_id?: number
   content: string
   image_urls: string[]
   tags: string[]
@@ -69,6 +71,9 @@ export default function CommunityPage() {
   const [comments, setComments] = useState<Comment[]>([])
   const [newComment, setNewComment] = useState('')
   const [commenting, setCommenting] = useState(false)
+
+  // 删除确认
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
 
   // 加载帖子
   const fetchPosts = useCallback(async (p = 1, element = '') => {
@@ -138,12 +143,18 @@ export default function CommunityPage() {
 
   // 删除帖子
   const handleDelete = async (postId: number) => {
-    if (!confirm('确定删除这条帖子吗？')) return
+    setConfirmDeleteId(postId)
+  }
+
+  const doDeletePost = async () => {
+    if (!confirmDeleteId) return
     try {
-      await deleteCommunityPost(postId)
-      setPosts(prev => prev.filter(p => p.id !== postId))
+      await deleteCommunityPost(confirmDeleteId)
+      setPosts(prev => prev.filter(p => p.id !== confirmDeleteId))
     } catch (e) {
       console.error('删除失败:', e)
+    } finally {
+      setConfirmDeleteId(null)
     }
   }
 
@@ -392,6 +403,17 @@ export default function CommunityPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 删除确认弹窗 */}
+      <ConfirmDialog
+        isOpen={confirmDeleteId !== null}
+        onClose={() => setConfirmDeleteId(null)}
+        onConfirm={doDeletePost}
+        title="删除帖子"
+        description="确定删除这条帖子吗？此操作不可撤销。"
+        confirmText="删除"
+        danger
+      />
     </div>
   )
 }
@@ -450,6 +472,11 @@ function PostCard({
           {post.is_featured && (
             <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
               精选
+            </span>
+          )}
+          {post.diary_id && (
+            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-600 border border-emerald-100">
+              来自日记
             </span>
           )}
           {isOwner && (

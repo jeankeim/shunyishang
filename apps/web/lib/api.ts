@@ -1113,6 +1113,22 @@ export async function deleteCommunityPost(postId: number): Promise<void> {
   if (!response.ok) throw new Error('删除帖子失败')
 }
 
+export async function getPostByDiary(diaryId: number): Promise<any | null> {
+  const response = await fetch(`${getAPIBase()}/api/v1/community/posts/by-diary/${diaryId}`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) return null
+  return response.json()
+}
+
+export async function deletePostByDiary(diaryId: number): Promise<void> {
+  const response = await fetch(`${getAPIBase()}/api/v1/community/posts/by-diary/${diaryId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('取消发布失败')
+}
+
 export async function togglePostLike(postId: number): Promise<{ action: string }> {
   const response = await fetch(`${getAPIBase()}/api/v1/community/posts/${postId}/like`, {
     method: 'POST',

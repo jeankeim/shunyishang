@@ -105,11 +105,11 @@ export const PosterGenerator: React.FC<PosterGeneratorProps> = ({
 
         {/* 主体内容区 - 移动端上下布局，桌面端左右布局 */}
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-          {/* 移动端：海报预览区（可折叠） */}
-          <div className="md:hidden shrink-0">
+          {/* 移动端：海报预览区（固定在上方，占50vh） */}
+          <div className="md:hidden shrink-0 flex flex-col" style={{ height: showPreview ? '50vh' : 'auto' }}>
             <button
               onClick={() => setShowPreview(!showPreview)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 active:bg-gray-200 transition-colors"
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 active:bg-gray-200 transition-colors shrink-0"
               aria-label={showPreview ? '收起海报预览' : '展开海报预览'}
             >
               <span className="text-sm font-medium text-gray-700">
@@ -128,19 +128,20 @@ export const PosterGenerator: React.FC<PosterGeneratorProps> = ({
               {showPreview && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
+                  animate={{ height: '100%', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.3, ease: "easeInOut" }}
-                  className="overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200"
+                  className="overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 flex-1"
                 >
-                  <div className="flex items-center justify-center p-4 overflow-auto" style={{ maxHeight: '40vh' }}>
+                  <div className="flex items-center justify-center h-full p-3 overflow-auto">
                     <div className="relative">
+                      {/* 使用更大的缩放比例适配移动端 */}
                       <div
-                        className="relative shadow-xl rounded-xl overflow-hidden"
+                        className="relative shadow-xl rounded-lg overflow-hidden"
                         style={{
-                          width: '270px',
-                          height: '480px',
-                          transform: 'scale(0.5)',
+                          width: '360px',
+                          height: '640px',
+                          transform: 'scale(0.45)',
                           transformOrigin: 'center center',
                         }}
                       >
@@ -165,8 +166,8 @@ export const PosterGenerator: React.FC<PosterGeneratorProps> = ({
             </AnimatePresence>
           </div>
 
-          {/* 左侧：编辑区 */}
-          <div className="w-full md:w-[420px] border-b md:border-b-0 md:border-r border-gray-200 flex flex-col bg-gradient-to-b from-gray-50 to-white">
+          {/* 左侧：编辑区（移动端占下半部分） */}
+          <div className="flex-1 md:w-[420px] border-b md:border-b-0 md:border-r border-gray-200 flex flex-col bg-gradient-to-b from-gray-50 to-white min-h-0">
             {/* Tab 切换 */}
             <div className="flex border-b border-gray-200 bg-white sticky top-0 z-10">
               <button

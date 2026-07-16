@@ -1,12 +1,12 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useTheme } from '@/hooks/useTheme'
+import { useWuxingTheme } from '@/hooks/useWuxingTheme'
 import { useUserStore } from '@/store/user'
 import { useChatStore } from '@/store/chat'
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const { currentTerm, mounted } = useTheme()
+  const { element, solarTerm } = useWuxingTheme()
   const initAuth = useUserStore((state) => state.initAuth)
 
   useEffect(() => {
@@ -17,12 +17,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     initAuth()
   }, [initAuth])
 
-  useEffect(() => {
-    if (currentTerm) {
-      document.documentElement.style.setProperty('--primary', currentTerm.cssVariable)
-      document.documentElement.style.setProperty('--ring', currentTerm.cssVariable)
-    }
-  }, [currentTerm])
+  // 主题切换已通过 useWuxingTheme hook 自动设置 data-element 属性
+  // CSS 变量通过 globals.css 中的 [data-element] 选择器自动应用
 
   return <>{children}</>
 }

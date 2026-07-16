@@ -275,16 +275,21 @@ def _extract_context_by_rules(user_input: str) -> dict:
     text = user_input.lower()
     
     # ==================== 1. 场景提取 ====================
-    # 先检测高优先级场景（出差/度假/户外探险，避免被"商务"或"旅行"吞掉）
+    # 优先级说明：活动型场景（运动/户外探险）优先于地点型场景（出差/度假/旅行），
+    # 与 LLM 提取分支声明的"运动场景优先级 > 出差/度假/旅行场景"保持一致，
+    # 避免"去三亚出差顺便游泳"这类混合输入被地点场景吞掉运动意图。
+    # 运动场景（最高优先级）
+    if any(kw in text for kw in ['马拉松', '跑步', '健身', '运动', '打球', '游泳', '瑜伽']):
+        result["scene"] = "运动"
+    # 户外探险场景
+    elif any(kw in text for kw in ['徒步', '登山', '露营', '探险', '滑雪', '户外探险']):
+        result["scene"] = "户外探险"
     # 出差场景
-    if any(kw in text for kw in ['出差', '商务旅行', '多天出差']):
+    elif any(kw in text for kw in ['出差', '商务旅行', '多天出差']):
         result["scene"] = "出差"
     # 度假场景
     elif any(kw in text for kw in ['度假', '海边', '温泉', '三亚', '旅游度假', '去三亚', '去海边']):
         result["scene"] = "度假"
-    # 户外探险场景
-    elif any(kw in text for kw in ['徒步', '登山', '露营', '探险', '滑雪', '户外探险']):
-        result["scene"] = "户外探险"
     # 商务场景（在出差之后检测，避免"商务旅行"误匹配）
     elif any(kw in text for kw in ['商务', '会议', '见客户', '办公']):
         result["scene"] = "商务"
@@ -294,9 +299,6 @@ def _extract_context_by_rules(user_input: str) -> dict:
     # 旅行场景
     elif any(kw in text for kw in ['旅行', '旅游', '去成都', '去北京', '去上海', '去广州', '去深圳']):
         result["scene"] = "旅行"
-    # 运动场景
-    elif any(kw in text for kw in ['马拉松', '跑步', '健身', '运动', '打球', '游泳', '瑜伽']):
-        result["scene"] = "运动"
     # 上班/工作场景
     elif any(kw in text for kw in ['上班', '工作']):
         result["scene"] = "商务"

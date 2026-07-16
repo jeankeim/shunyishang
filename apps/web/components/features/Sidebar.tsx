@@ -37,18 +37,18 @@ export function Sidebar({ className, collapsed = true, onToggle }: SidebarProps)
         className={cn(
           'fixed left-0 top-0 h-full w-80 md:w-[320px] z-50',
           'flex flex-col',
-          'bg-white/95 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] border-r border-[#E8F0EB]/60',
+          'bg-white/95 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] border-r border-[var(--brand-border)]/60',
           className
         )}
       >
         {/* 顶部标题栏 */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E8F0EB]/50">
-          <h2 className="text-lg font-semibold text-[#2D4A38] font-serif tracking-wide">历史记录</h2>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--brand-border)]/50">
+          <h2 className="text-lg font-semibold text-[var(--brand-heading)] font-serif tracking-wide">历史记录</h2>
           <motion.button
             whileHover={{ scale: 1.1, rotate: 90 }}
             whileTap={{ scale: 0.9 }}
             onClick={onToggle}
-            className="p-2 rounded-lg hover:bg-[#F0F7F4] transition-colors duration-200"
+            className="p-2 rounded-lg hover:bg-[var(--brand-surface)] transition-colors duration-200"
             aria-label="关闭侧边栏"
           >
             <X className="h-5 w-5 text-[#6B7F72]" />
@@ -64,7 +64,7 @@ export function Sidebar({ className, collapsed = true, onToggle }: SidebarProps)
               createConversation()
               onToggle?.()
             }}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-[#3DA35D]/40 hover:border-[#3DA35D]/60 hover:bg-[#F0F7F4]/60 transition-all duration-200 text-[#5A7A66] hover:text-[#3DA35D]"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-[#3DA35D]/40 hover:border-[#3DA35D]/60 hover:bg-[var(--brand-surface)]/60 transition-all duration-200 text-[var(--brand-subtle)] hover:text-[#3DA35D]"
           >
             <Plus className="h-4 w-4" />
             <span className="text-sm font-medium">新建对话</span>
@@ -86,8 +86,8 @@ export function Sidebar({ className, collapsed = true, onToggle }: SidebarProps)
                   className={cn(
                     'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-left transition-all duration-200',
                     currentConversationId === conv.id
-                      ? 'bg-gradient-to-r from-[#F0F7F4] to-[#E8F5EC] text-[#2D4A38] border border-[#3DA35D]/30 shadow-sm'
-                      : 'hover:bg-[#F5F9F7] text-[#4A5F52]'
+                      ? 'bg-gradient-to-r from-[var(--brand-surface)] to-[var(--brand-surface-active)] text-[var(--brand-heading)] border border-[#3DA35D]/30 shadow-sm'
+                      : 'hover:bg-[#F5F9F7] text-[var(--brand-body)]'
                   )}
                 >
                   <MessageSquare className={cn(
@@ -112,7 +112,7 @@ export function Sidebar({ className, collapsed = true, onToggle }: SidebarProps)
         </div>
 
         {/* 底部工具栏 */}
-        <div className="p-4 border-t border-[#E8F0EB]/50">
+        <div className="p-4 border-t border-[var(--brand-border)]/50">
           <div className="flex items-center justify-center gap-2 text-sm text-[#6B7F72]">
             <Sparkles className="h-4 w-4 text-[#3DA35D]" />
             <span className="font-medium">顺衣尚 · 五行智能衣橱</span>

@@ -106,13 +106,13 @@ export function DailyRitualCard({ onCheckIn, onNavigateToFortune, onNavigateToCu
 
       <div className="p-4">
         {/* 第一行：日期 + 运势等级 + 打卡状态 */}
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <span className="text-lg">{level.emoji}</span>
+            <span className="text-base">{level.emoji}</span>
             <div>
               <span className="text-sm font-semibold text-stone-800">{dateStr} {weekday}</span>
               {fortune?.day_ganzhi && (
-                <span className="text-[10px] text-stone-500 ml-1.5">
+                <span className="text-xs text-stone-500 ml-1.5">
                   {fortune.day_ganzhi}日
                 </span>
               )}
@@ -122,7 +122,7 @@ export function DailyRitualCard({ onCheckIn, onNavigateToFortune, onNavigateToCu
             {/* 运势等级标签 */}
             {fortune && (
               <span
-                className={`text-[10px] px-2 py-0.5 rounded-full bg-gradient-to-r ${level.gradient} text-white font-medium cursor-pointer`}
+                className={`text-xs px-2 py-0.5 rounded-full bg-gradient-to-r ${level.gradient} text-white font-medium cursor-pointer`}
                 onClick={onNavigateToFortune}
               >
                 {level.label} · {fortune.overall_score}分
@@ -130,14 +130,14 @@ export function DailyRitualCard({ onCheckIn, onNavigateToFortune, onNavigateToCu
             )}
             {/* 打卡状态 */}
             {diary.checked_in_today ? (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">
                 ✓ 已打卡
               </span>
             ) : (
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={onCheckIn}
-                className="text-[10px] px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-white font-medium shadow-sm"
+                className="text-xs px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-white font-medium shadow-sm"
               >
                 打卡
               </motion.button>
@@ -146,7 +146,7 @@ export function DailyRitualCard({ onCheckIn, onNavigateToFortune, onNavigateToCu
         </div>
 
         {/* 第二行：核心数据网格 */}
-        <div className="grid grid-cols-4 gap-2 mb-3">
+        <div className="grid grid-cols-4 gap-2 mb-2">
           {/* 幸运色 */}
           <div className="text-center">
             <div className="flex justify-center gap-0.5 mb-1">
@@ -160,25 +160,25 @@ export function DailyRitualCard({ onCheckIn, onNavigateToFortune, onNavigateToCu
               ))}
               {(!fortune?.lucky_colors?.length) && <div className="w-3.5 h-3.5 rounded-full bg-stone-200" />}
             </div>
-            <p className="text-[9px] text-stone-500">幸运色</p>
+            <p className="text-xs text-stone-500">幸运色</p>
           </div>
 
           {/* 日记连续 */}
           <div className="text-center">
             <p className="text-sm font-bold text-emerald-600 leading-none mb-0.5">{diary.streak_days}</p>
-            <p className="text-[9px] text-stone-500">连续打卡</p>
+            <p className="text-xs text-stone-500">连续打卡</p>
           </div>
 
           {/* 修炼等级 */}
           <div className="text-center cursor-pointer" onClick={onNavigateToCultivation}>
             <p className="text-sm leading-none mb-0.5">{cultivation.level_icon || '🌱'}</p>
-            <p className="text-[9px] text-stone-500">{cultivation.level}</p>
+            <p className="text-xs text-stone-500">{cultivation.level}</p>
           </div>
 
           {/* 日记总数 */}
           <div className="text-center">
             <p className="text-sm font-bold text-stone-700 leading-none mb-0.5">{diary.total_diaries}</p>
-            <p className="text-[9px] text-stone-500">篇日记</p>
+            <p className="text-xs text-stone-500">篇日记</p>
           </div>
         </div>
 
@@ -188,7 +188,7 @@ export function DailyRitualCard({ onCheckIn, onNavigateToFortune, onNavigateToCu
             className="bg-white/60 rounded-xl px-3 py-2 mb-2 cursor-pointer hover:bg-white/80 transition-colors"
             onClick={onNavigateToFortune}
           >
-            <p className="text-[11px] text-stone-600 leading-relaxed">
+            <p className="text-xs text-stone-600 leading-relaxed">
               <span className="text-stone-400 mr-1">👔</span>
               {fortune.outfit_suggestion}
             </p>
@@ -209,14 +209,14 @@ export function DailyRitualCard({ onCheckIn, onNavigateToFortune, onNavigateToCu
               const dim = dimConfig[key] || { emoji: '·', color: '#999' }
               return (
                 <div key={key} className="flex-1 text-center">
-                  <span className="text-[10px]">{dim.emoji}</span>
+                  <span className="text-xs">{dim.emoji}</span>
                   <div className="mt-0.5 mx-auto w-full h-1.5 bg-stone-200/80 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
                       style={{ width: `${score}%`, backgroundColor: dim.color }}
                     />
                   </div>
-                  <p className="text-[8px] text-stone-400 mt-0.5">{score}</p>
+                  <p className="text-[10px] text-stone-400 mt-0.5">{score}</p>
                 </div>
               )
             })}

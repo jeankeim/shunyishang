@@ -8,6 +8,7 @@ import { DiaryStatsPanel } from '@/components/features/diary/DiaryStats'
 import { DiaryDetail } from '@/components/features/diary/DiaryDetail'
 import { DiaryForm } from '@/components/features/diary/DiaryForm'
 import { useDiaryStore } from '@/store/diary'
+import { ConfirmDialog } from '@/components/ui'
 
 type ViewMode = 'list' | 'calendar' | 'stats'
 type DiaryView = 'list' | 'new' | 'detail'
@@ -62,6 +63,9 @@ export default function DiaryPage() {
     rating?: number
     image_urls?: string[]
   } | undefined>(undefined)
+
+  // 删除确认
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
 
   // 清理错误
   useEffect(() => {
@@ -157,10 +161,14 @@ export default function DiaryPage() {
   }
 
   const handleDeleteDiary = async (id: number) => {
-    if (confirm('确认删除该日记？此操作不可撤销。')) {
-      await deleteExistingDiary(id)
-      goToList()
-    }
+    setConfirmDeleteId(id)
+  }
+
+  const doDeleteDiary = async () => {
+    if (!confirmDeleteId) return
+    await deleteExistingDiary(confirmDeleteId)
+    setConfirmDeleteId(null)
+    goToList()
   }
 
   const handleCalendarPrev = () => {
@@ -510,6 +518,17 @@ export default function DiaryPage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* 删除确认弹窗 */}
+        <ConfirmDialog
+          isOpen={confirmDeleteId !== null}
+          onClose={() => setConfirmDeleteId(null)}
+          onConfirm={doDeleteDiary}
+          title="删除日记"
+          description="确认删除该日记？此操作不可撤销。"
+          confirmText="删除"
+          danger
+        />
       </div>
     </div>
   )

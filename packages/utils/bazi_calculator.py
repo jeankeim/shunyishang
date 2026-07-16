@@ -74,7 +74,9 @@ def calculate_bazi(
     # 获取四柱（年柱、月柱、日柱、时柱）
     year_gz = lunar.year8Char  # 年柱干支
     month_gz = lunar.month8Char  # 月柱干支
+    # cnlunar 已正确处理子时跨日：23:00-00:59 自动使用次日日柱
     day_gz = lunar.day8Char  # 日柱干支
+    
     # 时柱需要根据 twohourNum 从列表中取对应索引
     hour_gz = lunar.twohour8CharList[lunar.twohourNum] if lunar.twohour8CharList else day_gz  # 时柱干支
     
@@ -151,8 +153,8 @@ def count_five_elements(eight_chars: List[str]) -> Dict[str, int]:
                 else:  # 余气
                     count[wuxing] += 0.3
     
-    # 确保所有五行都有值
-    result = {w: int(count.get(w, 0)) for w in WUXING_LIST}
+    # 确保所有五行都有值（使用 round 避免 int 截断导致小数权重丢失）
+    result = {w: round(count.get(w, 0)) for w in WUXING_LIST}
     return result
 
 
@@ -347,6 +349,14 @@ def merge_recommendations(
     
     xiyong_elements = bazi_result["suggested_elements"] if bazi_result else []
     avoid_elements = bazi_result.get("avoid_elements", []) if bazi_result else []
+    
+    # P3-58 防御：数据异常时喜用神与忌神可能出现交集（同一元素既在 suggested 又在 avoid）。
+    # 此时以喜用神为准（推荐优先级更高），从忌神列表中剔除冲突元素，避免后续相生判断自相矛盾。
+    if xiyong_elements and avoid_elements:
+        conflict = set(xiyong_elements) & set(avoid_elements)
+        if conflict:
+            logger.warning(f"[merge_recommendations] P3-58 触发: 喜忌神交集 {conflict}，以喜用神为准，从忌神列表剔除")
+            avoid_elements = [e for e in avoid_elements if e not in set(xiyong_elements)]
     
     # 1. 八字喜用神（最高优先级）
     if bazi_result:

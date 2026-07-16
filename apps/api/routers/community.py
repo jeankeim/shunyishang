@@ -227,6 +227,64 @@ async def delete_post(
     return {"message": "删除成功"}
 
 
+@router.get("/posts/by-diary/{diary_id}", response_model=Optional[PostResponse])
+async def get_post_by_diary(
+    diary_id: int,
+    user: dict = Depends(get_current_user),
+):
+    """查询某篇日记是否已发布到广场（返回帖子信息或null）"""
+    user_id = _get_user_id(user)
+
+    query = """
+        SELECT p.id, p.user_id, p.diary_id, p.content, p.image_urls, p.tags,
+               p.element, p.view_count, p.like_count, p.comment_count,
+               p.is_featured, p.published_at, p.created_at, p.updated_at,
+               u.nickname AS author_name, u.avatar_url AS author_avatar,
+               EXISTS(
+                   SELECT 1 FROM post_likes pl
+                   WHERE pl.post_id = p.id AND pl.user_id = %s
+               ) AS is_liked
+        FROM community_posts p
+        JOIN users u ON u.id = p.user_id
+        WHERE p.diary_id = %s AND p.user_id = %s AND p.status = 'active'
+        ORDER BY p.created_at DESC
+        LIMIT 1
+    """
+
+    with DatabasePool.get_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(query, [user_id, diary_id, user_id])
+            row = cur.fetchone()
+
+    if not row:
+        return None
+
+    return _row_to_post(dict(row), user_id)
+
+
+@router.delete("/posts/by-diary/{diary_id}")
+async def delete_post_by_diary(
+    diary_id: int,
+    user: dict = Depends(get_current_user),
+):
+    """取消发布：根据日记ID删除对应的广场帖子"""
+    user_id = _get_user_id(user)
+
+    with DatabasePool.get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE community_posts SET status = 'deleted', updated_at = NOW() WHERE diary_id = %s AND user_id = %s AND status = 'active'",
+                [diary_id, user_id],
+            )
+            affected = cur.rowcount
+            conn.commit()
+
+    if affected == 0:
+        raise HTTPException(status_code=404, detail="未找到该日记对应的广场帖子")
+
+    return {"message": "取消发布成功"}
+
+
 # ========== 点赞 API ==========
 
 @router.post("/posts/{post_id}/like")
