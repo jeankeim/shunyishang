@@ -4,13 +4,15 @@
 
 import json
 import logging
-from datetime import date
+from datetime import date, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Request, status, Query
 from psycopg2.extras import RealDictCursor
 
 from apps.api.core.database import DatabasePool
+from apps.api.services.user_service import get_user_bazi
 from apps.api.core.config import settings
+from apps.api.core.security import decode_access_token
 from apps.api.routers.auth import get_current_user
 from apps.api.schemas.diary import FortuneResponse, FortuneScores, LuckyElements, TodayCardResponse
 from apps.api.services.fortune_engine import calculate_daily_fortune
@@ -26,28 +28,6 @@ def _get_user_id(user: dict) -> int:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户未登录")
     return user_id
 
-
-def _get_user_bazi(user_id: int) -> dict:
-    """从数据库获取用户八字"""
-    query = "SELECT bazi, xiyong_elements FROM users WHERE id = %s"
-    with DatabasePool.get_connection() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(query, [user_id])
-            row = cur.fetchone()
-
-    if not row or not row.get('bazi'):
-        return {"day_master": "土", "suggested_elements": [], "avoid_elements": [], "pillars": {}}
-
-    bazi = row['bazi']
-    if isinstance(bazi, str):
-        bazi = json.loads(bazi)
-
-    return {
-        "day_master": bazi.get("day_master", "土"),
-        "suggested_elements": bazi.get("suggested_elements", []),
-        "avoid_elements": bazi.get("avoid_elements", []),
-        "pillars": bazi.get("pillars", {}),
-    }
 
 
 def _row_to_fortune_response(row: dict) -> FortuneResponse:
@@ -87,13 +67,42 @@ async def get_today_fortune(
     user_id = _get_user_id(user)
     today = date.today()
 
-    # 先查缓存（当日已生成的运势）
+    # Redis 缓存层（优先于 DB 查询）
+    cache_key = f"fortune_today:{user_id}:{today.isoformat()}"
+    if settings.redis_enabled:
+        try:
+            from apps.api.core.cache import cache as redis_cache
+            cached = redis_cache.get_sync(cache_key)
+            if cached:
+                logger.debug(f"[FortuneToday] Redis 缓存命中: {cache_key}")
+                return FortuneResponse(**cached)
+        except Exception as e:
+            logger.debug(f"[FortuneToday] Redis 读取失败: {e}")
+
+    # DB 持久化缓存
     cached = _get_cached_fortune(user_id, today)
     if cached:
+        # 回写 Redis
+        if settings.redis_enabled:
+            try:
+                from apps.api.core.cache import cache as redis_cache
+                redis_cache.set_sync(cache_key, cached.model_dump(mode='json'), ttl=86400)
+            except Exception as e:
+                logger.debug(f"[FortuneToday] Redis 写入失败: {e}")
         return cached
 
     # 计算并存储
-    return _generate_and_store(user_id, today)
+    result = _generate_and_store(user_id, today)
+
+    # 写入 Redis
+    if settings.redis_enabled:
+        try:
+            from apps.api.core.cache import cache as redis_cache
+            redis_cache.set_sync(cache_key, result.model_dump(mode='json'), ttl=86400)
+        except Exception as e:
+            logger.debug(f"[FortuneToday] Redis 写入失败: {e}")
+
+    return result
 
 
 @router.get("", response_model=FortuneResponse)
@@ -118,7 +127,20 @@ async def generate_fortune(
     """手动生成/刷新生成今日运势"""
     user_id = _get_user_id(user)
     today = date.today()
-    return _generate_and_store(user_id, today, force=True)
+    result = _generate_and_store(user_id, today, force=True)
+
+    # 清除 Redis 缓存，确保后续 GET 请求拿到最新数据
+    if settings.redis_enabled:
+        try:
+            from apps.api.core.cache import cache as redis_cache
+            today_str = today.isoformat()
+            redis_cache.delete_sync(f"fortune_today:{user_id}:{today_str}")
+            redis_cache.delete_sync(f"today_card:{user_id}:{today_str}")
+            redis_cache.delete_sync(f"daily_ritual:{user_id}:{today_str}")
+        except Exception as e:
+            logger.debug(f"[FortuneGenerate] Redis cache invalidation failed: {e}")
+
+    return result
 
 
 def _get_cached_fortune(user_id: int, target_date: date):
@@ -136,7 +158,7 @@ def _get_cached_fortune(user_id: int, target_date: date):
 
 def _generate_and_store(user_id: int, target_date: date, force: bool = False) -> FortuneResponse:
     """计算运势并存储"""
-    user_bazi = _get_user_bazi(user_id)
+    user_bazi = get_user_bazi(user_id)
 
     result = calculate_daily_fortune(user_bazi, target_date)
 
@@ -269,6 +291,84 @@ async def get_today_card(
     return card
 
 
+# ========== 运势周报 API ==========
+
+async def _get_optional_user(request: Request) -> dict | None:
+    """尝试从请求头提取用户身份，未登录或 token 无效时返回 None（不抛异常）"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return None
+    token = auth_header[7:]
+    payload = decode_access_token(token)
+    if payload is None:
+        return None
+    user_id = payload.get("sub")
+    if user_id is None:
+        return None
+    try:
+        with DatabasePool.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT id, nickname, gender, bazi FROM users WHERE id = %s AND is_active = TRUE",
+                    (user_id,),
+                )
+                row = cur.fetchone()
+                if row:
+                    return {"id": row[0], "nickname": row[1], "gender": row[2], "bazi": row[3]}
+    except Exception as e:
+        logger.debug(f"[OptionalAuth] DB查询失败: {e}")
+    return None
+
+
+@router.get("/weekly")
+async def get_weekly_fortune(request: Request):
+    """
+    获取本周运势周报
+
+    - 已登录：返回基于用户八字的个性化周报
+    - 未登录：返回通用基础版周报（不含个人八字分析）
+    缓存键: weekly_fortune:{user_id|anonymous}:{year}:{week}  TTL 604800s（7天）
+    """
+    user = await _get_optional_user(request)
+
+    now = datetime.now()
+    iso_cal = now.isocalendar()
+    week_key = f"{iso_cal[0]}:{iso_cal[1]}"
+    user_key = str(user["id"]) if user else "anonymous"
+    cache_key = f"weekly_fortune:{user_key}:{week_key}"
+
+    # Redis 缓存检查
+    if settings.redis_enabled:
+        try:
+            from apps.api.core.cache import cache as redis_cache
+            cached = redis_cache.get_sync(cache_key)
+            if cached:
+                logger.debug(f"[WeeklyFortune] Redis 缓存命中: {cache_key}")
+                return cached
+        except Exception as e:
+            logger.debug(f"[WeeklyFortune] Redis 读取失败: {e}")
+
+    # 计算周报
+    from apps.api.services.weekly_fortune_service import WeeklyFortuneService
+    service = WeeklyFortuneService()
+
+    if user:
+        result = await service.calculate_weekly_fortune(user["id"])
+    else:
+        result = service._fallback_weekly_report()
+
+    # 写入缓存 TTL 7天 = 604800s
+    if settings.redis_enabled:
+        try:
+            from apps.api.core.cache import cache as redis_cache
+            redis_cache.set_sync(cache_key, result, ttl=604800)
+            logger.debug(f"[WeeklyFortune] Redis 缓存写入: {cache_key}")
+        except Exception as e:
+            logger.debug(f"[WeeklyFortune] Redis 写入失败: {e}")
+
+    return result
+
+
 # ========== 每日仪式摘要 API ==========
 
 @router.get("/daily-ritual")
@@ -284,6 +384,20 @@ async def get_daily_ritual(user: dict = Depends(get_current_user)):
     """
     user_id = _get_user_id(user)
     today = date.today()
+    date_str = today.isoformat()
+
+    # Redis 整体缓存（1小时 TTL）
+    cache_key = f"daily_ritual:{user_id}:{date_str}"
+    if settings.redis_enabled:
+        try:
+            from apps.api.core.cache import cache as redis_cache
+            cached = redis_cache.get_sync(cache_key)
+            if cached:
+                logger.debug(f"[DailyRitual] Redis 缓存命中: {cache_key}")
+                return cached
+        except Exception as e:
+            logger.debug(f"[DailyRitual] Redis 读取失败: {e}")
+
     result = {
         "fortune": None,
         "diary": {"checked_in_today": False, "streak_days": 0, "total_diaries": 0},
@@ -292,7 +406,7 @@ async def get_daily_ritual(user: dict = Depends(get_current_user)):
 
     # 1. 今日运势卡片
     try:
-        user_bazi = _get_user_bazi(user_id)
+        user_bazi = get_user_bazi(user_id)
         if user_bazi.get("pillars"):  # 有八字才计算运势
             fortune = _get_cached_fortune(user_id, today)
             if not fortune:
@@ -366,6 +480,15 @@ async def get_daily_ritual(user: dict = Depends(get_current_user)):
     except Exception as e:
         logger.debug(f"[DailyRitual] 修炼状态查询失败: {e}")
 
+    # 写入 Redis 缓存
+    if settings.redis_enabled:
+        try:
+            from apps.api.core.cache import cache as redis_cache
+            redis_cache.set_sync(cache_key, result, ttl=3600)
+            logger.debug(f"[DailyRitual] Redis 缓存写入: {cache_key}")
+        except Exception as e:
+            logger.debug(f"[DailyRitual] Redis 写入失败: {e}")
+
     return result
 
 
@@ -384,8 +507,7 @@ async def generate_annual_report(
     target_year = year or date.today().year
 
     # 获取用户八字
-    from apps.api.routers.diary import _get_user_bazi
-    user_bazi = _get_user_bazi(user_id)
+    user_bazi = get_user_bazi(user_id)
 
     from apps.api.services.fortune_report_service import fortune_report_service
     report = fortune_report_service.generate_annual_report(user_id, user_bazi, target_year)

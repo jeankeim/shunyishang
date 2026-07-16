@@ -36,7 +36,7 @@ def mock_user_bazi():
 def mock_destiny_db(mock_db_pool, mock_user_bazi):
     """模拟命理路由所需的数据库"""
     mock_cursor = mock_db_pool["cursor"]
-    # 第一次fetchone: _get_user_bazi 查询
+    # 第一次fetchone: get_user_bazi 查询
     mock_cursor.fetchone.return_value = mock_user_bazi
     return mock_db_pool
 

@@ -777,7 +777,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
         
         # wear_count 轮换奖励：作为独立微调项，不再混入五行分
         # （穿着次数少的自有衣物给予小幅加分鼓励轮换；公共库物品无 wear_count，rotation_bonus=0 不受影响）
-        wear_count = item.get("wear_count", 0)
+        wear_count = item.get("wear_count")  # None for public items → no rotation bonus
         rotation_bonus = 0.0
         if wear_count is not None and isinstance(wear_count, (int, float)) and wear_count >= 0:
             rotation_bonus = max(0.0, 0.05 - wear_count * 0.01)  # 0次=+0.05, 5次=0
@@ -1543,39 +1543,52 @@ def _build_weather_filter(weather_info: Optional[Dict]) -> str:
     temperature = weather_info.get("temperature")
     weather_desc = weather_info.get("weather_desc", "")
     
-    # 温度过滤逻辑
+    # 温度过滤逻辑（阈值统一使用模块常量，与 _calculate_temp_score / 硬过滤对齐）
     if temperature is not None:
-        # 根据温度范围筛选适合的衣物
-        # 低温（<10°C）：优先厚衣物
-        # 中温（10-20°C）：中等厚度
-        # 高温（>20°C）：优先薄衣物
-        if temperature < 5:
-            # 极冷：优先厚重/中厚衣物
+        # 6 档位与 _calculate_temp_score 完全对齐：
+        #   ≥EXTREME_HOT_TEMP(30) / ≥HOT_TEMP(28) / ≥MILD_HOT_TEMP(25)
+        #   ≤EXTREME_COLD_TEMP(5) / ≤MILD_COLD_TEMP(10) / 适中(11-24)
+        if temperature <= EXTREME_COLD_TEMP:
+            # 极端低温（≤5°C）：优先厚重/中厚衣物
             conditions.append(
-                "(thickness_level IN ('厚重', '中厚') OR "
-                "temperature_range->>'最低' IS NOT NULL AND "
-                "(temperature_range->>'最低')::int <= 5)"
+                f"(thickness_level IN ('厚重', '中厚') OR "
+                f"temperature_range->>'最低' IS NOT NULL AND "
+                f"(temperature_range->>'最低')::int <= {EXTREME_COLD_TEMP})"
             )
-        elif temperature < 15:
-            # 较冷：优先中厚/适中衣物
+        elif temperature <= MILD_COLD_TEMP:
+            # 低温（6-10°C）：优先中厚/适中/厚重衣物
             conditions.append(
-                "(thickness_level IN ('厚重', '中厚', '适中') OR "
-                "temperature_range->>'最低' IS NOT NULL AND "
-                "(temperature_range->>'最低')::int <= 15)"
+                f"(thickness_level IN ('厚重', '中厚', '适中') OR "
+                f"temperature_range->>'最低' IS NOT NULL AND "
+                f"(temperature_range->>'最低')::int <= {MILD_COLD_TEMP})"
             )
-        elif temperature < 25:
-            # 温和：适中/轻薄衣物
+        elif temperature < MILD_HOT_TEMP:
+            # 适中温度（11-24°C）：适中/轻薄/极薄均可
             conditions.append(
-                "(thickness_level IN ('适中', '轻薄', '极薄') OR "
-                "temperature_range->>'最高' IS NOT NULL AND "
-                "(temperature_range->>'最高')::int >= 15)"
+                f"(thickness_level IN ('适中', '轻薄', '极薄', '中厚') OR "
+                f"temperature_range->>'最低' IS NOT NULL AND "
+                f"(temperature_range->>'最低')::int <= {MILD_HOT_TEMP})"
+            )
+        elif temperature < HOT_TEMP:
+            # 中高温（25-27°C）：优先轻薄/极薄/适中，排除厚重
+            conditions.append(
+                f"(thickness_level IN ('轻薄', '极薄', '适中') OR "
+                f"temperature_range->>'最高' IS NOT NULL AND "
+                f"(temperature_range->>'最高')::int >= {MILD_HOT_TEMP})"
+            )
+        elif temperature < EXTREME_HOT_TEMP:
+            # 高温（28-29°C）：只推轻薄/极薄/适中
+            conditions.append(
+                f"(thickness_level IN ('轻薄', '极薄', '适中') OR "
+                f"temperature_range->>'最高' IS NOT NULL AND "
+                f"(temperature_range->>'最高')::int >= {HOT_TEMP})"
             )
         else:
-            # 炎热：优先轻薄/极薄衣物
+            # 极端高温（≥30°C）：只推轻薄/极薄
             conditions.append(
-                "(thickness_level IN ('轻薄', '极薄', '适中') OR "
-                "temperature_range->>'最高' IS NOT NULL AND "
-                "(temperature_range->>'最高')::int >= 25)"
+                f"(thickness_level IN ('轻薄', '极薄') OR "
+                f"temperature_range->>'最高' IS NOT NULL AND "
+                f"(temperature_range->>'最高')::int >= {EXTREME_HOT_TEMP})"
             )
     
     # 天气状况过滤（软过滤：不硬性排除，只在 SQL 中不添加过滤条件）

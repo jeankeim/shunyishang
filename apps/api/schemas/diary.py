@@ -118,6 +118,14 @@ class QuickCheckInRequest(BaseModel):
     weather_snapshot: Optional[Dict[str, Any]] = Field(None, description="天气快照")
 
 
+class OutfitRecommendation(BaseModel):
+    """打卡推荐的单品"""
+    item_name: str = Field("", description="推荐单品名称")
+    item_id: Optional[int] = Field(None, description="单品ID")
+    image_url: Optional[str] = Field(None, description="图片URL")
+    reason: str = Field("", description="推荐理由")
+
+
 class QuickCheckInResponse(BaseModel):
     """快捷打卡响应"""
     diary_id: int = Field(..., description="日记ID")
@@ -125,6 +133,8 @@ class QuickCheckInResponse(BaseModel):
     ai_tags: Dict[str, Any] = Field(default_factory=dict, description="AI识别结果")
     outfit_suggestion: str = Field("", description="今日穿搭建议（来自运势）")
     created: bool = Field(True, description="是否新创建")
+    fortune_match_score: int = Field(70, ge=0, le=100, description="运势匹配度 0-100")
+    outfit_recommendation: Optional[OutfitRecommendation] = Field(None, description="基于运势的衣橱单品推荐")
 
 
 # ============================================

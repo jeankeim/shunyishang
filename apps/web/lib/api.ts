@@ -843,7 +843,7 @@ export async function quickCheckIn(data: {
   description?: string
   mood?: string
   weather_snapshot?: Record<string, any>
-}): Promise<any> {
+}): Promise<QuickCheckInResponse> {
   const response = await fetch(`${getAPIBase()}/api/v1/diary/quick-checkin`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
@@ -1255,4 +1255,170 @@ export async function purchaseFortuneReport(reportId: number): Promise<any> {
     throw new Error(err.detail || '购买失败')
   }
   return response.json()
+}
+
+// ============================================
+// 五行穿搭百科 API
+// ============================================
+
+/** 五行穿搭百科条目 */
+export interface WuxingTip {
+  id: number
+  element: string        // 木/火/土/金/水
+  category: string       // 颜色搭配/材质推荐/适合场景/忌讳搭配/历史趣闻
+  title: string
+  content: string
+  tags: string[]
+}
+
+/**
+ * 获取今日五行穿搭百科（按日期自动匹配）
+ * @param date 可选日期字符串，如 "2026-07-16"；不传则返回当天
+ */
+export async function getWuxingTip(date?: string): Promise<WuxingTip | null> {
+  try {
+    const params = date ? `?date=${date}` : ''
+    const response = await fetch(`${getAPIBase()}/api/v1/content/wuxing-tips${params}`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      console.error('[getWuxingTip] 请求失败:', response.status)
+      return null
+    }
+    return response.json()
+  } catch (error) {
+    console.error('[getWuxingTip] 异常:', error)
+    return null
+  }
+}
+
+/**
+ * 获取全部五行穿搭百科
+ * @param element 可选五行筛选，如 "木"；不传则返回全部
+ */
+export async function getAllWuxingTips(element?: string): Promise<WuxingTip[]> {
+  try {
+    const params = element ? `?element=${element}` : ''
+    const response = await fetch(`${getAPIBase()}/api/v1/content/wuxing-tips/all${params}`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      console.error('[getAllWuxingTips] 请求失败:', response.status)
+      return []
+    }
+    return response.json()
+  } catch (error) {
+    console.error('[getAllWuxingTips] 异常:', error)
+    return []
+  }
+}
+
+// ============================================
+// 每日精选推荐 API
+// ============================================
+
+/** 每日精选推荐 */
+export interface DailyPick {
+  item: {
+    id: number
+    name: string
+    image_url: string
+    category: string
+    primary_element: string
+    secondary_element?: string
+    wear_count: number
+    is_favorite: boolean
+  } | null
+  reason: string
+  lucky_element: string
+  lucky_color: string
+  match_score: number
+}
+
+/**
+ * 获取每日精选推荐（基于用户八字 + 当日运势 + 衣橱数据）
+ */
+export async function getDailyPick(): Promise<DailyPick | null> {
+  try {
+    const response = await fetch(`${getAPIBase()}/api/v1/recommend/daily-pick`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      console.error('[getDailyPick] 请求失败:', response.status)
+      return null
+    }
+    return response.json()
+  } catch (error) {
+    console.error('[getDailyPick] 异常:', error)
+    return null
+  }
+}
+
+// ============================================
+// 流年运势周报 API
+// ============================================
+
+/** 流年运势周报 */
+export interface WeeklyFortune {
+  week_number: number
+  start_date: string
+  end_date: string
+  overall_trend: string   // 上升/平稳/下降
+  overall_score: number
+  daily_fortunes: Array<{
+    date: string
+    score: number
+    lucky_element: string
+    lucky_color: string
+  }>
+  weekly_lucky_elements: string[]
+  weekly_style_keywords: string[]
+  outfit_suggestions: string
+}
+
+/**
+ * 获取流年运势周报（基于用户八字 + 当前流年 + 本周节气）
+ */
+export async function getWeeklyFortune(): Promise<WeeklyFortune | null> {
+  try {
+    const response = await fetch(`${getAPIBase()}/api/v1/fortune/weekly`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      console.error('[getWeeklyFortune] 请求失败:', response.status)
+      return null
+    }
+    return response.json()
+  } catch (error) {
+    console.error('[getWeeklyFortune] 异常:', error)
+    return null
+  }
+}
+
+// ============================================
+// 快捷打卡增强返回类型
+// ============================================
+
+/** 快捷打卡增强返回（扩展 quickCheckIn 的响应） */
+export interface QuickCheckInResponse {
+  id: number
+  diary_id: number
+  diary_date: string
+  mood?: string
+  occasion?: string
+  notes?: string
+  rating?: number
+  image_urls?: string[]
+  created_at?: string
+  created: boolean
+  ai_tags?: Record<string, any> | null
+  /** 穿搭推荐（基于打卡内容 + 运势匹配） */
+  outfit_recommendation?: {
+    item_name: string
+    item_id: number
+    image_url: string
+    reason: string
+  }
+  /** 穿搭与运势的匹配度评分 */
+  fortune_match_score?: number
 }

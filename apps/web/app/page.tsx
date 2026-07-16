@@ -555,6 +555,10 @@ export default function Home() {
                         setActiveTab('cultivation')
                         window.location.hash = '#cultivation'
                       }}
+                      onNavigateToWardrobe={() => {
+                        setActiveTab('wardrobe')
+                        window.location.hash = '#wardrobe'
+                      }}
                     />
                   </div>
                 )}

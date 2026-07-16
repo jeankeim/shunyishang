@@ -50,7 +50,7 @@ from apps.api.core.database import DatabasePool, check_db_health
 from apps.api.core.cache import cache
 from apps.api.core.logging_config import init_logging, get_logger
 from apps.api.schemas.response import HealthResponse
-from apps.api.routers import recommend, bazi, weather, auth, wardrobe, poster, diary, fortune, membership, travel, destiny, community, cultivation
+from apps.api.routers import recommend, bazi, weather, auth, wardrobe, poster, diary, fortune, membership, travel, destiny, community, cultivation, content
 from apps.api.routers.push import router as push_router, payment_router
 
 # 初始化日志系统
@@ -164,6 +164,7 @@ app.include_router(travel.router, prefix="/api/v1", tags=["travel"])
 app.include_router(destiny.router, prefix="/api/v1", tags=["destiny"])
 app.include_router(community.router, prefix="/api/v1", tags=["community"])
 app.include_router(cultivation.router, prefix="/api/v1", tags=["cultivation"])
+app.include_router(content.router, prefix="/api/v1", tags=["content"])
 
 # 挂载静态文件服务（图片上传）
 UPLOAD_DIR = Path(__file__).parent.parent.parent / "data" / "uploads"

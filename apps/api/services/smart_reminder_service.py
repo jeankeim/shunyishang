@@ -2,6 +2,7 @@
 智能提醒服务
 - 天气变化推送（降温/降雨自动推送穿搭建议）
 - 衣橱闲置提醒（30天未穿衣物提醒）
+- 节气换装提醒（节气前1-2天推送换装建议）
 复用已有推送系统 (push_service)
 """
 
@@ -41,6 +42,11 @@ class SmartReminderService:
         idle_alert = self._check_idle_wardrobe(user_id)
         if idle_alert:
             triggered.append(idle_alert)
+
+        # 3. 节气换装提醒
+        solar_term_alert = self._check_solar_term_change(user_id)
+        if solar_term_alert:
+            triggered.append(solar_term_alert)
 
         return triggered
 
@@ -167,6 +173,67 @@ class SmartReminderService:
         redis_cache.set(cache_key, "1", ex=86400 * 7)  # 7天TTL
 
         return {"type": "idle_wardrobe", "message": message, "idle_items": [dict(i) for i in idle_items]}
+
+    def _check_solar_term_change(self, user_id: int) -> Optional[Dict[str, Any]]:
+        """
+        检查是否有节气换装提醒。
+
+        逻辑：
+        - 未来2天内有节气 → 生成个性化换装建议
+        - 防重复：缓存控制，每个节气只提醒一次（缓存键含节气名）
+        """
+        # 防重复：缓存键含节气名称，同一节气7天内只提醒一次
+        from apps.api.services.solar_term_service import solar_term_service
+
+        upcoming = solar_term_service.get_upcoming_solar_term(days_ahead=2)
+        if not upcoming:
+            return None
+
+        term_name = upcoming["name"]
+        cache_key = f"solar_term_alert:{user_id}:{term_name}:{date.today().year}"
+        if redis_cache.get(cache_key):
+            return None
+
+        # 获取用户八字，生成个性化建议
+        message = None
+        try:
+            from apps.api.services.user_service import get_user_bazi
+            user_bazi = get_user_bazi(user_id)
+            message = solar_term_service.get_outfit_suggestion(upcoming, user_bazi)
+        except Exception as e:
+            logger.warning(f"[SmartReminder] 节气建议生成失败 user={user_id}: {e}")
+
+        if not message:
+            # 兜底通用文案
+            from packages.utils.wuxing_rules import ELEMENT_COLOR_MAP
+            colors = "、".join(ELEMENT_COLOR_MAP.get(upcoming["element"], [])[:2]) or "五行"
+            message = (
+                f"{term_name}将至，{upcoming['description']}。"
+                f"建议穿{colors}色系服饰，顺应天时。"
+            )
+
+        # 发送推送
+        try:
+            from apps.api.services.push_service import push_service
+            push_service.send_push(
+                user_id=user_id,
+                push_type="solar_term",
+                title=f"节气换装提醒 · {term_name}",
+                body=message[:100],
+                data={
+                    "solar_term": term_name,
+                    "term_date": upcoming["date"].isoformat(),
+                    "element": upcoming["element"],
+                    "days_until": upcoming["days_until"],
+                },
+            )
+        except Exception as e:
+            logger.warning(f"[SmartReminder] 节气推送失败: {e}")
+
+        # 设置防重复缓存（7天TTL，确保同一节气不重复提醒）
+        redis_cache.set(cache_key, "1", ex=86400 * 7)
+
+        return {"type": "solar_term", "message": message, "solar_term": term_name}
 
 
 # 模块级单例

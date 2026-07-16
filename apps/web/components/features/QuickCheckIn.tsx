@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { quickCheckIn } from '@/lib/api'
+import { quickCheckIn, getDailyPick } from '@/lib/api'
 import { useUserStore } from '@/store/user'
 
 // 心情选项
@@ -20,6 +20,39 @@ const ELEMENT_COLORS: Record<string, string> = {
   '火': '#FF6B6B', '土': '#D4A574',
 }
 
+interface DailyPickItem {
+  id: number
+  name: string
+  category?: string
+  image_url?: string
+  primary_element?: string
+  secondary_element?: string
+  wear_count?: number
+  is_favorite?: boolean
+}
+
+interface DailyPickData {
+  item: DailyPickItem | null
+  reason: string
+  lucky_element: string
+  lucky_color: string
+  match_score: number
+}
+
+interface OutfitRecommendation {
+  item_name: string
+  item_id?: number
+  image_url?: string
+  reason: string
+}
+
+interface CheckInResult {
+  diaryId: number
+  created: boolean
+  fortuneMatchScore?: number
+  outfitRecommendation?: OutfitRecommendation | null
+}
+
 interface QuickCheckInProps {
   isOpen: boolean
   onClose: () => void
@@ -34,8 +67,30 @@ export function QuickCheckIn({ isOpen, onClose, onSuccess, weatherInfo }: QuickC
   const [submitting, setSubmitting] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
   const [aiTags, setAiTags] = useState<Record<string, string> | null>(null)
-  const [result, setResult] = useState<{ diaryId: number; created: boolean } | null>(null)
+  const [result, setResult] = useState<CheckInResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [dailyPick, setDailyPick] = useState<DailyPickData | null>(null)
+  const [loadingDailyPick, setLoadingDailyPick] = useState(false)
+
+  // 打开弹窗时加载每日精选
+  useEffect(() => {
+    if (!isOpen || !isAuthenticated || result) return
+    let cancelled = false
+    setLoadingDailyPick(true)
+    getDailyPick()
+      .then((data) => { if (!cancelled && data) setDailyPick(data) })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoadingDailyPick(false) })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, isAuthenticated])
+
+  function handleUseDailyPick() {
+    if (!dailyPick?.item) return
+    const item = dailyPick.item
+    const elemLabel = item.primary_element ? `（${item.primary_element}）` : ''
+    setDescription(`${item.name}${elemLabel}`)
+  }
 
   if (!isAuthenticated || !isOpen) return null
 
@@ -56,7 +111,12 @@ export function QuickCheckIn({ isOpen, onClose, onSuccess, weatherInfo }: QuickC
       })
 
       setAiTags(res.ai_tags || null)
-      setResult({ diaryId: res.diary_id, created: res.created })
+      setResult({
+        diaryId: res.diary_id,
+        created: res.created,
+        fortuneMatchScore: res.fortune_match_score,
+        outfitRecommendation: res.outfit_recommendation,
+      })
 
       if (res.created) {
         onSuccess?.(res.diary_id)
@@ -75,7 +135,22 @@ export function QuickCheckIn({ isOpen, onClose, onSuccess, weatherInfo }: QuickC
     setAiTags(null)
     setResult(null)
     setError(null)
+    setDailyPick(null)
     onClose()
+  }
+
+  /** 匹配度分数颜色 */
+  function scoreColor(score: number): string {
+    if (score >= 80) return '#10B981'
+    if (score >= 60) return '#F59E0B'
+    return '#9CA3AF'
+  }
+
+  /** 匹配度分数标签 */
+  function scoreLabel(score: number): string {
+    if (score >= 80) return '大吉'
+    if (score >= 60) return '平稳'
+    return '偏弱'
   }
 
   return (
@@ -97,7 +172,7 @@ export function QuickCheckIn({ isOpen, onClose, onSuccess, weatherInfo }: QuickC
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 40, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="relative w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-xl overflow-hidden"
+            className="relative w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-xl overflow-hidden max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* 顶部把手（移动端） */}
@@ -127,7 +202,7 @@ export function QuickCheckIn({ isOpen, onClose, onSuccess, weatherInfo }: QuickC
                 <motion.div
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  className="text-center py-6"
+                  className="text-center py-4"
                 >
                   <div className="text-5xl mb-3">{result.created ? '✅' : '📝'}</div>
                   <h4 className="text-lg font-semibold text-stone-800 mb-1">
@@ -136,6 +211,87 @@ export function QuickCheckIn({ isOpen, onClose, onSuccess, weatherInfo }: QuickC
                   <p className="text-sm text-stone-500 mb-4">
                     {result.created ? '已记录今日穿搭日记' : '今天已经打过卡啦'}
                   </p>
+
+                  {/* 运势匹配度分数 */}
+                  {result.created && result.fortuneMatchScore !== undefined && (
+                    <motion.div
+                      initial={{ y: 10, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ delay: 0.15 }}
+                      className="bg-stone-50 rounded-2xl p-4 mb-4"
+                    >
+                      <p className="text-xs text-stone-500 mb-2">今日穿搭运势匹配度</p>
+                      <div className="flex items-center justify-center gap-3">
+                        {/* 圆形进度 */}
+                        <div className="relative w-16 h-16 flex items-center justify-center">
+                          <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
+                            <circle
+                              cx="32" cy="32" r="28"
+                              fill="none" stroke="#E5E7EB" strokeWidth="5"
+                            />
+                            <circle
+                              cx="32" cy="32" r="28"
+                              fill="none"
+                              stroke={scoreColor(result.fortuneMatchScore)}
+                              strokeWidth="5"
+                              strokeLinecap="round"
+                              strokeDasharray={`${(result.fortuneMatchScore / 100) * 175.9} 175.9`}
+                            />
+                          </svg>
+                          <span
+                            className="absolute text-lg font-bold"
+                            style={{ color: scoreColor(result.fortuneMatchScore) }}
+                          >
+                            {result.fortuneMatchScore}
+                          </span>
+                        </div>
+                        <div className="text-left">
+                          <span
+                            className="inline-block text-xs font-semibold px-2 py-0.5 rounded-full text-white mb-1"
+                            style={{ backgroundColor: scoreColor(result.fortuneMatchScore) }}
+                          >
+                            {result.fortuneMatchScore >= 80 ? '✓' : ''} {scoreLabel(result.fortuneMatchScore)}
+                          </span>
+                          <p className="text-xs text-stone-500">
+                            {result.fortuneMatchScore >= 80
+                              ? '穿搭与今日运势高度契合！'
+                              : result.fortuneMatchScore >= 60
+                              ? '穿搭与运势较为匹配'
+                              : '可尝试换用幸运色穿搭增运'}
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* 衣橱单品推荐 */}
+                  {result.created && result.outfitRecommendation && (
+                    <motion.div
+                      initial={{ y: 10, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ delay: 0.25 }}
+                      className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl p-3 mb-4 text-left"
+                    >
+                      <p className="text-xs font-medium text-emerald-700 mb-2">💡 下次穿搭推荐</p>
+                      <div className="flex items-center gap-3">
+                        {result.outfitRecommendation.image_url && (
+                          <img
+                            src={result.outfitRecommendation.image_url}
+                            alt={result.outfitRecommendation.item_name}
+                            className="w-12 h-12 rounded-xl object-cover border border-white shadow-sm flex-shrink-0"
+                          />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-stone-700 truncate">
+                            {result.outfitRecommendation.item_name}
+                          </p>
+                          <p className="text-xs text-stone-500 line-clamp-2">
+                            {result.outfitRecommendation.reason}
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
 
                   {/* AI 识别结果 */}
                   {aiTags && Object.keys(aiTags).length > 0 && (
@@ -189,6 +345,51 @@ export function QuickCheckIn({ isOpen, onClose, onSuccess, weatherInfo }: QuickC
                 </motion.div>
               ) : (
                 <>
+                  {/* 每日精选推荐卡片 */}
+                  {dailyPick?.item && (
+                    <motion.div
+                      initial={{ y: -5, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      className="mb-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-3 border border-amber-100"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-amber-700">🌟 今日精选推荐</span>
+                        <span className="text-[10px] text-amber-500">
+                          幸运{dailyPick.lucky_element}·{dailyPick.lucky_color}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {dailyPick.item.image_url && (
+                          <img
+                            src={dailyPick.item.image_url}
+                            alt={dailyPick.item.name}
+                            className="w-11 h-11 rounded-xl object-cover border border-white shadow-sm flex-shrink-0"
+                          />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-stone-700 truncate">
+                            {dailyPick.item.name}
+                          </p>
+                          <p className="text-xs text-stone-500 line-clamp-1">{dailyPick.reason}</p>
+                        </div>
+                        <button
+                          onClick={handleUseDailyPick}
+                          className="flex-shrink-0 text-xs font-medium text-white bg-amber-500 hover:bg-amber-600 px-3 py-1.5 rounded-lg transition-colors shadow-sm"
+                        >
+                          选这件
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* 加载中状态 */}
+                  {loadingDailyPick && (
+                    <div className="mb-4 bg-amber-50 rounded-xl p-3 flex items-center gap-2 border border-amber-100">
+                      <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-amber-500 border-t-transparent" />
+                      <span className="text-xs text-amber-600">加载今日精选...</span>
+                    </div>
+                  )}
+
                   {/* 穿搭描述输入 */}
                   <div className="mb-4">
                     <label className="text-sm font-medium text-stone-700 mb-1.5 block">

@@ -1,26 +1,38 @@
 """ 
 推荐路由模块
-实现 SSE 流式推荐接口
+实现 SSE 流式推荐接口 + 每日精选推荐
 """
 
 import json
 import asyncio
 import hashlib
 import logging
-from typing import AsyncGenerator
-from datetime import datetime
+from typing import AsyncGenerator, Optional, Dict, Any, List
+from datetime import datetime, date
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+from psycopg2.extras import RealDictCursor
 
 from apps.api.schemas.request import RecommendRequest
 from apps.api.schemas.response import RecommendResponse
 from packages.ai_agents.graph import run_agent_stream
 from apps.api.core.config import settings
 from apps.api.core.cache import cache
+from apps.api.core.database import DatabasePool
+from apps.api.routers.auth import get_current_user
+from apps.api.services.user_service import get_user_bazi
+from apps.api.services.fortune_engine import calculate_daily_fortune
+from packages.utils.wuxing_rules import ELEMENT_COLOR_MAP
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# 颜色 → 五行反向映射（从 ELEMENT_COLOR_MAP 构建）
+COLOR_TO_ELEMENT: Dict[str, str] = {}
+for _elem, _colors in ELEMENT_COLOR_MAP.items():
+    for _c in _colors:
+        COLOR_TO_ELEMENT[_c] = _elem
 
 
 async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]:
@@ -230,3 +242,185 @@ async def recommend_stream(request: RecommendRequest):
             "Connection": "keep-alive",
         }
     )
+
+
+# ========== 每日精选推荐 ==========
+
+
+def _score_wardrobe_item(
+    item: Dict[str, Any],
+    lucky_elements: List[str],
+    lucky_colors: List[str],
+) -> int:
+    """
+    为衣橱单品计算与今日运势的匹配度分数（0-100）。
+
+    评分维度：
+    - 主五行命中幸运五行：+40
+    - 副五行命中幸运五行：+15
+    - 颜色命中幸运色：+20
+    - 颜色所属五行命中幸运五行：+15
+    - wear_count 少（≤2）：+10（鼓励穿少穿的衣物）
+    """
+    score = 0
+    primary = item.get("primary_element") or ""
+    secondary = item.get("secondary_element") or ""
+
+    # 五行匹配
+    if primary in lucky_elements:
+        score += 40
+    if secondary and secondary in lucky_elements:
+        score += 15
+
+    # 颜色匹配（从 attributes_detail 提取颜色名称）
+    detail = item.get("attributes_detail") or {}
+    if isinstance(detail, str):
+        try:
+            detail = json.loads(detail)
+        except Exception:
+            detail = {}
+    color_name = ""
+    if isinstance(detail, dict):
+        color_info = detail.get("颜色", {})
+        if isinstance(color_info, dict):
+            color_name = color_info.get("名称", "") or ""
+
+    if color_name and color_name in lucky_colors:
+        score += 20
+    # 颜色本身的五行
+    color_elem = COLOR_TO_ELEMENT.get(color_name, "")
+    if color_elem and color_elem in lucky_elements:
+        score += 15
+
+    # wear_count 加分（少穿的衣物优先）
+    wear_count = item.get("wear_count") or 0
+    if wear_count <= 2:
+        score += 10
+
+    return min(score, 100)
+
+
+def _build_reason(item: Dict[str, Any], lucky_element: str, lucky_color: str) -> str:
+    """生成推荐理由（≤50字）"""
+    name = item.get("name", "单品")
+    elem = item.get("primary_element", "")
+    parts = []
+    if elem and elem == lucky_element:
+        parts.append(f"五行属{elem}，契合今日幸运元素")
+    elif elem:
+        parts.append(f"五行属{elem}")
+    if lucky_color:
+        parts.append(f"宜搭配{lucky_color}系")
+    reason = f"「{name}」{'，'.join(parts)}，助力今日运势。"
+    # 截断保护
+    return reason[:50] if len(reason) <= 50 else reason[:47] + "..."
+
+
+@router.get(
+    "/recommend/daily-pick",
+    summary="每日精选推荐",
+    description="基于用户八字和当日运势，从个人衣橱中推荐1件精选单品",
+)
+async def get_daily_pick(
+    current_user: dict = Depends(get_current_user),
+):
+    """每日精选推荐 - 基于用户八字和当日运势从衣橱推荐1件单品"""
+    user_id = current_user["id"]
+    today = date.today()
+
+    # ── 1. 检查 Redis 缓存 ──────────────────────────────────────────────────
+    cache_key = f"daily_pick:{user_id}:{today.isoformat()}"
+    if settings.redis_enabled:
+        try:
+            cached = await cache.get(cache_key)
+            if cached:
+                logger.info(f"[DailyPick] 缓存命中: {cache_key}")
+                return cached
+        except Exception as e:
+            logger.error(f"[DailyPick] 缓存读取失败: {e}")
+
+    # ── 2. 获取用户八字信息 ──────────────────────────────────────────────────
+    user_bazi = get_user_bazi(user_id)  # 同步调用（psycopg2）
+
+    # ── 3. 计算今日运势 ──────────────────────────────────────────────────────
+    fortune = calculate_daily_fortune(user_bazi, today)
+    lucky_elements: List[str] = fortune.get("lucky_elements", {}).get("elements", [])
+    lucky_colors: List[str] = fortune.get("lucky_elements", {}).get("colors", [])
+    primary_lucky_element = lucky_elements[0] if lucky_elements else user_bazi.get("day_master", "土")
+    primary_lucky_color = lucky_colors[0] if lucky_colors else ""
+
+    # ── 4. 查询用户衣橱 ──────────────────────────────────────────────────────
+    wardrobe_query = """
+        SELECT id, user_id, item_code, name, category, image_url,
+               primary_element, secondary_element, attributes_detail,
+               wear_count, is_favorite, energy_intensity
+        FROM user_wardrobe
+        WHERE user_id = %s AND is_active = TRUE
+        ORDER BY created_at DESC
+        LIMIT 200
+    """
+    items: List[Dict[str, Any]] = []
+    try:
+        with DatabasePool.get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(wardrobe_query, [user_id])
+                items = [dict(row) for row in cur.fetchall()]
+    except Exception as e:
+        logger.error(f"[DailyPick] 衣橱查询失败: {e}")
+
+    # ── 5. 评分并选出最佳单品 ────────────────────────────────────────────────
+    best_item: Optional[Dict[str, Any]] = None
+    best_score = -1
+
+    for item in items:
+        score = _score_wardrobe_item(item, lucky_elements, lucky_colors)
+        if score > best_score:
+            best_score = score
+            best_item = item
+
+    # ── 6. 构建响应 ──────────────────────────────────────────────────────────
+    if best_item:
+        # 序列化 attributes_detail（可能是 dict 或 str）
+        detail = best_item.get("attributes_detail") or {}
+        if isinstance(detail, str):
+            try:
+                detail = json.loads(detail)
+            except Exception:
+                detail = {}
+
+        item_payload = {
+            "id": best_item["id"],
+            "name": best_item.get("name", ""),
+            "category": best_item.get("category"),
+            "image_url": best_item.get("image_url"),
+            "primary_element": best_item.get("primary_element"),
+            "secondary_element": best_item.get("secondary_element"),
+            "wear_count": best_item.get("wear_count", 0),
+            "is_favorite": best_item.get("is_favorite", False),
+        }
+        reason = _build_reason(best_item, primary_lucky_element, primary_lucky_color)
+        match_score = best_score
+    else:
+        item_payload = None
+        reason = f"今日幸运五行「{primary_lucky_element}」，建议穿着{primary_lucky_color or '相应'}色系衣物增运"
+        match_score = 0
+
+    result = {
+        "item": item_payload,
+        "reason": reason,
+        "lucky_element": primary_lucky_element,
+        "lucky_color": primary_lucky_color,
+        "match_score": match_score,
+        "date": today.isoformat(),
+        "overall_fortune": fortune.get("overall_score", 0),
+    }
+
+    # ── 7. 写入缓存（TTL 24h）────────────────────────────────────────────────
+    if settings.redis_enabled:
+        try:
+            await cache.set(cache_key, result, ttl=86400)
+            logger.info(f"[DailyPick] 结果已缓存: {cache_key}")
+        except Exception as e:
+            logger.error(f"[DailyPick] 缓存写入失败: {e}")
+
+    return result

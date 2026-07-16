@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from psycopg2.extras import RealDictCursor
 
 from apps.api.core.database import DatabasePool
+from apps.api.services.user_service import get_user_bazi
 from apps.api.routers.auth import get_current_user
 from apps.api.schemas.destiny import (
     MajorLuckResponse,
@@ -51,57 +52,6 @@ def _get_user_id(user: dict) -> int:
     return user_id
 
 
-def _get_user_bazi(user_id: int) -> dict:
-    """从数据库获取用户八字信息"""
-    query = "SELECT bazi, xiyong_elements, gender, birth_date FROM users WHERE id = %s"
-    with DatabasePool.get_connection() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(query, [user_id])
-            row = cur.fetchone()
-
-    if not row or not row.get('bazi'):
-        return {
-            "day_master": "土",
-            "suggested_elements": [],
-            "avoid_elements": [],
-            "pillars": {},
-            "gender": "男",
-        }
-
-    bazi = row['bazi']
-    if isinstance(bazi, str):
-        bazi = json.loads(bazi)
-
-    gender = row.get('gender', '男')
-    birth_date = row.get('birth_date')
-
-    # 解析出生日期
-    _birth_year = None
-    _birth_month = None
-    _birth_day = None
-    if birth_date:
-        if isinstance(birth_date, str):
-            birth_date = date.fromisoformat(birth_date)
-        _birth_year = birth_date.year
-        _birth_month = birth_date.month
-        _birth_day = birth_date.day
-
-    return {
-        "day_master": bazi.get("day_master", "土"),
-        "suggested_elements": bazi.get("suggested_elements", []),
-        "avoid_elements": bazi.get("avoid_elements", []),
-        "pillars": bazi.get("pillars", {}),
-        "eight_chars": bazi.get("eight_chars", []),
-        "dominant_element": bazi.get("dominant_element", "土"),
-        "lacking_element": bazi.get("lacking_element"),
-        "month_element": bazi.get("month_element", "土"),
-        "reasoning": bazi.get("reasoning", ""),
-        "gender": gender,
-        "_birth_year": _birth_year,
-        "_birth_month": _birth_month,
-        "_birth_day": _birth_day,
-    }
-
 
 def _calculate_current_age(birth_date) -> int:
     """根据出生日期计算当前年龄"""
@@ -130,7 +80,7 @@ async def get_major_luck(
     基于八字推算十年大运周期和当前所处大运
     """
     user_id = _get_user_id(user)
-    user_bazi = _get_user_bazi(user_id)
+    user_bazi = get_user_bazi(user_id, include_extended=True)
     gender = user_bazi.get("gender", "男")
 
     # 从 user_bazi 中获取出生日期
@@ -170,7 +120,7 @@ async def get_annual_luck(
     综合大运+流年+太岁关系，返回五维度评分和穿搭建议
     """
     user_id = _get_user_id(user)
-    user_bazi = _get_user_bazi(user_id)
+    user_bazi = get_user_bazi(user_id, include_extended=True)
 
     result = analyze_year_fortune(user_bazi, year)
 
@@ -201,7 +151,7 @@ async def get_ten_gods(
     计算四柱十神、藏干十神、旺衰分析
     """
     user_id = _get_user_id(user)
-    user_bazi = _get_user_bazi(user_id)
+    user_bazi = get_user_bazi(user_id, include_extended=True)
 
     result = analyze_ten_gods_chart(user_bazi)
 
@@ -239,7 +189,7 @@ async def get_monthly_fortune(
     按月计算五行旺衰变化，提供穿搭策略
     """
     user_id = _get_user_id(user)
-    user_bazi = _get_user_bazi(user_id)
+    user_bazi = get_user_bazi(user_id, include_extended=True)
 
     result = calculate_monthly_fortune(user_bazi, year, month)
 
@@ -261,7 +211,7 @@ async def get_yearly_fortune(
     整合12个月运势趋势，标注旺月/衰月
     """
     user_id = _get_user_id(user)
-    user_bazi = _get_user_bazi(user_id)
+    user_bazi = get_user_bazi(user_id, include_extended=True)
 
     result = calculate_yearly_fortune(user_bazi, year)
 
@@ -289,7 +239,7 @@ async def get_advanced_bazi(
     包含纳音五行、地支藏干、刑冲克害分析
     """
     user_id = _get_user_id(user)
-    user_bazi = _get_user_bazi(user_id)
+    user_bazi = get_user_bazi(user_id, include_extended=True)
 
     result = full_bazi_analysis(user_bazi)
 

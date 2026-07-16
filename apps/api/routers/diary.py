@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from psycopg2.extras import RealDictCursor
 
 from apps.api.core.database import DatabasePool
+from apps.api.services.user_service import get_user_bazi
 from apps.api.routers.auth import get_current_user
 from apps.api.schemas.diary import (
     CreateDiaryRequest,
@@ -23,6 +24,7 @@ from apps.api.schemas.diary import (
     DiaryOutfitItemResponse,
     QuickCheckInRequest,
     QuickCheckInResponse,
+    OutfitRecommendation,
 )
 from apps.api.services.diary_service import diary_service
 from apps.api.services.ai_review_service import generate_ai_review
@@ -33,12 +35,144 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/diary", tags=["diary"])
 
+# 颜色关键词 → 五行映射（用于从穿搭描述提取颜色匹配）
+_COLOR_KEYWORD_ELEMENT: dict = {
+    "白": "金", "银": "金", "灰": "金", "米白": "金", "香槟": "金",
+    "绿": "木", "青": "木", "翠": "木", "薄荷": "木", "草绿": "木",
+    "黑": "水", "蓝": "水", "藏青": "水", "海军蓝": "水", "深灰": "水",
+    "红": "火", "粉": "火", "橙": "火", "紫": "火", "玫红": "火", "酒红": "火",
+    "棕": "土", "黄": "土", "卡其": "土", "驼": "土", "米": "土", "咖啡": "土",
+}
+
 
 def _get_user_id(user: dict) -> int:
     user_id = user.get("id") or user.get("user_id")
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户未登录")
     return user_id
+
+
+def _extract_elements_from_text(text: str) -> list:
+    """从穿搭描述中提取五行元素"""
+    found = []
+    for keyword, element in _COLOR_KEYWORD_ELEMENT.items():
+        if keyword in text:
+            if element not in found:
+                found.append(element)
+    return found
+
+
+def _compute_fortune_match(
+    ai_tags: dict,
+    description: str,
+    lucky_elements: list,
+    lucky_colors: list,
+) -> int:
+    """
+    计算穿搭与今日运势的匹配度 (0-100)。
+    基于 AI 识别的颜色/五行 + 描述中的颜色关键词 与今日幸运元素对比。
+    """
+    if not lucky_elements:
+        return 70  # 无运势数据时默认分
+
+    score = 60  # 基础分
+    matched = set()
+
+    # 1. AI 识别的 primary_element 匹配幸运五行
+    primary_elem = ai_tags.get("primary_element") or ai_tags.get("color_element")
+    if primary_elem and primary_elem in lucky_elements:
+        score += 20
+        matched.add(primary_elem)
+
+    # 2. 从描述中提取颜色五行匹配
+    desc_elements = _extract_elements_from_text(description)
+    for elem in desc_elements:
+        if elem in lucky_elements and elem not in matched:
+            score += 10
+            matched.add(elem)
+            if len(matched) >= 3:
+                break
+
+    # 3. AI 识别的颜色字面匹配幸运颜色
+    ai_color = ai_tags.get("color", "")
+    if ai_color and lucky_colors:
+        for lc in lucky_colors:
+            if lc in ai_color or ai_color in lc:
+                score += 10
+                break
+
+    return min(100, score)
+
+
+def _get_outfit_recommendation_from_wardrobe(
+    user_id: int,
+    lucky_elements: list,
+    lucky_colors: list,
+) -> Optional[dict]:
+    """从用户衣橱中选1件与今日幸运五行/颜色最匹配的物品"""
+    if not lucky_elements:
+        return None
+
+    query = """
+        SELECT id, name, category, image_url, primary_element, secondary_element
+        FROM user_wardrobe
+        WHERE user_id = %s AND is_active = TRUE
+        ORDER BY created_at DESC
+        LIMIT 100
+    """
+    try:
+        with DatabasePool.get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(query, [user_id])
+                items = [dict(row) for row in cur.fetchall()]
+    except Exception as e:
+        logger.debug(f"[QuickCheckIn] 衣橱查询失败: {e}")
+        return None
+
+    if not items:
+        return None
+
+    # 简单评分：primary_element 匹配幸运五行得2分，secondary匹配得1分
+    best_item = None
+    best_score = -1
+    for item in items:
+        s = 0
+        pe = item.get("primary_element") or ""
+        se = item.get("secondary_element") or ""
+        if pe in lucky_elements:
+            s += 2
+        if se in lucky_elements:
+            s += 1
+        # 颜色名匹配加分
+        name = item.get("name") or ""
+        for lc in lucky_colors:
+            if lc in name:
+                s += 1
+                break
+        if s > best_score:
+            best_score = s
+            best_item = item
+
+    if not best_item:
+        return None
+
+    # 构建推荐理由
+    pe = best_item.get("primary_element") or ""
+    reason_parts = []
+    if pe and pe in lucky_elements:
+        reason_parts.append(f"五行属{pe}，与今日幸运元素相合")
+    else:
+        reason_parts.append(f"今日运势推荐穿着")
+    if lucky_colors:
+        reason_parts.append(f"宜选{lucky_colors[0]}色系")
+    reason = "，".join(reason_parts)
+
+    return {
+        "item_name": best_item.get("name", ""),
+        "item_id": best_item.get("id"),
+        "image_url": best_item.get("image_url"),
+        "reason": reason,
+    }
 
 
 @router.post("", response_model=DiaryResponse)
@@ -53,7 +187,7 @@ async def create_diary(
 
         # 可选触发 AI 点评
         if request.trigger_ai_review and diary.items:
-            user_bazi = _get_user_bazi(user_id)
+            user_bazi = get_user_bazi(user_id)
             outfit_items = [_item_to_dict(it) for it in diary.items]
             review = generate_ai_review(user_bazi, outfit_items, None, request.occasion)
             diary = diary_service.update_ai_review(diary.id, user_id, review) or diary
@@ -156,11 +290,16 @@ async def quick_checkin(
 
         # 3. 获取今日运势穿搭建议
         outfit_suggestion = ""
+        lucky_elements: list = []
+        lucky_colors: list = []
         try:
             from apps.api.services.fortune_engine import calculate_daily_fortune
-            user_bazi = _get_user_bazi(user_id)
+            user_bazi = get_user_bazi(user_id)
             fortune = calculate_daily_fortune(user_bazi, today)
             outfit_suggestion = fortune.get("outfit_suggestion", "")
+            le = fortune.get("lucky_elements", {})
+            lucky_elements = le.get("elements", [])
+            lucky_colors = le.get("colors", [])
         except Exception as e:
             logger.debug(f"[QuickCheckIn] 运势获取失败: {e}")
 
@@ -201,13 +340,41 @@ async def quick_checkin(
         logger.error(f"[QuickCheckIn] 打卡失败: {e}")
         raise HTTPException(status_code=500, detail="打卡失败，请稍后重试")
 
+    # 打卡成功，失效 daily-ritual 缓存
+    _invalidate_daily_ritual_cache(user_id)
+
+    # 计算运势匹配度 & 衣橱单品推荐
+    fortune_match_score = _compute_fortune_match(
+        ai_tags, description, lucky_elements, lucky_colors
+    )
+    outfit_rec_data = _get_outfit_recommendation_from_wardrobe(
+        user_id, lucky_elements, lucky_colors
+    )
+    outfit_rec = (
+        OutfitRecommendation(**outfit_rec_data) if outfit_rec_data else None
+    )
+
     return QuickCheckInResponse(
         diary_id=diary.id,
         diary_date=today,
         ai_tags=ai_tags,
         outfit_suggestion=outfit_suggestion,
         created=True,
+        fortune_match_score=fortune_match_score,
+        outfit_recommendation=outfit_rec,
     )
+
+
+def _invalidate_daily_ritual_cache(user_id: int) -> None:
+    """打卡后失效 daily-ritual 缓存"""
+    try:
+        from apps.api.core.config import settings as _settings
+        if _settings.redis_enabled:
+            from apps.api.core.cache import cache as redis_cache
+            today_str = date.today().isoformat()
+            redis_cache.delete_sync(f"daily_ritual:{user_id}:{today_str}")
+    except Exception as e:
+        logger.debug(f"[Diary] daily_ritual 缓存失效失败: {e}")
 
 
 @router.get("/{diary_id}", response_model=DiaryResponse)
@@ -297,36 +464,13 @@ async def trigger_review(
     if not diary:
         raise HTTPException(status_code=404, detail="日记不存在或无权访问")
 
-    user_bazi = _get_user_bazi(user_id)
+    user_bazi = get_user_bazi(user_id)
     outfit_items = [_item_to_dict(it) for it in diary.items]
     review = generate_ai_review(user_bazi, outfit_items)
 
     diary = diary_service.update_ai_review(diary_id, user_id, review) or diary
     return {"ai_review": review}
 
-
-def _get_user_bazi(user_id: int) -> dict:
-    """从数据库获取用户八字信息"""
-    query = "SELECT bazi, xiyong_elements FROM users WHERE id = %s"
-    with DatabasePool.get_connection() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(query, [user_id])
-            row = cur.fetchone()
-
-    if not row or not row.get('bazi'):
-        return {"day_master": "土", "suggested_elements": [], "avoid_elements": []}
-
-    bazi = row['bazi']
-    if isinstance(bazi, str):
-        import json
-        bazi = json.loads(bazi)
-
-    return {
-        "day_master": bazi.get("day_master", "土"),
-        "suggested_elements": bazi.get("suggested_elements", []),
-        "avoid_elements": bazi.get("avoid_elements", []),
-        "pillars": bazi.get("pillars", {}),
-    }
 
 
 def _item_to_dict(item) -> dict:

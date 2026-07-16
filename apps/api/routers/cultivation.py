@@ -3,6 +3,7 @@
 """
 
 import logging
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from apps.api.routers.auth import get_current_user
@@ -42,6 +43,16 @@ async def daily_checkin(
 
     # 签到后检查成就解锁
     new_achievements = gamification_service.check_achievements(user_id)
+
+    # 签到成功，失效 daily-ritual 缓存
+    try:
+        from apps.api.core.config import settings as _settings
+        if _settings.redis_enabled:
+            from apps.api.core.cache import cache as redis_cache
+            today_str = date.today().isoformat()
+            redis_cache.delete_sync(f"daily_ritual:{user_id}:{today_str}")
+    except Exception as e:
+        logger.debug(f"[Cultivation] daily_ritual 缓存失效失败: {e}")
 
     return {
         "message": "签到成功",

@@ -162,6 +162,23 @@ class RedisCache:
             logger.error(f"Redis SET (sync) 失败: {key}, 错误: {e}")
             return False
 
+    def delete_sync(self, key: str) -> bool:
+        """同步删除缓存（用于非 async 上下文）"""
+        if not self.enabled:
+            return False
+        try:
+            if self.use_upstash:
+                client = self._get_sync_client()
+                response = client.post(f"{self.upstash_url}/del/{key}")
+                return response.status_code == 200
+            else:
+                if self.redis_client:
+                    return self.redis_client.delete(key) > 0
+                return False
+        except Exception as e:
+            logger.error(f"Redis DELETE (sync) 失败: {key}, 错误: {e}")
+            return False
+
     def check_health(self) -> bool:
         """检查缓存连接健康状态"""
         if not self.enabled:

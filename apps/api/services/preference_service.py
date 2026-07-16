@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, Any
 from psycopg2.extras import RealDictCursor
 
 from apps.api.core.database import DatabasePool
+from apps.api.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,14 @@ class PreferenceService:
                     """, [user_id, pref_type, pref_key, delta, delta])
                 conn.commit()
 
+        # 失效偏好缓存
+        if settings.redis_enabled:
+            try:
+                from apps.api.core.cache import cache as redis_cache
+                redis_cache.delete_sync(f"user_prefs:{user_id}")
+            except Exception as e:
+                logger.debug(f"[Preference] Redis 失效失败: {e}")
+
         logger.debug(f"[Preference] user={user_id}, action={action}, attrs={item_attributes}")
 
     def get_user_preferences(self, user_id: int) -> Dict[str, Dict[str, int]]:
@@ -69,6 +78,17 @@ class PreferenceService:
                 "category": {"上装": 1, ...},
             }
         """
+        # Redis 缓存（10分钟 TTL）
+        cache_key = f"user_prefs:{user_id}"
+        if settings.redis_enabled:
+            try:
+                from apps.api.core.cache import cache as redis_cache
+                cached = redis_cache.get_sync(cache_key)
+                if cached is not None:
+                    return cached
+            except Exception as e:
+                logger.debug(f"[Preference] Redis 读取失败: {e}")
+
         query = """
             SELECT pref_type, pref_key, weight,
                    EXTRACT(EPOCH FROM (NOW() - updated_at)) / 86400 AS days_old
@@ -90,6 +110,14 @@ class PreferenceService:
             days_old = row.get('days_old', 0)
             decay_factor = max(0.1, 1.0 - days_old * 0.02)
             prefs[pt][row['pref_key']] = row['weight'] * decay_factor
+
+        # 写入 Redis 缓存
+        if settings.redis_enabled:
+            try:
+                from apps.api.core.cache import cache as redis_cache
+                redis_cache.set_sync(cache_key, prefs, ttl=600)
+            except Exception as e:
+                logger.debug(f"[Preference] Redis 写入失败: {e}")
 
         return prefs
 

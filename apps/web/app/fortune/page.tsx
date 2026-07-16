@@ -8,8 +8,163 @@ import { LuckyElements } from '@/components/features/fortune/LuckyElements'
 import { FortuneShareCard } from '@/components/features/fortune/FortuneShareCard'
 import { useFortuneStore } from '@/store/fortune'
 import { useUserStore } from '@/store/user'
-import { generateAnnualReport, getFortuneReport, getFortuneReports } from '@/lib/api'
+import { generateAnnualReport, getFortuneReport, getFortuneReports, getWeeklyFortune, type WeeklyFortune } from '@/lib/api'
 import { createPortal } from 'react-dom'
+
+// ========== 本周运势概览卡片（可折叠） ==========
+function WeeklyFortuneCard() {
+  const [weekly, setWeekly] = useState<WeeklyFortune | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [expanded, setExpanded] = useState(false)
+
+  useEffect(() => {
+    getWeeklyFortune()
+      .then(data => setWeekly(data))
+      .catch((err) => {
+        console.error('[WeeklyFortuneCard] 获取周报失败:', err)
+        setWeekly(null)
+      })
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100 animate-pulse">
+        <div className="h-4 bg-stone-200 rounded w-1/3 mb-3" />
+        <div className="h-3 bg-stone-100 rounded w-2/3 mb-2" />
+        <div className="h-3 bg-stone-100 rounded w-1/2" />
+      </div>
+    )
+  }
+
+  if (!weekly) return null
+
+  const trendEmoji: Record<string, string> = { '上升': '📈', '平稳': '➡️', '下降': '📉' }
+  const trendIcon = trendEmoji[weekly.overall_trend] || '📊'
+
+  // 格式化日期：2026-07-14 → 7/14
+  const fmtDay = (d: string) => {
+    const parts = d.split('-')
+    return `${parseInt(parts[1])}/${parseInt(parts[2])}`
+  }
+
+  // 柱状图颜色
+  const barColor = (score: number) =>
+    score >= 75 ? 'bg-emerald-400' : score >= 55 ? 'bg-amber-400' : 'bg-stone-300'
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
+      {/* 折叠头部：始终可见的关键指标 */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full px-5 py-4 flex items-center justify-between hover:bg-stone-50/60 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-xl">{trendIcon}</span>
+          <div className="text-left">
+            <h3 className="text-sm font-semibold text-stone-800">本周运势概览</h3>
+            <p className="text-xs text-stone-500 mt-0.5">
+              {weekly.start_date} ~ {weekly.end_date}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          {/* 关键指标：评分 + 趋势 */}
+          <div className="text-right">
+            <span className="text-lg font-bold text-stone-800">{weekly.overall_score}</span>
+            <span className="text-xs text-stone-500 ml-1">分</span>
+          </div>
+          <motion.span
+            animate={{ rotate: expanded ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+            className="text-stone-400 text-xs"
+          >
+            ▼
+          </motion.span>
+        </div>
+      </button>
+
+      {/* 可折叠详情 */}
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="overflow-hidden"
+          >
+            <div className="px-5 pb-5 space-y-4">
+              {/* 整体趋势 */}
+              <div className="bg-stone-50 rounded-xl p-3">
+                <p className="text-xs text-stone-500 mb-1">整体趋势</p>
+                <p className="text-sm text-stone-700 font-medium">
+                  {trendIcon} {weekly.overall_trend}
+                </p>
+              </div>
+
+              {/* 7天运势柱状图 */}
+              <div>
+                <p className="text-xs text-stone-500 mb-2">7天运势趋势</p>
+                <div className="flex items-end gap-1.5 h-24">
+                  {weekly.daily_fortunes.map(day => (
+                    <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
+                      <span className="text-[10px] text-stone-500 font-medium">{day.score}</span>
+                      <div className="w-full flex items-end" style={{ height: '60px' }}>
+                        <div
+                          className={`w-full rounded-t-md ${barColor(day.score)} transition-all`}
+                          style={{ height: `${Math.max(day.score, 8)}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-stone-400">{fmtDay(day.date)}</span>
+                      <span className="text-[10px] text-emerald-600">{day.lucky_element}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 幸运元素 */}
+              {weekly.weekly_lucky_elements.length > 0 && (
+                <div>
+                  <p className="text-xs text-stone-500 mb-1.5">本周幸运元素</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {weekly.weekly_lucky_elements.map(el => (
+                      <span key={el} className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium">
+                        {el}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 穿搭关键词 */}
+              {weekly.weekly_style_keywords.length > 0 && (
+                <div>
+                  <p className="text-xs text-stone-500 mb-1.5">本周穿搭关键词</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {weekly.weekly_style_keywords.map(kw => (
+                      <span key={kw} className="px-2 py-0.5 bg-violet-50 text-violet-700 rounded-full text-xs font-medium">
+                        {kw}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 穿搭建议 */}
+              {weekly.outfit_suggestions && (
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-3">
+                  <p className="text-xs text-amber-700 font-medium mb-1">👗 本周穿搭建议</p>
+                  <p className="text-sm text-stone-600 leading-relaxed">{weekly.outfit_suggestions}</p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
 
 export default function FortunePage() {
   const { todayFortune, isLoading, error, fetchTodayFortune, regenerateFortune, clearError } = useFortuneStore()
@@ -73,10 +228,14 @@ export default function FortunePage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="max-w-lg mx-auto text-center py-16">
-        <p className="text-4xl mb-3">🔮</p>
-        <h2 className="text-lg font-semibold text-stone-800 mb-2">每日运势</h2>
-        <p className="text-sm text-stone-500 mb-4">登录后即可查看基于您八字的专属运势分析</p>
+      <div className="max-w-lg mx-auto space-y-4 py-8">
+        {/* 未登录用户也展示本周运势概览（通用版） */}
+        <WeeklyFortuneCard />
+        <div className="text-center py-8">
+          <p className="text-4xl mb-3">🔮</p>
+          <h2 className="text-lg font-semibold text-stone-800 mb-2">每日运势</h2>
+          <p className="text-sm text-stone-500 mb-4">登录后即可查看基于您八字的专属运势分析</p>
+        </div>
       </div>
     )
   }
@@ -107,6 +266,9 @@ export default function FortunePage() {
           {isLoading ? '生成中...' : '重新生成'}
         </motion.button>
       </div>
+
+      {/* 本周运势概览（可折叠卡片） */}
+      <WeeklyFortuneCard />
 
       {todayFortune ? (
         <motion.div
