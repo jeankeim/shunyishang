@@ -54,6 +54,7 @@ MAX_TARGET_ELEMENTS = 3
 # 温度分层阈值（统一"极端温度加权""温度硬过滤""温度评分"三处判定，消除阈值割裂）
 # ============================================================
 EXTREME_HOT_TEMP = 30    # ≥30°C：极端高温（触发温度权重 + 硬排除 厚重/中厚 + 温度评分偏薄）
+HOT_TEMP = 28            # ≥28°C：高温（硬排除 厚重/中厚，只推轻薄）
 MILD_HOT_TEMP = 25       # ≥25°C：中高温（硬排除 厚重）
 EXTREME_COLD_TEMP = 5    # ≤5°C：极端低温（触发温度权重 + 硬排除 极薄/轻薄 + 温度评分偏厚）
 MILD_COLD_TEMP = 10      # ≤10°C：低温（硬排除 极薄）
@@ -830,11 +831,15 @@ def retrieve_items_node(state: AgentState) -> Dict:
                 
                 # 温度硬过滤（分层级，阈值统一自模块常量）
                 if temp >= EXTREME_HOT_TEMP:
-                    # 极端高温：排除厚重和中厚
+                    # 极端高温（≥30°C）：排除厚重和中厚
+                    if thickness in ("厚重", "中厚"):
+                        continue
+                elif temp >= HOT_TEMP:
+                    # 高温（≥28°C）：排除厚重和中厚（29°C推针织衫/西装太热）
                     if thickness in ("厚重", "中厚"):
                         continue
                 elif temp >= MILD_HOT_TEMP:
-                    # 中高温：排除厚重
+                    # 中高温（≥25°C）：排除厚重
                     if thickness == "厚重":
                         continue
                 elif temp <= EXTREME_COLD_TEMP:
@@ -1244,16 +1249,20 @@ def _infer_item_thickness(item: Dict) -> str:
     item_name = item.get("name", "")
     db_thickness = item.get("thickness_level", "") or ""
 
-    heavy_name_keywords = ["羽绒", "棉袄", "棉衣", "大衣", "毛呢", "羊毛"]
+    heavy_name_keywords = ["羽绒", "棉袄", "棉衣", "大衣", "毛呢", "羊毛大衣", "皮草"]
     if any(k in item_name for k in heavy_name_keywords):
         return "厚重"
 
     if db_thickness:
         return db_thickness
 
-    if any(k in item_name for k in ["毛衣", "卫衣"]):
+    # 中厚：适合 15-25°C 的衣物
+    medium_keywords = ["毛衣", "卫衣", "针织", "西装", "风衣", "夹克", "外套", "卫衣"]
+    if any(k in item_name for k in medium_keywords):
         return "中厚"
-    if any(k in item_name for k in ["衬衫", "T恤", "短裤", "薄"]):
+    # 轻薄：适合 >25°C 的衣物
+    thin_keywords = ["衬衫", "T恤", "短裤", "薄", "背心", "吊带", "雪纺", "丝"]
+    if any(k in item_name for k in thin_keywords):
         return "轻薄"
 
     return ""
@@ -1278,7 +1287,7 @@ def _calculate_temp_score(item: Dict, weather_info: Optional[Dict]) -> float:
         except Exception:
             functionality = []
     
-    # 高温场景
+    # 极端高温（≥30°C）
     if temp >= EXTREME_HOT_TEMP:
         if thickness in ("极薄", "轻薄"):
             score += 0.3
@@ -1288,7 +1297,25 @@ def _calculate_temp_score(item: Dict, weather_info: Optional[Dict]) -> float:
             score -= 0.3
         if any(f in functionality for f in ["透气", "速干", "防晒"]):
             score += 0.2
-    # 低温场景
+    # 高温（≥28°C）：针织衫、西装等中厚衣物不合适
+    elif temp >= HOT_TEMP:
+        if thickness in ("极薄", "轻薄"):
+            score += 0.3
+        elif thickness == "适中":
+            score += 0.1
+        elif thickness in ("中厚", "厚重"):
+            score -= 0.3
+        if any(f in functionality for f in ["透气", "速干"]):
+            score += 0.2
+    # 中高温（≥25°C）
+    elif temp >= MILD_HOT_TEMP:
+        if thickness in ("极薄", "轻薄"):
+            score += 0.2
+        elif thickness == "适中":
+            score += 0.1
+        elif thickness == "厚重":
+            score -= 0.2
+    # 极端低温（≤5°C）
     elif temp <= EXTREME_COLD_TEMP:
         if thickness in ("厚重", "中厚"):
             score += 0.3
@@ -1298,10 +1325,20 @@ def _calculate_temp_score(item: Dict, weather_info: Optional[Dict]) -> float:
             score -= 0.3
         if any(f in functionality for f in ["保暖", "防风"]):
             score += 0.2
-    # 适中温度
+    # 低温（≤10°C）
+    elif temp <= MILD_COLD_TEMP:
+        if thickness in ("厚重", "中厚"):
+            score += 0.2
+        elif thickness == "适中":
+            score += 0.1
+        elif thickness == "极薄":
+            score -= 0.2
+    # 适中温度（11-24°C）
     else:
         if thickness == "适中":
             score += 0.2
+        elif thickness == "中厚":
+            score += 0.1
     
     return max(0.0, min(1.0, score))
 
