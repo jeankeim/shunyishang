@@ -1,78 +1,49 @@
+# Version control
+.git
+.gitignore
+
 # Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-.venv/
-ENV/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+.venv
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
 
 # Node
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.next/
-out/
-build/
-.npm
+node_modules
+.next
+.eslintcache
 
 # IDE
-.vscode/
-.idea/
+.vscode
+.idea
 *.swp
 *.swo
-*~
+
+# OS
 .DS_Store
+Thumbs.db
 
 # Environment
 .env
-.env.local
-.env.production
-.env.*.local
+.env.*
+!.env.example
 
-# Logs
-logs/
-*.log
+# Documentation
+*.md
+LICENSE
 
-# Database
-data/postgres/
-*.db
-*.sqlite
+# Data & uploads
+data/uploads/*
+!data/uploads/.gitkeep
 
-# Uploads (不上传到 Git)
-data/uploads/
+# Task files
+TASKS/
 
-# 生成的图片（不打入镜像）
-data/generated_images/
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
 
-# 测试覆盖率报告与缓存
-htmlcov/
-.pytest_cache/
-.coverage
-
-# Test files
-test_*.py
-test_*.png
-scripts/test_*.py
-scripts/test_*.png
-
-# OS
-Thumbs.db
+# Qoder
+.qoder
