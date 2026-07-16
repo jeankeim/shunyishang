@@ -124,6 +124,9 @@ export function DiaryForm({ initialData, onSubmit, onCancel, isEdit }: DiaryForm
         image_urls: imageUrls.length > 0 ? imageUrls : undefined,
         trigger_ai_review: true,
       })
+    } catch (err) {
+      // 错误已由父组件处理（设置到 store 的 error 状态）
+      console.error('提交失败:', err)
     } finally {
       setIsSubmitting(false)
     }

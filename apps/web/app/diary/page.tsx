@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, lazy, Suspense } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { DiaryCard } from '@/components/features/diary/DiaryCard'
 import { DiaryCalendar } from '@/components/features/diary/DiaryCalendar'
@@ -8,7 +8,10 @@ import { DiaryStatsPanel } from '@/components/features/diary/DiaryStats'
 import { DiaryDetail } from '@/components/features/diary/DiaryDetail'
 import { DiaryForm } from '@/components/features/diary/DiaryForm'
 import { useDiaryStore } from '@/store/diary'
+import { useUserStore } from '@/store/user'
 import { ConfirmDialog } from '@/components/ui'
+
+const AuthModal = lazy(() => import('@/components/features/AuthModal').then(m => ({ default: m.AuthModal })))
 
 type ViewMode = 'list' | 'calendar' | 'stats'
 type DiaryView = 'list' | 'new' | 'detail'
@@ -46,9 +49,11 @@ export default function DiaryPage() {
     fetchDiaries, fetchDiary, fetchCalendar, fetchStats,
     createNewDiary, updateExistingDiary, deleteExistingDiary, triggerReview, clearError,
   } = useDiaryStore()
+  const { isAuthenticated } = useUserStore()
 
   const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [moodFilter, setMoodFilter] = useState<string>('')
+  const [showAuthModal, setShowAuthModal] = useState(false)
 
   // 内嵌视图状态：list / new / detail / edit
   const [diaryView, setDiaryView] = useState<DiaryView>('list')
@@ -101,11 +106,15 @@ export default function DiaryPage() {
     setEditInitialData(undefined)
   }, [])
   const goToNew = useCallback((date?: string) => {
+    if (!isAuthenticated) {
+      setShowAuthModal(true)
+      return
+    }
     setSlideDirection(1)
     setEditInitialData(undefined)
     setInitialDate(date)
     setDiaryView('new')
-  }, [])
+  }, [isAuthenticated])
   const goToDetail = useCallback((id: number) => navigateTo('detail', 1, id), [navigateTo])
 
   // 进入详情时加载数据
@@ -529,6 +538,11 @@ export default function DiaryPage() {
           confirmText="删除"
           danger
         />
+
+        {/* 登录弹窗 */}
+        <Suspense fallback={null}>
+          <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+        </Suspense>
       </div>
     </div>
   )
