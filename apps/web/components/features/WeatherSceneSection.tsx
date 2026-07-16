@@ -487,13 +487,13 @@ export function WeatherSceneSection({
               <span className="hidden sm:inline">{locating ? '定位中' : '定位'}</span>
             </motion.button>
             <div className="flex items-center gap-1">
-              <MapPin className="h-3 w-3 text-[#6B7F72]" />
+              <MapPin className="h-3 w-3 text-[var(--brand-subtle)]" />
               <select
                 value={city}
                 onChange={(e) => {
                   handleManualCitySelect(e.target.value)
                 }}
-                className="text-xs bg-transparent border-none outline-none text-[#6B7F72] cursor-pointer"
+                className="text-xs bg-transparent border-none outline-none text-[var(--brand-subtle)] cursor-pointer"
               >
                 {COMMON_CITIES.map((c) => (
                   <option key={c} value={c}>{c}</option>
@@ -521,15 +521,15 @@ export function WeatherSceneSection({
                 <WeatherIcon className="h-8 w-8 text-[#4A90C4]" />
                 <div>
                   <div className="text-2xl font-semibold text-[var(--brand-heading)]">{weather.temperature}°</div>
-                  <div className="text-xs text-[#6B7F72]">{weather.weather}</div>
+                  <div className="text-xs text-[var(--brand-subtle)]">{weather.weather}</div>
                 </div>
               </div>
               <div className="text-right">
                 <div className="text-sm">五行: <span className="font-medium text-[#4A90C4]">{weather.element}</span></div>
-                <div className="text-xs text-[#6B7F72]">{weather.element_reason}</div>
+                <div className="text-xs text-[var(--brand-subtle)]">{weather.element_reason}</div>
               </div>
             </div>
-            <div className="mt-2 flex gap-4 text-xs text-[#6B7F72]">
+            <div className="mt-2 flex gap-4 text-xs text-[var(--brand-subtle)]">
               <span>湿度: {weather.humidity}%</span>
               <span>风力: {weather.wind}</span>
             </div>
@@ -547,7 +547,7 @@ export function WeatherSceneSection({
           {selectedScene && (
             <button
               onClick={handleClearScene}
-              className="flex items-center gap-1 text-xs text-[#6B7F72] hover:text-[var(--brand-heading)] transition-colors"
+              className="flex items-center gap-1 text-xs text-[var(--brand-subtle)] hover:text-[var(--brand-heading)] transition-colors"
             >
               <X className="h-3 w-3" />
               清除选择
@@ -573,14 +573,14 @@ export function WeatherSceneSection({
                 className={cn(
                   'relative flex items-center gap-2 p-2 rounded-lg border text-left transition-all duration-200',
                   isSelected
-                    ? 'border-[#3DA35D] bg-[#F0F7F4] shadow-sm'
-                    : 'border-[var(--brand-border)]/60 hover:border-[#3DA35D]/50 hover:bg-[#F5F9F7]'
+                    ? 'border-[hsl(var(--primary))] bg-[var(--brand-surface)] shadow-sm'
+                    : 'border-[var(--brand-border)]/60 hover:border-[hsl(var(--primary))]/50 hover:bg-[var(--brand-surface-active)]'
                 )}
               >
-                <Icon className={cn('h-4 w-4 shrink-0', isSelected ? 'text-[#3DA35D]' : 'text-[#8A9F92]')} />
+                <Icon className={cn('h-4 w-4 shrink-0', isSelected ? 'text-[hsl(var(--primary))]' : 'text-[#8A9F92]')} />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate text-[var(--brand-heading)]">{scene.label}</div>
-                  <div className="text-[10px] text-[#6B7F72]">{scene.desc} · {scene.element}</div>
+                  <div className="text-[10px] text-[var(--brand-subtle)]">{scene.desc} · {scene.element}</div>
                 </div>
                 {isCurrentSlot && !isSelected && (
                   <span className="absolute top-0.5 right-0.5 text-[9px] px-1 rounded bg-[#3DA35D]/10 text-[#3DA35D]">当前</span>
@@ -597,7 +597,7 @@ export function WeatherSceneSection({
       {/* 综合建议提示 */}
       {weather && selectedScene && (
         <div className="pt-3 border-t border-border/50">
-          <div className="text-xs text-[#6B7F72]">
+          <div className="text-xs text-[var(--brand-subtle)]">
             <span className="font-medium text-foreground">综合推荐：</span>
             今日天气属{weather.element}，{COMMON_SCENES.find(s => s.id === selectedScene)?.label}场景属
             {COMMON_SCENES.find(s => s.id === selectedScene)?.element}，

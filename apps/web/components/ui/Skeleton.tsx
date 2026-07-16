@@ -14,11 +14,11 @@ export function Skeleton({
   return (
     <div
       className={cn(
-        'bg-[#F0F7F4] rounded-lg',
+        'bg-[var(--brand-surface)] rounded-lg',
         variant === 'circular' && 'rounded-full',
         variant === 'text' && 'h-4 rounded',
         animation === 'pulse' && 'animate-pulse',
-        animation === 'wave' && 'relative overflow-hidden bg-gradient-to-r from-[#F0F7F4] via-[#E8F5EC] to-[#F0F7F4] bg-[length:200%_100%] animate-[wave_1.5s_ease-in-out_infinite]',
+        animation === 'wave' && 'relative overflow-hidden bg-gradient-to-r from-[var(--brand-surface)] via-[var(--brand-surface-active)] to-[var(--brand-surface)] bg-[length:200%_100%] animate-[wave_1.5s_ease-in-out_infinite]',
         className
       )}
     />
@@ -33,7 +33,7 @@ interface SkeletonCardProps {
 
 export function SkeletonCard({ lines = 2, showImage = true, className }: SkeletonCardProps) {
   return (
-    <div className={cn('bg-white/80 rounded-xl p-4 border border-[#E8F0EB]/60 space-y-3', className)}>
+    <div className={cn('bg-white/80 rounded-xl p-4 border border-[var(--brand-border)]/60 space-y-3', className)}>
       {showImage && (
         <Skeleton className="h-40 w-full" animation="wave" />
       )}

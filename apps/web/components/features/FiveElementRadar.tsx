@@ -56,7 +56,7 @@ export function FiveElementRadar({
       <div className={cn('bg-card/50 backdrop-blur rounded-xl border p-6', className)}>
         <h3 className="text-lg font-semibold mb-2">五行能量分布</h3>
         <div className="h-[320px] flex items-center justify-center">
-          <div className="animate-pulse text-[#6B7F72]">加载中...</div>
+          <div className="animate-pulse text-[var(--brand-subtle)]">加载中...</div>
         </div>
       </div>
     )
@@ -67,7 +67,7 @@ export function FiveElementRadar({
       <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
         <span>五行能量分布</span>
         {xiyongShen.length > 0 && (
-          <span className="text-sm font-normal text-[#6B7F72]">
+          <span className="text-sm font-normal text-[var(--brand-subtle)]">
             (喜用神: {xiyongShen.join('、')})
           </span>
         )}
@@ -142,7 +142,7 @@ export function FiveElementRadar({
                 {element}
               </span>
               {hasData && count > 0 && (
-                <span className="text-[10px] text-[#6B7F72]">
+                <span className="text-[10px] text-[var(--brand-subtle)]">
                   {count}个
                 </span>
               )}
@@ -157,7 +157,7 @@ export function FiveElementRadar({
           <div className="flex items-center justify-between mb-3">
             <h4 className="text-sm font-medium">八字排盘</h4>
             {dayMaster && (
-              <span className="text-xs text-[#6B7F72]">
+              <span className="text-xs text-[var(--brand-subtle)]">
                 日元: <span className="text-primary font-medium">{dayMaster}</span>
               </span>
             )}
@@ -170,8 +170,8 @@ export function FiveElementRadar({
               { key: 'hour', label: '时柱' },
             ].map(({ key, label }) => (
               <div key={key} className="bg-muted/30 rounded-lg p-3 border border-border/50">
-                <div className="text-xs text-[#6B7F72] mb-2 font-medium">{label}</div>
-                <div className="text-lg font-bold tracking-wider text-[#2D4A38]">
+                <div className="text-xs text-[var(--brand-subtle)] mb-2 font-medium">{label}</div>
+                <div className="text-lg font-bold tracking-wider text-[var(--brand-heading)]">
                   {pillars[key] || '--'}
                 </div>
               </div>

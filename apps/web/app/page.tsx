@@ -165,7 +165,7 @@ export default function Home() {
   if (!mounted) {
     return (
       <div className="flex h-dvh bg-stone-50 overflow-hidden items-center justify-center">
-        <div className="text-[#4A5F52] text-sm animate-pulse">加载中...</div>
+        <div className="text-[var(--brand-body)] text-sm animate-pulse">加载中...</div>
       </div>
     )
   }
@@ -200,7 +200,7 @@ export default function Home() {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-[#3DA35D] via-[#4A90C4] to-[#D4656B] bg-clip-text text-transparent font-serif tracking-tight">
             五行穿搭
           </h1>
-          <p className="text-sm text-[#4A5F52] font-light tracking-wide mt-2">
+          <p className="text-sm text-[var(--brand-body)] font-light tracking-wide mt-2">
             {hasBazi ? '您的专属五行推荐' : '天人合一 · 五行相生'}
           </p>
         </motion.div>
@@ -224,11 +224,11 @@ export default function Home() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="card-secondary p-5 bg-gradient-to-br from-[#F8FAF9]/80 to-[#F0F7F4]/60 hover:shadow-[0_6px_24px_rgba(61,163,93,0.12)] transition-all duration-300 group"
+            className="card-secondary p-5 bg-gradient-to-br from-[var(--brand-surface)]/80 to-[var(--brand-surface-active)]/60 hover:shadow-[0_6px_24px_rgba(61,163,93,0.12)] transition-all duration-300 group"
           >
             <div className="flex items-center gap-3 mb-4">
               <div className="w-2.5 h-2.5 bg-gradient-to-br from-[#3DA35D] to-[#4A90C4] rounded-full group-hover:scale-110 transition-transform duration-300"></div>
-              <h2 className="font-semibold text-[#2D4A38] text-base tracking-wide">生辰八字</h2>
+              <h2 className="font-semibold text-[var(--brand-heading)] text-base tracking-wide">生辰八字</h2>
             </div>
             <BaziInputSection />
           </motion.div>
@@ -243,7 +243,7 @@ export default function Home() {
         >
           <div className="flex items-center gap-3 mb-4">
             <div className="w-2.5 h-2.5 bg-gradient-to-br from-[#4A90C4] to-[#3DA35D] rounded-full group-hover:scale-110 transition-transform duration-300"></div>
-            <h2 className="font-semibold text-[#2D4A38] text-base tracking-wide">天地气象</h2>
+            <h2 className="font-semibold text-[var(--brand-heading)] text-base tracking-wide">天地气象</h2>
           </div>
           <WeatherSceneSection 
             onSceneChange={handleSceneChange}
@@ -257,11 +257,11 @@ export default function Home() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="card-secondary p-5 bg-gradient-to-br from-[#F0F9F4]/80 to-[#E8F5EC]/60 hover:shadow-[0_6px_24px_rgba(61,163,93,0.12)] transition-all duration-300 group hidden md:block"
+            className="card-secondary p-5 bg-gradient-to-br from-[var(--brand-surface)]/80 to-[var(--brand-surface-active)]/60 hover:shadow-[0_6px_24px_rgba(61,163,93,0.12)] transition-all duration-300 group hidden md:block"
           >
             <div className="flex items-center gap-3 mb-4">
               <div className="w-2.5 h-2.5 bg-gradient-to-br from-[#3DA35D] to-[#B89B5E] rounded-full group-hover:scale-110 transition-transform duration-300"></div>
-              <h2 className="font-semibold text-[#2D4A38] text-base tracking-wide">五行生克</h2>
+              <h2 className="font-semibold text-[var(--brand-heading)] text-base tracking-wide">五行生克</h2>
             </div>
             <FiveElementRadar
               currentData={radarData.currentData}
@@ -281,9 +281,9 @@ export default function Home() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="card-secondary p-4 bg-gradient-to-br from-[#F8FAF9]/80 to-[#F5F9F7]/60"
+            className="card-secondary p-4 bg-gradient-to-br from-[var(--brand-surface)]/80 to-[var(--brand-surface-active)]/60"
           >
-            <p className="text-xs text-[#5A7A66] text-center leading-relaxed">
+            <p className="text-xs text-[var(--brand-subtle)] text-center leading-relaxed">
               基于您的八字分析，我们已为您计算喜用神。
               <br />
               智能推荐将以此为依据，为您推荐最适合的穿搭。
@@ -332,7 +332,7 @@ export default function Home() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={user.avatar_url} alt="头像" className="w-7 h-7 rounded-full object-cover" />
               ) : (
-                <svg className="w-4 h-4 text-[#5A7A66]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4 h-4 text-[var(--brand-subtle)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
               )}

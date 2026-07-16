@@ -136,20 +136,20 @@ export function DiaryForm({ initialData, onSubmit, onCancel, isEdit }: DiaryForm
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* 日期 */}
       <div>
-        <label className="block text-sm font-medium text-[#4A5F52] mb-1.5">日期</label>
+        <label className="block text-sm font-medium text-[var(--brand-body)] mb-1.5">日期</label>
         <input
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
           max={today}
-                    className="w-full px-3 py-2.5 rounded-xl border border-stone-200 bg-white text-[#2D4A38] text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:border-emerald-400 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl border border-stone-200 bg-white text-[var(--brand-heading)] text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:border-emerald-400 transition-all"
           required
         />
       </div>
 
       {/* 心情 */}
       <div>
-        <label className="block text-sm font-medium text-[#4A5F52] mb-1.5">今日心情</label>
+        <label className="block text-sm font-medium text-[var(--brand-body)] mb-1.5">今日心情</label>
         <div className="flex gap-2">
           {MOODS.map((m) => (
             <motion.button
@@ -161,7 +161,7 @@ export function DiaryForm({ initialData, onSubmit, onCancel, isEdit }: DiaryForm
               className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl border text-sm transition-all ${
                 mood === m.value
                   ? 'border-emerald-400 bg-emerald-50 text-emerald-700 shadow-sm'
-                  : 'border-stone-200 bg-white text-[#4A5F52] hover:bg-stone-50'
+                  : 'border-stone-200 bg-white text-[var(--brand-body)] hover:bg-stone-50'
               }`}
             >
               <span className="text-lg">{m.emoji}</span>
@@ -173,7 +173,7 @@ export function DiaryForm({ initialData, onSubmit, onCancel, isEdit }: DiaryForm
 
       {/* 场合 */}
       <div>
-        <label className="block text-sm font-medium text-[#4A5F52] mb-1.5">场合</label>
+        <label className="block text-sm font-medium text-[var(--brand-body)] mb-1.5">场合</label>
         <div className="flex flex-wrap gap-2">
           {OCCASIONS.map((o) => (
             <motion.button
@@ -184,7 +184,7 @@ export function DiaryForm({ initialData, onSubmit, onCancel, isEdit }: DiaryForm
               className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
                 occasion === o
                   ? 'border-emerald-400 bg-emerald-50 text-emerald-700'
-                  : 'border-stone-200 bg-white text-[#4A5F52] hover:bg-stone-50'
+                  : 'border-stone-200 bg-white text-[var(--brand-body)] hover:bg-stone-50'
               }`}
             >
               {o}
@@ -195,7 +195,7 @@ export function DiaryForm({ initialData, onSubmit, onCancel, isEdit }: DiaryForm
 
       {/* 评分 */}
       <div>
-        <label className="block text-sm font-medium text-[#4A5F52] mb-1.5">穿搭评分</label>
+        <label className="block text-sm font-medium text-[var(--brand-body)] mb-1.5">穿搭评分</label>
         <div className="flex gap-1">
           {[1, 2, 3, 4, 5].map((star) => (
             <motion.button
@@ -216,7 +216,7 @@ export function DiaryForm({ initialData, onSubmit, onCancel, isEdit }: DiaryForm
 
       {/* 穿搭照片 */}
       <div>
-        <label className="block text-sm font-medium text-[#4A5F52] mb-1.5">穿搭照片</label>
+        <label className="block text-sm font-medium text-[var(--brand-body)] mb-1.5">穿搭照片</label>
         <input
           ref={fileInputRef}
           type="file"
@@ -251,7 +251,7 @@ export function DiaryForm({ initialData, onSubmit, onCancel, isEdit }: DiaryForm
           whileTap={{ scale: 0.98 }}
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          className="w-full py-3 rounded-xl border-2 border-dashed border-stone-300 text-[#6B7F72] text-sm flex items-center justify-center gap-2 hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50/30 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+          className="w-full py-3 rounded-xl border-2 border-dashed border-stone-300 text-[var(--brand-subtle)] text-sm flex items-center justify-center gap-2 hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50/30 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {uploading ? (
             <>
@@ -273,13 +273,13 @@ export function DiaryForm({ initialData, onSubmit, onCancel, isEdit }: DiaryForm
 
       {/* 备注 */}
       <div>
-        <label className="block text-sm font-medium text-[#4A5F52] mb-1.5">穿搭备注</label>
+        <label className="block text-sm font-medium text-[var(--brand-body)] mb-1.5">穿搭备注</label>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="记录今天的穿搭心得..."
           rows={3}
-                    className="w-full px-3 py-2.5 rounded-xl border border-stone-200 bg-white text-[#2D4A38] text-sm placeholder:text-[#6B7F72] focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:border-emerald-400 transition-all resize-none"
+                    className="w-full px-3 py-2.5 rounded-xl border border-stone-200 bg-white text-[var(--brand-heading)] text-sm placeholder:text-[var(--brand-subtle)] focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:border-emerald-400 transition-all resize-none"
         />
       </div>
 
@@ -290,7 +290,7 @@ export function DiaryForm({ initialData, onSubmit, onCancel, isEdit }: DiaryForm
             type="button"
             whileTap={{ scale: 0.98 }}
             onClick={onCancel}
-            className="flex-1 py-3 rounded-xl border border-stone-200 text-[#4A5F52] text-sm font-medium hover:bg-stone-50 transition-colors"
+            className="flex-1 py-3 rounded-xl border border-stone-200 text-[var(--brand-body)] text-sm font-medium hover:bg-stone-50 transition-colors"
           >
             取消
           </motion.button>

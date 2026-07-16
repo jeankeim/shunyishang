@@ -94,25 +94,25 @@ export default function TryOnPage() {
   return (
     <div className="min-h-screen flex flex-col bg-[#F8F9FA]" style={{ height: '100dvh' }}>
       {/* 顶部导航栏 */}
-      <div className="h-14 flex items-center justify-between px-4 bg-white/90 backdrop-blur-xl border-b border-[#E8F0EB]/60 flex-shrink-0">
+      <div className="h-14 flex items-center justify-between px-4 bg-white/90 backdrop-blur-xl border-b border-[var(--brand-border)]/60 flex-shrink-0">
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => window.history.back()}
-          className="flex items-center gap-1.5 text-sm text-[#4A5F52] hover:text-[#2D4A38] transition-colors"
+          className="flex items-center gap-1.5 text-sm text-[var(--brand-body)] hover:text-[var(--brand-heading)] transition-colors"
           aria-label="返回上一页"
         >
           <ArrowLeft className="w-4 h-4" />
           返回
         </motion.button>
-        <h1 className="text-base font-semibold text-[#2D4A38]">虚拟试衣</h1>
+        <h1 className="text-base font-semibold text-[var(--brand-heading)]">虚拟试衣</h1>
         <div className="w-16" />
       </div>
 
       {/* 主内容区 */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden p-3 gap-3">
         {/* 画布区域 */}
-        <div className="flex-1 relative rounded-2xl overflow-hidden border border-[#E8F0EB]/60 bg-white shadow-sm min-h-[300px] flex flex-col">
+        <div className="flex-1 relative rounded-2xl overflow-hidden border border-[var(--brand-border)]/60 bg-white shadow-sm min-h-[300px] flex flex-col">
           <VirtualTryOnCanvas
             layers={layers}
             selectedId={selectedId}

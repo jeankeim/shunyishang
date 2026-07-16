@@ -105,7 +105,7 @@ export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-[var(--brand-surface)] to-[var(--brand-surface-active)] hover:from-[var(--brand-surface-active)] hover:to-[#D4E8DC] transition-all duration-200 shadow-sm border border-[var(--brand-border)]/60"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-[var(--brand-surface)] to-[var(--brand-surface-active)] hover:from-[var(--brand-surface-active)] hover:to-[var(--brand-surface)] transition-all duration-200 shadow-sm border border-[var(--brand-border)]/60"
               >
                 <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#3DA35D] to-[#4A90C4] flex items-center justify-center">
                   <User className="w-4 h-4 text-white" />
@@ -148,7 +148,7 @@ export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
             <div className="px-4 py-3 border-b border-[var(--brand-border)]/50 flex justify-between items-start">
               <div>
                 <p className="text-sm text-[var(--brand-heading)] font-semibold">{user.nickname || '用户'}</p>
-                <p className="text-xs text-[#6B7F72] truncate mt-0.5">
+                <p className="text-xs text-[var(--brand-subtle)] truncate mt-0.5">
                   {user.phone || user.email}
                 </p>
               </div>

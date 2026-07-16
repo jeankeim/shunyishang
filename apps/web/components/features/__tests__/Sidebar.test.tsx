@@ -107,6 +107,6 @@ describe('Sidebar', () => {
     mockStoreData.currentConversationId = '2'
     render(<Sidebar collapsed={false} onToggle={vi.fn()} />)
     const conv2Btn = screen.getByText('对话2').closest('button')
-    expect(conv2Btn?.className).toContain('from-[#F0F7F4]')
+    expect(conv2Btn?.className).toContain('from-[var(--brand-surface)]')
   })
 })

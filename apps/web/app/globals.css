@@ -267,12 +267,12 @@ body {
 
 /* 分隔线样式 - 使用渐变阴影替代实体线 */
 .divider-subtle {
-  @apply h-px bg-gradient-to-r from-transparent via-[#E8F0EB]/40 to-transparent;
+  @apply h-px bg-gradient-to-r from-transparent via-[var(--brand-border)]/40 to-transparent;
 }
 
 /* 容器样式 - 主内容区域 */
 .container-elegant {
-  @apply bg-gradient-to-br from-white via-[#F8FAF9] to-[#F5F9F7] rounded-3xl shadow-[0_4px_24px_rgba(0,0,0,0.06)];
+  @apply bg-gradient-to-br from-white via-[var(--brand-surface)] to-[var(--brand-surface-active)] rounded-3xl shadow-[0_4px_24px_rgba(0,0,0,0.06)];
 }
 
 /* 内部卡片 - 嵌套在容器中的卡片 */
@@ -287,11 +287,11 @@ body {
 
 /* 场景按钮样式 */
 .scene-button {
-  @apply flex items-center gap-2 p-2.5 rounded-xl border-0 bg-white/80 shadow-[0_1px_6px_rgba(0,0,0,0.04)] hover:shadow-[0_3px_12px_rgba(0,0,0,0.1)] hover:bg-[#F0F7F4] transition-all duration-200;
+  @apply flex items-center gap-2 p-2.5 rounded-xl border-0 bg-white/80 shadow-[0_1px_6px_rgba(0,0,0,0.04)] hover:shadow-[0_3px_12px_rgba(0,0,0,0.1)] hover:bg-[var(--brand-surface)] transition-all duration-200;
 }
 
 .scene-button-active {
-  @apply flex items-center gap-2 p-2.5 rounded-xl border-0 bg-gradient-to-br from-[#F0F7F4] to-[#E8F5EC] shadow-[0_2px_10px_rgba(61,163,93,0.15)];
+  @apply flex items-center gap-2 p-2.5 rounded-xl border-0 bg-gradient-to-br from-[var(--brand-surface)] to-[var(--brand-surface-active)] shadow-[0_2px_10px_rgba(61,163,93,0.15)];
 }
 
 /* ============================================

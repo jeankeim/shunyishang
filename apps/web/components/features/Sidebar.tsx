@@ -51,7 +51,7 @@ export function Sidebar({ className, collapsed = true, onToggle }: SidebarProps)
             className="p-2 rounded-lg hover:bg-[var(--brand-surface)] transition-colors duration-200"
             aria-label="关闭侧边栏"
           >
-            <X className="h-5 w-5 text-[#6B7F72]" />
+            <X className="h-5 w-5 text-[var(--brand-subtle)]" />
           </motion.button>
         </div>
 
@@ -87,7 +87,7 @@ export function Sidebar({ className, collapsed = true, onToggle }: SidebarProps)
                     'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-left transition-all duration-200',
                     currentConversationId === conv.id
                       ? 'bg-gradient-to-r from-[var(--brand-surface)] to-[var(--brand-surface-active)] text-[var(--brand-heading)] border border-[#3DA35D]/30 shadow-sm'
-                      : 'hover:bg-[#F5F9F7] text-[var(--brand-body)]'
+                      : 'hover:bg-[var(--brand-surface-active)] text-[var(--brand-body)]'
                   )}
                 >
                   <MessageSquare className={cn(
@@ -113,7 +113,7 @@ export function Sidebar({ className, collapsed = true, onToggle }: SidebarProps)
 
         {/* 底部工具栏 */}
         <div className="p-4 border-t border-[var(--brand-border)]/50">
-          <div className="flex items-center justify-center gap-2 text-sm text-[#6B7F72]">
+          <div className="flex items-center justify-center gap-2 text-sm text-[var(--brand-subtle)]">
             <Sparkles className="h-4 w-4 text-[#3DA35D]" />
             <span className="font-medium">顺衣尚 · 五行智能衣橱</span>
           </div>

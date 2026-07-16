@@ -90,7 +90,7 @@ export function MobileControlPanel({ onSceneChange, onWeatherChange }: MobileCon
               
               {/* 提示信息 */}
               {hasBazi && (
-                <div className="card-secondary p-3 bg-gradient-to-br from-[#F8FAF9]/80 to-[#F5F9F7]/60">
+                <div className="card-secondary p-3 bg-gradient-to-br from-[var(--brand-surface)]/80 to-[var(--brand-surface-active)]/60">
                   <p className="text-xs text-[var(--brand-subtle)] text-center leading-relaxed">
                     基于您的八字分析，已为您计算喜用神。
                     <br />

@@ -198,10 +198,10 @@ export function QuickCheckIn({ isOpen, onClose, onSuccess, weatherInfo }: QuickC
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="例如：白色T恤 + 牛仔裤 + 帆布鞋"
-                      className="w-full h-20 px-3 py-2.5 rounded-xl border border-stone-200 bg-white text-sm text-[#2D4A38] placeholder:text-[#6B7F72] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 resize-none transition-all"
+                      className="w-full h-20 px-3 py-2.5 rounded-xl border border-stone-200 bg-white text-sm text-[var(--brand-heading)] placeholder:text-[var(--brand-subtle)] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 resize-none transition-all"
                       maxLength={200}
                     />
-                    <div className="text-right text-[10px] text-[#6B7F72] mt-0.5">
+                    <div className="text-right text-[10px] text-[var(--brand-subtle)] mt-0.5">
                       {description.length}/200
                     </div>
                   </div>

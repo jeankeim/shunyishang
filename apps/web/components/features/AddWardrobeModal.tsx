@@ -272,7 +272,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
       <div className="p-4 bg-gradient-to-br from-rose-50 to-pink-50 rounded-2xl border border-rose-100">
         <div className="flex items-center gap-2 mb-3">
           <span className="w-6 h-6 rounded-full bg-rose-500 text-white text-sm flex items-center justify-center">1</span>
-          <span className="font-medium text-[#4A5F52]">输入衣物描述</span>
+          <span className="font-medium text-[var(--brand-body)]">输入衣物描述</span>
         </div>
         
         <textarea
@@ -280,7 +280,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
           onChange={(e) => { setDescription(e.target.value); setAnalysis(null); clearTaggingPreview(); }}
           placeholder="例如：红色真丝衬衫，V领设计，适合正式场合..."
           rows={3}
-          className="w-full px-4 py-3 rounded-xl border border-rose-200 focus:border-rose-400 focus:ring-2 focus:ring-rose-100 transition-all outline-none resize-none text-[#2D4A38] text-sm"
+          className="w-full px-4 py-3 rounded-xl border border-rose-200 focus:border-rose-400 focus:ring-2 focus:ring-rose-100 transition-all outline-none resize-none text-[var(--brand-heading)] text-sm"
         />
         
         {/* 图片上传（可选） */}
@@ -297,8 +297,8 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
           <div className="flex items-center gap-2">
             <span className="w-6 h-6 rounded-full bg-blue-500 text-white text-sm flex items-center justify-center">2</span>
             <div>
-              <span className="font-medium text-[#4A5F52] block">AI 智能分析</span>
-              <span className="text-xs text-[#6B7F72]">自动识别五行、颜色、材质、款式等</span>
+              <span className="font-medium text-[var(--brand-body)] block">AI 智能分析</span>
+              <span className="text-xs text-[var(--brand-subtle)]">自动识别五行、颜色、材质、款式等</span>
             </div>
           </div>
           <button
@@ -332,7 +332,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
           >
             <div className="flex items-center gap-4 mb-3">
               <div className="flex-1">
-                <div className="text-xs text-[#6B7F72] mb-1">主五行</div>
+                <div className="text-xs text-[var(--brand-subtle)] mb-1">主五行</div>
                 {(() => {
                   const config = getWuxingConfig(analysis.primary_element)
                   return (
@@ -345,18 +345,18 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
               </div>
               {analysis.secondary_element && (
                 <div className="flex-1">
-                  <div className="text-xs text-[#6B7F72] mb-1">次五行</div>
-                  <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-stone-100 text-[#4A5F52] font-medium">
+                  <div className="text-xs text-[var(--brand-subtle)] mb-1">次五行</div>
+                  <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-stone-100 text-[var(--brand-body)] font-medium">
                     {getWuxingConfig(analysis.secondary_element).emoji} {analysis.secondary_element}
                   </span>
                 </div>
               )}
               <div className="text-right">
-                <div className="text-xs text-[#6B7F72] mb-1">置信度</div>
+                <div className="text-xs text-[var(--brand-subtle)] mb-1">置信度</div>
                 <span className="text-lg font-bold text-blue-600">{(analysis.confidence * 100).toFixed(0)}%</span>
               </div>
             </div>
-            <p className="text-sm text-[#6B7F72]">✅ 分析完成，点击下方按钮查看详情并修改</p>
+            <p className="text-sm text-[var(--brand-subtle)]">✅ 分析完成，点击下方按钮查看详情并修改</p>
           </motion.div>
         )}
       </div>
@@ -392,7 +392,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
             e.stopPropagation()
             handleBackToInput()
           }}
-          className="flex items-center gap-1 text-sm text-[#6B7F72] hover:text-[#4A5F52] transition-colors"
+          className="flex items-center gap-1 text-sm text-[var(--brand-subtle)] hover:text-[var(--brand-body)] transition-colors"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -417,25 +417,25 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="衣物名称/描述"
-                className="w-full px-3 py-2 rounded-lg bg-white/90 backdrop-blur-sm border-0 text-[#2D4A38] placeholder:text-[#6B7F72] text-base md:text-sm"
+                className="w-full px-3 py-2 rounded-lg bg-white/90 backdrop-blur-sm border-0 text-[var(--brand-heading)] placeholder:text-[var(--brand-subtle)] text-base md:text-sm"
               />
             </div>
           </div>
         ) : (
           <div className="h-40 rounded-2xl bg-stone-100 flex items-center justify-center">
-            <span className="text-[#6B7F72]">暂无图片</span>
+            <span className="text-[var(--brand-subtle)]">暂无图片</span>
           </div>
         )}
 
         {/* 五行属性（可编辑） */}
         <div className="p-4 bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border border-amber-100">
-          <h3 className="font-medium text-[#4A5F52] mb-3 flex items-center gap-2">
+          <h3 className="font-medium text-[var(--brand-body)] mb-3 flex items-center gap-2">
             <span>🔮</span> 五行属性
           </h3>
           
           {/* 主五行 */}
           <div className="mb-4">
-            <label className="text-xs text-[#6B7F72] mb-2 block">主五行</label>
+            <label className="text-xs text-[var(--brand-subtle)] mb-2 block">主五行</label>
             <div className="flex gap-2">
               {WUXING_ELEMENTS.map((element) => {
                 const config = WUXING_CONFIG[element]
@@ -448,7 +448,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
                     className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${
                       isSelected
                         ? `${config.bgClass} ${config.textClass} ring-2 ring-offset-1`
-                        : 'bg-white text-[#4A5F52] hover:bg-stone-50'
+                        : 'bg-white text-[var(--brand-body)] hover:bg-stone-50'
                     }`}
                     style={isSelected ? { '--tw-ring-color': config.gradientFrom } as React.CSSProperties : {}}
                   >
@@ -461,7 +461,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
 
           {/* 次五行 */}
           <div className="mb-4">
-            <label className="text-xs text-[#6B7F72] mb-2 block">次五行（可选）</label>
+            <label className="text-xs text-[var(--brand-subtle)] mb-2 block">次五行（可选）</label>
             <div className="flex gap-2 flex-wrap">
               <button
                 type="button"
@@ -469,7 +469,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
                 className={`px-3 py-2 rounded-xl text-sm transition-all ${
                   !analysis.secondary_element
                     ? 'bg-stone-800 text-white'
-                    : 'bg-white text-[#4A5F52] hover:bg-stone-50'
+                    : 'bg-white text-[var(--brand-body)] hover:bg-stone-50'
                 }`}
               >
                 无
@@ -485,7 +485,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
                     className={`px-3 py-2 rounded-xl text-sm transition-all ${
                       isSelected
                         ? `${config.bgClass} ${config.textClass}`
-                        : 'bg-white text-[#4A5F52] hover:bg-stone-50'
+                        : 'bg-white text-[var(--brand-body)] hover:bg-stone-50'
                     }`}
                   >
                     {config.emoji} {element}
@@ -498,29 +498,29 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
 
         {/* 基本信息（可编辑） */}
         <div className="p-4 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl border border-emerald-100">
-          <h3 className="font-medium text-[#4A5F52] mb-3 flex items-center gap-2">
+          <h3 className="font-medium text-[var(--brand-body)] mb-3 flex items-center gap-2">
             <span>📋</span> 基本信息
           </h3>
           
           <div className="grid grid-cols-2 gap-3">
             {/* 颜色 */}
             <div>
-              <label className="text-xs text-[#6B7F72] mb-1 block">颜色</label>
+              <label className="text-xs text-[var(--brand-subtle)] mb-1 block">颜色</label>
               <input
                 type="text"
                 value={analysis.color || ''}
                 onChange={(e) => updateAnalysisField('color', e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-emerald-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all outline-none text-[#2D4A38] text-base md:text-sm"
+                className="w-full px-3 py-2 rounded-xl border border-emerald-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all outline-none text-[var(--brand-heading)] text-base md:text-sm"
               />
             </div>
             
             {/* 颜色五行 */}
             <div>
-              <label className="text-xs text-[#6B7F72] mb-1 block">颜色五行</label>
+              <label className="text-xs text-[var(--brand-subtle)] mb-1 block">颜色五行</label>
               <select
                 value={analysis.color_element || ''}
                 onChange={(e) => updateAnalysisField('color_element', e.target.value || undefined)}
-                className="w-full px-3 py-2 rounded-xl border border-emerald-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all outline-none bg-white text-[#2D4A38] text-sm"
+                className="w-full px-3 py-2 rounded-xl border border-emerald-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all outline-none bg-white text-[var(--brand-heading)] text-sm"
               >
                 <option value="">选择五行</option>
                 {WUXING_ELEMENTS.map((element) => {
@@ -536,22 +536,22 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
             
             {/* 材质 */}
             <div>
-              <label className="text-xs text-[#6B7F72] mb-1 block">材质</label>
+              <label className="text-xs text-[var(--brand-subtle)] mb-1 block">材质</label>
               <input
                 type="text"
                 value={analysis.material || ''}
                 onChange={(e) => updateAnalysisField('material', e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-emerald-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all outline-none text-[#2D4A38] text-base md:text-sm"
+                className="w-full px-3 py-2 rounded-xl border border-emerald-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all outline-none text-[var(--brand-heading)] text-base md:text-sm"
               />
             </div>
             
             {/* 材质五行 */}
             <div>
-              <label className="text-xs text-[#6B7F72] mb-1 block">材质五行</label>
+              <label className="text-xs text-[var(--brand-subtle)] mb-1 block">材质五行</label>
               <select
                 value={analysis.material_element || ''}
                 onChange={(e) => updateAnalysisField('material_element', e.target.value || undefined)}
-                className="w-full px-3 py-2 rounded-xl border border-emerald-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all outline-none bg-white text-[#2D4A38] text-sm"
+                className="w-full px-3 py-2 rounded-xl border border-emerald-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all outline-none bg-white text-[var(--brand-heading)] text-sm"
               >
                 <option value="">选择五行</option>
                 {WUXING_ELEMENTS.map((element) => {
@@ -567,22 +567,22 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
             
             {/* 风格 */}
             <div>
-              <label className="text-xs text-[#6B7F72] mb-1 block">风格</label>
+              <label className="text-xs text-[var(--brand-subtle)] mb-1 block">风格</label>
               <input
                 type="text"
                 value={analysis.style || ''}
                 onChange={(e) => updateAnalysisField('style', e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-emerald-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all outline-none text-[#2D4A38] text-sm"
+                className="w-full px-3 py-2 rounded-xl border border-emerald-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all outline-none text-[var(--brand-heading)] text-sm"
               />
             </div>
             
             {/* 分类 */}
             <div>
-              <label className="text-xs text-[#6B7F72] mb-1 block">分类</label>
+              <label className="text-xs text-[var(--brand-subtle)] mb-1 block">分类</label>
               <select
                 value={analysis.category || ''}
                 onChange={(e) => updateAnalysisField('category', e.target.value || undefined)}
-                className="w-full px-3 py-2 rounded-xl border border-emerald-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all outline-none bg-white text-[#2D4A38] text-sm"
+                className="w-full px-3 py-2 rounded-xl border border-emerald-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all outline-none bg-white text-[var(--brand-heading)] text-sm"
               >
                 <option value="">选择分类</option>
                 {CATEGORIES.map((cat) => (
@@ -595,14 +595,14 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
 
         {/* 款式与能量（新增） */}
         <div className="p-4 bg-gradient-to-br from-indigo-50 to-violet-50 rounded-2xl border border-indigo-100">
-          <h3 className="font-medium text-[#4A5F52] mb-3 flex items-center gap-2">
+          <h3 className="font-medium text-[var(--brand-body)] mb-3 flex items-center gap-2">
             <span>✨</span> 款式与能量
           </h3>
           
           <div className="grid grid-cols-2 gap-3">
             {/* 款式形状 */}
             <div>
-              <label className="text-xs text-[#6B7F72] mb-2 block">款式形状</label>
+              <label className="text-xs text-[var(--brand-subtle)] mb-2 block">款式形状</label>
               <div className="flex gap-2 flex-wrap">
                 {SHAPES.map((shape) => (
                   <button
@@ -612,7 +612,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
                     className={`px-3 py-1.5 rounded-lg text-sm transition-all ${
                       analysis.shape === shape
                         ? 'bg-indigo-500 text-white'
-                        : 'bg-white text-[#4A5F52] hover:bg-indigo-50'
+                        : 'bg-white text-[var(--brand-body)] hover:bg-indigo-50'
                     }`}
                   >
                     {shape}
@@ -623,7 +623,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
             
             {/* 能量强度 */}
             <div>
-              <label className="text-xs text-[#6B7F72] mb-2 block">能量强度</label>
+              <label className="text-xs text-[var(--brand-subtle)] mb-2 block">能量强度</label>
               <div className="flex items-center gap-2">
                 <input
                   type="range"
@@ -643,18 +643,18 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
           
           {/* 款式细节 */}
           <div className="mt-3">
-            <label className="text-xs text-[#6B7F72] mb-2 block">款式细节</label>
+            <label className="text-xs text-[var(--brand-subtle)] mb-2 block">款式细节</label>
             <div className="flex flex-wrap gap-2">
               {analysis.details?.map((detail, index) => (
                 <span
                   key={index}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-[#4A5F52] text-sm border border-indigo-200"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-[var(--brand-body)] text-sm border border-indigo-200"
                 >
                   {detail}
                   <button
                     type="button"
                     onClick={() => updateAnalysisField('details', analysis.details?.filter((_, i) => i !== index))}
-                    className="text-[#6B7F72] hover:text-red-500"
+                    className="text-[var(--brand-subtle)] hover:text-red-500"
                   >
                     ×
                   </button>
@@ -663,7 +663,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
               <input
                 type="text"
                 placeholder="+ 添加细节"
-                className="px-3 py-1.5 rounded-lg bg-white border border-indigo-200 text-[#2D4A38] text-sm w-24 focus:w-32 transition-all outline-none focus:border-indigo-400"
+                className="px-3 py-1.5 rounded-lg bg-white border border-indigo-200 text-[var(--brand-heading)] text-sm w-24 focus:w-32 transition-all outline-none focus:border-indigo-400"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     const value = e.currentTarget.value.trim()
@@ -680,13 +680,13 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
 
         {/* 适用场景（可编辑） */}
         <div className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border border-purple-100">
-          <h3 className="font-medium text-[#4A5F52] mb-3 flex items-center gap-2">
+          <h3 className="font-medium text-[var(--brand-body)] mb-3 flex items-center gap-2">
             <span>🌤</span> 适用场景
           </h3>
           
           {/* 适用季节 */}
           <div className="mb-4">
-            <label className="text-xs text-[#6B7F72] mb-2 block">适用季节</label>
+            <label className="text-xs text-[var(--brand-subtle)] mb-2 block">适用季节</label>
             <div className="flex gap-2">
               {SEASONS.map((season) => (
                 <button
@@ -696,7 +696,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
                   className={`flex-1 py-2 rounded-xl text-sm transition-all ${
                     analysis.applicable_seasons?.includes(season)
                       ? 'bg-purple-500 text-white'
-                      : 'bg-white text-[#4A5F52] hover:bg-purple-50'
+                      : 'bg-white text-[var(--brand-body)] hover:bg-purple-50'
                   }`}
                 >
                   {season}
@@ -707,7 +707,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
           
           {/* 适用天气 */}
           <div className="mb-4">
-            <label className="text-xs text-[#6B7F72] mb-2 block">适用天气</label>
+            <label className="text-xs text-[var(--brand-subtle)] mb-2 block">适用天气</label>
             <div className="flex gap-2 flex-wrap">
               {WEATHER_TYPES.map((weather) => (
                 <button
@@ -717,7 +717,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
                   className={`px-3 py-2 rounded-xl text-sm transition-all ${
                     analysis.applicable_weather?.includes(weather)
                       ? 'bg-pink-500 text-white'
-                      : 'bg-white text-[#4A5F52] hover:bg-pink-50'
+                      : 'bg-white text-[var(--brand-body)] hover:bg-pink-50'
                   }`}
                 >
                   {weather}
@@ -728,7 +728,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
           
           {/* 厚度 */}
           <div>
-            <label className="text-xs text-[#6B7F72] mb-2 block">厚度等级</label>
+            <label className="text-xs text-[var(--brand-subtle)] mb-2 block">厚度等级</label>
             <div className="flex gap-2">
               {THICKNESS_LEVELS.map((level) => (
                 <button
@@ -738,7 +738,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
                   className={`flex-1 py-2 rounded-xl text-sm transition-all ${
                     analysis.thickness_level === level
                       ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
-                      : 'bg-white text-[#4A5F52] hover:bg-purple-50'
+                      : 'bg-white text-[var(--brand-body)] hover:bg-purple-50'
                   }`}
                 >
                   {level}
@@ -750,20 +750,20 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
 
         {/* 标签 */}
         <div className="p-4 bg-gradient-to-br from-stone-50 to-gray-50 rounded-2xl border border-stone-200">
-          <h3 className="font-medium text-[#4A5F52] mb-3 flex items-center gap-2">
+          <h3 className="font-medium text-[var(--brand-body)] mb-3 flex items-center gap-2">
             <span>🏷️</span> 标签
           </h3>
           <div className="flex flex-wrap gap-2">
             {analysis.tags?.map((tag, index) => (
               <span
                 key={index}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-[#4A5F52] text-sm border border-stone-200"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-[var(--brand-body)] text-sm border border-stone-200"
               >
                 {tag}
                 <button
                   type="button"
                   onClick={() => updateAnalysisField('tags', analysis.tags?.filter((_, i) => i !== index))}
-                  className="text-[#6B7F72] hover:text-red-500"
+                  className="text-[var(--brand-subtle)] hover:text-red-500"
                 >
                   ×
                 </button>
@@ -772,7 +772,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
             <input
               type="text"
               placeholder="+ 添加标签"
-              className="px-3 py-1.5 rounded-lg bg-white border border-stone-200 text-[#2D4A38] text-sm w-24 focus:w-32 transition-all outline-none focus:border-stone-400"
+              className="px-3 py-1.5 rounded-lg bg-white border border-stone-200 text-[var(--brand-heading)] text-sm w-24 focus:w-32 transition-all outline-none focus:border-stone-400"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   const value = e.currentTarget.value.trim()
@@ -796,7 +796,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
             }}
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.99 }}
-            className="flex-1 py-3.5 rounded-xl bg-stone-100 text-[#4A5F52] font-medium hover:bg-stone-200 transition-all"
+            className="flex-1 py-3.5 rounded-xl bg-stone-100 text-[var(--brand-body)] font-medium hover:bg-stone-200 transition-all"
           >
             取消
           </motion.button>
@@ -856,16 +856,16 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
               {/* 标题栏 */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100">
                 <div>
-                  <h2 className="text-lg font-bold text-[#4A5F52]">
+                  <h2 className="text-lg font-bold text-[var(--brand-body)]">
                     {editItem ? '编辑衣物' : step === 'input' ? '添加衣物' : '确认分析结果'}
                   </h2>
-                  <p className="text-xs text-[#6B7F72] mt-0.5">
+                  <p className="text-xs text-[var(--brand-subtle)] mt-0.5">
                     {step === 'input' ? 'AI 自动分析五行属性' : '检查并修改 AI 分析结果'}
                   </p>
                 </div>
                 <button
                   onClick={handleClose}
-                  className="p-2 rounded-full hover:bg-stone-100 text-[#6B7F72] hover:text-[#4A5F52] transition-colors"
+                  className="p-2 rounded-full hover:bg-stone-100 text-[var(--brand-subtle)] hover:text-[var(--brand-body)] transition-colors"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

@@ -47,7 +47,7 @@ interface ToolButtonProps {
 
 function ToolButton({ icon, label, onClick, disabled = false, variant = 'default' }: ToolButtonProps) {
   const colorMap = {
-    default: 'text-[#4A5F52] hover:bg-[#F0F7F4]',
+    default: 'text-[var(--brand-body)] hover:bg-[var(--brand-surface)]',
     danger: 'text-[#D4656B] hover:bg-[#FDF2F2]',
     primary: 'text-white bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] hover:from-[#359454] hover:to-[#3F84B5]',
   };
@@ -86,7 +86,7 @@ export function TryOnToolbar({
 }: TryOnToolbarProps) {
   return (
     <div
-      className="flex flex-col gap-3 p-3 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#E8F0EB]/60 shadow-lg md:flex-col md:w-14 md:py-4"
+      className="flex flex-col gap-3 p-3 bg-white/95 backdrop-blur-xl rounded-2xl border border-[var(--brand-border)]/60 shadow-lg md:flex-col md:w-14 md:py-4"
       role="toolbar"
       aria-label="试衣工具栏"
     >
@@ -105,8 +105,8 @@ export function TryOnToolbar({
       </div>
 
       {/* 分隔线 */}
-      <div className="h-px md:h-auto md:w-full bg-[#E8F0EB]/60 mx-1 hidden md:block" />
-      <div className="w-px md:hidden bg-[#E8F0EB]/60 my-1" />
+      <div className="h-px md:h-auto md:w-full bg-[var(--brand-border)]/60 mx-1 hidden md:block" />
+      <div className="w-px md:hidden bg-[var(--brand-border)]/60 my-1" />
 
       {/* 变换类按钮 */}
       <div className="flex md:flex-col gap-1.5">
@@ -124,8 +124,8 @@ export function TryOnToolbar({
         />
       </div>
 
-      <div className="w-px md:hidden bg-[#E8F0EB]/60 my-1" />
-      <div className="h-px md:h-auto md:w-full bg-[#E8F0EB]/60 mx-1 hidden md:block" />
+      <div className="w-px md:hidden bg-[var(--brand-border)]/60 my-1" />
+      <div className="h-px md:h-auto md:w-full bg-[var(--brand-border)]/60 mx-1 hidden md:block" />
 
       {/* 图层操作 */}
       <div className="flex md:flex-col gap-1.5">
@@ -150,8 +150,8 @@ export function TryOnToolbar({
         />
       </div>
 
-      <div className="w-px md:hidden bg-[#E8F0EB]/60 my-1" />
-      <div className="h-px md:h-auto md:w-full bg-[#E8F0EB]/60 mx-1 hidden md:block" />
+      <div className="w-px md:hidden bg-[var(--brand-border)]/60 my-1" />
+      <div className="h-px md:h-auto md:w-full bg-[var(--brand-border)]/60 mx-1 hidden md:block" />
 
       {/* 撤销/重做 */}
       <div className="flex md:flex-col gap-1.5">
@@ -169,12 +169,12 @@ export function TryOnToolbar({
         />
       </div>
 
-      <div className="w-px md:hidden bg-[#E8F0EB]/60 my-1" />
-      <div className="h-px md:h-auto md:w-full bg-[#E8F0EB]/60 mx-1 hidden md:block" />
+      <div className="w-px md:hidden bg-[var(--brand-border)]/60 my-1" />
+      <div className="h-px md:h-auto md:w-full bg-[var(--brand-border)]/60 mx-1 hidden md:block" />
 
       {/* 透明度滑块 */}
       <div className="flex md:flex-col items-center gap-2 px-1">
-        <label htmlFor="opacity-slider" className="text-xs text-[#6B7F72] font-medium whitespace-nowrap md:writing-mode-vertical">
+        <label htmlFor="opacity-slider" className="text-xs text-[var(--brand-subtle)] font-medium whitespace-nowrap md:writing-mode-vertical">
           透明度
         </label>
         <input
@@ -193,8 +193,8 @@ export function TryOnToolbar({
         />
       </div>
 
-      <div className="w-px md:hidden bg-[#E8F0EB]/60 my-1" />
-      <div className="h-px md:h-auto md:w-full bg-[#E8F0EB]/60 mx-1 hidden md:block" />
+      <div className="w-px md:hidden bg-[var(--brand-border)]/60 my-1" />
+      <div className="h-px md:h-auto md:w-full bg-[var(--brand-border)]/60 mx-1 hidden md:block" />
 
       {/* 导出按钮 */}
       <ToolButton

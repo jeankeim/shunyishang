@@ -242,8 +242,8 @@ export function VirtualTryOnCanvas({
           <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#3DA35D]/20 to-[#4A90C4]/20 flex items-center justify-center mb-4">
             <Camera className="w-10 h-10 text-[#3DA35D]" />
           </div>
-          <h3 className="text-lg font-semibold text-[#2D4A38] mb-2">开始虚拟试衣</h3>
-          <p className="text-sm text-[#6B7F72] mb-6 text-center max-w-xs">
+          <h3 className="text-lg font-semibold text-[var(--brand-heading)] mb-2">开始虚拟试衣</h3>
+          <p className="text-sm text-[var(--brand-subtle)] mb-6 text-center max-w-xs">
             上传你的照片作为底图，然后添加衣物进行搭配
           </p>
           <button
@@ -280,7 +280,7 @@ export function VirtualTryOnCanvas({
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           onClick={handleClothingUpload}
-          className="absolute bottom-4 right-4 flex items-center gap-2 px-4 py-2 rounded-xl bg-white/90 backdrop-blur-sm border border-[#E8F0EB] shadow-md hover:shadow-lg transition-shadow text-sm font-medium text-[#2D4A38]"
+          className="absolute bottom-4 right-4 flex items-center gap-2 px-4 py-2 rounded-xl bg-white/90 backdrop-blur-sm border border-[var(--brand-border)] shadow-md hover:shadow-lg transition-shadow text-sm font-medium text-[var(--brand-heading)]"
           aria-label="添加衣物"
         >
           <Upload className="w-4 h-4 text-[#3DA35D]" />

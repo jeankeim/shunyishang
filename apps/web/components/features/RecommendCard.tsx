@@ -244,7 +244,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
                 className={`p-1.5 rounded-full transition-all ${
                   feedback === 'like'
                     ? 'bg-emerald-100 text-emerald-600'
-                    : 'hover:bg-stone-100 text-[#6B7F72] hover:text-emerald-500'
+                    : 'hover:bg-stone-100 text-[var(--brand-subtle)] hover:text-emerald-500'
                 } disabled:cursor-not-allowed`}
               >
                 <svg className="w-4 h-4" fill={feedback === 'like' ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
@@ -257,7 +257,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
                 className={`p-1.5 rounded-full transition-all ${
                   feedback === 'dislike'
                     ? 'bg-red-100 text-red-600'
-                    : 'hover:bg-stone-100 text-[#6B7F72] hover:text-red-500'
+                    : 'hover:bg-stone-100 text-[var(--brand-subtle)] hover:text-red-500'
                 } disabled:cursor-not-allowed`}
               >
                 <svg className="w-4 h-4" fill={feedback === 'dislike' ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">

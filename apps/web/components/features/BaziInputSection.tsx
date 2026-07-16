@@ -261,14 +261,14 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
   }, [])
 
   return (
-    <div className={cn('bg-white/80 backdrop-blur-sm border border-[#E8F0EB]/60 rounded-xl p-4 shadow-sm', className)}>
+    <div className={cn('bg-white/80 backdrop-blur-sm border border-[var(--brand-border)]/60 rounded-xl p-4 shadow-sm', className)}>
       {/* 标题栏 */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4 text-[#3DA35D]" />
-          <h3 className="font-medium text-[#2D4A38]">生辰八字</h3>
+          <h3 className="font-medium text-[var(--brand-heading)]">生辰八字</h3>
           {userBazi && (
-            <span className="text-xs text-[#6B7F72]">
+            <span className="text-xs text-[var(--brand-subtle)]">
               {userBazi.birthYear}年{userBazi.birthMonth}月{userBazi.birthDay}日
             </span>
           )}
@@ -324,18 +324,18 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            className="space-y-4 pt-3 border-t border-[#E8F0EB]/50"
+            className="space-y-4 pt-3 border-t border-[var(--brand-border)]/50"
           >
             {/* 历法切换 */}
-            <div className="flex bg-[#F0F7F4] rounded-lg p-1">
+            <div className="flex bg-[var(--brand-surface)] rounded-lg p-1">
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={() => switchCalendarType('solar')}
                 className={cn(
                   'flex-1 py-2 text-sm rounded-md transition-all duration-200 font-medium',
                   calendarType === 'solar'
-                    ? 'bg-white shadow-sm text-[#2D4A38]'
-                    : 'text-[#6B7F72] hover:text-[#2D4A38]'
+                    ? 'bg-white shadow-sm text-[var(--brand-heading)]'
+                    : 'text-[var(--brand-subtle)] hover:text-[var(--brand-heading)]'
                 )}
               >
                 <Sun className="h-4 w-4 inline mr-1" />
@@ -347,8 +347,8 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
                 className={cn(
                   'flex-1 py-2 text-sm rounded-md transition-all duration-200 font-medium',
                   calendarType === 'lunar'
-                    ? 'bg-white shadow-sm text-[#2D4A38]'
-                    : 'text-[#6B7F72] hover:text-[#2D4A38]'
+                    ? 'bg-white shadow-sm text-[var(--brand-heading)]'
+                    : 'text-[var(--brand-subtle)] hover:text-[var(--brand-heading)]'
                 )}
               >
                 <Moon className="h-4 w-4 inline mr-1" />
@@ -360,13 +360,13 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
           <div className="grid grid-cols-4 gap-2">
             {/* 年 */}
             <div className="min-w-0">
-              <label className="text-xs text-[#6B7F72] mb-1 block truncate">
+              <label className="text-xs text-[var(--brand-subtle)] mb-1 block truncate">
                 {calendarType === 'solar' ? '年' : '农历年'}
               </label>
               <select
                 value={date.year}
                 onChange={(e) => updateDate('year', parseInt(e.target.value))}
-                className="w-full min-w-[70px] px-3 py-2.5 rounded-lg border border-[#E8F0EB] bg-white text-sm text-[#2D4A38] focus:outline-none focus:ring-2 focus:ring-[#3DA35D]/30 focus:border-[#3DA35D] hover:border-[#3DA35D]/50 transition-all duration-200"
+                className="w-full min-w-[70px] px-3 py-2.5 rounded-lg border border-[var(--brand-border)] bg-white text-sm text-[var(--brand-heading)] focus:outline-none focus:ring-2 focus:ring-[#3DA35D]/30 focus:border-[#3DA35D] hover:border-[#3DA35D]/50 transition-all duration-200"
               >
                 {YEARS.map((y) => (
                   <option key={y} value={y}>
@@ -378,13 +378,13 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
 
             {/* 月 */}
             <div className="min-w-0">
-              <label className="text-xs text-[#6B7F72] mb-1 block truncate">
+              <label className="text-xs text-[var(--brand-subtle)] mb-1 block truncate">
                 {calendarType === 'solar' ? '月' : '农历月'}
               </label>
               <select
                 value={date.month}
                 onChange={(e) => updateDate('month', parseInt(e.target.value))}
-                className="w-full min-w-[60px] px-3 py-2.5 rounded-lg border border-[#E8F0EB] bg-white text-sm text-[#2D4A38] focus:outline-none focus:ring-2 focus:ring-[#3DA35D]/30 focus:border-[#3DA35D] hover:border-[#3DA35D]/50 transition-all duration-200"
+                className="w-full min-w-[60px] px-3 py-2.5 rounded-lg border border-[var(--brand-border)] bg-white text-sm text-[var(--brand-heading)] focus:outline-none focus:ring-2 focus:ring-[#3DA35D]/30 focus:border-[#3DA35D] hover:border-[#3DA35D]/50 transition-all duration-200"
               >
                 {MONTHS.map((m) => (
                   <option key={m} value={m}>
@@ -396,13 +396,13 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
 
             {/* 日 */}
             <div className="min-w-0">
-              <label className="text-xs text-[#6B7F72] mb-1 block truncate">
+              <label className="text-xs text-[var(--brand-subtle)] mb-1 block truncate">
                 {calendarType === 'solar' ? '日' : '农历日'}
               </label>
               <select
                 value={date.day}
                 onChange={(e) => updateDate('day', parseInt(e.target.value))}
-                className="w-full min-w-[60px] px-3 py-2.5 rounded-lg border border-[#E8F0EB] bg-white text-sm text-[#2D4A38] focus:outline-none focus:ring-2 focus:ring-[#3DA35D]/30 focus:border-[#3DA35D] hover:border-[#3DA35D]/50 transition-all duration-200"
+                className="w-full min-w-[60px] px-3 py-2.5 rounded-lg border border-[var(--brand-border)] bg-white text-sm text-[var(--brand-heading)] focus:outline-none focus:ring-2 focus:ring-[#3DA35D]/30 focus:border-[#3DA35D] hover:border-[#3DA35D]/50 transition-all duration-200"
               >
                 {days.map((d) => (
                   <option key={d} value={d}>
@@ -414,11 +414,11 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
 
             {/* 时辰 */}
             <div className="min-w-0">
-              <label className="text-xs text-[#6B7F72] mb-1 block truncate">时辰</label>
+              <label className="text-xs text-[var(--brand-subtle)] mb-1 block truncate">时辰</label>
               <select
                 value={date.hour}
                 onChange={(e) => updateDate('hour', parseInt(e.target.value))}
-                className="w-full min-w-[70px] px-3 py-2.5 rounded-lg border border-[#E8F0EB] bg-white text-sm text-[#2D4A38] focus:outline-none focus:ring-2 focus:ring-[#3DA35D]/30 focus:border-[#3DA35D] hover:border-[#3DA35D]/50 transition-all duration-200"
+                className="w-full min-w-[70px] px-3 py-2.5 rounded-lg border border-[var(--brand-border)] bg-white text-sm text-[var(--brand-heading)] focus:outline-none focus:ring-2 focus:ring-[#3DA35D]/30 focus:border-[#3DA35D] hover:border-[#3DA35D]/50 transition-all duration-200"
               >
                 {HOUR_OPTIONS.map((h) => (
                   <option key={h.value} value={h.value}>
@@ -433,7 +433,7 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
           {calendarType === 'solar' && lunarDisplay && (
             <div className="flex items-center gap-2 px-2 py-1.5 bg-muted/30 rounded-lg text-xs">
               <Moon className="h-3 w-3 text-primary" />
-              <span className="text-[#6B7F72]">农历：</span>
+              <span className="text-[var(--brand-subtle)]">农历：</span>
               <span className="font-medium">
                 {lunarDisplay.lunarYearDisplay}
                 {lunarDisplay.lunarMonthDisplay}
@@ -447,27 +447,27 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
 
           {/* 性别选择 */}
           <div className="flex items-center gap-4">
-            <span className="text-sm text-[#6B7F72]">性别</span>
+            <span className="text-sm text-[var(--brand-subtle)]">性别</span>
             <div className="flex gap-3">
-              <label className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#E8F0EB] cursor-pointer hover:border-[#3DA35D]/50 hover:bg-[#F5F9F7] transition-all duration-200">
+              <label className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--brand-border)] cursor-pointer hover:border-[#3DA35D]/50 hover:bg-[var(--brand-surface-active)] transition-all duration-200">
                 <input
                   type="radio"
                   name="gender"
                   checked={gender === '男'}
                   onChange={() => switchGender('男')}
-                  className="w-4 h-4 text-[#3DA35D] focus:ring-[#3DA35D]/30 border-[#E8F0EB]"
+                  className="w-4 h-4 text-[#3DA35D] focus:ring-[#3DA35D]/30 border-[var(--brand-border)]"
                 />
-                <span className="text-sm text-[#2D4A38]">男</span>
+                <span className="text-sm text-[var(--brand-heading)]">男</span>
               </label>
-              <label className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#E8F0EB] cursor-pointer hover:border-[#D4656B]/50 hover:bg-[#FDF2F2] transition-all duration-200">
+              <label className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--brand-border)] cursor-pointer hover:border-[#D4656B]/50 hover:bg-[#FDF2F2] transition-all duration-200">
                 <input
                   type="radio"
                   name="gender"
                   checked={gender === '女'}
                   onChange={() => switchGender('女')}
-                  className="w-4 h-4 text-[#D4656B] focus:ring-[#D4656B]/30 border-[#E8F0EB]"
+                  className="w-4 h-4 text-[#D4656B] focus:ring-[#D4656B]/30 border-[var(--brand-border)]"
                 />
-                <span className="text-sm text-[#2D4A38]">女</span>
+                <span className="text-sm text-[var(--brand-heading)]">女</span>
               </label>
             </div>
           </div>
@@ -478,7 +478,7 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={handleClear}
-              className="flex-1 px-4 py-2 rounded-lg border border-[#E8F0EB] hover:bg-[#F5F9F7] transition-all duration-200 text-sm text-[#4A5F52] font-medium"
+              className="flex-1 px-4 py-2 rounded-lg border border-[var(--brand-border)] hover:bg-[var(--brand-surface-active)] transition-all duration-200 text-sm text-[var(--brand-body)] font-medium"
             >
               清除
             </motion.button>

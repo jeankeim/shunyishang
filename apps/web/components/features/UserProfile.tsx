@@ -253,7 +253,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
   if (!isAuthenticated || !user) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-[#6B7F72]">请先登录</p>
+        <p className="text-[var(--brand-subtle)]">请先登录</p>
       </div>
     )
   }
@@ -261,13 +261,13 @@ export function UserProfile({ onClose }: UserProfileProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-[#6B7F72]">加载中...</p>
+        <p className="text-[var(--brand-subtle)]">加载中...</p>
       </div>
     )
   }
 
   return (
-    <div className="max-w-4xl mx-auto h-full overflow-y-auto bg-gradient-to-br from-[#F8FAF9] to-white">
+    <div className="max-w-4xl mx-auto h-full overflow-y-auto bg-gradient-to-br from-[var(--brand-surface)] to-white">
       <div className="p-4 md:p-6 space-y-6">
         {/* 头部区域 */}
         <div className="flex justify-between items-start pb-4 border-b border-[var(--brand-border)]/60">
@@ -278,7 +278,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
               </div>
               <div>
                 <span>个人资料</span>
-                <p className="text-sm font-normal text-[#6B7F72] mt-1">
+                <p className="text-sm font-normal text-[var(--brand-subtle)] mt-1">
                   管理您的个人信息，用于精准的五行推荐
                 </p>
               </div>
@@ -286,7 +286,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
           </div>
           <button
             onClick={handleCancel}
-            className="p-2.5 rounded-xl hover:bg-[var(--brand-surface)] transition-all text-[#6B7F72] hover:text-[var(--brand-body)] hover:scale-105 active:scale-95"
+            className="p-2.5 rounded-xl hover:bg-[var(--brand-surface)] transition-all text-[var(--brand-subtle)] hover:text-[var(--brand-body)] hover:scale-105 active:scale-95"
             aria-label="关闭"
           >
             <X className="h-5 w-5" />
@@ -337,7 +337,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
                     value={formData.nickname || ''}
                     onChange={(e) => handleChange('nickname', e.target.value)}
                                                             placeholder="请输入昵称"
-                    className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[#6B7F72] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
+                    className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[var(--brand-subtle)] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
                   />
                 </div>
 
@@ -365,7 +365,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
                 <Calendar className="h-5 w-5 text-[#B89B5E]" />
                 出生信息
               </h3>
-              <p className="text-sm text-[#6B7F72] mb-5">
+              <p className="text-sm text-[var(--brand-subtle)] mb-5">
                 完善后可用于更精确的八字分析
               </p>
               
@@ -382,10 +382,10 @@ export function UserProfile({ onClose }: UserProfileProps) {
                       }}
                       dateFormat="yyyy/MM/dd"
                                             placeholderText="请选择出生日期"
-                      className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[#6B7F72] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
+                      className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[var(--brand-subtle)] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
                       calendarClassName="bg-white rounded-lg shadow-lg"
                     />
-                    <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-[#6B7F72] pointer-events-none" />
+                    <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-[var(--brand-subtle)] pointer-events-none" />
                   </div>
                 </div>
 
@@ -413,7 +413,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
                   value={formData.birth_location || ''}
                   onChange={(e) => handleChange('birth_location', e.target.value)}
                                     placeholder="请输入出生地（省市区）"
-                  className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[#6B7F72] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
+                  className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[var(--brand-subtle)] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
                 />
               </div>
             </section>
@@ -440,9 +440,9 @@ export function UserProfile({ onClose }: UserProfileProps) {
                     }}
                     onFocus={() => setShowCityDropdown(true)}
                                         placeholder="请输入或选择城市"
-                    className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[#6B7F72] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
+                    className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[var(--brand-subtle)] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
                   />
-                  <MapPin className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-[#6B7F72] pointer-events-none" />
+                  <MapPin className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-[var(--brand-subtle)] pointer-events-none" />
                   
                   {/* 城市下拉选项 */}
                   {showCityDropdown && (
@@ -458,9 +458,9 @@ export function UserProfile({ onClose }: UserProfileProps) {
                             type="button"
                             onClick={() => handleCitySelect(city)}
                             className={cn(
-                              "w-full text-left px-4 py-3 text-sm hover:bg-[#F0F9F4]/60 transition-colors first:rounded-t-xl last:rounded-b-xl",
+                              "w-full text-left px-4 py-3 text-sm hover:bg-[var(--brand-surface)]/60 transition-colors first:rounded-t-xl last:rounded-b-xl",
                               formData.preferred_city === city 
-                                ? "bg-[#F0F9F4] text-[#3DA35D] font-medium" 
+                                ? "bg-[var(--brand-surface)] text-[#3DA35D] font-medium" 
                                 : "text-[var(--brand-body)]"
                             )}
                           >
@@ -468,7 +468,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
                           </button>
                         ))
                       ) : (
-                        <div className="px-4 py-3 text-sm text-[#6B7F72]">
+                        <div className="px-4 py-3 text-sm text-[var(--brand-subtle)]">
                           未找到匹配的城市
                         </div>
                       )}
@@ -494,11 +494,11 @@ export function UserProfile({ onClose }: UserProfileProps) {
                   value={formData.avatar_url || ''}
                   onChange={(e) => handleChange('avatar_url', e.target.value)}
                                     placeholder="请输入头像图片链接"
-                  className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[#6B7F72] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
+                  className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[var(--brand-subtle)] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
                 />
                 {formData.avatar_url && (
-                  <div className="mt-4 p-4 bg-[#F8FAF9] rounded-xl">
-                    <p className="text-sm text-[#6B7F72] mb-3">头像预览：</p>
+                  <div className="mt-4 p-4 bg-[var(--brand-surface)] rounded-xl">
+                    <p className="text-sm text-[var(--brand-subtle)] mb-3">头像预览：</p>
                     <Image
                       src={formData.avatar_url}
                       alt="预览头像"
@@ -521,7 +521,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
               <button
                 type="button"
                 onClick={handleCancel}
-                className="px-6 py-3 text-[#6B7F72] hover:bg-[var(--brand-surface)] rounded-xl font-medium transition-all hover:scale-105 active:scale-95"
+                className="px-6 py-3 text-[var(--brand-subtle)] hover:bg-[var(--brand-surface)] rounded-xl font-medium transition-all hover:scale-105 active:scale-95"
               >
                 取消
               </button>

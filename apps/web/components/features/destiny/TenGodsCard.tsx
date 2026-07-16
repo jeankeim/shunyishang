@@ -15,7 +15,7 @@ const TEN_GOD_COLORS: Record<string, { bg: string; text: string; border: string 
   '正官': { bg: 'bg-[#4A90C4]/10', text: 'text-[#3570A0]', border: 'border-[#4A90C4]/30' },
   '偏印': { bg: 'bg-[#6B5B95]/10', text: 'text-[#5A4D7F]', border: 'border-[#6B5B95]/30' },
   '正印': { bg: 'bg-[#5DADE2]/10', text: 'text-[#2E86C1]', border: 'border-[#5DADE2]/30' },
-  '日主': { bg: 'bg-gradient-to-br from-[#3DA35D]/15 to-[#4A90C4]/15', text: 'text-[#2D4A38]', border: 'border-[#3DA35D]/40' },
+  '日主': { bg: 'bg-gradient-to-br from-[#3DA35D]/15 to-[#4A90C4]/15', text: 'text-[var(--brand-heading)]', border: 'border-[#3DA35D]/40' },
 }
 
 // 十神描述映射

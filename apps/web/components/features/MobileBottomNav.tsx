@@ -85,8 +85,8 @@ export function MobileBottomNav({ activeTab, onTabChange }: MobileBottomNavProps
                         aria-label={`切换到${item.label}页面`}
                         className="flex flex-col items-center gap-2 py-3 px-1 rounded-xl active:bg-stone-100 transition-colors"
                       >
-                        <Icon className={`w-6 h-6 transition-transform ${isActive ? 'scale-110 text-[#3DA35D]' : 'text-stone-500'}`} />
-                        <span className={`text-xs font-medium ${isActive ? 'text-[#3DA35D]' : 'text-stone-600'}`}>
+                        <Icon className={`w-6 h-6 transition-transform ${isActive ? 'scale-110 text-[hsl(var(--primary))]' : 'text-stone-500'}`} />
+                        <span className={`text-xs font-medium ${isActive ? 'text-[hsl(var(--primary))]' : 'text-stone-600'}`}>
                           {item.label}
                         </span>
                       </button>
@@ -116,13 +116,13 @@ export function MobileBottomNav({ activeTab, onTabChange }: MobileBottomNavProps
                 aria-label={`切换到${item.label}页面`}
                 aria-current={isActive ? 'page' : undefined}
                 className={`relative flex flex-col items-center justify-center min-w-[48px] min-h-[48px] gap-0.5 transition-all duration-200 touch-feedback ${
-                  isActive ? 'text-[#3DA35D]' : 'text-stone-500'
+                  isActive ? 'text-[hsl(var(--primary))]' : 'text-stone-500'
                 }`}
               >
                 {isActive && (
                   <motion.div
                     layoutId="bottomNavIndicator"
-                    className="absolute -top-px left-1/2 -translate-x-1/2 w-12 h-0.5 rounded-full bg-[#3DA35D]"
+                    className="absolute -top-px left-1/2 -translate-x-1/2 w-12 h-0.5 rounded-full bg-[hsl(var(--primary))]"
                     initial={false}
                     transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   />
@@ -132,10 +132,10 @@ export function MobileBottomNav({ activeTab, onTabChange }: MobileBottomNavProps
                   animate={isActive ? { scale: 1.1 } : { scale: 1 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <Icon className={`w-5 h-5 ${isActive ? 'text-[#3DA35D]' : 'text-stone-500'}`} strokeWidth={isActive ? 2.5 : 2} />
+                  <Icon className={`w-5 h-5 ${isActive ? 'text-[hsl(var(--primary))]' : 'text-stone-500'}`} strokeWidth={isActive ? 2.5 : 2} />
                 </motion.div>
                 <span className={`text-xs font-medium transition-all duration-200 ${
-                  isActive ? 'text-[#3DA35D]' : 'text-stone-500'
+                  isActive ? 'text-[hsl(var(--primary))]' : 'text-stone-500'
                 }`}>
                   {item.label}
                 </span>
@@ -158,21 +158,21 @@ export function MobileBottomNav({ activeTab, onTabChange }: MobileBottomNavProps
             aria-expanded={showMore}
             aria-current={isMoreActive ? 'page' : undefined}
             className={`relative flex flex-col items-center justify-center min-w-[48px] min-h-[48px] gap-0.5 transition-all duration-200 touch-feedback ${
-              isMoreActive ? 'text-[#3DA35D]' : 'text-stone-500'
+              isMoreActive ? 'text-[hsl(var(--primary))]' : 'text-stone-500'
             }`}
           >
             {isMoreActive && (
-              <div className="absolute -top-px left-1/2 -translate-x-1/2 w-12 h-0.5 rounded-full bg-[#3DA35D]" />
+              <div className="absolute -top-px left-1/2 -translate-x-1/2 w-12 h-0.5 rounded-full bg-[hsl(var(--primary))]" />
             )}
             <motion.div
               aria-hidden="true"
               animate={isMoreActive ? { scale: 1.1 } : { scale: 1 }}
               transition={{ duration: 0.2 }}
             >
-              <Menu className={`w-5 h-5 ${isMoreActive ? 'text-[#3DA35D]' : 'text-stone-500'}`} strokeWidth={isMoreActive ? 2.5 : 2} />
+              <Menu className={`w-5 h-5 ${isMoreActive ? 'text-[hsl(var(--primary))]' : 'text-stone-500'}`} strokeWidth={isMoreActive ? 2.5 : 2} />
             </motion.div>
             <span className={`text-xs font-medium transition-all duration-200 ${
-              isMoreActive ? 'text-[#3DA35D]' : 'text-stone-500'
+              isMoreActive ? 'text-[hsl(var(--primary))]' : 'text-stone-500'
             }`}>
               更多
             </span>

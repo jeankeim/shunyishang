@@ -197,7 +197,7 @@ function EmptyState({ error, onRetry }: { error: string | null; onRetry: () => v
         <p className="text-sm text-red-500 mb-3">{error}</p>
         <button
           onClick={onRetry}
-          className="px-4 py-2 text-sm text-[#3DA35D] hover:bg-[#F0F7F4] rounded-lg transition-colors"
+          className="px-4 py-2 text-sm text-[hsl(var(--primary))] hover:bg-[var(--brand-surface)] rounded-lg transition-colors"
         >
           重试
         </button>

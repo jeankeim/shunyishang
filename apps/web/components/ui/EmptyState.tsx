@@ -42,7 +42,7 @@ export function EmptyState({
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: 0.1, type: 'spring', stiffness: 300, damping: 25 }}
-        className="w-24 h-24 mb-6 rounded-full bg-gradient-to-br from-[#F0F7F4] to-[#E8F5EC] flex items-center justify-center shadow-sm"
+        className="w-24 h-24 mb-6 rounded-full bg-gradient-to-br from-[var(--brand-surface)] to-[var(--brand-surface-active)] flex items-center justify-center shadow-sm"
       >
         <Icon className="w-12 h-12 text-[#3DA35D]/40" />
       </motion.div>
@@ -51,7 +51,7 @@ export function EmptyState({
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="text-lg font-semibold text-[#2D4A38] mb-2 text-center"
+        className="text-lg font-semibold text-[var(--brand-heading)] mb-2 text-center"
       >
         {title}
       </motion.h3>
@@ -61,7 +61,7 @@ export function EmptyState({
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="text-sm text-[#6B7F72] mb-6 text-center max-w-xs leading-relaxed"
+          className="text-sm text-[var(--brand-subtle)] mb-6 text-center max-w-xs leading-relaxed"
         >
           {description}
         </motion.p>

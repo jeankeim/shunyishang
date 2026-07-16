@@ -79,8 +79,8 @@ export function BaziCard({ onEdit }: BaziCardProps) {
             <Sparkles className="h-4 w-4 text-white" />
           </motion.div>
           <div>
-            <h2 className="font-semibold text-[#2D4A38] text-base font-serif">我的八字</h2>
-            <p className="text-xs text-[#6B7F72]">已为您自动分析</p>
+            <h2 className="font-semibold text-[var(--brand-heading)] text-base font-serif">我的八字</h2>
+            <p className="text-xs text-[var(--brand-subtle)]">已为您自动分析</p>
           </div>
         </div>
         {onEdit && (
@@ -88,7 +88,7 @@ export function BaziCard({ onEdit }: BaziCardProps) {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={onEdit}
-            className="flex items-center gap-1 px-3 py-1.5 text-xs text-[#3DA35D] hover:text-[#2D7A45] hover:bg-[#F0F7F4] rounded-lg transition-all duration-200"
+            className="flex items-center gap-1 px-3 py-1.5 text-xs text-[#3DA35D] hover:text-[#2D7A45] hover:bg-[var(--brand-surface)] rounded-lg transition-all duration-200"
           >
             <Edit3 className="h-3 w-3" />
             修改
@@ -100,7 +100,7 @@ export function BaziCard({ onEdit }: BaziCardProps) {
       <div className="grid grid-cols-4 gap-2 mb-4">
         {pillars.map((pillar, idx) => (
           <div key={idx} className="text-center">
-            <div className="text-xs text-[#6B7F72] font-medium mb-1">{pillar.name}</div>
+            <div className="text-xs text-[var(--brand-subtle)] font-medium mb-1">{pillar.name}</div>
             <div className="space-y-1">
               <div className={`w-9 h-9 mx-auto rounded-lg ${getGanColor(pillar.gan)} text-white flex items-center justify-center font-bold text-sm shadow-sm`}>
                 {pillar.gan}
@@ -117,11 +117,11 @@ export function BaziCard({ onEdit }: BaziCardProps) {
       {xiyong && xiyong.length > 0 && (
         <motion.div 
           whileHover={{ scale: 1.01 }}
-          className="inner-card p-3 mb-3 bg-gradient-to-br from-white to-[#F8FAF9]"
+          className="inner-card p-3 mb-3 bg-gradient-to-br from-white to-[var(--brand-surface)]"
         >
           <div className="flex items-center gap-2 mb-2">
             <Sparkles className="h-3 w-3 text-[#B89B5E]" />
-            <span className="text-xs font-medium text-[#4A5F52]">喜用神</span>
+            <span className="text-xs font-medium text-[var(--brand-body)]">喜用神</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {xiyong.map((element: string, idx: number) => {
@@ -137,7 +137,7 @@ export function BaziCard({ onEdit }: BaziCardProps) {
               )
             })}
           </div>
-          <p className="text-xs text-[#6B7F72] mt-2 flex items-center gap-1">
+          <p className="text-xs text-[var(--brand-subtle)] mt-2 flex items-center gap-1">
             <span className="w-1 h-1 bg-[#B89B5E] rounded-full"></span>
             后续推荐将以此为依据
           </p>
@@ -150,7 +150,7 @@ export function BaziCard({ onEdit }: BaziCardProps) {
           whileHover={{ scale: 1.01 }}
           className="inner-card p-3 bg-gradient-to-br from-[#F5F7F9] to-[#F0F2F5]/80"
         >
-          <div className="text-xs text-[#6B7F72] mb-2 font-medium">需避免</div>
+          <div className="text-xs text-[var(--brand-subtle)] mb-2 font-medium">需避免</div>
           <div className="flex flex-wrap gap-2">
             {avoidElements.map((element: string, idx: number) => (
               <span
@@ -166,7 +166,7 @@ export function BaziCard({ onEdit }: BaziCardProps) {
       
       {/* 出生信息 */}
       {(user.birth_date || user.birth_time) && (
-        <div className="mt-3 pt-3 divider-subtle flex items-center gap-4 text-xs text-[#6B7F72]">
+        <div className="mt-3 pt-3 divider-subtle flex items-center gap-4 text-xs text-[var(--brand-subtle)]">
           {user.birth_date && (
             <span className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />

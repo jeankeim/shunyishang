@@ -45,7 +45,7 @@ export function ChatInput({ onSend, disabled, bazi }: ChatInputProps) {
             }
           }}
           placeholder="描述你的穿搭需求..."
-          className="flex-1 min-h-[60px] max-h-[200px] resize-none rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-[#2D4A38] focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 shadow-sm placeholder:text-[#6B7F72] font-medium"
+          className="flex-1 min-h-[60px] max-h-[200px] resize-none rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-[var(--brand-heading)] focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 shadow-sm placeholder:text-[var(--brand-subtle)] font-medium"
           disabled={disabled}
         />
 

@@ -35,7 +35,7 @@ export function FiveElementList({ currentData, suggestedData, xiyongShen }: Five
                 <span className="text-[var(--brand-heading)] font-medium">{el.name}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[#6B7F72]">现 {Math.round(el.current * 100)}%</span>
+                <span className="text-[var(--brand-subtle)]">现 {Math.round(el.current * 100)}%</span>
                 {el.suggested > 0 && (
                   <span className="text-[#3DA35D] font-medium">→ {Math.round(el.suggested * 100)}%</span>
                 )}

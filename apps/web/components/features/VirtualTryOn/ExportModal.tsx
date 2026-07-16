@@ -173,24 +173,24 @@ export function ExportModal({
             onClick={(e) => e.stopPropagation()}
           >
             {/* 头部 */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#E8F0EB]/60">
-              <h2 className="text-base font-semibold text-[#2D4A38]">导出试衣效果</h2>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--brand-border)]/60">
+              <h2 className="text-base font-semibold text-[var(--brand-heading)]">导出试衣效果</h2>
               <button
                 onClick={onClose}
-                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[#F0F7F4] transition-colors"
+                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[var(--brand-surface)] transition-colors"
                 aria-label="关闭导出弹窗"
               >
-                <X className="w-4 h-4 text-[#6B7F72]" />
+                <X className="w-4 h-4 text-[var(--brand-subtle)]" />
               </button>
             </div>
 
             {/* 预览区域 */}
             <div className="p-5">
-              <div className="aspect-[9/16] w-full rounded-xl overflow-hidden bg-[#F8F9FA] border border-[#E8F0EB]/50 flex items-center justify-center">
+              <div className="aspect-[9/16] w-full rounded-xl overflow-hidden bg-[#F8F9FA] border border-[var(--brand-border)]/50 flex items-center justify-center">
                 {status === 'generating' && (
                   <div className="flex flex-col items-center gap-3">
                     <Loader2 className="w-8 h-8 text-[#3DA35D] animate-spin" />
-                    <span className="text-sm text-[#6B7F72]">生成中...</span>
+                    <span className="text-sm text-[var(--brand-subtle)]">生成中...</span>
                   </div>
                 )}
                 {status === 'done' && exportUrl && (
@@ -204,7 +204,7 @@ export function ExportModal({
                   <p className="text-sm text-[#D4656B]">生成失败，请重试</p>
                 )}
                 {status === 'idle' && (
-                  <p className="text-sm text-[#6B7F72]">准备中...</p>
+                  <p className="text-sm text-[var(--brand-subtle)]">准备中...</p>
                 )}
               </div>
             </div>
@@ -223,7 +223,7 @@ export function ExportModal({
               <button
                 onClick={handleShare}
                 disabled={status !== 'done'}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-[#E8F0EB] text-[#2D4A38] font-medium hover:bg-[#F0F7F4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-[var(--brand-border)] text-[var(--brand-heading)] font-medium hover:bg-[var(--brand-surface)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="分享图片"
               >
                 <Share2 className="w-4 h-4" />
