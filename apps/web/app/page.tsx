@@ -520,17 +520,17 @@ export default function Home() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3, ease: "easeOut" }}
-          className="flex-1 overflow-y-auto overflow-x-visible bg-stone-50/50 backdrop-blur-sm p-3 md:p-4 pb-24 md:pb-4"
-          style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom, 0px))' }} // 为移动端底部导航预留空间
+          className="flex-1 overflow-y-auto overflow-x-visible bg-white p-3 md:p-4 pb-24 md:pb-4"
+          style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom, 0px))' }}
         >
-          <AnimatePresence mode="wait">
+          <AnimatePresence initial={false}>
             {activeTab === 'chat' && (
               <motion.div
                 key="chat"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
               >
                 {/* 智能提醒横幅 */}
                 {smartAlerts.length > 0 && (
@@ -598,10 +598,10 @@ export default function Home() {
             {activeTab === 'wardrobe' && (
               <motion.div
                 key="wardrobe"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
               >
                 <Suspense fallback={<PageLoadingFallback />}>
                   <WardrobePage />
@@ -611,10 +611,10 @@ export default function Home() {
             {activeTab === 'profile' && (
               <motion.div
                 key="profile"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
               >
                 <UserProfile 
                   onClose={() => {
@@ -627,10 +627,10 @@ export default function Home() {
             {activeTab === 'tryon' && (
               <motion.div
                 key="tryon"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
                 className="h-[calc(100vh-200px)] min-h-[400px]"
               >
                 <iframe
@@ -644,10 +644,10 @@ export default function Home() {
             {activeTab === 'diary' && (
               <motion.div
                 key="diary"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
               >
                 <Suspense fallback={<PageLoadingFallback />}>
                   <DiaryPage />
@@ -657,10 +657,10 @@ export default function Home() {
             {activeTab === 'fortune' && (
               <motion.div
                 key="fortune"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
               >
                 <Suspense fallback={<PageLoadingFallback />}>
                   <FortunePage />
@@ -670,10 +670,10 @@ export default function Home() {
             {activeTab === 'destiny' && (
               <motion.div
                 key="destiny"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
               >
                 <Suspense fallback={<PageLoadingFallback />}>
                   <DestinyPage />
@@ -683,10 +683,10 @@ export default function Home() {
             {activeTab === 'community' && (
               <motion.div
                 key="community"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
               >
                 <Suspense fallback={<PageLoadingFallback />}>
                   <CommunityPage />
@@ -696,10 +696,10 @@ export default function Home() {
             {activeTab === 'cultivation' && (
               <motion.div
                 key="cultivation"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
               >
                 <Suspense fallback={<PageLoadingFallback />}>
                   <CultivationPage />
