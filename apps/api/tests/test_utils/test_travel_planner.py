@@ -473,17 +473,17 @@ class TestWeatherItemScore:
 
     def test_low_temp_thick_bonus(self):
         """低温厚衣物加分"""
-        item = {"functionality": [], "thickness_level": "厚"}
+        item = {"functionality": [], "thickness_level": "厚重"}
         weather = {"weather_desc": "阴", "temperature_max": 5, "temperature_min": -2}
         score = _weather_item_score(item, weather)
-        assert score > 0.5  # 基础0.5 + 厚0.1
+        assert score > 0.5  # 基础0.5 + 厚重0.2
 
     def test_mild_weather_base_score(self):
         """温和天气基础分"""
         item = {"functionality": [], "thickness_level": "适中"}
         weather = {"weather_desc": "多云", "temperature_max": 22, "temperature_min": 15}
         score = _weather_item_score(item, weather)
-        assert score == 0.5  # 无加分
+        assert score == 0.65  # 基础0.5 + 适中厚度0.15
 
     def test_functionality_as_json_string(self):
         """functionality 为 JSON 字符串"""
@@ -497,7 +497,7 @@ class TestWeatherItemScore:
         item = {"functionality": "invalid", "thickness_level": "适中"}
         weather = {"weather_desc": "雨", "temperature_max": 20, "temperature_min": 15}
         score = _weather_item_score(item, weather)
-        assert score == 0.5  # 无加分，但不报错
+        assert score == 0.65  # 适中厚度+0.15，无效JSON功能无天气加分
 
     def test_score_capped_at_1(self):
         """评分上限为1.0"""

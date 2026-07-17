@@ -142,7 +142,7 @@ class TestAddItem:
 
         test_app.dependency_overrides[get_current_user] = lambda: mock_user
         try:
-            with patch("apps.api.services.embedding_service.embedding_service") as mock_emb:
+            with patch("apps.api.routers.wardrobe.embedding_service") as mock_emb:
                 mock_emb.generate_embedding.return_value = [0.1] * 1024
                 response = await async_client.post(
                     "/api/v1/wardrobe/items",
@@ -184,7 +184,7 @@ class TestAddItem:
         try:
             with patch("apps.api.routers.wardrobe.ai_tagging_service") as mock_ai:
                 mock_ai.analyze_item = AsyncMock(return_value=ai_result)
-                with patch("apps.api.services.embedding_service.embedding_service") as mock_emb:
+                with patch("apps.api.routers.wardrobe.embedding_service") as mock_emb:
                     mock_emb.generate_embedding.return_value = [0.1] * 1024
                     response = await async_client.post(
                         "/api/v1/wardrobe/items",

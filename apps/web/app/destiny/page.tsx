@@ -61,7 +61,7 @@ export default function DestinyPage() {
           whileTap={{ scale: 0.95 }}
           onClick={() => fetchAll()}
           disabled={isLoading}
-          className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] text-white text-sm font-medium shadow-sm disabled:opacity-60"
+          className="px-4 py-2 rounded-xl bg-gradient-to-r from-[var(--wuxing-wood)] to-[var(--wuxing-water)] text-white text-sm font-medium shadow-sm disabled:opacity-60"
         >
           {isLoading ? '分析中...' : '重新分析'}
         </motion.button>

@@ -27,6 +27,10 @@ vi.mock('@/store/membership', () => ({
   useMembershipStore: () => mockStoreData,
 }))
 
+vi.mock('@/store/user', () => ({
+  useUserStore: () => ({ isAuthenticated: true, isLoading: false }),
+}))
+
 const mockNotifications: PushNotification[] = [
   {
     id: 1,
@@ -155,17 +159,17 @@ describe('NotificationBell', () => {
     }
   })
 
-  it('should render "查看会员中心" link when notifications exist', () => {
+  it('should render notifications when dropdown is open', () => {
     render(<NotificationBell />)
     fireEvent.click(screen.getByLabelText(/通知/))
-    expect(screen.getByText('查看会员中心 →')).toBeInTheDocument()
+    expect(screen.getByText('今日运势已更新')).toBeInTheDocument()
   })
 
-  it('should not render "查看会员中心" when no notifications', () => {
+  it('should render "暂无通知" when no notifications', () => {
     mockStoreData.notifications = []
     render(<NotificationBell />)
     fireEvent.click(screen.getByLabelText(/通知/))
-    expect(screen.queryByText('查看会员中心 →')).not.toBeInTheDocument()
+    expect(screen.getByText('暂无通知')).toBeInTheDocument()
   })
 
   it('should render notification body text', () => {

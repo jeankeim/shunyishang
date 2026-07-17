@@ -94,18 +94,18 @@ class TestPushRouter:
 
     @pytest.mark.asyncio
     async def test_wechat_callback(self, async_client):
-        """微信支付回调（无需认证）"""
+        """微信支付回调（个人备案版：支付路由已禁用，返回404）"""
         response = await async_client.post(
             "/api/v1/payments/callback/wechat",
             json={"transaction_id": "TX-001", "status": "completed"},
         )
-        assert response.status_code == 200
+        assert response.status_code == 404
 
     @pytest.mark.asyncio
     async def test_alipay_callback(self, async_client):
-        """支付宝回调（无需认证）"""
+        """支付宝回调（个人备案版：支付路由已禁用，返回404）"""
         response = await async_client.post(
             "/api/v1/payments/callback/alipay",
             json={"transaction_id": "TX-002", "status": "completed"},
         )
-        assert response.status_code == 200
+        assert response.status_code == 404

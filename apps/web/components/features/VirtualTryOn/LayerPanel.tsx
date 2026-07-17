@@ -29,7 +29,7 @@ export function LayerPanel({
     return (
       <div className="p-4 bg-white/95 backdrop-blur-xl rounded-2xl border border-[var(--brand-border)]/60 shadow-lg">
         <div className="flex items-center gap-2 mb-3">
-          <Layers className="w-4 h-4 text-[#3DA35D]" />
+          <Layers className="w-4 h-4 text-[var(--wuxing-wood)]" />
           <h3 className="text-sm font-semibold text-[var(--brand-heading)]">图层</h3>
         </div>
         <p className="text-xs text-[var(--brand-subtle)] text-center py-4">暂无图层，请添加照片或衣物</p>
@@ -40,7 +40,7 @@ export function LayerPanel({
   return (
     <div className="p-3 bg-white/95 backdrop-blur-xl rounded-2xl border border-[var(--brand-border)]/60 shadow-lg max-h-60 overflow-y-auto">
       <div className="flex items-center gap-2 mb-2 px-1">
-        <Layers className="w-4 h-4 text-[#3DA35D]" />
+        <Layers className="w-4 h-4 text-[var(--wuxing-wood)]" />
         <h3 className="text-sm font-semibold text-[var(--brand-heading)]">图层</h3>
         <span className="text-xs text-[var(--brand-subtle)] ml-auto">{layers.length}</span>
       </div>
@@ -60,7 +60,7 @@ export function LayerPanel({
                 onClick={() => onSelectLayer(layer.id)}
                 className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-colors duration-150 ${
                   isSelected
-                    ? 'bg-[var(--brand-surface)] border border-[#3DA35D]/30'
+                    ? 'bg-[var(--brand-surface)] border border-[var(--wuxing-wood)]/30'
                     : 'hover:bg-[var(--brand-surface)] border border-transparent'
                 }`}
                 role="option"

@@ -9,6 +9,7 @@ vi.mock('framer-motion', () => ({
     div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
     button: ({ children, onClick, ...props }: any) => <button onClick={onClick} {...props}>{children}</button>,
   },
+  AnimatePresence: ({ children }: any) => <>{children}</>,
 }))
 
 const mockItem1: DiaryOutfitItem = {

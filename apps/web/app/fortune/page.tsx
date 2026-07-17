@@ -10,6 +10,7 @@ import { useFortuneStore } from '@/store/fortune'
 import { useUserStore } from '@/store/user'
 import { generateAnnualReport, getFortuneReport, getFortuneReports, getWeeklyFortune, type WeeklyFortune } from '@/lib/api'
 import { createPortal } from 'react-dom'
+import { SkeletonCard, EmptyState } from '@/components/ui'
 
 // ========== 本周运势概览卡片（可折叠） ==========
 function WeeklyFortuneCard() {
@@ -242,8 +243,10 @@ export default function FortunePage() {
 
   if (isLoading && !todayFortune) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <div className="animate-spin rounded-full h-10 w-10 border-2 border-emerald-500 border-t-transparent" />
+      <div className="max-w-4xl mx-auto space-y-4">
+        <SkeletonCard lines={2} />
+        <SkeletonCard lines={3} showImage={false} />
+        <SkeletonCard lines={2} showImage={false} />
       </div>
     )
   }
@@ -261,7 +264,7 @@ export default function FortunePage() {
           whileTap={{ scale: 0.95 }}
           onClick={regenerateFortune}
           disabled={isLoading}
-          className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] text-white text-sm font-medium shadow-sm disabled:opacity-60"
+          className="px-4 py-2 rounded-xl bg-gradient-to-r from-[var(--wuxing-wood)] to-[var(--wuxing-water)] text-white text-sm font-medium shadow-sm disabled:opacity-60"
         >
           {isLoading ? '生成中...' : '重新生成'}
         </motion.button>
@@ -365,11 +368,11 @@ export default function FortunePage() {
           </div>
         </motion.div>
       ) : (
-        <div className="text-center py-12 bg-white rounded-2xl border border-stone-100">
-          <p className="text-3xl mb-2">🌟</p>
-          <p className="text-sm text-stone-500">暂无运势数据</p>
-          <p className="text-xs text-stone-400 mt-1">点击上方按钮生成今日运势</p>
-        </div>
+        <EmptyState
+          icon="search"
+          title="暂无运势数据"
+          description="点击上方按钮生成今日运势"
+        />
       )}
 
       {error && (

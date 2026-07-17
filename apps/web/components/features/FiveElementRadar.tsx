@@ -184,7 +184,7 @@ export function FiveElementRadar({
                   key={i}
                   className={cn(
                     'w-8 h-8 flex items-center justify-center rounded-lg shadow-sm',
-                    i % 2 === 0 ? 'bg-primary/20 text-[#2D7A45] border border-[#3DA35D]/30' : 'bg-[#F5F7F9] text-[#6B7F8C] border border-[#8A9BA8]/30'
+                    i % 2 === 0 ? 'bg-primary/20 text-[#2D7A45] border border-[var(--wuxing-wood)]/30' : 'bg-[#F5F7F9] text-[#6B7F8C] border border-[#8A9BA8]/30'
                   )}
                   title={i % 2 === 0 ? '天干' : '地支'}
                 >

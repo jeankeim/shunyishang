@@ -144,7 +144,7 @@ export function MobileBottomNav({ activeTab, onTabChange }: MobileBottomNavProps
                     className="absolute inset-0 rounded-xl"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 0.08 }}
-                    style={{ background: 'linear-gradient(135deg, #3DA35D20, #4A90C420)' }}
+                    style={{ background: 'linear-gradient(135deg, hsl(var(--primary) / 0.08), hsl(var(--ring) / 0.08))' }}
                   />
                 )}
               </button>
@@ -181,7 +181,7 @@ export function MobileBottomNav({ activeTab, onTabChange }: MobileBottomNavProps
                 className="absolute inset-0 rounded-xl"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 0.08 }}
-                style={{ background: 'linear-gradient(135deg, #3DA35D20, #4A90C420)' }}
+                style={{ background: 'linear-gradient(135deg, hsl(var(--primary) / 0.08), hsl(var(--ring) / 0.08))' }}
               />
             )}
           </button>

@@ -4,11 +4,12 @@ import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { useUserStore } from '@/store/user'
-import { Calendar, MapPin, User, Save, Loader2, X, Sparkles } from 'lucide-react'
+import { Calendar, MapPin, User, Save, Loader2, X, Sparkles, LogOut } from 'lucide-react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { getUserProfile, calculateBazi, updateUserBazi } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { PreferenceRadar } from './PreferenceRadar'
 
 interface UserProfileData {
   nickname: string | null
@@ -35,20 +36,40 @@ interface UserProfileProps {
   onClose?: () => void
 }
 
-// 常用城市列表
+// 常用城市列表（与后端 CITY_ID_MAP 同步，100+城市）
 const COMMON_CITIES = [
-  '北京', '上海', '广州', '深圳', '杭州', '南京', '苏州', '成都', 
-  '武汉', '西安', '重庆', '天津', '青岛', '大连', '厦门', '福州',
-  '长沙', '郑州', '沈阳', '长春', '哈尔滨', '石家庄', '太原', '合肥',
-  '南昌', '南宁', '海口', '贵阳', '昆明', '拉萨', '银川', '乌鲁木齐'
+  // 直辖市
+  '北京', '上海', '天津', '重庆',
+  // 省会/首府
+  '哈尔滨', '长春', '沈阳', '呼和浩特', '石家庄', '太原',
+  '济南', '郑州', '西安', '兰州', '银川', '西宁', '乌鲁木齐',
+  '合肥', '南京', '杭州', '福州', '南昌', '武汉', '长沙',
+  '广州', '南宁', '海口', '成都', '贵阳', '昆明', '拉萨', '台北',
+  // 计划单列市/经济特区
+  '深圳', '厦门', '宁波', '青岛', '大连',
+  // 其他主要城市
+  '苏州', '无锡', '常州', '佛山', '东莞', '珠海',
+  '温州', '嘉兴', '绍兴', '金华', '台州',
+  '泉州', '烟台', '潍坊', '威海', '日照',
+  '洛阳', '开封', '宜昌', '襄阳', '株洲', '岳阳',
+  '桂林', '柳州', '三亚', '绵阳', '德阳', '遵义',
+  '大理', '丽江', '唐山', '保定', '廊坊', '秦皇岛', '邯郸',
+  '吉林', '延吉', '鞍山', '锦州', '营口',
+  '泰安', '临沂', '淄博', '徐州', '连云港', '盐城', '南通', '扬州', '镇江', '泰州',
+  '漳州', '龙岩', '莆田', '九江', '赣州', '上饶',
+  '蚌埠', '芜湖', '黄山', '安庆', '马鞍山',
+  '许昌', '新乡', '南阳', '信阳', '焦作',
+  '湘潭', '衡阳', '常德', '韶关', '惠州', '汕头', '湛江', '江门', '肇庆', '梅州', '潮州',
+  '百色', '梧州', '北海',
 ]
 
 export function UserProfile({ onClose }: UserProfileProps) {
-  const { user, isAuthenticated, updateProfile, fetchUserInfo } = useUserStore()
+  const { user, isAuthenticated, updateProfile, fetchUserInfo, logout } = useUserStore()
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
   const [fullProfile, setFullProfile] = useState<FullUserProfile | null>(null)
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [formData, setFormData] = useState<UserProfileData>({
     nickname: '',
     gender: '',
@@ -241,6 +262,18 @@ export function UserProfile({ onClose }: UserProfileProps) {
     onClose?.()
   }
 
+  const handleLogout = async () => {
+    try {
+      await logout()
+      setShowLogoutConfirm(false)
+      // 强制刷新页面确保状态完全清除
+      window.location.reload()
+    } catch (error) {
+      console.error('退出登录失败:', error)
+      setMessage({ type: 'error', text: '退出登录失败，请重试' })
+    }
+  }
+
   const handleCitySelect = (city: string) => {
     handleChange('preferred_city', city)
     setShowCityDropdown(false)
@@ -273,7 +306,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
         <div className="flex justify-between items-start pb-4 border-b border-[var(--brand-border)]/60">
           <div className="flex-1">
             <h2 className="text-xl md:text-2xl font-bold flex items-center gap-3 text-[var(--brand-heading)]">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#3DA35D] to-[#4A90C4] flex items-center justify-center shadow-lg">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--wuxing-wood)] to-[var(--wuxing-water)] flex items-center justify-center shadow-lg">
                 <User className="h-5 w-5 text-white" />
               </div>
               <div>
@@ -337,7 +370,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
                     value={formData.nickname || ''}
                     onChange={(e) => handleChange('nickname', e.target.value)}
                                                             placeholder="请输入昵称"
-                    className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[var(--brand-subtle)] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
+                    className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[var(--brand-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--wuxing-wood)] focus:border-transparent transition-all hover:border-[var(--wuxing-wood)]/40"
                   />
                 </div>
 
@@ -349,7 +382,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
                     id="gender"
                     value={formData.gender || ''}
                     onChange={(e) => handleChange('gender', e.target.value)}
-                    className="input-elegant w-full px-3 py-2.5 text-sm text-[var(--brand-heading)] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] transition-all"
+                    className="input-elegant w-full px-3 py-2.5 text-sm text-[var(--brand-heading)] focus:outline-none focus:ring-2 focus:ring-[var(--wuxing-wood)] transition-all"
                   >
                     <option value="">请选择</option>
                     <option value="男">男</option>
@@ -362,7 +395,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
             {/* 出生信息 */}
             <section className="bg-white rounded-2xl p-5 shadow-sm border border-[var(--brand-border)]/40">
               <h3 className="text-lg font-semibold flex items-center gap-2 text-[var(--brand-heading)] pb-3 mb-4 border-b border-[var(--brand-border)]/40">
-                <Calendar className="h-5 w-5 text-[#B89B5E]" />
+                <Calendar className="h-5 w-5 text-[var(--wuxing-earth)]" />
                 出生信息
               </h3>
               <p className="text-sm text-[var(--brand-subtle)] mb-5">
@@ -382,7 +415,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
                       }}
                       dateFormat="yyyy/MM/dd"
                                             placeholderText="请选择出生日期"
-                      className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[var(--brand-subtle)] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
+                      className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[var(--brand-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--wuxing-wood)] focus:border-transparent transition-all hover:border-[var(--wuxing-wood)]/40"
                       calendarClassName="bg-white rounded-lg shadow-lg"
                     />
                     <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-[var(--brand-subtle)] pointer-events-none" />
@@ -398,7 +431,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
                     type="time"
                     value={formData.birth_time || ''}
                                         onChange={(e) => handleChange('birth_time', e.target.value)}
-                    className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
+                    className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] focus:outline-none focus:ring-2 focus:ring-[var(--wuxing-wood)] focus:border-transparent transition-all hover:border-[var(--wuxing-wood)]/40"
                   />
                 </div>
               </div>
@@ -413,7 +446,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
                   value={formData.birth_location || ''}
                   onChange={(e) => handleChange('birth_location', e.target.value)}
                                     placeholder="请输入出生地（省市区）"
-                  className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[var(--brand-subtle)] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
+                  className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[var(--brand-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--wuxing-wood)] focus:border-transparent transition-all hover:border-[var(--wuxing-wood)]/40"
                 />
               </div>
             </section>
@@ -421,7 +454,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
             {/* 偏好设置 */}
             <section className="bg-white rounded-2xl p-5 shadow-sm border border-[var(--brand-border)]/40">
               <h3 className="text-lg font-semibold flex items-center gap-2 text-[var(--brand-heading)] pb-3 mb-4 border-b border-[var(--brand-border)]/40">
-                <MapPin className="h-5 w-5 text-[#3DA35D]" />
+                <MapPin className="h-5 w-5 text-[var(--wuxing-wood)]" />
                 偏好设置
               </h3>
               
@@ -440,7 +473,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
                     }}
                     onFocus={() => setShowCityDropdown(true)}
                                         placeholder="请输入或选择城市"
-                    className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[var(--brand-subtle)] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
+                    className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[var(--brand-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--wuxing-wood)] focus:border-transparent transition-all hover:border-[var(--wuxing-wood)]/40"
                   />
                   <MapPin className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-[var(--brand-subtle)] pointer-events-none" />
                   
@@ -460,7 +493,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
                             className={cn(
                               "w-full text-left px-4 py-3 text-sm hover:bg-[var(--brand-surface)]/60 transition-colors first:rounded-t-xl last:rounded-b-xl",
                               formData.preferred_city === city 
-                                ? "bg-[var(--brand-surface)] text-[#3DA35D] font-medium" 
+                                ? "bg-[var(--brand-surface)] text-[var(--wuxing-wood)] font-medium" 
                                 : "text-[var(--brand-body)]"
                             )}
                           >
@@ -478,6 +511,9 @@ export function UserProfile({ onClose }: UserProfileProps) {
               </div>
             </section>
 
+            {/* 偏好画像（雷达图） */}
+            <PreferenceRadar />
+
             {/* 头像设置 */}
             <section className="bg-white rounded-2xl p-5 shadow-sm border border-[var(--brand-border)]/40">
               <h3 className="text-lg font-semibold text-[var(--brand-heading)] pb-3 mb-4 border-b border-[var(--brand-border)]/40">
@@ -494,7 +530,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
                   value={formData.avatar_url || ''}
                   onChange={(e) => handleChange('avatar_url', e.target.value)}
                                     placeholder="请输入头像图片链接"
-                  className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[var(--brand-subtle)] focus:outline-none focus:ring-2 focus:ring-[#3DA35D] focus:border-transparent transition-all hover:border-[#3DA35D]/40"
+                  className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[var(--brand-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--wuxing-wood)] focus:border-transparent transition-all hover:border-[var(--wuxing-wood)]/40"
                 />
                 {formData.avatar_url && (
                   <div className="mt-4 p-4 bg-[var(--brand-surface)] rounded-xl">
@@ -528,7 +564,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
               <button 
                 type="submit" 
                 disabled={saving}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] hover:from-[#359454] hover:to-[#3F84B5] disabled:from-stone-300 disabled:to-stone-400 text-white rounded-xl font-medium transition-all shadow-md hover:shadow-lg hover:scale-105 active:scale-95 disabled:scale-100"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[var(--wuxing-wood)] to-[var(--wuxing-water)] hover:opacity-90 disabled:from-stone-300 disabled:to-stone-400 text-white rounded-xl font-medium transition-all shadow-md hover:shadow-lg hover:scale-105 active:scale-95 disabled:scale-100"
               >
                 {saving ? (
                   <>
@@ -544,6 +580,42 @@ export function UserProfile({ onClose }: UserProfileProps) {
               </button>
             </div>
           </form>
+
+          {/* 退出登录 */}
+          <div className="pt-6 mt-6 border-t border-[var(--brand-border)]/60">
+            {showLogoutConfirm ? (
+              <motion.div
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-red-50/80 rounded-xl p-4 border border-red-200/60"
+              >
+                <p className="text-sm text-red-700 mb-3 font-medium">确认退出登录？</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleLogout}
+                    className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white text-sm rounded-xl font-medium transition-all active:scale-95"
+                  >
+                    确认退出
+                  </button>
+                  <button
+                    onClick={() => setShowLogoutConfirm(false)}
+                    className="flex-1 px-4 py-2.5 bg-white hover:bg-stone-50 text-stone-600 text-sm rounded-xl font-medium border border-stone-200 transition-all active:scale-95"
+                  >
+                    取消
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowLogoutConfirm(true)}
+                className="w-full flex items-center justify-center gap-2 px-6 py-3 text-red-500 hover:bg-red-50 hover:text-red-600 rounded-xl font-medium transition-all active:scale-95 border border-red-200/40"
+              >
+                <LogOut className="h-4 w-4" />
+                退出登录
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

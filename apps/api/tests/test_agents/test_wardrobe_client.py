@@ -210,7 +210,7 @@ class TestBuildWeatherFilter:
 
 class TestCheckWardrobeEmpty:
     def test_empty(self):
-        """衣橱为空 - 注意：源码 line 275 有 count 未定义 bug，导致查询成功时也走 except 返回 False"""
+        """衣橱为空"""
         client = WardrobeClient()
         client._empty_cache = {}  # 清除缓存
         with patch("packages.ai_agents.wardrobe_client.DatabasePool") as mock_db:
@@ -222,8 +222,7 @@ class TestCheckWardrobeEmpty:
             mock_db.get_connection.return_value.__enter__ = MagicMock(return_value=mock_conn)
             mock_db.get_connection.return_value.__exit__ = MagicMock(return_value=False)
             result = client.check_wardrobe_empty(1)
-        # Due to source code bug (count undefined in logger.debug), returns False
-        assert result is False
+        assert result is True
 
     def test_not_empty(self):
         """衣橱不为空"""
@@ -249,7 +248,7 @@ class TestCheckWardrobeEmpty:
         assert result is True
 
     def test_cache_expired(self):
-        """缓存过期重新查询 - 由于源码 bug 仍返回 False"""
+        """缓存过期重新查询"""
         client = WardrobeClient()
         import time
         client._empty_cache = {1: (True, time.time() - 120)}  # 120秒前，已过期
@@ -262,7 +261,6 @@ class TestCheckWardrobeEmpty:
             mock_db.get_connection.return_value.__enter__ = MagicMock(return_value=mock_conn)
             mock_db.get_connection.return_value.__exit__ = MagicMock(return_value=False)
             result = client.check_wardrobe_empty(1)
-        # Due to source code bug, returns False
         assert result is False
 
     def test_error_returns_false(self):

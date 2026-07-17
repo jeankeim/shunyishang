@@ -20,6 +20,7 @@ import { useUserStore } from '@/store/user'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Users, BookOpen, Mountain, Compass, CircleDot, MoreHorizontal } from 'lucide-react'
+import { SkeletonCard } from '@/components/ui'
 
 // 懒加载衣橱页面，减少首页初始加载时间
 const WardrobePage = lazy(() => import('./wardrobe/page'))
@@ -29,6 +30,18 @@ const DestinyPage = lazy(() => import('./destiny/page'))
 const CommunityPage = lazy(() => import('./community/page'))
 const CultivationPage = lazy(() => import('./cultivation/page'))
 const AuthModal = lazy(() => import('@/components/features/AuthModal').then(m => ({ default: m.AuthModal })))
+
+// 统一的页面加载骨架屏
+function PageLoadingFallback() {
+  return (
+    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+      <SkeletonCard lines={2} />
+      <SkeletonCard lines={1} />
+      <SkeletonCard lines={3} showImage={false} />
+      <SkeletonCard lines={2} showImage={false} />
+    </div>
+  )
+}
 
 export default function Home() {
   const { radarData, setUserBazi } = useChatStore()
@@ -197,7 +210,7 @@ export default function Home() {
           transition={{ delay: 0.1 }}
           className="text-center mb-4"
         >
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-[#3DA35D] via-[#4A90C4] to-[#D4656B] bg-clip-text text-transparent font-serif tracking-tight">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-[var(--wuxing-wood)] via-[var(--wuxing-water)] to-[var(--wuxing-fire)] bg-clip-text text-transparent font-serif tracking-tight">
             五行穿搭
           </h1>
           <p className="text-sm text-[var(--brand-body)] font-light tracking-wide mt-2">
@@ -227,7 +240,7 @@ export default function Home() {
             className="card-secondary p-5 bg-gradient-to-br from-[var(--brand-surface)]/80 to-[var(--brand-surface-active)]/60 hover:shadow-[0_6px_24px_rgba(61,163,93,0.12)] transition-all duration-300 group"
           >
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-2.5 h-2.5 bg-gradient-to-br from-[#3DA35D] to-[#4A90C4] rounded-full group-hover:scale-110 transition-transform duration-300"></div>
+              <div className="w-2.5 h-2.5 bg-gradient-to-br from-[var(--wuxing-wood)] to-[var(--wuxing-water)] rounded-full group-hover:scale-110 transition-transform duration-300"></div>
               <h2 className="font-semibold text-[var(--brand-heading)] text-base tracking-wide">生辰八字</h2>
             </div>
             <BaziInputSection />
@@ -242,7 +255,7 @@ export default function Home() {
           className="card-secondary p-5 bg-gradient-to-br from-[#F0F7FA]/80 to-[#E8F4F8]/60 hover:shadow-[0_6px_24px_rgba(74,144,196,0.12)] transition-all duration-300 group"
         >
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-2.5 h-2.5 bg-gradient-to-br from-[#4A90C4] to-[#3DA35D] rounded-full group-hover:scale-110 transition-transform duration-300"></div>
+            <div className="w-2.5 h-2.5 bg-gradient-to-br from-[var(--wuxing-water)] to-[var(--wuxing-wood)] rounded-full group-hover:scale-110 transition-transform duration-300"></div>
             <h2 className="font-semibold text-[var(--brand-heading)] text-base tracking-wide">天地气象</h2>
           </div>
           <WeatherSceneSection 
@@ -260,7 +273,7 @@ export default function Home() {
             className="card-secondary p-5 bg-gradient-to-br from-[var(--brand-surface)]/80 to-[var(--brand-surface-active)]/60 hover:shadow-[0_6px_24px_rgba(61,163,93,0.12)] transition-all duration-300 group hidden md:block"
           >
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-2.5 h-2.5 bg-gradient-to-br from-[#3DA35D] to-[#B89B5E] rounded-full group-hover:scale-110 transition-transform duration-300"></div>
+              <div className="w-2.5 h-2.5 bg-gradient-to-br from-[var(--wuxing-wood)] to-[var(--wuxing-earth)] rounded-full group-hover:scale-110 transition-transform duration-300"></div>
               <h2 className="font-semibold text-[var(--brand-heading)] text-base tracking-wide">五行生克</h2>
             </div>
             <FiveElementRadar
@@ -307,7 +320,7 @@ export default function Home() {
         <div className="md:hidden flex items-center justify-between px-4 h-12 bg-white/90 backdrop-blur-xl border-b border-stone-200/60 flex-shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-lg">🌿</span>
-            <span className="font-semibold text-sm bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] bg-clip-text text-transparent font-serif">顺衣尚</span>
+            <span className="font-semibold text-sm bg-gradient-to-r from-[var(--wuxing-wood)] to-[var(--wuxing-water)] bg-clip-text text-transparent font-serif">顺衣尚</span>
           </div>
           <div className="flex items-center gap-2">
             {/* 登录后显示用户名 */}
@@ -326,7 +339,7 @@ export default function Home() {
                 }
               }}
               aria-label={isAuthenticated ? '打开个人中心' : '登录'}
-              className="w-8 h-8 rounded-full bg-gradient-to-br from-[#3DA35D]/20 to-[#4A90C4]/20 flex items-center justify-center active:scale-95 transition-transform"
+              className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--wuxing-wood)]/20 to-[var(--wuxing-water)]/20 flex items-center justify-center active:scale-95 transition-transform"
             >
               {isAuthenticated && user?.avatar_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -359,7 +372,7 @@ export default function Home() {
                 aria-label="切换到推荐页面"
                 className={`relative flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
                   activeTab === 'chat'
-                    ? 'bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 shadow-sm'
+                    ? 'bg-[var(--brand-surface)] text-[var(--brand-heading)] shadow-sm'
                     : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
                 }`}
               >
@@ -377,7 +390,7 @@ export default function Home() {
                 aria-label="切换到衣橱页面"
                 className={`relative flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
                   activeTab === 'wardrobe'
-                    ? 'bg-gradient-to-r from-rose-50 to-pink-50 text-rose-700 shadow-sm'
+                    ? 'bg-[var(--brand-surface)] text-[var(--brand-heading)] shadow-sm'
                     : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
                 }`}
               >
@@ -395,7 +408,7 @@ export default function Home() {
                 aria-label="切换到广场页面"
                 className={`relative flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
                   activeTab === 'community'
-                    ? 'bg-gradient-to-r from-pink-50 to-rose-50 text-pink-700 shadow-sm'
+                    ? 'bg-[var(--brand-surface)] text-[var(--brand-heading)] shadow-sm'
                     : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
                 }`}
               >
@@ -411,7 +424,7 @@ export default function Home() {
                 aria-label="切换到日记页面"
                 className={`relative flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
                   activeTab === 'diary'
-                    ? 'bg-gradient-to-r from-emerald-50 to-cyan-50 text-emerald-700 shadow-sm'
+                    ? 'bg-[var(--brand-surface)] text-[var(--brand-heading)] shadow-sm'
                     : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
                 }`}
               >
@@ -427,7 +440,7 @@ export default function Home() {
                 aria-label="切换到修炼页面"
                 className={`relative flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
                   activeTab === 'cultivation'
-                    ? 'bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-700 shadow-sm'
+                    ? 'bg-[var(--brand-surface)] text-[var(--brand-heading)] shadow-sm'
                     : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
                 }`}
               >
@@ -440,7 +453,7 @@ export default function Home() {
                   aria-label="更多功能"
                   className={`relative flex items-center gap-1.5 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
                     activeTab === 'fortune' || activeTab === 'destiny' || activeTab === 'tryon'
-                      ? 'bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-700 shadow-sm'
+                      ? 'bg-[var(--brand-surface)] text-[var(--brand-heading)] shadow-sm'
                       : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
                   }`}
                 >
@@ -459,7 +472,7 @@ export default function Home() {
                     }}
                     className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
                       activeTab === 'fortune'
-                        ? 'text-violet-700 bg-violet-50'
+                        ? 'text-[var(--brand-heading)] bg-[var(--brand-surface)]'
                         : 'text-stone-600 hover:bg-stone-50'
                     }`}
                   >
@@ -473,7 +486,7 @@ export default function Home() {
                     }}
                     className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
                       activeTab === 'destiny'
-                        ? 'text-indigo-700 bg-indigo-50'
+                        ? 'text-[var(--brand-heading)] bg-[var(--brand-surface)]'
                         : 'text-stone-600 hover:bg-stone-50'
                     }`}
                   >
@@ -487,7 +500,7 @@ export default function Home() {
                     }}
                     className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
                       activeTab === 'tryon'
-                        ? 'text-amber-700 bg-amber-50'
+                        ? 'text-[var(--brand-heading)] bg-[var(--brand-surface)]'
                         : 'text-stone-600 hover:bg-stone-50'
                     }`}
                   >
@@ -590,11 +603,7 @@ export default function Home() {
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.2, ease: "easeOut" }}
               >
-                <Suspense fallback={
-                  <div className="flex items-center justify-center h-64">
-                    <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#3DA35D] border-t-transparent"></div>
-                  </div>
-                }>
+                <Suspense fallback={<PageLoadingFallback />}>
                   <WardrobePage />
                 </Suspense>
               </motion.div>
@@ -640,11 +649,7 @@ export default function Home() {
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.2, ease: "easeOut" }}
               >
-                <Suspense fallback={
-                  <div className="flex items-center justify-center h-64">
-                    <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#3DA35D] border-t-transparent"></div>
-                  </div>
-                }>
+                <Suspense fallback={<PageLoadingFallback />}>
                   <DiaryPage />
                 </Suspense>
               </motion.div>
@@ -657,11 +662,7 @@ export default function Home() {
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.2, ease: "easeOut" }}
               >
-                <Suspense fallback={
-                  <div className="flex items-center justify-center h-64">
-                    <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#3DA35D] border-t-transparent"></div>
-                  </div>
-                }>
+                <Suspense fallback={<PageLoadingFallback />}>
                   <FortunePage />
                 </Suspense>
               </motion.div>
@@ -674,11 +675,7 @@ export default function Home() {
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.2, ease: "easeOut" }}
               >
-                <Suspense fallback={
-                  <div className="flex items-center justify-center h-64">
-                    <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#3DA35D] border-t-transparent"></div>
-                  </div>
-                }>
+                <Suspense fallback={<PageLoadingFallback />}>
                   <DestinyPage />
                 </Suspense>
               </motion.div>
@@ -691,11 +688,7 @@ export default function Home() {
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.2, ease: "easeOut" }}
               >
-                <Suspense fallback={
-                  <div className="flex items-center justify-center h-64">
-                    <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#3DA35D] border-t-transparent"></div>
-                  </div>
-                }>
+                <Suspense fallback={<PageLoadingFallback />}>
                   <CommunityPage />
                 </Suspense>
               </motion.div>
@@ -708,11 +701,7 @@ export default function Home() {
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.2, ease: "easeOut" }}
               >
-                <Suspense fallback={
-                  <div className="flex items-center justify-center h-64">
-                    <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#3DA35D] border-t-transparent"></div>
-                  </div>
-                }>
+                <Suspense fallback={<PageLoadingFallback />}>
                   <CultivationPage />
                 </Suspense>
               </motion.div>

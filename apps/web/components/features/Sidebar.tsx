@@ -64,7 +64,7 @@ export function Sidebar({ className, collapsed = true, onToggle }: SidebarProps)
               createConversation()
               onToggle?.()
             }}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-[#3DA35D]/40 hover:border-[#3DA35D]/60 hover:bg-[var(--brand-surface)]/60 transition-all duration-200 text-[var(--brand-subtle)] hover:text-[#3DA35D]"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-[var(--wuxing-wood)]/40 hover:border-[var(--wuxing-wood)]/60 hover:bg-[var(--brand-surface)]/60 transition-all duration-200 text-[var(--brand-subtle)] hover:text-[var(--wuxing-wood)]"
           >
             <Plus className="h-4 w-4" />
             <span className="text-sm font-medium">新建对话</span>
@@ -86,13 +86,13 @@ export function Sidebar({ className, collapsed = true, onToggle }: SidebarProps)
                   className={cn(
                     'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-left transition-all duration-200',
                     currentConversationId === conv.id
-                      ? 'bg-gradient-to-r from-[var(--brand-surface)] to-[var(--brand-surface-active)] text-[var(--brand-heading)] border border-[#3DA35D]/30 shadow-sm'
+                      ? 'bg-gradient-to-r from-[var(--brand-surface)] to-[var(--brand-surface-active)] text-[var(--brand-heading)] border border-[var(--wuxing-wood)]/30 shadow-sm'
                       : 'hover:bg-[var(--brand-surface-active)] text-[var(--brand-body)]'
                   )}
                 >
                   <MessageSquare className={cn(
                     "h-4 w-4 shrink-0",
-                    currentConversationId === conv.id ? "text-[#3DA35D]" : "text-[#8A9F92]"
+                    currentConversationId === conv.id ? "text-[var(--wuxing-wood)]" : "text-[#8A9F92]"
                   )} />
                   <span className="truncate flex-1 font-medium">{conv.title}</span>
                 </motion.button>
@@ -114,7 +114,7 @@ export function Sidebar({ className, collapsed = true, onToggle }: SidebarProps)
         {/* 底部工具栏 */}
         <div className="p-4 border-t border-[var(--brand-border)]/50">
           <div className="flex items-center justify-center gap-2 text-sm text-[var(--brand-subtle)]">
-            <Sparkles className="h-4 w-4 text-[#3DA35D]" />
+            <Sparkles className="h-4 w-4 text-[var(--wuxing-wood)]" />
             <span className="font-medium">顺衣尚 · 五行智能衣橱</span>
           </div>
         </div>

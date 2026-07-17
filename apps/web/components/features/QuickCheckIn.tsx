@@ -449,7 +449,7 @@ export function QuickCheckIn({ isOpen, onClose, onSuccess, weatherInfo }: QuickC
                   <button
                     onClick={handleSubmit}
                     disabled={submitting || !description.trim()}
-                    className="w-full py-3 rounded-xl bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] text-white font-medium text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md transition-all active:scale-[0.98]"
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-[var(--wuxing-wood)] to-[var(--wuxing-water)] text-white font-medium text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md transition-all active:scale-[0.98]"
                   >
                     {submitting ? '打卡中...' : '完成打卡 ✨'}
                   </button>

@@ -222,6 +222,21 @@ body {
     --border: 160 12% 20%;
     --input: 160 12% 18%;
     --ring: 152 58% 45%;
+
+    /* 暗色模式五行色 - 适当提亮保持可辨识度 */
+    --wuxing-metal: #D8E0E8;
+    --wuxing-wood: #4DB86D;
+    --wuxing-water: #5AA0D4;
+    --wuxing-fire: #E4757B;
+    --wuxing-earth: #C8AB6E;
+
+    /* 暗色模式品牌语义色 */
+    --brand-heading: #D0E8DA;
+    --brand-body: #A0B8AA;
+    --brand-subtle: #7A9A88;
+    --brand-surface: #1A2820;
+    --brand-border: #2A3830;
+    --brand-surface-active: #253830;
   }
 }
 
@@ -306,6 +321,12 @@ body {
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+}
+
+/* 骨架屏 wave 动画 */
+@keyframes wave {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 /* 触摸反馈 */

@@ -32,6 +32,17 @@ vi.mock('@/store/user', () => ({
   useUserStore: () => mockUserStore,
 }))
 
+vi.mock('@/components/ui', () => ({
+  SkeletonCard: () => <div data-testid="skeleton-card">loading</div>,
+  EmptyState: ({ title, description }: any) => (
+    <div data-testid="empty-state">
+      <span>{title}</span>
+      {description && <p>{description}</p>}
+    </div>
+  ),
+  ConfirmDialog: () => null,
+}))
+
 describe('FortunePage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -53,11 +64,11 @@ describe('FortunePage', () => {
     expect(screen.getByText('登录后即可查看基于您八字的专属运势分析')).toBeInTheDocument()
   })
 
-  it('should show loading spinner when loading and no fortune', () => {
+  it('should show loading skeleton when loading and no fortune', () => {
     mockUserStore.isAuthenticated = true
     mockFortuneStore.isLoading = true
-    const { container } = render(<FortunePage />)
-    expect(container.querySelector('.animate-spin')).toBeInTheDocument()
+    render(<FortunePage />)
+    expect(screen.getAllByTestId('skeleton-card').length).toBeGreaterThan(0)
   })
 
   it('should call fetchTodayFortune on mount when authenticated', () => {
@@ -133,7 +144,7 @@ describe('FortunePage', () => {
     mockFortuneStore.todayFortune = {
       overall_score: 85,
       scores: {},
-      bazi_snapshot: { pillars: ['甲子', '乙丑', '丙寅', '丁卯'] },
+      bazi_snapshot: { pillars: { year: '甲子', month: '乙丑', day: '丙寅', hour: '丁卯' } },
     }
     render(<FortunePage />)
     expect(screen.getByText('八字分析依据')).toBeInTheDocument()
@@ -146,7 +157,7 @@ describe('FortunePage', () => {
     mockFortuneStore.todayFortune = {
       overall_score: 85,
       scores: {},
-      bazi_snapshot: { pillars: ['甲子', null, null, null] },
+      bazi_snapshot: { pillars: { year: '甲子', month: null, day: null, hour: null } },
     }
     render(<FortunePage />)
     expect(screen.getAllByText('-').length).toBeGreaterThan(0)

@@ -77,7 +77,7 @@ export function VirtualTryOnCanvas({
       ctx.translate(centerX, centerY);
       ctx.rotate((layer.rotation * Math.PI) / 180);
 
-      // 选中状态高亮
+      // 选中状态高亮 (--wuxing-wood = #3DA35D)
       if (layer.id === selectedId) {
         ctx.strokeStyle = '#3DA35D';
         ctx.lineWidth = 3;
@@ -239,8 +239,8 @@ export function VirtualTryOnCanvas({
           animate={{ opacity: 1, scale: 1 }}
           className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-[#F8F9FA] rounded-xl"
         >
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#3DA35D]/20 to-[#4A90C4]/20 flex items-center justify-center mb-4">
-            <Camera className="w-10 h-10 text-[#3DA35D]" />
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[var(--wuxing-wood)]/20 to-[var(--wuxing-water)]/20 flex items-center justify-center mb-4">
+            <Camera className="w-10 h-10 text-[var(--wuxing-wood)]" />
           </div>
           <h3 className="text-lg font-semibold text-[var(--brand-heading)] mb-2">开始虚拟试衣</h3>
           <p className="text-sm text-[var(--brand-subtle)] mb-6 text-center max-w-xs">
@@ -248,7 +248,7 @@ export function VirtualTryOnCanvas({
           </p>
           <button
             onClick={handlePhotoUpload}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] text-white font-medium shadow-md hover:shadow-lg transition-shadow"
+            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[var(--wuxing-wood)] to-[var(--wuxing-water)] text-white font-medium shadow-md hover:shadow-lg transition-shadow"
             aria-label="上传照片"
           >
             <Upload className="w-5 h-5" />
@@ -283,7 +283,7 @@ export function VirtualTryOnCanvas({
           className="absolute bottom-4 right-4 flex items-center gap-2 px-4 py-2 rounded-xl bg-white/90 backdrop-blur-sm border border-[var(--brand-border)] shadow-md hover:shadow-lg transition-shadow text-sm font-medium text-[var(--brand-heading)]"
           aria-label="添加衣物"
         >
-          <Upload className="w-4 h-4 text-[#3DA35D]" />
+          <Upload className="w-4 h-4 text-[var(--wuxing-wood)]" />
           添加衣物
         </motion.button>
       )}

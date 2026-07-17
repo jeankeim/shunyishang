@@ -26,10 +26,10 @@ const toastIcons = {
 }
 
 const toastStyles = {
-  success: 'bg-[#3DA35D] text-white',
-  error: 'bg-[#D4656B] text-white',
-  info: 'bg-[#4A90C4] text-white',
-  warning: 'bg-[#B89B5E] text-white',
+  success: 'bg-[var(--wuxing-wood)] text-white',
+  error: 'bg-[var(--wuxing-fire)] text-white',
+  info: 'bg-[var(--wuxing-water)] text-white',
+  warning: 'bg-[var(--wuxing-earth)] text-white',
 }
 
 export function ToastItem({ toast, onRemove }: ToastProps) {

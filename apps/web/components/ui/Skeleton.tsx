@@ -59,18 +59,3 @@ export function SkeletonList({ count = 4, showImage = true, className }: Skeleto
     </div>
   )
 }
-
-// 添加 CSS 动画
-if (typeof document !== 'undefined') {
-  const style = document.createElement('style')
-  style.textContent = `
-    @keyframes wave {
-      0% { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
-    }
-  `
-  if (!document.querySelector('[data-wave-animation]')) {
-    style.setAttribute('data-wave-animation', 'true')
-    document.head.appendChild(style)
-  }
-}

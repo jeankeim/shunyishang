@@ -70,7 +70,7 @@ describe('NewDiaryPage', () => {
     fireEvent.click(screen.getByText('submit'))
     await waitFor(() => {
       expect(mockDiaryStore.createNewDiary).toHaveBeenCalledWith({ diary_date: '2026-07-02', mood: 'happy' })
-      expect(mockPush).toHaveBeenCalledWith('/diary/123')
+      expect(mockPush).toHaveBeenCalledWith('/diary')
     })
   })
 

@@ -33,13 +33,6 @@ import {
   getTodayFortune,
   getFortuneByDate,
   generateFortune,
-  getMembershipStatus,
-  getPlans,
-  subscribe,
-  cancelSubscription,
-  upgradeMembership,
-  renewMembership,
-  getQuota,
   getPushSettings,
   updatePushSettings,
   getPushHistory,
@@ -443,57 +436,6 @@ describe('lib/api', () => {
       mockFetch.mockReturnValue(mockResponse(fortune))
       const result = await generateFortune()
       expect(result).toEqual(fortune)
-    })
-  })
-
-  describe('Membership API', () => {
-    it('getMembershipStatus should return status', async () => {
-      const status = { plan: 'free', status: 'active' }
-      mockFetch.mockReturnValue(mockResponse(status))
-      const result = await getMembershipStatus()
-      expect(result).toEqual(status)
-    })
-
-    it('getPlans should return plans', async () => {
-      const plans = { plans: [] }
-      mockFetch.mockReturnValue(mockResponse(plans))
-      const result = await getPlans()
-      expect(result).toEqual(plans)
-    })
-
-    it('subscribe should return result', async () => {
-      const result = { subscription_id: 1, status: 'active' }
-      mockFetch.mockReturnValue(mockResponse(result))
-      const res = await subscribe({ plan: 'monthly', payment_method: 'wechat' })
-      expect(res).toEqual(result)
-    })
-
-    it('cancelSubscription should return result', async () => {
-      const result = { status: 'cancelled' }
-      mockFetch.mockReturnValue(mockResponse(result))
-      const res = await cancelSubscription(123)
-      expect(res).toEqual(result)
-    })
-
-    it('upgradeMembership should return result', async () => {
-      const result = { status: 'upgraded' }
-      mockFetch.mockReturnValue(mockResponse(result))
-      const res = await upgradeMembership({ new_plan: 'yearly' })
-      expect(res).toEqual(result)
-    })
-
-    it('renewMembership should return result', async () => {
-      const result = { status: 'renewed' }
-      mockFetch.mockReturnValue(mockResponse(result))
-      const res = await renewMembership({ payment_method: 'alipay' })
-      expect(res).toEqual(result)
-    })
-
-    it('getQuota should return quota', async () => {
-      const quota = { feature: 'recommend', allowed: true, used: 5 }
-      mockFetch.mockReturnValue(mockResponse(quota))
-      const result = await getQuota('recommend')
-      expect(result).toEqual(quota)
     })
   })
 

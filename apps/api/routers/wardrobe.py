@@ -769,3 +769,90 @@ async def report_behavior(request: BehaviorRequest):
         logger.debug(f"[Behavior] 记录失败: {e}")
 
     return {"status": "ok"}
+
+
+# ========== 用户偏好可视化 ==========
+
+# 6维偏好维度的中文标签与图标
+PREFERENCE_DIMENSIONS = {
+    "color": {"label": "颜色", "icon": "🎨"},
+    "element": {"label": "五行", "icon": "☯️"},
+    "category": {"label": "品类", "icon": "👔"},
+    "style": {"label": "风格", "icon": "✨"},
+    "material": {"label": "材质", "icon": "🧵"},
+    "thickness": {"label": "厚度", "icon": "🌡️"},
+}
+
+
+@router.get("/preference-summary", summary="获取用户偏好画像")
+async def get_preference_summary(
+    user: dict = Depends(get_current_user),
+):
+    """
+    获取用户6维偏好画像摘要，供前端雷达图/偏好面板展示。
+
+    返回结构：
+    - dimensions: 6个维度的摘要（维度名、标签、偏好度分数、top3偏好项）
+    - overall_score: 总体偏好学习深度（0~1，越高表示系统越了解用户）
+    - feedback_count: 总反馈次数
+    """
+    user_id = user.get("id") or user.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="用户未登录")
+
+    from apps.api.services.preference_service import preference_service
+
+    try:
+        prefs = preference_service.get_user_preferences(user_id)
+    except Exception as e:
+        logger.warning(f"[Preference] 获取偏好失败: {e}")
+        prefs = {}
+
+    dimensions = []
+    total_feedback = 0
+    dimension_scores = []
+
+    for dim_key, meta in PREFERENCE_DIMENSIONS.items():
+        dim_data = prefs.get(dim_key, {})
+        if not dim_data:
+            dimensions.append({
+                "key": dim_key,
+                "label": meta["label"],
+                "icon": meta["icon"],
+                "score": 0.0,
+                "top_items": [],
+                "has_data": False,
+            })
+            dimension_scores.append(0.0)
+            continue
+
+        # 按权重绝对值排序取 top3
+        sorted_items = sorted(dim_data.items(), key=lambda x: abs(x[1]), reverse=True)
+        top_items = [
+            {"name": k, "weight": round(v, 2), "direction": "喜欢" if v > 0 else "不喜欢"}
+            for k, v in sorted_items[:3]
+        ]
+
+        # 维度偏好强度：top1 权重的归一化值（0~1）
+        max_abs = abs(sorted_items[0][1]) if sorted_items else 0
+        score = min(1.0, max_abs / 10.0)  # 权重10以上视为满分
+        total_feedback += sum(1 for _ in dim_data)
+        dimension_scores.append(score)
+
+        dimensions.append({
+            "key": dim_key,
+            "label": meta["label"],
+            "icon": meta["icon"],
+            "score": round(score, 2),
+            "top_items": top_items,
+            "has_data": True,
+        })
+
+    # 总体了解度：6维分数的均值
+    overall_score = round(sum(dimension_scores) / len(dimension_scores), 2) if dimension_scores else 0.0
+
+    return {
+        "dimensions": dimensions,
+        "overall_score": overall_score,
+        "feedback_count": total_feedback,
+    }

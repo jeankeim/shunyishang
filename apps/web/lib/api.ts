@@ -1422,3 +1422,50 @@ export interface QuickCheckInResponse {
   /** 穿搭与运势的匹配度评分 */
   fortune_match_score?: number
 }
+
+// ============================================
+// 用户偏好画像 API
+// ============================================
+
+/** 偏好维度摘要项 */
+export interface PreferenceDimensionItem {
+  name: string
+  weight: number
+  direction: '喜欢' | '不喜欢'
+}
+
+/** 偏好维度摘要 */
+export interface PreferenceDimension {
+  key: string
+  label: string
+  icon: string
+  score: number          // 0~1 偏好强度
+  top_items: PreferenceDimensionItem[]
+  has_data: boolean
+}
+
+/** 用户偏好画像 */
+export interface PreferenceSummary {
+  dimensions: PreferenceDimension[]
+  overall_score: number  // 0~1 系统了解度
+  feedback_count: number
+}
+
+/**
+ * 获取用户偏好画像（6维雷达图数据）
+ */
+export async function getPreferenceSummary(): Promise<PreferenceSummary | null> {
+  try {
+    const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/preference-summary`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      console.error('[getPreferenceSummary] 请求失败:', response.status)
+      return null
+    }
+    return response.json()
+  } catch (error) {
+    console.error('[getPreferenceSummary] 异常:', error)
+    return null
+  }
+}

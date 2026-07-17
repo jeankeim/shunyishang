@@ -9,11 +9,13 @@ vi.mock('framer-motion', () => ({
     div: ({ children, onClick, ...props }: any) => <div onClick={onClick} {...props}>{children}</div>,
     button: ({ children, onClick, ...props }: any) => <button onClick={onClick} {...props}>{children}</button>,
   },
+  AnimatePresence: ({ children }: any) => <>{children}</>,
 }))
 
 // Mock API
 vi.mock('@/lib/api', () => ({
   submitFeedback: vi.fn().mockResolvedValue(undefined),
+  reportBehavior: vi.fn().mockResolvedValue(undefined),
 }))
 
 // Mock wuxing-config

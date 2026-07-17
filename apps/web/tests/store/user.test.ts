@@ -280,15 +280,18 @@ describe('useUserStore', () => {
       expect(state.user).toBeNull()
     })
 
-    it('should set authenticated when token exists but not authenticated', () => {
+    it('should set authenticated when token exists but not authenticated', async () => {
       useUserStore.setState({ isAuthenticated: false })
       localStorage.setItem('wuxing_token', 'token123')
       vi.mocked(getCurrentUser).mockResolvedValue(mockUser)
 
       useUserStore.getState().initAuth()
 
-      const state = useUserStore.getState()
-      expect(state.isAuthenticated).toBe(true)
+      // initAuth is async - wait for fetchUserInfo to resolve
+      await vi.waitFor(() => {
+        const state = useUserStore.getState()
+        expect(state.isAuthenticated).toBe(true)
+      })
     })
 
     it('should do nothing when already authenticated and token exists', () => {

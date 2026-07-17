@@ -3,49 +3,52 @@ import { getCurrentSolarTerm, baziToRadarData, itemsToRadarData, SolarTerm } fro
 
 describe('lib/theme', () => {
   describe('getCurrentSolarTerm', () => {
-    it('should return wood theme for spring months (Feb-Apr)', () => {
+    it('should return wood theme for spring months (Feb-Mar)', () => {
       const febDate = new Date(2024, 1, 15) // February
       const result = getCurrentSolarTerm(febDate)
       expect(result.element).toBe('wood')
       expect(result.name).toBe('木')
 
-      const aprDate = new Date(2024, 3, 15) // April
-      expect(getCurrentSolarTerm(aprDate).element).toBe('wood')
+      const marDate = new Date(2024, 2, 15) // March
+      expect(getCurrentSolarTerm(marDate).element).toBe('wood')
     })
 
-    it('should return fire theme for summer months (May-Jul)', () => {
+    it('should return fire theme for summer months (May-Jun)', () => {
       const mayDate = new Date(2024, 4, 15) // May
       expect(getCurrentSolarTerm(mayDate).element).toBe('fire')
 
-      const julDate = new Date(2024, 6, 15) // July
-      expect(getCurrentSolarTerm(julDate).element).toBe('fire')
+      const junDate = new Date(2024, 5, 15) // June
+      expect(getCurrentSolarTerm(junDate).element).toBe('fire')
     })
 
-    it('should return metal theme for autumn months (Aug-Oct)', () => {
+    it('should return metal theme for autumn months (Aug-Sep)', () => {
       const augDate = new Date(2024, 7, 15) // August
       expect(getCurrentSolarTerm(augDate).element).toBe('metal')
 
-      const octDate = new Date(2024, 9, 15) // October
-      expect(getCurrentSolarTerm(octDate).element).toBe('metal')
+      const sepDate = new Date(2024, 8, 15) // September
+      expect(getCurrentSolarTerm(sepDate).element).toBe('metal')
     })
 
-    it('should return water theme for winter months (Nov-Jan)', () => {
+    it('should return water theme for winter months (Nov-Dec)', () => {
       const novDate = new Date(2024, 10, 15) // November
       expect(getCurrentSolarTerm(novDate).element).toBe('water')
-
-      const janDate = new Date(2024, 0, 15) // January
-      expect(getCurrentSolarTerm(janDate).element).toBe('water')
 
       const decDate = new Date(2024, 11, 15) // December
       expect(getCurrentSolarTerm(decDate).element).toBe('water')
     })
 
-    it('should return earth theme as fallback (should not happen with current logic)', () => {
-      // With the current logic, all months are covered, but let's test the fallback
-      // This is more of a safety check
-      const result = getCurrentSolarTerm()
-      expect(result).toBeDefined()
-      expect(['wood', 'fire', 'earth', 'metal', 'water']).toContain(result.element)
+    it('should return earth theme for seasonal transition months (Jan, Apr, Jul, Oct)', () => {
+      const janDate = new Date(2024, 0, 15) // January
+      expect(getCurrentSolarTerm(janDate).element).toBe('earth')
+
+      const aprDate = new Date(2024, 3, 15) // April
+      expect(getCurrentSolarTerm(aprDate).element).toBe('earth')
+
+      const julDate = new Date(2024, 6, 15) // July
+      expect(getCurrentSolarTerm(julDate).element).toBe('earth')
+
+      const octDate = new Date(2024, 9, 15) // October
+      expect(getCurrentSolarTerm(octDate).element).toBe('earth')
     })
 
     it('should include all required properties', () => {

@@ -54,7 +54,7 @@ export function MobileControlPanel({ onSceneChange, onWeatherChange }: MobileCon
               ) : (
                 <div className="card-secondary p-4">
                   <div className="flex items-center gap-2 mb-3">
-                    <div className="w-2 h-2 bg-gradient-to-br from-[#3DA35D] to-[#4A90C4] rounded-full"></div>
+                    <div className="w-2 h-2 bg-gradient-to-br from-[var(--wuxing-wood)] to-[var(--wuxing-water)] rounded-full"></div>
                     <h3 className="font-semibold text-[var(--brand-heading)] text-sm">生辰八字</h3>
                   </div>
                   <BaziInputSection />
@@ -64,8 +64,8 @@ export function MobileControlPanel({ onSceneChange, onWeatherChange }: MobileCon
               {/* 天气和场景 */}
               <div className="card-secondary p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-2 h-2 bg-gradient-to-br from-[#4A90C4] to-[#3DA35D] rounded-full"></div>
-                  <h3 className="font-semibold text-[var(--brand-heading)] text-sm">天地气象</h3>
+                  <div className="w-2 h-2 bg-gradient-to-br from-[var(--wuxing-water)] to-[var(--wuxing-wood)] rounded-full"></div>
+                    <h3 className="font-semibold text-[var(--brand-heading)] text-sm">天地气象</h3>
                 </div>
                 <WeatherSceneSection 
                   onSceneChange={onSceneChange}
@@ -77,7 +77,7 @@ export function MobileControlPanel({ onSceneChange, onWeatherChange }: MobileCon
               {!hasBazi && (
                 <div className="card-secondary p-4">
                   <div className="flex items-center gap-2 mb-3">
-                    <div className="w-2 h-2 bg-gradient-to-br from-[#3DA35D] to-[#B89B5E] rounded-full"></div>
+                    <div className="w-2 h-2 bg-gradient-to-br from-[var(--wuxing-wood)] to-[var(--wuxing-earth)] rounded-full"></div>
                     <h3 className="font-semibold text-[var(--brand-heading)] text-sm">五行生克</h3>
                   </div>
                   <FiveElementList

@@ -961,4 +961,4 @@ class TestEmbeddingModel:
             with patch("packages.ai_agents.nodes.settings") as mock_s:
                 mock_s.dashscope_base_url = "https://dashscope.aliyuncs.com"
                 with pytest.raises(Exception, match="DashScope"):
-                    _encode_text_with_dashscope("test text")
+                    _encode_text_with_dashscope("error test text unique")

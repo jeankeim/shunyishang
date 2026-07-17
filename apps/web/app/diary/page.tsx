@@ -10,6 +10,7 @@ import { DiaryForm } from '@/components/features/diary/DiaryForm'
 import { useDiaryStore } from '@/store/diary'
 import { useUserStore } from '@/store/user'
 import { ConfirmDialog } from '@/components/ui'
+import { SkeletonCard, EmptyState } from '@/components/ui'
 
 const AuthModal = lazy(() => import('@/components/features/AuthModal').then(m => ({ default: m.AuthModal })))
 
@@ -261,7 +262,7 @@ export default function DiaryPage() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => goToNew()}
-                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] text-white text-sm font-medium shadow-sm hover:shadow-md transition-shadow flex items-center gap-1.5"
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[var(--wuxing-wood)] to-[var(--wuxing-water)] text-white text-sm font-medium shadow-sm hover:shadow-md transition-shadow flex items-center gap-1.5"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
@@ -311,22 +312,19 @@ export default function DiaryPage() {
                     </div>
 
                     {isLoading && diaries.length === 0 ? (
-                      <div className="text-center py-12">
-                        <div className="animate-spin rounded-full h-8 w-8 border-2 border-emerald-500 border-t-transparent mx-auto" />
-                        <p className="text-sm text-stone-400 mt-3">加载中...</p>
+                      <div className="grid gap-3">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                          <SkeletonCard key={i} lines={2} showImage={false} />
+                        ))}
                       </div>
                     ) : diaries.length === 0 ? (
-                      <div className="text-center py-12 bg-white rounded-2xl border border-stone-100">
-                        <p className="text-3xl mb-2">📝</p>
-                        <p className="text-sm text-stone-500">还没有穿搭日记</p>
-                        <motion.button
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => goToNew()}
-                          className="mt-3 px-5 py-2 rounded-xl bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] text-white text-sm font-medium shadow-sm"
-                        >
-                          创建第一篇日记
-                        </motion.button>
-                      </div>
+                      <EmptyState
+                        icon="calendar"
+                        title="还没有穿搭日记"
+                        description="记录每日穿搭，AI 智能点评"
+                        actionLabel="创建第一篇日记"
+                        onAction={() => goToNew()}
+                      />
                     ) : (
                       <>
                         {diaries.map((diary, index) => (
@@ -480,8 +478,9 @@ export default function DiaryPage() {
               transition={transitionConfig}
             >
               {isLoading && !currentDiary ? (
-                <div className="flex items-center justify-center py-24">
-                  <div className="animate-spin rounded-full h-10 w-10 border-2 border-emerald-500 border-t-transparent" />
+                <div className="grid gap-3">
+                  <SkeletonCard lines={3} />
+                  <SkeletonCard lines={2} showImage={false} />
                 </div>
               ) : !currentDiary ? (
                 <div className="text-center py-24">

@@ -189,7 +189,7 @@ export function ExportModal({
               <div className="aspect-[9/16] w-full rounded-xl overflow-hidden bg-[#F8F9FA] border border-[var(--brand-border)]/50 flex items-center justify-center">
                 {status === 'generating' && (
                   <div className="flex flex-col items-center gap-3">
-                    <Loader2 className="w-8 h-8 text-[#3DA35D] animate-spin" />
+                    <Loader2 className="w-8 h-8 text-[var(--wuxing-wood)] animate-spin" />
                     <span className="text-sm text-[var(--brand-subtle)]">生成中...</span>
                   </div>
                 )}
@@ -201,7 +201,7 @@ export function ExportModal({
                   />
                 )}
                 {status === 'error' && (
-                  <p className="text-sm text-[#D4656B]">生成失败，请重试</p>
+                  <p className="text-sm text-[var(--wuxing-fire)]">生成失败，请重试</p>
                 )}
                 {status === 'idle' && (
                   <p className="text-sm text-[var(--brand-subtle)]">准备中...</p>
@@ -214,7 +214,7 @@ export function ExportModal({
               <button
                 onClick={handleDownload}
                 disabled={status !== 'done'}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] text-white font-medium shadow-md hover:shadow-lg transition-shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-[var(--wuxing-wood)] to-[var(--wuxing-water)] text-white font-medium shadow-md hover:shadow-lg transition-shadow disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="下载图片"
               >
                 {status === 'done' ? <Check className="w-4 h-4" /> : <Download className="w-4 h-4" />}

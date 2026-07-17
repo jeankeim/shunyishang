@@ -8,6 +8,7 @@ vi.mock('framer-motion', () => ({
     div: ({ children, onClick, ...props }: any) => <div onClick={onClick} {...props}>{children}</div>,
     button: ({ children, onClick, ...props }: any) => <button onClick={onClick} {...props}>{children}</button>,
   },
+  AnimatePresence: ({ children }: any) => <>{children}</>,
 }))
 
 // Mock lucide-react
@@ -110,12 +111,6 @@ describe('Header', () => {
     expect(screen.getByText(/小寒/)).toBeInTheDocument()
   })
 
-  it('should render VIP button when authenticated', () => {
-    mockUserStoreData.isAuthenticated = true
-    render(<Header />)
-    expect(screen.getByText('VIP')).toBeInTheDocument()
-  })
-
   it('should show user menu dropdown when user button is clicked', () => {
     mockUserStoreData.isAuthenticated = true
     mockUserStoreData.user = { nickname: 'TestUser', phone: '13800000000' }
@@ -126,7 +121,6 @@ describe('Header', () => {
     expect(screen.getByText('个人中心')).toBeInTheDocument()
     expect(screen.getByText('穿搭日记')).toBeInTheDocument()
     expect(screen.getByText('每日运势')).toBeInTheDocument()
-    expect(screen.getByText('会员中心')).toBeInTheDocument()
     expect(screen.getByText('退出登录')).toBeInTheDocument()
   })
 

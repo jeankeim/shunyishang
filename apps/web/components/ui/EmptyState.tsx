@@ -44,7 +44,7 @@ export function EmptyState({
         transition={{ delay: 0.1, type: 'spring', stiffness: 300, damping: 25 }}
         className="w-24 h-24 mb-6 rounded-full bg-gradient-to-br from-[var(--brand-surface)] to-[var(--brand-surface-active)] flex items-center justify-center shadow-sm"
       >
-        <Icon className="w-12 h-12 text-[#3DA35D]/40" />
+        <Icon className="w-12 h-12 text-[var(--brand-body)]/40" />
       </motion.div>
       
       <motion.h3
@@ -75,7 +75,7 @@ export function EmptyState({
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={onAction}
-          className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] text-white font-medium shadow-sm hover:shadow-md transition-all duration-200"
+          className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-gradient-to-r from-[var(--wuxing-wood)] to-[var(--wuxing-water)] text-white font-medium shadow-sm hover:shadow-md transition-all duration-200"
         >
           <Plus className="w-4 h-4" />
           {actionLabel}

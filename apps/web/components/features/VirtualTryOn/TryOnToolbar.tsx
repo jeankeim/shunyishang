@@ -48,8 +48,8 @@ interface ToolButtonProps {
 function ToolButton({ icon, label, onClick, disabled = false, variant = 'default' }: ToolButtonProps) {
   const colorMap = {
     default: 'text-[var(--brand-body)] hover:bg-[var(--brand-surface)]',
-    danger: 'text-[#D4656B] hover:bg-[#FDF2F2]',
-    primary: 'text-white bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] hover:from-[#359454] hover:to-[#3F84B5]',
+    danger: 'text-[var(--wuxing-fire)] hover:bg-red-50',
+    primary: 'text-white bg-gradient-to-r from-[var(--wuxing-wood)] to-[var(--wuxing-water)] hover:opacity-90',
   };
 
   return (
@@ -185,7 +185,7 @@ export function TryOnToolbar({
           value={Math.round(opacity * 100)}
           onChange={(e) => onOpacityChange(Number(e.target.value) / 100)}
           disabled={!hasSelection}
-          className="w-20 md:w-10 h-1.5 accent-[#3DA35D] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          className="w-20 md:w-10 h-1.5 accent-[var(--wuxing-wood)] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           aria-label="透明度"
           aria-valuemin={0}
           aria-valuemax={100}

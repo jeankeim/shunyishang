@@ -10,36 +10,36 @@ const ELEMENT_THEME: Record<string, SolarTerm> = {
   wood: {
     name: '木',
     element: 'wood',
-    primaryColor: '#22c55e',
-    bgColor: '#0f172a',
+    primaryColor: '#3DA35D',    // 春芽绿 - 与 globals.css 一致
+    bgColor: '#f8faf8',
     cssVariable: '142 76% 36%',
   },
   fire: {
     name: '火',
     element: 'fire',
-    primaryColor: '#ef4444',
-    bgColor: '#1a0f0f',
+    primaryColor: '#D4656B',    // 春桃粉 - 与 globals.css 一致
+    bgColor: '#fdf8f8',
     cssVariable: '0 84% 60%',
   },
   earth: {
     name: '土',
     element: 'earth',
-    primaryColor: '#a16207',
-    bgColor: '#1a150f',
+    primaryColor: '#B89B5E',    // 春泥黄 - 与 globals.css 一致
+    bgColor: '#faf8f5',
     cssVariable: '35 92% 33%',
   },
   metal: {
     name: '金',
     element: 'metal',
-    primaryColor: '#eab308',
-    bgColor: '#0f0f1a',
+    primaryColor: '#C5D0D8',    // 春霜银 - 与 globals.css 一致
+    bgColor: '#f9fafb',
     cssVariable: '48 96% 53%',
   },
   water: {
     name: '水',
     element: 'water',
-    primaryColor: '#3b82f6',
-    bgColor: '#0a0f1a',
+    primaryColor: '#4A90C4',    // 春雨青 - 与 globals.css 一致
+    bgColor: '#f8f9fc',
     cssVariable: '217 91% 60%',
   },
 }
@@ -50,12 +50,13 @@ const ELEMENT_THEME: Record<string, SolarTerm> = {
 export function getCurrentSolarTerm(date = new Date()): SolarTerm {
   const month = date.getMonth() + 1
 
-  // 简化版：根据月份判断
-  if (month >= 2 && month <= 4) return ELEMENT_THEME.wood
-  if (month >= 5 && month <= 7) return ELEMENT_THEME.fire
-  if (month >= 8 && month <= 10) return ELEMENT_THEME.metal
-  if (month >= 11 || month === 1) return ELEMENT_THEME.water
-  return ELEMENT_THEME.earth
+  // 根据月份映射五行（参考节气与四季土）
+  // 四季土（辰戌丑未）对应 1/4/7/10 月（季节交替期）
+  if ([1, 4, 7, 10].includes(month)) return ELEMENT_THEME.earth
+  if ([2, 3].includes(month)) return ELEMENT_THEME.wood
+  if ([5, 6].includes(month)) return ELEMENT_THEME.fire
+  if ([8, 9].includes(month)) return ELEMENT_THEME.metal
+  return ELEMENT_THEME.water // 11, 12
 }
 
 /**

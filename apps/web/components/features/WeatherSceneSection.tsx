@@ -466,7 +466,7 @@ export function WeatherSceneSection({
       <div>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Cloud className="h-4 w-4 text-[#4A90C4]" />
+            <Cloud className="h-4 w-4 text-[var(--wuxing-water)]" />
             <h3 className="font-medium text-[var(--brand-heading)]">今日天气</h3>
           </div>
           <div className="flex items-center gap-2">
@@ -518,14 +518,14 @@ export function WeatherSceneSection({
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <WeatherIcon className="h-8 w-8 text-[#4A90C4]" />
+                <WeatherIcon className="h-8 w-8 text-[var(--wuxing-water)]" />
                 <div>
                   <div className="text-2xl font-semibold text-[var(--brand-heading)]">{weather.temperature}°</div>
                   <div className="text-xs text-[var(--brand-subtle)]">{weather.weather}</div>
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-sm">五行: <span className="font-medium text-[#4A90C4]">{weather.element}</span></div>
+                <div className="text-sm">五行: <span className="font-medium text-[var(--wuxing-water)]">{weather.element}</span></div>
                 <div className="text-xs text-[var(--brand-subtle)]">{weather.element_reason}</div>
               </div>
             </div>
@@ -541,7 +541,7 @@ export function WeatherSceneSection({
       <div className="pt-3 border-t border-[var(--brand-border)]/50">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Briefcase className="h-4 w-4 text-[#3DA35D]" />
+            <Briefcase className="h-4 w-4 text-[var(--wuxing-wood)]" />
             <h3 className="font-medium text-[var(--brand-heading)]">常用场景</h3>
           </div>
           {selectedScene && (
@@ -583,10 +583,10 @@ export function WeatherSceneSection({
                   <div className="text-[10px] text-[var(--brand-subtle)]">{scene.desc} · {scene.element}</div>
                 </div>
                 {isCurrentSlot && !isSelected && (
-                  <span className="absolute top-0.5 right-0.5 text-[9px] px-1 rounded bg-[#3DA35D]/10 text-[#3DA35D]">当前</span>
+                  <span className="absolute top-0.5 right-0.5 text-[9px] px-1 rounded bg-[var(--wuxing-wood)]/10 text-[var(--wuxing-wood)]">当前</span>
                 )}
                 {isFrequent && !isCurrentSlot && (
-                  <span className="absolute top-0.5 right-0.5 text-[9px] px-1 rounded bg-[#4A90C4]/10 text-[#4A90C4]">常用</span>
+                  <span className="absolute top-0.5 right-0.5 text-[9px] px-1 rounded bg-[var(--wuxing-water)]/10 text-[var(--wuxing-water)]">常用</span>
                 )}
               </motion.button>
             )

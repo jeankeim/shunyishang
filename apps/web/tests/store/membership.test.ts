@@ -2,12 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useMembershipStore } from '@/store/membership'
 
 vi.mock('@/lib/api', () => ({
-  getMembershipStatus: vi.fn(),
-  getPlans: vi.fn(),
-  subscribe: vi.fn(),
-  cancelSubscription: vi.fn(),
-  upgradeMembership: vi.fn(),
-  renewMembership: vi.fn(),
   getPushSettings: vi.fn(),
   updatePushSettings: vi.fn(),
   getPushHistory: vi.fn(),
@@ -16,37 +10,12 @@ vi.mock('@/lib/api', () => ({
 }))
 
 import {
-  getMembershipStatus,
-  getPlans,
-  subscribe,
-  cancelSubscription,
-  upgradeMembership,
-  renewMembership,
   getPushSettings,
   updatePushSettings,
   getPushHistory,
   getUnreadCount,
   markNotificationRead,
 } from '@/lib/api'
-
-const mockStatus = {
-  plan: 'free' as const,
-  status: 'active' as const,
-  auto_renew: false,
-}
-
-const mockPlans = {
-  plans: [
-    {
-      name: '月度会员',
-      plan_key: 'monthly',
-      price_monthly: 29,
-      price_yearly: 299,
-      features: ['无限推荐'],
-      limits: {},
-    },
-  ],
-}
 
 const mockPushSettings = {
   enabled: true,
@@ -85,131 +54,35 @@ describe('useMembershipStore', () => {
     })
   })
 
-  describe('fetchStatus', () => {
-    it('should fetch membership status successfully', async () => {
-      vi.mocked(getMembershipStatus).mockResolvedValue(mockStatus)
-
+  describe('membership functions (个人备案版: no-op)', () => {
+    it('fetchStatus should be no-op', async () => {
       await useMembershipStore.getState().fetchStatus()
-
-      expect(getMembershipStatus).toHaveBeenCalled()
-      expect(useMembershipStore.getState().status).toEqual(mockStatus)
+      expect(useMembershipStore.getState().status).toBeNull()
     })
 
-    it('should set error on fetch failure', async () => {
-      vi.mocked(getMembershipStatus).mockRejectedValue(new Error('获取失败'))
-
-      await useMembershipStore.getState().fetchStatus()
-
-      expect(useMembershipStore.getState().error).toBe('获取失败')
-    })
-  })
-
-  describe('fetchPlans', () => {
-    it('should fetch plans successfully', async () => {
-      vi.mocked(getPlans).mockResolvedValue(mockPlans)
-
+    it('fetchPlans should be no-op', async () => {
       await useMembershipStore.getState().fetchPlans()
-
-      expect(getPlans).toHaveBeenCalled()
-      expect(useMembershipStore.getState().plans).toEqual(mockPlans.plans)
-    })
-
-    it('should handle null plans in response', async () => {
-      vi.mocked(getPlans).mockResolvedValue({ plans: null })
-
-      await useMembershipStore.getState().fetchPlans()
-
       expect(useMembershipStore.getState().plans).toEqual([])
     })
 
-    it('should set error on fetch failure', async () => {
-      vi.mocked(getPlans).mockRejectedValue(new Error('获取套餐失败'))
-
-      await useMembershipStore.getState().fetchPlans()
-
-      expect(useMembershipStore.getState().error).toBe('获取套餐失败')
-    })
-  })
-
-  describe('subscribe', () => {
-    it('should subscribe successfully and refresh status', async () => {
-      vi.mocked(subscribe).mockResolvedValue({})
-      vi.mocked(getMembershipStatus).mockResolvedValue(mockStatus)
-
+    it('subscribe should be no-op', async () => {
       await useMembershipStore.getState().subscribe('monthly', 'wechat')
-
-      expect(subscribe).toHaveBeenCalledWith({ plan: 'monthly', payment_method: 'wechat' })
-      expect(getMembershipStatus).toHaveBeenCalled()
-      expect(useMembershipStore.getState().isLoading).toBe(false)
+      // no error thrown, no state change
     })
 
-    it('should set error on subscribe failure', async () => {
-      vi.mocked(subscribe).mockRejectedValue(new Error('订阅失败'))
-
-      await expect(useMembershipStore.getState().subscribe('monthly', 'wechat')).rejects.toThrow('订阅失败')
-
-      expect(useMembershipStore.getState().error).toBe('订阅失败')
-      expect(useMembershipStore.getState().isLoading).toBe(false)
-    })
-  })
-
-  describe('cancel', () => {
-    it('should cancel subscription successfully', async () => {
-      vi.mocked(cancelSubscription).mockResolvedValue({})
-      vi.mocked(getMembershipStatus).mockResolvedValue(mockStatus)
-
+    it('cancel should be no-op', async () => {
       await useMembershipStore.getState().cancel(123)
-
-      expect(cancelSubscription).toHaveBeenCalledWith(123)
-      expect(getMembershipStatus).toHaveBeenCalled()
+      // no error thrown, no state change
     })
 
-    it('should set error on cancel failure', async () => {
-      vi.mocked(cancelSubscription).mockRejectedValue(new Error('取消失败'))
-
-      await expect(useMembershipStore.getState().cancel(123)).rejects.toThrow('取消失败')
-
-      expect(useMembershipStore.getState().error).toBe('取消失败')
-    })
-  })
-
-  describe('upgrade', () => {
-    it('should upgrade successfully', async () => {
-      vi.mocked(upgradeMembership).mockResolvedValue({})
-      vi.mocked(getMembershipStatus).mockResolvedValue(mockStatus)
-
+    it('upgrade should be no-op', async () => {
       await useMembershipStore.getState().upgrade('yearly')
-
-      expect(upgradeMembership).toHaveBeenCalledWith({ new_plan: 'yearly' })
-      expect(getMembershipStatus).toHaveBeenCalled()
+      // no error thrown, no state change
     })
 
-    it('should set error on upgrade failure', async () => {
-      vi.mocked(upgradeMembership).mockRejectedValue(new Error('升级失败'))
-
-      await expect(useMembershipStore.getState().upgrade('yearly')).rejects.toThrow('升级失败')
-
-      expect(useMembershipStore.getState().error).toBe('升级失败')
-    })
-  })
-
-  describe('renew', () => {
-    it('should renew successfully', async () => {
-      vi.mocked(renewMembership).mockResolvedValue({})
-      vi.mocked(getMembershipStatus).mockResolvedValue(mockStatus)
-
+    it('renew should be no-op', async () => {
       await useMembershipStore.getState().renew('alipay')
-
-      expect(renewMembership).toHaveBeenCalledWith({ payment_method: 'alipay' })
-      expect(getMembershipStatus).toHaveBeenCalled()
-    })
-
-    it('should set error on renew failure', async () => {
-      vi.mocked(renewMembership).mockRejectedValue(new Error('续费失败'))
-
-      await expect(useMembershipStore.getState().renew('alipay')).rejects.toThrow('续费失败')
-
-      expect(useMembershipStore.getState().error).toBe('续费失败')
+      // no error thrown, no state change
     })
   })
 

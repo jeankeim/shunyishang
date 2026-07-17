@@ -7,15 +7,15 @@ import type { TenGodsData } from '@/store/destiny'
 const TEN_GOD_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   '比肩': { bg: 'bg-[#8A9BA8]/10', text: 'text-[#6B7F8C]', border: 'border-[#8A9BA8]/30' },
   '劫财': { bg: 'bg-[#D4656B]/10', text: 'text-[#B5494F]', border: 'border-[#D4656B]/30' },
-  '食神': { bg: 'bg-[#3DA35D]/10', text: 'text-[#2D7A45]', border: 'border-[#3DA35D]/30' },
+  '食神': { bg: 'bg-[var(--wuxing-wood)]/10', text: 'text-[#2D7A45]', border: 'border-[var(--wuxing-wood)]/30' },
   '伤官': { bg: 'bg-[#9B59B6]/10', text: 'text-[#7D3C98]', border: 'border-[#9B59B6]/30' },
   '偏财': { bg: 'bg-[#B89B5E]/10', text: 'text-[#9A7E47]', border: 'border-[#B89B5E]/30' },
   '正财': { bg: 'bg-[#D4A574]/10', text: 'text-[#B8865A]', border: 'border-[#D4A574]/30' },
   '七杀': { bg: 'bg-[#2C3E50]/10', text: 'text-[#1A252F]', border: 'border-[#2C3E50]/30' },
-  '正官': { bg: 'bg-[#4A90C4]/10', text: 'text-[#3570A0]', border: 'border-[#4A90C4]/30' },
+  '正官': { bg: 'bg-[var(--wuxing-water)]/10', text: 'text-[#3570A0]', border: 'border-[var(--wuxing-water)]/30' },
   '偏印': { bg: 'bg-[#6B5B95]/10', text: 'text-[#5A4D7F]', border: 'border-[#6B5B95]/30' },
   '正印': { bg: 'bg-[#5DADE2]/10', text: 'text-[#2E86C1]', border: 'border-[#5DADE2]/30' },
-  '日主': { bg: 'bg-gradient-to-br from-[#3DA35D]/15 to-[#4A90C4]/15', text: 'text-[var(--brand-heading)]', border: 'border-[#3DA35D]/40' },
+  '日主': { bg: 'bg-gradient-to-br from-[var(--wuxing-wood)]/15 to-[var(--wuxing-water)]/15', text: 'text-[var(--brand-heading)]', border: 'border-[var(--wuxing-wood)]/40' },
 }
 
 // 十神描述映射
@@ -69,7 +69,7 @@ export function TenGodsCard({ data }: TenGodsCardProps) {
       {/* 四柱十神 */}
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
         <h3 className="text-sm font-semibold text-stone-800 mb-4 flex items-center gap-2">
-          <span className="w-1.5 h-1.5 bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] rounded-full" />
+          <span className="w-1.5 h-1.5 bg-gradient-to-r from-[var(--wuxing-wood)] to-[var(--wuxing-water)] rounded-full" />
           四柱十神
         </h3>
         <div className="grid grid-cols-4 gap-3">
@@ -108,7 +108,7 @@ export function TenGodsCard({ data }: TenGodsCardProps) {
       {Object.keys(god_distribution).length > 0 && (
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
           <h3 className="text-sm font-semibold text-stone-800 mb-4 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 bg-gradient-to-r from-[#B89B5E] to-[#D4656B] rounded-full" />
+            <span className="w-1.5 h-1.5 bg-gradient-to-r from-[var(--wuxing-earth)] to-[var(--wuxing-fire)] rounded-full" />
             十神分布
           </h3>
           <div className="space-y-2">
@@ -151,7 +151,7 @@ export function TenGodsCard({ data }: TenGodsCardProps) {
       {analysis && (
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
           <h3 className="text-sm font-semibold text-stone-800 mb-3 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 bg-gradient-to-r from-[#4A90C4] to-[#9B59B6] rounded-full" />
+            <span className="w-1.5 h-1.5 bg-gradient-to-r from-[var(--wuxing-water)] to-[#9B59B6] rounded-full" />
             格局分析
           </h3>
           <p className="text-sm text-stone-600 leading-relaxed">{analysis}</p>
