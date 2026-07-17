@@ -505,7 +505,7 @@ export function WeatherSceneSection({
 
         {/* 定位错误提示 */}
         {locationError && (
-          <div className="mb-2 text-xs text-amber-600 dark:text-amber-400">
+          <div className="mb-2 text-xs text-[var(--wuxing-earth)] dark:text-[var(--wuxing-earth)]">
             ⚠️ {locationError}
           </div>
         )}

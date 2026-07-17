@@ -5,7 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pi
 import type { DiaryStats } from '@/types'
 
 const MOOD_COLORS: Record<string, string> = {
-  happy: '#3DA35D', excited: '#D4656B', calm: '#4A90C4', neutral: '#B89B5E', sad: '#8A9F92',
+  happy: '#3DA35D', excited: '#C75B5B', calm: '#4A90C4', neutral: '#B89B5E', sad: '#9CAFB8',
 }
 const MOOD_LABELS: Record<string, string> = {
   happy: '开心', excited: '兴奋', calm: '平静', neutral: '一般', sad: '低落',

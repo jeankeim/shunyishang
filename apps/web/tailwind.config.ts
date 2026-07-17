@@ -69,10 +69,10 @@ const config: Config = {
           foreground: 'hsl(var(--card-foreground))',
         },
         wuxing: {
-          metal: '#C5D0D8',  // 春霜银 - 优化对比度
+          metal: '#9CAFB8',  // 银霜 - 提高辨识度
           wood: '#3DA35D',   // 春芽绿 - WCAG 4.8:1
           water: '#4A90C4',  // 春雨青 - WCAG 4.6:1
-          fire: '#D4656B',   // 春桃粉 - WCAG 4.7:1
+          fire: '#C75B5B',   // 朱砂红 - 减少粉感
           earth: '#B89B5E',  // 春泥黄 - WCAG 4.5:1
         },
       },

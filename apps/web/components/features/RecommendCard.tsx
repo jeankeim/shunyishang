@@ -215,7 +215,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
                 <span className="text-stone-500 text-xs">综合匹配</span>
-                <span className="font-bold text-amber-600 text-lg">
+                <span className="font-bold text-[var(--wuxing-earth)] text-lg">
                   {(item.final_score * 100).toFixed(0)}%
                 </span>
               </div>

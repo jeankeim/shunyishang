@@ -8,7 +8,7 @@ const ELEMENT_COLORS: Record<string, { bg: string; text: string }> = {
   '金': { bg: 'bg-[#8A9BA8]/15', text: 'text-[#6B7F8C]' },
   '木': { bg: 'bg-[#3DA35D]/15', text: 'text-[#2D7A45]' },
   '水': { bg: 'bg-[#4A90C4]/15', text: 'text-[#3570A0]' },
-  '火': { bg: 'bg-[#D4656B]/15', text: 'text-[#B5494F]' },
+  '火': { bg: 'bg-[#C75B5B]/15', text: 'text-[#A84545]' },
   '土': { bg: 'bg-[#B89B5E]/15', text: 'text-[#9A7E47]' },
 }
 
@@ -44,7 +44,7 @@ export function AdvancedBaziCard({ data }: AdvancedBaziCardProps) {
       {/* 纳音五行 */}
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
         <h3 className="text-sm font-semibold text-stone-800 mb-4 flex items-center gap-2">
-          <span className="w-1.5 h-1.5 bg-gradient-to-r from-[#B89B5E] to-[#D4656B] rounded-full" />
+          <span className="w-1.5 h-1.5 bg-gradient-to-r from-[#B89B5E] to-[#C75B5B] rounded-full" />
           纳音五行
         </h3>
         <div className="grid grid-cols-4 gap-2">
@@ -111,7 +111,7 @@ export function AdvancedBaziCard({ data }: AdvancedBaziCardProps) {
       {relations.length > 0 && (
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
           <h3 className="text-sm font-semibold text-stone-800 mb-4 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 bg-gradient-to-r from-[#D4656B] to-[#9B59B6] rounded-full" />
+            <span className="w-1.5 h-1.5 bg-gradient-to-r from-[#C75B5B] to-[#B89B5E] rounded-full" />
             刑冲克害
           </h3>
           <div className="space-y-2">
@@ -148,7 +148,7 @@ export function AdvancedBaziCard({ data }: AdvancedBaziCardProps) {
       {analysis && (
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
           <h3 className="text-sm font-semibold text-stone-800 mb-3 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 bg-gradient-to-r from-[#4A90C4] to-[#9B59B6] rounded-full" />
+            <span className="w-1.5 h-1.5 bg-gradient-to-r from-[#4A90C4] to-[#9CAFB8] rounded-full" />
             综合分析
           </h3>
           <p className="text-sm text-stone-600 leading-relaxed">{analysis}</p>

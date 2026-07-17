@@ -8,7 +8,7 @@ const ELEMENT_COLORS: Record<string, { bg: string; text: string; border: string 
   '金': { bg: 'bg-[#8A9BA8]/15', text: 'text-[#6B7F8C]', border: 'border-[#8A9BA8]/30' },
   '木': { bg: 'bg-[#3DA35D]/15', text: 'text-[#2D7A45]', border: 'border-[#3DA35D]/30' },
   '水': { bg: 'bg-[#4A90C4]/15', text: 'text-[#3570A0]', border: 'border-[#4A90C4]/30' },
-  '火': { bg: 'bg-[#D4656B]/15', text: 'text-[#B5494F]', border: 'border-[#D4656B]/30' },
+  '火': { bg: 'bg-[#C75B5B]/15', text: 'text-[#A84545]', border: 'border-[#C75B5B]/30' },
   '土': { bg: 'bg-[#B89B5E]/15', text: 'text-[#9A7E47]', border: 'border-[#B89B5E]/30' },
 }
 
@@ -64,7 +64,7 @@ export function MajorLuckCard({ luckPeriods, currentLuck }: MajorLuckCardProps) 
       {/* 大运时间线 */}
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
         <h3 className="text-sm font-semibold text-stone-800 mb-4 flex items-center gap-2">
-          <span className="w-1.5 h-1.5 bg-gradient-to-r from-[#B89B5E] to-[#D4656B] rounded-full" />
+          <span className="w-1.5 h-1.5 bg-gradient-to-r from-[#B89B5E] to-[#C75B5B] rounded-full" />
           大运周期
         </h3>
         <div className="relative">

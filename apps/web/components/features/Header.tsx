@@ -203,7 +203,7 @@ export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
                 setShowUserMenu(false)
                 handleLogout()
               }}
-              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#D4656B] hover:bg-[#FDF2F2] transition-colors cursor-pointer"
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[var(--wuxing-fire)] hover:bg-[var(--wuxing-fire)]/10 transition-colors cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
               <span className="font-medium">退出登录</span>

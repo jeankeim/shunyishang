@@ -5,10 +5,10 @@ import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Responsi
 import { cn } from '@/lib/utils'
 
 const ELEMENT_CONFIG: Record<string, { color: string; emoji: string; lightColor: string }> = {
-  '金': { color: '#C5D0D8', emoji: '⚪', lightColor: '#F5F7F9' },
+  '金': { color: '#9CAFB8', emoji: '⚪', lightColor: '#F5F7F9' },
   '木': { color: '#3DA35D', emoji: '🟢', lightColor: '#F0F9F4' },
   '水': { color: '#4A90C4', emoji: '🔵', lightColor: '#F0F7FA' },
-  '火': { color: '#D4656B', emoji: '🔴', lightColor: '#FDF2F2' },
+  '火': { color: '#C75B5B', emoji: '🔴', lightColor: '#FDF2F2' },
   '土': { color: '#B89B5E', emoji: '🟡', lightColor: '#F9F5EC' },
 }
 

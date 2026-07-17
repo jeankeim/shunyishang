@@ -459,13 +459,13 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
                 />
                 <span className="text-sm text-[var(--brand-heading)]">男</span>
               </label>
-              <label className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--brand-border)] cursor-pointer hover:border-[#D4656B]/50 hover:bg-[#FDF2F2] transition-all duration-200">
+              <label className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--brand-border)] cursor-pointer hover:border-[#C75B5B]/50 hover:bg-[#FDF2F2] transition-all duration-200">
                 <input
                   type="radio"
                   name="gender"
                   checked={gender === '女'}
                   onChange={() => switchGender('女')}
-                  className="w-4 h-4 text-[#D4656B] focus:ring-[#D4656B]/30 border-[var(--brand-border)]"
+                  className="w-4 h-4 text-[#C75B5B] focus:ring-[#C75B5B]/30 border-[var(--brand-border)]"
                 />
                 <span className="text-sm text-[var(--brand-heading)]">女</span>
               </label>

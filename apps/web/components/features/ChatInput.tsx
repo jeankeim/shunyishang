@@ -30,7 +30,7 @@ export function ChatInput({ onSend, disabled, bazi }: ChatInputProps) {
   }
 
   return (
-    <div className="border-t border-amber-200/30 bg-gradient-to-r from-white to-amber-50/30 p-4">
+    <div className="border-t border-[var(--brand-border)] bg-white p-4">
       <div className="flex items-end gap-2 max-w-3xl mx-auto">
         {/* 输入框 */}
         <textarea
@@ -45,7 +45,7 @@ export function ChatInput({ onSend, disabled, bazi }: ChatInputProps) {
             }
           }}
           placeholder="描述你的穿搭需求..."
-          className="flex-1 min-h-[60px] max-h-[200px] resize-none rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-[var(--brand-heading)] focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 shadow-sm placeholder:text-[var(--brand-subtle)] font-medium"
+          className="flex-1 min-h-[60px] max-h-[200px] resize-none rounded-lg border border-[var(--brand-border)] bg-white px-3 py-2 text-sm text-[var(--brand-heading)] focus:outline-none focus:ring-2 focus:ring-[var(--wuxing-wood)]/40 focus:border-[var(--wuxing-wood)]/40 shadow-sm placeholder:text-[var(--brand-subtle)] font-medium"
           disabled={disabled}
         />
 
@@ -54,9 +54,9 @@ export function ChatInput({ onSend, disabled, bazi }: ChatInputProps) {
           onClick={handleSend}
           disabled={disabled || !input.trim()}
           className={cn(
-            'p-2 rounded-lg bg-gradient-to-r from-amber-400 to-orange-400 text-white transition-all shadow-sm hover:shadow-md shrink-0',
+            'p-2 rounded-lg bg-gradient-to-r from-[var(--wuxing-wood)] to-[var(--wuxing-water)] text-white transition-all shadow-sm hover:shadow-md shrink-0',
             (disabled || !input.trim()) && 'opacity-50 cursor-not-allowed',
-            !disabled && input.trim() && 'hover:from-amber-500 hover:to-orange-500'
+            !disabled && input.trim() && 'hover:opacity-90'
           )}
         >
           <Send className="h-5 w-5" />

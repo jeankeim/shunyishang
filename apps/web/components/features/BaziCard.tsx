@@ -8,10 +8,10 @@ interface BaziCardProps {
   onEdit?: () => void
 }
 
-// 五行颜色映射 - 春分优化版 (WCAG 4.5:1+)
+// 五行颜色映射 - 朱砂版 (WCAG 4.5:1+, 视觉平衡优化)
 const elementColors: Record<string, { bg: string; text: string; border: string; light: string }> = {
   '木': { bg: 'bg-[#3DA35D]', text: 'text-[#2D7A45]', border: 'border-[#3DA35D]/30', light: 'bg-[#F0F9F4]' },
-  '火': { bg: 'bg-[#D4656B]', text: 'text-[#B5494F]', border: 'border-[#D4656B]/30', light: 'bg-[#FDF2F2]' },
+  '火': { bg: 'bg-[#C75B5B]', text: 'text-[#A84545]', border: 'border-[#C75B5B]/30', light: 'bg-[#FDF2F2]' },
   '土': { bg: 'bg-[#B89B5E]', text: 'text-[#9A7E47]', border: 'border-[#B89B5E]/30', light: 'bg-[#F9F5EC]' },
   '金': { bg: 'bg-[#8A9BA8]', text: 'text-[#6B7F8C]', border: 'border-[#8A9BA8]/30', light: 'bg-[#F5F7F9]' },
   '水': { bg: 'bg-[#4A90C4]', text: 'text-[#3570A0]', border: 'border-[#4A90C4]/30', light: 'bg-[#F0F7FA]' },
@@ -117,7 +117,7 @@ export function BaziCard({ onEdit }: BaziCardProps) {
       {xiyong && xiyong.length > 0 && (
         <motion.div 
           whileHover={{ scale: 1.01 }}
-          className="inner-card p-3 mb-3 bg-gradient-to-br from-white to-[var(--brand-surface)]"
+          className="inner-card p-3 mb-3 bg-gradient-to-br from-[var(--brand-surface)]/50 to-white/80"
         >
           <div className="flex items-center gap-2 mb-2">
             <Sparkles className="h-3 w-3 text-[#B89B5E]" />
@@ -148,7 +148,7 @@ export function BaziCard({ onEdit }: BaziCardProps) {
       {avoidElements && avoidElements.length > 0 && (
         <motion.div 
           whileHover={{ scale: 1.01 }}
-          className="inner-card p-3 bg-gradient-to-br from-[#F5F7F9] to-[#F0F2F5]/80"
+          className="inner-card p-3 bg-gradient-to-br from-[var(--brand-surface)]/30 to-[var(--brand-surface-active)]/20"
         >
           <div className="text-xs text-[var(--brand-subtle)] mb-2 font-medium">需避免</div>
           <div className="flex flex-wrap gap-2">

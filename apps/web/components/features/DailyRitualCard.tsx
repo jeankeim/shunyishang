@@ -6,21 +6,21 @@ import { getDailyRitual, getWuxingTip, getDailyPick } from '@/lib/api'
 import { useUserStore } from '@/store/user'
 import type { WuxingTip, DailyPick } from '@/lib/api'
 
-// 颜色名称到色值
+// 颜色名称到色值 - 映射到五行色系，避免高饱和Tailwind标准色
 const COLOR_MAP: Record<string, string> = {
-  '红色': '#DC2626', '紫色': '#7C3AED', '粉色': '#EC4899',
-  '橙色': '#EA580C', '黄色': '#CA8A04', '棕色': '#92400E',
-  '绿色': '#16A34A', '青色': '#0D9488', '蓝色': '#2563EB',
-  '黑色': '#1C1917', '白色': '#F5F5F4', '灰色': '#9CA3AF',
-  '银色': '#C0C0C0', '金色': '#D4A574', '米色': '#F5E6D3',
+  '红色': '#C75B5B', '紫色': '#9CAFB8', '粉色': '#D46B8A',
+  '橙色': '#B89B5E', '黄色': '#B89B5E', '棕色': '#8A6B4E',
+  '绿色': '#3DA35D', '青色': '#4A90C4', '蓝色': '#4A90C4',
+  '黑色': '#4A5F52', '白色': '#E8F0EB', '灰色': '#9CAFB8',
+  '银色': '#9CAFB8', '金色': '#B89B5E', '米色': '#E8DFC4',
 }
 
-// 运势等级配置
+// 运势等级配置 - 五行色系统一
 const LEVEL_CONFIG: Record<string, { label: string; gradient: string; emoji: string }> = {
-  great:  { label: '大吉', gradient: 'from-emerald-400 to-teal-500', emoji: '🎉' },
-  good:   { label: '良好', gradient: 'from-blue-400 to-cyan-500', emoji: '✨' },
-  normal: { label: '平稳', gradient: 'from-amber-400 to-orange-400', emoji: '☀️' },
-  weak:   { label: '偏弱', gradient: 'from-stone-400 to-stone-500', emoji: '🌙' },
+  great:  { label: '大吉', gradient: 'from-[#3DA35D] to-[#2D8A4D]', emoji: '🎉' },
+  good:   { label: '良好', gradient: 'from-[#4A90C4] to-[#3A80B4]', emoji: '✨' },
+  normal: { label: '平稳', gradient: 'from-[#B89B5E] to-[#A88B4E]', emoji: '☀️' },
+  weak:   { label: '偏弱', gradient: 'from-[#9CAFB8] to-[#8A9BA8]', emoji: '🌙' },
 }
 
 // ============================================================
@@ -185,9 +185,9 @@ export function DailyRitualCard({ onCheckIn, onNavigateToFortune, onNavigateToCu
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="rounded-2xl overflow-hidden shadow-sm border border-stone-100"
+      className="rounded-2xl overflow-hidden shadow-sm border border-[var(--brand-border)]"
       style={{
-        background: 'linear-gradient(135deg, #FEFDF8 0%, #F8F5EC 40%, #F0EDE4 100%)',
+        background: 'linear-gradient(135deg, #FEFDFE 0%, #F8FAF8 40%, #F2F5F2 100%)',
       }}
     >
       {/* 顶部运势条 */}
@@ -195,9 +195,9 @@ export function DailyRitualCard({ onCheckIn, onNavigateToFortune, onNavigateToCu
 
       {/* ── 节气提示条（近期有节气时显示） ──────────────────────────── */}
       {solarTermText && (
-        <div className="mx-4 mt-3 mb-0 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200/60">
+        <div className="mx-4 mt-3 mb-0 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--brand-surface)]/60 border border-[var(--brand-border)]/60">
           <span className="text-sm flex-shrink-0">🌿</span>
-          <p className="text-xs text-amber-700 leading-relaxed flex-1">
+          <p className="text-xs text-[var(--brand-body)] leading-relaxed flex-1">
             {solarTermText}
           </p>
         </div>
@@ -229,14 +229,14 @@ export function DailyRitualCard({ onCheckIn, onNavigateToFortune, onNavigateToCu
             )}
             {/* 打卡状态 */}
             {diary.checked_in_today ? (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--wuxing-wood)]/15 text-[var(--wuxing-wood)] font-medium">
                 ✓ 已打卡
               </span>
             ) : (
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={onCheckIn}
-                className="text-xs px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-white font-medium shadow-sm"
+                className="text-xs px-2 py-0.5 rounded-full bg-gradient-to-r from-[var(--wuxing-wood)] to-[var(--wuxing-water)] text-white font-medium shadow-sm"
               >
                 打卡
               </motion.button>
@@ -264,7 +264,7 @@ export function DailyRitualCard({ onCheckIn, onNavigateToFortune, onNavigateToCu
 
           {/* 日记连续 */}
           <div className="text-center">
-            <p className="text-sm font-bold text-emerald-600 leading-none mb-0.5">{diary.streak_days}</p>
+            <p className="text-sm font-bold text-[var(--wuxing-wood)] leading-none mb-0.5">{diary.streak_days}</p>
             <p className="text-xs text-stone-500">连续打卡</p>
           </div>
 
@@ -305,11 +305,11 @@ export function DailyRitualCard({ onCheckIn, onNavigateToFortune, onNavigateToCu
           <div className="flex gap-1.5">
             {Object.entries(fortune.scores).map(([key, score]) => {
               const dimConfig: Record<string, { emoji: string; color: string }> = {
-                career: { emoji: '💼', color: '#3DA35D' },
-                wealth: { emoji: '💰', color: '#B89B5E' },
-                love:   { emoji: '💕', color: '#D4656B' },
-                health: { emoji: '🌿', color: '#4A90C4' },
-                study:  { emoji: '📚', color: '#8B6DB0' },
+                career: { emoji: '💼', color: '#3DA35D' },   // 木-事业
+                wealth: { emoji: '💰', color: '#B89B5E' },   // 土-财运
+                love:   { emoji: '💕', color: '#C75B5B' },   // 火-桃花
+                health: { emoji: '🌿', color: '#4A90C4' },   // 水-健康
+                study:  { emoji: '📚', color: '#9CAFB8' },   // 金-学业
               }
               const dim = dimConfig[key] || { emoji: '·', color: '#999' }
               return (
@@ -350,18 +350,18 @@ function WuxingTipSection({ tip }: { tip: WuxingTip | null }) {
   }
 
   return (
-    <div className="mb-2 bg-gradient-to-r from-emerald-50/80 to-teal-50/60 rounded-xl px-3 py-2.5 border border-emerald-100/60">
+    <div className="mb-2 bg-[var(--brand-surface)]/50 rounded-xl px-3 py-2.5 border border-[var(--brand-border)]/60">
       <div className="flex items-start gap-2">
         <span className="text-sm flex-shrink-0 mt-0.5">
           {elementEmoji[tip.element] || '📖'}
         </span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-0.5">
-            <span className="text-[10px] px-1.5 py-0 rounded-full bg-emerald-100 text-emerald-700 font-medium">
+            <span className="text-[10px] px-1.5 py-0 rounded-full bg-[var(--wuxing-wood)]/15 text-[var(--wuxing-wood)] font-medium">
               {tip.category || '穿搭百科'}
             </span>
             {tip.element && (
-              <span className="text-[10px] text-emerald-500">· {tip.element}行</span>
+              <span className="text-[10px] text-[var(--brand-subtle)]">· {tip.element}行</span>
             )}
           </div>
           <p className="text-xs font-medium text-stone-700 leading-snug mb-0.5 truncate">
@@ -402,7 +402,7 @@ function DailyPickSection({ pick, onNavigate }: { pick: DailyPick | null; onNavi
             onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
           />
         ) : (
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-50 to-orange-50 flex items-center justify-center flex-shrink-0 border border-stone-100">
+          <div className="w-10 h-10 rounded-lg bg-[var(--brand-surface)] flex items-center justify-center flex-shrink-0 border border-[var(--brand-border)]">
             <span className="text-base">👕</span>
           </div>
         )}
@@ -414,7 +414,7 @@ function DailyPickSection({ pick, onNavigate }: { pick: DailyPick | null; onNavi
               {item.name}
             </span>
             {item.primary_element && (
-              <span className="text-[10px] px-1 py-0 rounded-full bg-amber-100 text-amber-700 flex-shrink-0">
+              <span className="text-[10px] px-1 py-0 rounded-full bg-[var(--wuxing-earth)]/15 text-[var(--wuxing-earth)] flex-shrink-0">
                 {item.primary_element}
               </span>
             )}

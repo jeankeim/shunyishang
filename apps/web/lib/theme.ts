@@ -17,7 +17,7 @@ const ELEMENT_THEME: Record<string, SolarTerm> = {
   fire: {
     name: '火',
     element: 'fire',
-    primaryColor: '#D4656B',    // 春桃粉 - 与 globals.css 一致
+    primaryColor: '#C75B5B',    // 朱砂红 - 与 globals.css 一致
     bgColor: '#fdf8f8',
     cssVariable: '0 84% 60%',
   },
@@ -31,7 +31,7 @@ const ELEMENT_THEME: Record<string, SolarTerm> = {
   metal: {
     name: '金',
     element: 'metal',
-    primaryColor: '#C5D0D8',    // 春霜银 - 与 globals.css 一致
+    primaryColor: '#9CAFB8',    // 银霜 - 与 globals.css 一致
     bgColor: '#f9fafb',
     cssVariable: '48 96% 53%',
   },

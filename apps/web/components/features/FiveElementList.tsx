@@ -8,10 +8,10 @@ interface FiveElementListProps {
 
 export function FiveElementList({ currentData, suggestedData, xiyongShen }: FiveElementListProps) {
   const elements = [
-    { name: '金', key: 'metal', color: 'bg-[#C5D0D8]', emoji: '⚔️', current: currentData?.metal || 0, suggested: suggestedData?.metal || 0 },
+    { name: '金', key: 'metal', color: 'bg-[#9CAFB8]', emoji: '⚔️', current: currentData?.metal || 0, suggested: suggestedData?.metal || 0 },
     { name: '木', key: 'wood', color: 'bg-[#3DA35D]', emoji: '🌳', current: currentData?.wood || 0, suggested: suggestedData?.wood || 0 },
     { name: '水', key: 'water', color: 'bg-[#4A90C4]', emoji: '💧', current: currentData?.water || 0, suggested: suggestedData?.water || 0 },
-    { name: '火', key: 'fire', color: 'bg-[#D4656B]', emoji: '🔥', current: currentData?.fire || 0, suggested: suggestedData?.fire || 0 },
+    { name: '火', key: 'fire', color: 'bg-[#C75B5B]', emoji: '🔥', current: currentData?.fire || 0, suggested: suggestedData?.fire || 0 },
     { name: '土', key: 'earth', color: 'bg-[#B89B5E]', emoji: '🌍', current: currentData?.earth || 0, suggested: suggestedData?.earth || 0 },
   ]
   

@@ -428,7 +428,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
         )}
 
         {/* 五行属性（可编辑） */}
-        <div className="p-4 bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border border-amber-100">
+        <div className="p-4 bg-[var(--brand-surface)]/40 rounded-2xl border border-[var(--brand-border)]">
           <h3 className="font-medium text-[var(--brand-body)] mb-3 flex items-center gap-2">
             <span>🔮</span> 五行属性
           </h3>
@@ -874,7 +874,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
               </div>
 
               {!isAuthenticated && (
-                <div className="mx-6 mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700">
+                <div className="mx-6 mt-4 p-3 bg-[var(--wuxing-earth)]/10 border border-[var(--wuxing-earth)]/30 rounded-xl text-sm text-[var(--wuxing-earth)]">
                   ⚠️ 请先登录后再添加衣物
                 </div>
               )}

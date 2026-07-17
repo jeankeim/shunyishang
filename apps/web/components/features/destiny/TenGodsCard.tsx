@@ -6,9 +6,9 @@ import type { TenGodsData } from '@/store/destiny'
 // 十神颜色映射
 const TEN_GOD_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   '比肩': { bg: 'bg-[#8A9BA8]/10', text: 'text-[#6B7F8C]', border: 'border-[#8A9BA8]/30' },
-  '劫财': { bg: 'bg-[#D4656B]/10', text: 'text-[#B5494F]', border: 'border-[#D4656B]/30' },
+  '劫财': { bg: 'bg-[#C75B5B]/10', text: 'text-[#A84545]', border: 'border-[#C75B5B]/30' },
   '食神': { bg: 'bg-[var(--wuxing-wood)]/10', text: 'text-[#2D7A45]', border: 'border-[var(--wuxing-wood)]/30' },
-  '伤官': { bg: 'bg-[#9B59B6]/10', text: 'text-[#7D3C98]', border: 'border-[#9B59B6]/30' },
+  '伤官': { bg: 'bg-[#C75B5B]/10', text: 'text-[#A84545]', border: 'border-[#C75B5B]/30' },
   '偏财': { bg: 'bg-[#B89B5E]/10', text: 'text-[#9A7E47]', border: 'border-[#B89B5E]/30' },
   '正财': { bg: 'bg-[#D4A574]/10', text: 'text-[#B8865A]', border: 'border-[#D4A574]/30' },
   '七杀': { bg: 'bg-[#2C3E50]/10', text: 'text-[#1A252F]', border: 'border-[#2C3E50]/30' },
@@ -135,10 +135,10 @@ export function TenGodsCard({ data }: TenGodsCardProps) {
                       </span>
                     </div>
                     {isDominant && (
-                      <span className="text-[10px] px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded-full">旺</span>
+                      <span className="text-[10px] px-1.5 py-0.5 bg-[var(--wuxing-wood)]/15 text-[var(--wuxing-wood)] rounded-full">旺</span>
                     )}
                     {isWeak && (
-                      <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded-full">弱</span>
+                      <span className="text-[10px] px-1.5 py-0.5 bg-[var(--wuxing-metal)]/15 text-[var(--wuxing-metal)] rounded-full">弱</span>
                     )}
                   </div>
                 )
@@ -151,7 +151,7 @@ export function TenGodsCard({ data }: TenGodsCardProps) {
       {analysis && (
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
           <h3 className="text-sm font-semibold text-stone-800 mb-3 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 bg-gradient-to-r from-[var(--wuxing-water)] to-[#9B59B6] rounded-full" />
+            <span className="w-1.5 h-1.5 bg-gradient-to-r from-[var(--wuxing-water)] to-[var(--wuxing-metal)] rounded-full" />
             格局分析
           </h3>
           <p className="text-sm text-stone-600 leading-relaxed">{analysis}</p>

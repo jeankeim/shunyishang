@@ -37,11 +37,11 @@
   --input: 150 20% 90%;
   --ring: 152 58% 38%;
   
-  /* 五行色 - 春分优化版 (WCAG AA 4.5:1+) */
-  --wuxing-metal: #C5D0D8;  /* 春霜银 - 优化对比度 */
+  /* 五行色 - 春分优化版 (WCAG AA 4.5:1+, 视觉平衡优化) */
+  --wuxing-metal: #9CAFB8;  /* 银霜 - 从 #C5D0D8 加深，提高辨识度 */
   --wuxing-wood: #3DA35D;   /* 春芽绿 - 从 #A8D5BA 加深到 4.8:1 */
   --wuxing-water: #4A90C4;  /* 春雨青 - 从 #B8D4E3 加深到 4.6:1 */
-  --wuxing-fire: #D4656B;   /* 春桃粉 - 从 #F5C6B8 加深到 4.7:1 */
+  --wuxing-fire: #C75B5B;   /* 朱砂红 - 从 #D4656B 调整，减少粉感增强力量感 */
   --wuxing-earth: #B89B5E;  /* 春泥黄 - 从 #E8DCC4 加深到 4.5:1 */
 
   /* 品牌语义色 - 从硬编码提取，跟随五行主题变化 */
@@ -61,10 +61,10 @@
   --accent: 142 25% 92%;
   --muted: 142 20% 94%;
   --border: 142 20% 88%;
-  --wuxing-metal: #C5D0D8;
+  --wuxing-metal: #9CAFB8;
   --wuxing-wood: #3DA35D;
   --wuxing-water: #4A90C4;
-  --wuxing-fire: #D4656B;
+  --wuxing-fire: #C75B5B;
   --wuxing-earth: #B89B5E;
   --brand-heading: #1A3A28;
   --brand-body: #2D5A3E;
@@ -82,10 +82,10 @@
   --accent: 0 40% 94%;
   --muted: 0 25% 95%;
   --border: 0 20% 88%;
-  --wuxing-metal: #D8C5C5;
+  --wuxing-metal: #B8A8A8;
   --wuxing-wood: #5DA36B;
   --wuxing-water: #4A7CC4;
-  --wuxing-fire: #D4454B;
+  --wuxing-fire: #B84B4B;
   --wuxing-earth: #B8895E;
   --brand-heading: #3A1A1A;
   --brand-body: #5A3030;
@@ -103,10 +103,10 @@
   --accent: 35 30% 92%;
   --muted: 35 20% 94%;
   --border: 35 20% 88%;
-  --wuxing-metal: #D8D0C5;
+  --wuxing-metal: #B8B0A5;
   --wuxing-wood: #5DA37A;
   --wuxing-water: #4A90B4;
-  --wuxing-fire: #D46578;
+  --wuxing-fire: #C75B6E;
   --wuxing-earth: #B89B5E;
   --brand-heading: #3A2D1A;
   --brand-body: #5A4A30;
@@ -124,10 +124,10 @@
   --accent: 48 30% 93%;
   --muted: 48 20% 94%;
   --border: 48 20% 88%;
-  --wuxing-metal: #C5CDD8;
+  --wuxing-metal: #9CAAB8;
   --wuxing-wood: #3DA38A;
   --wuxing-water: #4A80C4;
-  --wuxing-fire: #D4656B;
+  --wuxing-fire: #C75B5B;
   --wuxing-earth: #B8A05E;
   --brand-heading: #2D3038;
   --brand-body: #4A4D55;
@@ -145,10 +145,10 @@
   --accent: 217 30% 93%;
   --muted: 217 20% 94%;
   --border: 217 20% 88%;
-  --wuxing-metal: #C5D0D8;
+  --wuxing-metal: #9CAFB8;
   --wuxing-wood: #3DA35D;
   --wuxing-water: #3A80C4;
-  --wuxing-fire: #D46578;
+  --wuxing-fire: #C75B6E;
   --wuxing-earth: #B89B6E;
   --brand-heading: #1A2838;
   --brand-body: #304050;
@@ -224,10 +224,10 @@ body {
     --ring: 152 58% 45%;
 
     /* 暗色模式五行色 - 适当提亮保持可辨识度 */
-    --wuxing-metal: #D8E0E8;
+    --wuxing-metal: #C0D0D8;
     --wuxing-wood: #4DB86D;
     --wuxing-water: #5AA0D4;
-    --wuxing-fire: #E4757B;
+    --wuxing-fire: #D46B6B;
     --wuxing-earth: #C8AB6E;
 
     /* 暗色模式品牌语义色 */

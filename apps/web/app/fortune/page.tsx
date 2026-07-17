@@ -51,7 +51,7 @@ function WeeklyFortuneCard() {
 
   // 柱状图颜色
   const barColor = (score: number) =>
-    score >= 75 ? 'bg-emerald-400' : score >= 55 ? 'bg-amber-400' : 'bg-stone-300'
+    score >= 75 ? 'bg-[#3DA35D]' : score >= 55 ? 'bg-[#B89B5E]' : 'bg-[#9CAFB8]'
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
@@ -154,8 +154,8 @@ function WeeklyFortuneCard() {
 
               {/* 穿搭建议 */}
               {weekly.outfit_suggestions && (
-                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-3">
-                  <p className="text-xs text-amber-700 font-medium mb-1">👗 本周穿搭建议</p>
+                <div className="bg-[var(--brand-surface)]/60 rounded-xl p-3">
+                  <p className="text-xs text-[var(--brand-body)] font-medium mb-1">👗 本周穿搭建议</p>
                   <p className="text-sm text-stone-600 leading-relaxed">{weekly.outfit_suggestions}</p>
                 </div>
               )}
@@ -382,7 +382,7 @@ export default function FortunePage() {
       )}
 
       {/* 年度运势详批入口 */}
-      <div className="mt-6 bg-gradient-to-br from-purple-50 via-pink-50 to-amber-50 rounded-2xl p-5 border border-purple-200/40">
+      <div className="mt-6 bg-gradient-to-br from-[var(--brand-surface)] to-[var(--brand-surface-active)] rounded-2xl p-5 border border-[var(--brand-border)]">
         <div className="flex items-center justify-between mb-3">
           <div>
             <h3 className="text-base font-semibold text-stone-800">年度运势详批</h3>
@@ -507,7 +507,7 @@ export default function FortunePage() {
                 <div className="flex flex-wrap gap-2">
                   <span className="text-xs text-stone-500">幸运月份：</span>
                   {reportView.content.lucky_months.map((m: string, i: number) => (
-                    <span key={i} className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs">{m}</span>
+                    <span key={i} className="px-2 py-0.5 bg-[var(--wuxing-earth)]/15 text-[var(--wuxing-earth)] rounded-full text-xs">{m}</span>
                   ))}
                 </div>
               )}

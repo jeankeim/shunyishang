@@ -9,9 +9,9 @@ import { useUserStore } from '@/store/user'
 const DIMENSIONS: { key: string; label: string; emoji: string; color: string }[] = [
   { key: 'career', label: '事业', emoji: '💼', color: '#3DA35D' },
   { key: 'wealth', label: '财运', emoji: '💰', color: '#B89B5E' },
-  { key: 'love',   label: '桃花', emoji: '💕', color: '#D4656B' },
+  { key: 'love',   label: '桃花', emoji: '💕', color: '#C75B5B' },
   { key: 'health', label: '健康', emoji: '🌿', color: '#4A90C4' },
-  { key: 'study',  label: '学业', emoji: '📚', color: '#8B6DB0' },
+  { key: 'study',  label: '学业', emoji: '📚', color: '#9CAFB8' },
 ]
 
 // 颜色名称到实际色值的映射（用于显示色块）

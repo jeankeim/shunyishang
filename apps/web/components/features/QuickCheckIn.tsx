@@ -350,11 +350,11 @@ export function QuickCheckIn({ isOpen, onClose, onSuccess, weatherInfo }: QuickC
                     <motion.div
                       initial={{ y: -5, opacity: 0 }}
                       animate={{ y: 0, opacity: 1 }}
-                      className="mb-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-3 border border-amber-100"
+                      className="mb-4 bg-[var(--brand-surface)]/60 rounded-2xl p-3 border border-[var(--brand-border)]"
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-semibold text-amber-700">🌟 今日精选推荐</span>
-                        <span className="text-[10px] text-amber-500">
+                        <span className="text-xs font-semibold text-[var(--brand-body)]">🌟 今日精选推荐</span>
+                        <span className="text-[10px] text-[var(--brand-subtle)]">
                           幸运{dailyPick.lucky_element}·{dailyPick.lucky_color}
                         </span>
                       </div>
@@ -374,7 +374,7 @@ export function QuickCheckIn({ isOpen, onClose, onSuccess, weatherInfo }: QuickC
                         </div>
                         <button
                           onClick={handleUseDailyPick}
-                          className="flex-shrink-0 text-xs font-medium text-white bg-amber-500 hover:bg-amber-600 px-3 py-1.5 rounded-lg transition-colors shadow-sm"
+                          className="flex-shrink-0 text-xs font-medium text-white bg-[var(--wuxing-wood)] hover:bg-[var(--wuxing-wood)]/90 px-3 py-1.5 rounded-lg transition-colors shadow-sm"
                         >
                           选这件
                         </button>
@@ -384,9 +384,9 @@ export function QuickCheckIn({ isOpen, onClose, onSuccess, weatherInfo }: QuickC
 
                   {/* 加载中状态 */}
                   {loadingDailyPick && (
-                    <div className="mb-4 bg-amber-50 rounded-xl p-3 flex items-center gap-2 border border-amber-100">
-                      <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-amber-500 border-t-transparent" />
-                      <span className="text-xs text-amber-600">加载今日精选...</span>
+                    <div className="mb-4 bg-[var(--brand-surface)]/40 rounded-xl p-3 flex items-center gap-2 border border-[var(--brand-border)]">
+                      <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-[var(--wuxing-wood)] border-t-transparent" />
+                      <span className="text-xs text-[var(--brand-subtle)]">加载今日精选...</span>
                     </div>
                   )}
 

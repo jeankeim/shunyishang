@@ -16,10 +16,10 @@ const AddWardrobeModal = lazy(() => import('@/components/features/AddWardrobeMod
 
 // 五行数据配置 - 春分优化版
 const WUXING_THEME: Record<string, { color: string; gradient: string; symbol: string; pattern: string }> = {
-  '金': { color: '#C5D0D8', gradient: 'from-[#F5F7F9] via-[#F0F2F5] to-[#E8EBF0]', symbol: '☰', pattern: 'cloud' },
+  '金': { color: '#9CAFB8', gradient: 'from-[#F5F7F9] via-[#F0F2F5] to-[#E8EBF0]', symbol: '☰', pattern: 'cloud' },
   '木': { color: '#3DA35D', gradient: 'from-[#F0F9F4] via-[#E8F5EC] to-[#D4E8DC]', symbol: '☳', pattern: 'leaf' },
   '水': { color: '#4A90C4', gradient: 'from-[#F0F7FA] via-[#E8F0F8] to-[#D4E4F0]', symbol: '☵', pattern: 'wave' },
-  '火': { color: '#D4656B', gradient: 'from-[#FDF2F2] via-[#FBE8E8] to-[#F5D4D4]', symbol: '☲', pattern: 'flame' },
+  '火': { color: '#C75B5B', gradient: 'from-[#FDF2F2] via-[#FBE8E8] to-[#F5D4D4]', symbol: '☲', pattern: 'flame' },
   '土': { color: '#B89B5E', gradient: 'from-[#F9F5EC] via-[#F5F0E0] to-[#EDE5D0]', symbol: '☷', pattern: 'mountain' },
 }
 

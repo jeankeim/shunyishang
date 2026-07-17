@@ -346,7 +346,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-4 p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 text-amber-700 flex items-center gap-3 shadow-sm"
+              className="mb-4 p-4 rounded-xl bg-[var(--brand-surface)]/60 text-[var(--brand-body)] flex items-center gap-3 shadow-sm"
             >
               <Sparkles className="h-5 w-5 animate-pulse" />
               <span className="font-medium">正在分析八字...</span>

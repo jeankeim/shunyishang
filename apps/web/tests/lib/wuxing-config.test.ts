@@ -41,10 +41,10 @@ describe('lib/wuxing-config', () => {
     })
 
     it('should have correct colors for each element (aligned with globals.css)', () => {
-      expect(WUXING_CONFIG['金'].color).toBe('#C5D0D8')  // 春霜银
+      expect(WUXING_CONFIG['金'].color).toBe('#9CAFB8')  // 银霜
       expect(WUXING_CONFIG['木'].color).toBe('#3DA35D')   // 春芽绿
       expect(WUXING_CONFIG['水'].color).toBe('#4A90C4')   // 春雨青
-      expect(WUXING_CONFIG['火'].color).toBe('#D4656B')   // 春桃粉
+      expect(WUXING_CONFIG['火'].color).toBe('#C75B5B')   // 朱砂红
       expect(WUXING_CONFIG['土'].color).toBe('#B89B5E')   // 春泥黄
     })
   })

@@ -5,7 +5,7 @@ import type { AnnualLuckData } from '@/store/destiny'
 
 // 五行颜色映射
 const ELEMENT_COLORS: Record<string, string> = {
-  '金': '#8A9BA8', '木': '#3DA35D', '水': '#4A90C4', '火': '#D4656B', '土': '#B89B5E',
+  '金': '#8A9BA8', '木': '#3DA35D', '水': '#4A90C4', '火': '#C75B5B', '土': '#B89B5E',
 }
 
 // 五维度中文名
@@ -42,7 +42,7 @@ export function AnnualLuckCard({ data }: AnnualLuckCardProps) {
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-stone-800 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 bg-gradient-to-r from-[#D4656B] to-[#B89B5E] rounded-full" />
+            <span className="w-1.5 h-1.5 bg-gradient-to-r from-[#C75B5B] to-[#B89B5E] rounded-full" />
             {annual_luck.year} 流年运势
           </h3>
           <div className="flex items-center gap-2">

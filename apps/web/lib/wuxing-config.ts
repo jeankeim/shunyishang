@@ -24,14 +24,14 @@ export const WUXING_CONFIG: Record<WuxingElement, WuxingConfig> = {
   '金': {
     element: '金',
     emoji: '✨',
-    color: '#C5D0D8',       // 春霜银 - 与 globals.css 一致
-    bgClass: 'bg-gradient-to-br from-amber-100 to-yellow-50',
-    textClass: 'text-amber-700',
-    accentClass: 'from-amber-400 to-yellow-500',
-    ringClass: 'ring-amber-200',
+    color: '#9CAFB8',       // 银霜 - 提高辨识度
+    bgClass: 'bg-gradient-to-br from-slate-100 to-gray-50',
+    textClass: 'text-slate-700',
+    accentClass: 'from-slate-400 to-gray-500',
+    ringClass: 'ring-slate-200',
     gradientClass: 'from-gray-600 to-gray-800',
-    gradientFrom: '#C5D0D8',  // 春霜银
-    gradientTo: '#A8B8C5',
+    gradientFrom: '#9CAFB8',  // 银霜
+    gradientTo: '#8A9BA8',
   },
   '木': {
     element: '木',
@@ -60,14 +60,14 @@ export const WUXING_CONFIG: Record<WuxingElement, WuxingConfig> = {
   '火': {
     element: '火',
     emoji: '🔥',
-    color: '#D4656B',       // 春桃粉 - WCAG 4.7:1
-    bgClass: 'bg-gradient-to-br from-rose-100 to-pink-50',
-    textClass: 'text-rose-700',
-    accentClass: 'from-rose-400 to-pink-500',
-    ringClass: 'ring-rose-200',
+    color: '#C75B5B',       // 朱砂红 - 减少粉感增强力量感
+    bgClass: 'bg-gradient-to-br from-red-100 to-rose-50',
+    textClass: 'text-red-700',
+    accentClass: 'from-red-400 to-rose-500',
+    ringClass: 'ring-red-200',
     gradientClass: 'from-red-800 to-red-950',
-    gradientFrom: '#D4656B',  // 春桃粉
-    gradientTo: '#F87171',
+    gradientFrom: '#C75B5B',  // 朱砂红
+    gradientTo: '#E55555',
   },
   '土': {
     element: '土',
