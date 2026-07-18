@@ -184,45 +184,6 @@ async def register(request: UserRegisterRequest):
         )
 
 
-@router.post("/admin/create-test-accounts", summary="创建测试账号（临时）")
-async def create_test_accounts():
-    """
-    临时管理员接口：在线上数据库创建测试账号
-    仅在 ADMIN_SECRET 环境变量匹配时可用，使用后应删除此接口
-    """
-    admin_secret = os.getenv("ADMIN_SECRET", "")
-    if not admin_secret:
-        raise HTTPException(status_code=403, detail="未配置 ADMIN_SECRET")
-    
-    TEST_ACCOUNTS = [
-        ('13800000001', 'test1234', '小明', '男'),
-        ('13800000002', 'test1234', '小红', '女'),
-        ('13800000003', 'test1234', '小刚', '男'),
-        ('13800000004', 'test1234', '小美', '女'),
-        ('13800000005', 'test1234', '测试员', '男'),
-    ]
-    
-    results = []
-    with DatabasePool.get_connection() as conn:
-        with conn.cursor() as cur:
-            for phone, password, nickname, gender in TEST_ACCOUNTS:
-                cur.execute("SELECT id FROM users WHERE phone = %s", (phone,))
-                if cur.fetchone():
-                    results.append({"phone": phone, "nickname": nickname, "status": "exists"})
-                    continue
-                user_code = generate_user_code()
-                password_hash = get_password_hash(password)
-                cur.execute(
-                    "INSERT INTO users (user_code, phone, email, password_hash, nickname, gender) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
-                    (user_code, phone, None, password_hash, nickname, gender)
-                )
-                uid = cur.fetchone()[0]
-                conn.commit()
-                results.append({"phone": phone, "nickname": nickname, "id": uid, "status": "created"})
-    
-    return {"message": "测试账号创建完成", "accounts": results}
-
-
 @router.post("/login", response_model=TokenResponse, summary="用户登录")
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     """
