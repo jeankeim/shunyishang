@@ -10,7 +10,7 @@ import logging
 from typing import AsyncGenerator, Optional, Dict, Any, List
 from datetime import datetime, date
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from psycopg2.extras import RealDictCursor
 
@@ -484,5 +484,65 @@ async def get_daily_pick(
             logger.info(f"[DailyPick] 结果已缓存: {cache_key}")
         except Exception as e:
             logger.error(f"[DailyPick] 缓存写入失败: {e}")
+
+    return result
+
+
+# ========== 每日智能穿搭建议 ==========
+
+
+@router.get(
+    "/recommend/daily-outfit",
+    summary="每日智能穿搭建议",
+    description="基于用户八字、运势、天气、季节、偏好和衣橱，自动推荐3-5件完整搭配",
+)
+async def get_daily_outfit(
+    batch_index: int = Query(0, ge=0, le=2, description="换一批批次 (0-2)"),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    首页智能每日穿搭建议
+
+    用户打开应用时无需输入任何内容，即可看到当天专属的穿搭建议。
+    系统基于用户八字命理、当日运势、实时天气、季节、个人偏好和衣橱库存自动生成。
+
+    响应结构:
+    - outfit_items: 3-5件搭配物品
+    - reasoning: 推荐理由
+    - weather_summary: 天气摘要
+    - fortune_summary: 运势摘要
+    - style_tip: 穿搭贴士
+    - match_score: 综合匹配分 (0-100)
+    """
+    user_id = current_user["id"]
+    today = date.today()
+
+    # ── Redis 缓存 ──────────────────────────────────────────────────────────
+    cache_key = f"daily_outfit:{user_id}:{today.isoformat()}:{batch_index}"
+    if settings.redis_enabled:
+        try:
+            cached = await cache.get(cache_key)
+            if cached:
+                logger.info(f"[DailyOutfit] 缓存命中: {cache_key}")
+                return cached
+        except Exception as e:
+            logger.debug(f"[DailyOutfit] 缓存读取失败: {e}")
+
+    # ── 调用核心服务 ────────────────────────────────────────────────────────
+    from apps.api.services.daily_outfit_service import generate_daily_outfit
+
+    result = generate_daily_outfit(user_id, batch_index=batch_index)
+
+    # ── 写入缓存 ────────────────────────────────────────────────────────────
+    if settings.redis_enabled:
+        # TTL: 当日剩余秒数（最多 24h）
+        now = datetime.now()
+        end_of_day = datetime(today.year, today.month, today.day, 23, 59, 59)
+        ttl = max(600, int((end_of_day - now).total_seconds()))  # 最少 10 分钟
+        try:
+            await cache.set(cache_key, result, ttl=ttl)
+            logger.info(f"[DailyOutfit] 结果已缓存 (TTL={ttl}s): {cache_key}")
+        except Exception as e:
+            logger.debug(f"[DailyOutfit] 缓存写入失败: {e}")
 
     return result

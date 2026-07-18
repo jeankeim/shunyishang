@@ -7,7 +7,7 @@ import json
 import logging
 import os
 from datetime import timedelta, datetime, date, time
-from typing import Optional
+from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -93,6 +93,11 @@ class UpdateProfileRequest(BaseModel):
     birth_location: Optional[str] = Field(None, max_length=200, description="出生地点")
     preferred_city: Optional[str] = Field(None, max_length=100, description="常驻城市")
     avatar_url: Optional[str] = Field(None, max_length=500, description="头像URL")
+    # Week 4: 审美画像字段
+    skin_tone: Optional[str] = Field(None, max_length=20, description="肤色: 冷白皮/暖白皮/自然色/小麦色/黑皮")
+    style_preference: Optional[str] = Field(None, max_length=50, description="风格偏好: 简约/韩系/日系/国潮/复古/商务/街头/文艺")
+    body_type: Optional[str] = Field(None, max_length=20, description="体型: 偏瘦/标准/偏胖")
+    aesthetic_tags: Optional[List[str]] = Field(None, description="扩展审美标签数组")
 
 
 class UserProfileResponse(BaseModel):
@@ -110,6 +115,11 @@ class UserProfileResponse(BaseModel):
     avatar_url: Optional[str]
     bazi: Optional[dict]
     xiyong_elements: Optional[list]
+    # Week 4: 审美画像字段
+    skin_tone: Optional[str] = None
+    style_preference: Optional[str] = None
+    body_type: Optional[str] = None
+    aesthetic_tags: Optional[list] = None
     created_at: datetime
     updated_at: datetime
 
@@ -380,7 +390,8 @@ async def get_profile(current_user: dict = Depends(get_current_user)):
                 """
                 SELECT user_code, phone, email, nickname, gender,
                        birth_date, birth_time, birth_location, preferred_city,
-                       avatar_url, bazi, xiyong_elements, created_at, updated_at
+                       avatar_url, bazi, xiyong_elements, created_at, updated_at,
+                       skin_tone, style_preference, body_type, aesthetic_tags
                 FROM users WHERE id = %s
                 """,
                 (current_user["id"],)
@@ -389,6 +400,14 @@ async def get_profile(current_user: dict = Depends(get_current_user)):
             
             if not row:
                 raise HTTPException(status_code=404, detail="用户不存在")
+            
+            # 解析 aesthetic_tags JSONB
+            aesthetic_tags = row[17]
+            if isinstance(aesthetic_tags, str):
+                try:
+                    aesthetic_tags = json.loads(aesthetic_tags)
+                except Exception:
+                    aesthetic_tags = []
             
             return {
                 "id": current_user["id"],
@@ -405,7 +424,11 @@ async def get_profile(current_user: dict = Depends(get_current_user)):
                 "bazi": row[10],
                 "xiyong_elements": row[11],
                 "created_at": row[12],
-                "updated_at": row[13]
+                "updated_at": row[13],
+                "skin_tone": row[14],
+                "style_preference": row[15],
+                "body_type": row[16],
+                "aesthetic_tags": aesthetic_tags or [],
             }
 
 
@@ -462,6 +485,24 @@ async def update_profile(
     if request.avatar_url is not None:
         update_fields.append("avatar_url = %s")
         params.append(request.avatar_url)
+    
+    # Week 4: 审美画像字段
+    if request.skin_tone is not None:
+        update_fields.append("skin_tone = %s")
+        params.append(request.skin_tone)
+    
+    if request.style_preference is not None:
+        update_fields.append("style_preference = %s")
+        params.append(request.style_preference)
+    
+    if request.body_type is not None:
+        update_fields.append("body_type = %s")
+        params.append(request.body_type)
+    
+    if request.aesthetic_tags is not None:
+        update_fields.append("aesthetic_tags = %s")
+        params.append(json.dumps(request.aesthetic_tags))
+        update_fields.append("aesthetic_updated_at = NOW()")
     
     # 检查是否需要重新计算八字（出生日期或时间有更新）
     needs_bazi_update = request.birth_date is not None or request.birth_time is not None

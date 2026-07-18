@@ -19,6 +19,10 @@ interface UserProfileData {
   birth_location: string | null
   preferred_city: string | null
   avatar_url: string | null
+  skin_tone: string | null
+  style_preference: string | null
+  body_type: string | null
+  aesthetic_tags: string[] | null
 }
 
 interface FullUserProfile extends UserProfileData {
@@ -77,7 +81,11 @@ export function UserProfile({ onClose }: UserProfileProps) {
     birth_time: '',
     birth_location: '',
     preferred_city: '',
-    avatar_url: ''
+    avatar_url: '',
+    skin_tone: '',
+    style_preference: '',
+    body_type: '',
+    aesthetic_tags: null
   })
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [showCityDropdown, setShowCityDropdown] = useState(false)
@@ -103,7 +111,11 @@ export function UserProfile({ onClose }: UserProfileProps) {
             birth_time: profile.birth_time || '',
             birth_location: profile.birth_location || '',
             preferred_city: profile.preferred_city || '',
-            avatar_url: profile.avatar_url || ''
+            avatar_url: profile.avatar_url || '',
+            skin_tone: profile.skin_tone || '',
+            style_preference: profile.style_preference || '',
+            body_type: profile.body_type || '',
+            aesthetic_tags: profile.aesthetic_tags || null
           })
         } catch (error) {
           if (isCancelled) return
@@ -117,7 +129,11 @@ export function UserProfile({ onClose }: UserProfileProps) {
               birth_time: user.birth_time || '',
               birth_location: user.birth_location || '',
               preferred_city: user.preferred_city || '',
-              avatar_url: user.avatar_url || ''
+              avatar_url: user.avatar_url || '',
+              skin_tone: (user as any).skin_tone || '',
+              style_preference: (user as any).style_preference || '',
+              body_type: (user as any).body_type || '',
+              aesthetic_tags: (user as any).aesthetic_tags || null
             })
           }
           setMessage({ type: 'error', text: '获取完整资料失败，请刷新页面重试' })
@@ -142,6 +158,17 @@ export function UserProfile({ onClose }: UserProfileProps) {
       ...prev,
       [field]: value
     }))
+  }
+
+  // 审美标签切换（多选）
+  const toggleAestheticTag = (tag: string) => {
+    setFormData(prev => {
+      const current = prev.aesthetic_tags || []
+      const next = current.includes(tag)
+        ? current.filter(t => t !== tag)
+        : [...current, tag]
+      return { ...prev, aesthetic_tags: next.length > 0 ? next : null }
+    })
   }
 
   // 自动分析八字
@@ -195,9 +222,17 @@ export function UserProfile({ onClose }: UserProfileProps) {
       const updateData: any = {}
       Object.keys(formData).forEach(key => {
         const field = key as keyof UserProfileData
-        const currentValue = fullProfile?.[field] || ''
-        if (formData[field] !== currentValue) {
-          updateData[field] = formData[field] || null
+        const currentValue = formData[field]
+        const originalValue = fullProfile?.[field]
+        // 数组类型特殊处理（aesthetic_tags）
+        if (Array.isArray(currentValue) || Array.isArray(originalValue)) {
+          const a = currentValue || []
+          const b = originalValue || []
+          if (JSON.stringify(a) !== JSON.stringify(b)) {
+            updateData[field] = currentValue
+          }
+        } else if (currentValue !== (originalValue || '')) {
+          updateData[field] = currentValue || null
         }
       })
 
@@ -255,7 +290,11 @@ export function UserProfile({ onClose }: UserProfileProps) {
         birth_time: fullProfile.birth_time || '',
         birth_location: fullProfile.birth_location || '',
         preferred_city: fullProfile.preferred_city || '',
-        avatar_url: fullProfile.avatar_url || ''
+        avatar_url: fullProfile.avatar_url || '',
+        skin_tone: fullProfile.skin_tone || '',
+        style_preference: fullProfile.style_preference || '',
+        body_type: fullProfile.body_type || '',
+        aesthetic_tags: fullProfile.aesthetic_tags || null
       })
     }
     setMessage(null)
@@ -513,6 +552,117 @@ export function UserProfile({ onClose }: UserProfileProps) {
 
             {/* 偏好画像（雷达图） */}
             <PreferenceRadar />
+
+            {/* 审美偏好（渐进式收集，非强制填写） */}
+            <section className="bg-white rounded-2xl p-5 shadow-sm border border-[var(--brand-border)]/40">
+              <h3 className="text-lg font-semibold flex items-center gap-2 text-[var(--brand-heading)] pb-3 mb-4 border-b border-[var(--brand-border)]/40">
+                <Sparkles className="h-5 w-5 text-[var(--wuxing-fire)]" />
+                审美偏好
+              </h3>
+              <p className="text-sm text-[var(--brand-subtle)] mb-5">
+                选填，帮助我们为您推荐更贴合个人风格的穿搭
+              </p>
+
+              {/* 肤色选择器 */}
+              <div className="space-y-3 mb-6">
+                <label className="block text-sm font-medium text-[var(--brand-body)]">
+                  肤色类型
+                </label>
+                <div className="grid grid-cols-5 gap-2">
+                  {[
+                    { value: '冷白皮', color: 'bg-[#FDE8E0]', label: '冷白皮' },
+                    { value: '暖白皮', color: 'bg-[#FCEBD2]', label: '暖白皮' },
+                    { value: '自然色', color: 'bg-[#E8C9A0]', label: '自然色' },
+                    { value: '小麦色', color: 'bg-[#C49A6C]', label: '小麦色' },
+                    { value: '黑皮',   color: 'bg-[#8B6348]', label: '黑皮' },
+                  ].map(tone => (
+                    <button
+                      key={tone.value}
+                      type="button"
+                      onClick={() => handleChange('skin_tone', formData.skin_tone === tone.value ? '' : tone.value)}
+                      className={cn(
+                        'flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all hover:scale-105 active:scale-95',
+                        formData.skin_tone === tone.value
+                          ? 'border-[var(--wuxing-wood)] bg-[var(--brand-surface)]/60 shadow-sm'
+                          : 'border-transparent hover:border-[var(--brand-border)]'
+                      )}
+                    >
+                      <div className={cn('w-8 h-8 rounded-full shadow-inner border border-white/60', tone.color)} />
+                      <span className="text-xs font-medium text-[var(--brand-body)]">{tone.label}</span>
+                    </button>
+                  ))}
+                </div>
+                {formData.skin_tone && (
+                  <p className="text-xs text-[var(--brand-subtle)]">
+                    {formData.skin_tone === '冷白皮' && '适合冷色调（蓝/紫/银灰），推荐金、水元素服饰'}
+                    {formData.skin_tone === '暖白皮' && '适合暖色调（橙/黄/米色），推荐火、土元素服饰'}
+                    {formData.skin_tone === '自然色' && '适合中性色调，多数颜色均可驾驭'}
+                    {formData.skin_tone === '小麦色' && '适合大地色系、高饱和度，推荐土、火元素服饰'}
+                    {formData.skin_tone === '黑皮' && '适合亮色系、金属色，推荐金、火元素服饰'}
+                  </p>
+                )}
+              </div>
+
+              {/* 风格偏好多选标签 */}
+              <div className="space-y-3 mb-6">
+                <label className="block text-sm font-medium text-[var(--brand-body)]">
+                  风格偏好
+                  <span className="text-xs text-[var(--brand-subtle)] ml-2">（可多选）</span>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {['简约', '韩系', '日系', '国潮', '复古', '商务', '休闲', '运动', '文艺', '森系', '法式', '中式'].map(style => (
+                    <button
+                      key={style}
+                      type="button"
+                      onClick={() => {
+                        const current = formData.aesthetic_tags || []
+                        // 风格标签存为 "style:简约" 格式，便于后续扩展
+                        const tag = `style:${style}`
+                        toggleAestheticTag(tag)
+                        // 同时更新 style_preference 字段（取第一个选中的风格）
+                        const next = current.includes(tag)
+                          ? current.filter(t => t !== tag)
+                          : [...current, tag]
+                        const styleTags = next.filter(t => t.startsWith('style:'))
+                        handleChange('style_preference', styleTags.length > 0 ? styleTags[0].replace('style:', '') : '')
+                      }}
+                      className={cn(
+                        'px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all hover:scale-105 active:scale-95',
+                        (formData.aesthetic_tags || []).includes(`style:${style}`)
+                          ? 'bg-[var(--wuxing-wood)] text-white border-[var(--wuxing-wood)] shadow-sm'
+                          : 'bg-white text-[var(--brand-body)] border-[var(--brand-border)] hover:border-[var(--wuxing-wood)]/40'
+                      )}
+                    >
+                      {style}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 体型选择 */}
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-[var(--brand-body)]">
+                  体型
+                </label>
+                <div className="flex gap-2">
+                  {['偏瘦', '标准', '偏胖'].map(bt => (
+                    <button
+                      key={bt}
+                      type="button"
+                      onClick={() => handleChange('body_type', formData.body_type === bt ? '' : bt)}
+                      className={cn(
+                        'flex-1 py-2.5 rounded-xl text-sm font-medium border-2 transition-all hover:scale-105 active:scale-95',
+                        formData.body_type === bt
+                          ? 'border-[var(--wuxing-wood)] bg-[var(--brand-surface)]/60 text-[var(--brand-heading)] shadow-sm'
+                          : 'border-transparent bg-[var(--brand-surface)]/30 text-[var(--brand-body)] hover:border-[var(--brand-border)]'
+                      )}
+                    >
+                      {bt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </section>
 
             {/* 头像设置 */}
             <section className="bg-white rounded-2xl p-5 shadow-sm border border-[var(--brand-border)]/40">

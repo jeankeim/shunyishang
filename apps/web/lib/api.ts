@@ -270,6 +270,10 @@ export interface User {
   avatar_url?: string
   bazi?: BaziCalculateResponse
   xiyong_elements?: string[]
+  skin_tone?: string
+  style_preference?: string
+  body_type?: string
+  aesthetic_tags?: string[]
 }
 
 export interface LoginRequest {
@@ -437,6 +441,10 @@ export interface UpdateProfileRequest {
   birth_location?: string | null
   preferred_city?: string | null
   avatar_url?: string | null
+  skin_tone?: string | null
+  style_preference?: string | null
+  body_type?: string | null
+  aesthetic_tags?: string[] | null
 }
 
 export async function updateProfile(request: UpdateProfileRequest): Promise<User> {
@@ -1067,6 +1075,44 @@ export async function markNotificationRead(id: number): Promise<void> {
   if (!response.ok) throw new Error('标记已读失败')
 }
 
+/** 推送行为反馈（行为闭环） */
+export interface PushFeedbackResponse {
+  status: 'ok' | 'error'
+  action: string
+  preference_updated: boolean
+  message?: string
+}
+
+export async function reportPushFeedback(
+  notificationId: number,
+  action: 'click' | 'ignore' | 'close'
+): Promise<PushFeedbackResponse> {
+  const response = await fetch(`${getAPIBase()}/api/v1/push/${notificationId}/feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify({ action }),
+  })
+  if (!response.ok) throw new Error('推送反馈提交失败')
+  return response.json()
+}
+
+/** 智能提醒检查（首页加载时调用） */
+export interface SmartAlert {
+  type: string
+  message: string
+  [key: string]: any
+}
+
+export async function smartReminderCheck(weatherInfo?: Record<string, any>): Promise<{ alerts: SmartAlert[] }> {
+  const response = await fetch(`${getAPIBase()}/api/v1/push/smart-check`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify(weatherInfo || {}),
+  })
+  if (!response.ok) throw new Error('智能提醒检查失败')
+  return response.json()
+}
+
 // ============================================
 // 穿搭广场社区 API
 // ============================================
@@ -1358,6 +1404,64 @@ export async function getDailyPick(): Promise<DailyPick | null> {
 }
 
 // ============================================
+// 每日智能穿搭建议 API
+// ============================================
+
+/** 每日智能穿搭物品 */
+export interface DailyOutfitItem {
+  id: number
+  name: string
+  category?: string
+  image_url?: string
+  primary_element?: string
+  secondary_element?: string
+  wear_count: number
+  is_favorite: boolean
+  match_score: number
+}
+
+/** 每日智能穿搭建议 */
+export interface DailyOutfit {
+  outfit_items: DailyOutfitItem[]
+  reasoning: string
+  weather_summary: {
+    city: string
+    temperature: number
+    weather: string
+    element: string
+  }
+  fortune_summary: {
+    lucky_elements: string[]
+    lucky_colors: string[]
+    overall_score: number
+  }
+  style_tip: string
+  match_score: number
+  date: string
+}
+
+/**
+ * 获取每日智能穿搭建议（基于八字+运势+天气+季节+偏好+衣橱）
+ * @param batchIndex 换一批批次 (0-2)
+ */
+export async function getDailyOutfit(batchIndex = 0): Promise<DailyOutfit | null> {
+  try {
+    const params = batchIndex > 0 ? `?batch_index=${batchIndex}` : ''
+    const response = await fetch(`${getAPIBase()}/api/v1/recommend/daily-outfit${params}`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      console.error('[getDailyOutfit] 请求失败:', response.status)
+      return null
+    }
+    return response.json()
+  } catch (error) {
+    console.error('[getDailyOutfit] 异常:', error)
+    return null
+  }
+}
+
+// ============================================
 // 流年运势周报 API
 // ============================================
 
@@ -1469,6 +1573,144 @@ export async function getPreferenceSummary(): Promise<PreferenceSummary | null> 
     return response.json()
   } catch (error) {
     console.error('[getPreferenceSummary] 异常:', error)
+    return null
+  }
+}
+
+// ============================================
+// 衣橱智能分析 API
+// ============================================
+
+/** 频率分析物品 */
+export interface FreqItem {
+  id: number
+  name: string
+  category: string
+  image_url?: string
+  primary_element?: string
+  wear_count: number
+  last_worn_date?: string
+  days_since_worn?: number
+  freq_type: 'high' | 'low' | 'redundant'
+  extra_info?: string
+}
+
+/** 频率分析汇总 */
+export interface FrequencyAnalysis {
+  high_freq_items: FreqItem[]
+  low_freq_items: FreqItem[]
+  redundant_items: FreqItem[]
+  category_avg_wear: Record<string, number>
+  summary: {
+    total_items: number
+    high_freq_count: number
+    low_freq_count: number
+    redundant_count: number
+    high_freq_ratio: number
+    low_freq_ratio: number
+  }
+}
+
+/** 季节穿着模式 */
+export interface SeasonalPattern {
+  top_categories: Array<{ name: string; count: number }>
+  top_elements: Array<{ name: string; count: number }>
+  top_colors: Array<{ name: string; count: number }>
+  total_records: number
+}
+
+/** 天气适应性 */
+export interface WeatherBucket {
+  label: string
+  preferred_items: Array<{ name: string; count: number }>
+  total_records: number
+}
+
+/** 衣橱总体统计 */
+export interface WardrobeOverallStats {
+  total_items: number
+  active_items: number
+  inactive_items: number
+  avg_wear_count: number
+  total_wear_count: number
+  most_worn_category: string
+  most_worn_element: string
+}
+
+/** 衣橱智能分析完整响应 */
+export interface WardrobeAnalytics {
+  frequency_analysis: FrequencyAnalysis
+  seasonal_patterns: {
+    spring: SeasonalPattern
+    summer: SeasonalPattern
+    autumn: SeasonalPattern
+    winter: SeasonalPattern
+  }
+  weather_adaptability: {
+    cold: WeatherBucket
+    mild: WeatherBucket
+    warm: WeatherBucket
+    hot: WeatherBucket
+  }
+  overall_stats: WardrobeOverallStats
+}
+
+/**
+ * 获取衣橱智能分析数据
+ */
+export async function getWardrobeAnalytics(): Promise<WardrobeAnalytics | null> {
+  try {
+    const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/analytics`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      console.error('[getWardrobeAnalytics] 请求失败:', response.status)
+      return null
+    }
+    return response.json()
+  } catch (error) {
+    console.error('[getWardrobeAnalytics] 异常:', error)
+    return null
+  }
+}
+
+/** 闲置物品 */
+export interface IdleItem {
+  id: number
+  name: string
+  category: string
+  image_url?: string
+  primary_element?: string
+  wear_count: number
+  last_worn_date?: string
+  days_since_worn?: number
+  created_at?: string
+  days_owned?: number
+  donation_suggestion: string
+}
+
+/** 闲置物品响应 */
+export interface IdleItemsResponse {
+  idle_items: IdleItem[]
+  total_count: number
+  message: string
+}
+
+/**
+ * 获取长期闲置衣物 + 公益建议
+ */
+export async function getIdleItems(): Promise<IdleItemsResponse | null> {
+  try {
+    const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/idle-items`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      console.error('[getIdleItems] 请求失败:', response.status)
+      return null
+    }
+    return response.json()
+  } catch (error) {
+    console.error('[getIdleItems] 异常:', error)
     return null
   }
 }

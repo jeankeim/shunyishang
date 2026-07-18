@@ -744,12 +744,24 @@ def retrieve_items_node(state: AgentState) -> Dict:
     
     # 获取用户偏好（用于偏好加权评分）
     user_prefs = {}
+    user_skin_tone: Optional[str] = None
     if user_id:
         try:
             from apps.api.services.preference_service import preference_service
             user_prefs = preference_service.get_user_preferences(user_id)
         except Exception as e:
             logger.debug(f"[检索节点] 获取用户偏好失败: {e}")
+        # Week 4: 获取用户肤色信息（用于审美加分）
+        try:
+            from apps.api.core.database import DatabasePool
+            with DatabasePool.get_connection() as _conn:
+                with _conn.cursor() as _cur:
+                    _cur.execute("SELECT skin_tone FROM users WHERE id = %s", [user_id])
+                    _row = _cur.fetchone()
+                    if _row and _row[0]:
+                        user_skin_tone = _row[0]
+        except Exception:
+            pass
 
     # 动态计算权重（配置化：消除硬编码 if-else 链）
     # P2-74 偏好有效性校验：user_prefs 非空，但所有候选物品的属性都不在偏好键中时，
@@ -873,6 +885,16 @@ def retrieve_items_node(state: AgentState) -> Dict:
             preference_score * pref_weight +
             temp_score * temp_weight
         ) * season_score + rotation_bonus
+        
+        # 饰品/文玩五行补救加分：当五行缺某元素时，优先推荐对应五行的饰品
+        # （饰品作为"点缀"，不影响整体穿搭温度适配性，且可精准补五行）
+        item_category = item.get("category", "")
+        if item_category in ("饰品", "文玩") and primary in target_elements:
+            final_score += 0.04  # 小幅加分，不影响核心排序
+        
+        # Week 4: 肤色审美加分
+        skin_bonus = _get_skin_tone_bonus(item, user_skin_tone)
+        final_score += skin_bonus
         
         scored_items.append({
             **item,
@@ -1210,31 +1232,34 @@ def _ensure_category_diversity(items: List[Dict], limit: int) -> List[Dict]:
     if not valid_items:
         return []
     
-    # 分类限制：核心服装最多2件，配饰/鞋履最多1件
+    # 分类限制：核心服装最多2件，配饰/鞋履最多1件，饰品/文玩作为点缀
     max_per_category = {
         "上装": 2,
         "下装": 2,
         "裙装": 2,
         "外套": 2,
         "配饰": 1,
+        "饰品": 2,  # 饰品/手串可作为点缀，最多2件
+        "文玩": 1,  # 文玩佛珠类最多1件
         "鞋履": 1,
     }
     
-    # 先遍历一次，记录配饰在排序中的位置
-    accessory_items = [item for item in valid_items if item.get("category") == "配饰"]
+    # 先遍历一次，记录配饰/饰品/文玩在排序中的位置（统称"点缀类"）
+    accent_categories = {"配饰", "饰品", "文玩"}
+    accessory_items = [item for item in valid_items if item.get("category") in accent_categories]
     
-    # 配饰多样性：从 top-3 配饰中随机选一个，避免同一条方巾反复出现
+    # 点缀类多样性：从 top-3 点缀物品中随机选，避免同一件饰品反复出现
     if len(accessory_items) > 1:
         top_n = min(3, len(accessory_items))
         candidates = accessory_items[:top_n]
         random.shuffle(candidates)
         # 将随机化后的候选写回，确保 forced insertion 也用随机顺序
         accessory_items[:top_n] = candidates
-        # 同时调整 valid_items 中配饰的顺序，使正常遍历也受影响
+        # 同时调整 valid_items 中点缀类的顺序，使正常遍历也受影响
         acc_idx = 0
         new_valid = []
         for item in valid_items:
-            if item.get("category") == "配饰":
+            if item.get("category") in accent_categories:
                 new_valid.append(accessory_items[acc_idx])
                 acc_idx += 1
             else:
@@ -1255,8 +1280,8 @@ def _ensure_category_diversity(items: List[Dict], limit: int) -> List[Dict]:
             if len(result) >= limit:
                 break
     
-    # 确保至少有1件配饰（如果存在配饰且未入选）
-    has_accessory = any(item.get("category") == "配饰" for item in result)
+    # 确保至少有1件点缀类物品（如果存在且未入选）
+    has_accessory = any(item.get("category") in accent_categories for item in result)
     if not has_accessory and accessory_items and len(result) >= limit:
         # 替换分数最低的非核心服装
         # P3-92 温度安全检查：不替换温度维度上必需的物品（极端温度下唯一保暖外套等）
@@ -1463,6 +1488,40 @@ def _calculate_temp_score(item: Dict, weather_info: Optional[Dict]) -> float:
                 score += 0.1
     
     return max(0.0, min(1.0, score))
+
+
+# 肤色 → 适合的颜色五行映射（用于审美加分）
+_SKIN_TONE_COLOR_FIT: Dict[str, Dict[str, float]] = {
+    "冷白皮": {"金": 0.04, "水": 0.04, "木": 0.02, "火": 0.01, "土": 0.01},  # 冷色调加分
+    "暖白皮": {"火": 0.04, "土": 0.04, "木": 0.02, "金": 0.01, "水": 0.01},  # 暖色调加分
+    "自然色": {"木": 0.03, "土": 0.03, "金": 0.02, "火": 0.02, "水": 0.02},  # 百搭
+    "小麦色": {"土": 0.04, "火": 0.04, "金": 0.02, "木": 0.01, "水": 0.01},  # 大地色/高饱和
+    "黑皮":   {"金": 0.04, "火": 0.03, "水": 0.02, "木": 0.01, "土": 0.01},  # 亮色/金属色
+}
+
+
+def _get_skin_tone_bonus(item: Dict, skin_tone: Optional[str]) -> float:
+    """
+    计算肤色适配加分（0.0-0.05）
+
+    根据用户肤色与物品五行的匹配度给予小幅加分。
+    仅当用户设置了肤色信息时生效。
+    """
+    if not skin_tone:
+        return 0.0
+
+    color_fit = _SKIN_TONE_COLOR_FIT.get(skin_tone)
+    if not color_fit:
+        return 0.0
+
+    primary = item.get("primary_element", "")
+    secondary = item.get("secondary_element") or ""
+
+    bonus = color_fit.get(primary, 0.0)
+    if secondary:
+        bonus += color_fit.get(secondary, 0.0) * 0.5  # 次五行半额加分
+
+    return min(0.05, bonus)  # 上限 0.05
 
 
 def _build_travel_scenes(state: AgentState, travel_days: int) -> List[str]:

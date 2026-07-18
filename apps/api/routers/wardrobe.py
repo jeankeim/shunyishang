@@ -856,3 +856,73 @@ async def get_preference_summary(
         "overall_score": overall_score,
         "feedback_count": total_feedback,
     }
+
+
+# ========== 衣橱智能分析 ==========
+
+
+@router.get("/analytics")
+async def get_wardrobe_analytics(
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    衣橱智能分析
+
+    返回穿着频率分析、季节穿着模式、天气适应性、总体统计。
+    数据基于 user_wardrobe + outfit_diaries + diary_outfit_items 综合分析。
+    """
+    from apps.api.services.wardrobe_analytics_service import get_wardrobe_analytics as _analytics
+
+    user_id = current_user.get("id") or current_user.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="用户未登录")
+
+    # 优先从 Redis 缓存获取（分析数据变化不频繁，缓存 2 小时）
+    try:
+        from apps.api.core.config import settings as _settings
+        if _settings.redis_enabled:
+            from apps.api.core.cache import cache as redis_cache
+            cache_key = f"wardrobe_analytics:{user_id}"
+            cached = redis_cache.get_sync(cache_key)
+            if cached:
+                return cached
+    except Exception:
+        pass
+
+    result = _analytics(int(user_id))
+
+    # 写入缓存（2小时 TTL）
+    try:
+        if _settings.redis_enabled:
+            redis_cache.set_sync(cache_key, result, ttl=7200)
+    except Exception:
+        pass
+
+    return result
+
+
+@router.get("/idle-items")
+async def get_idle_items(
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    获取长期闲置衣物 + 公益建议
+
+    闲置条件（满足任一）:
+    - last_worn_date 距今 > 180天
+    - wear_count = 0 且 created_at 距今 > 90天
+
+    返回闲置物品列表，每件附带温和的公益捐赠建议文案。
+    """
+    from apps.api.services.wardrobe_analytics_service import get_idle_items as _idle
+
+    user_id = current_user.get("id") or current_user.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="用户未登录")
+
+    items = _idle(int(user_id))
+    return {
+        "idle_items": items,
+        "total_count": len(items),
+        "message": f"你有 {len(items)} 件衣物已经很久没穿了，考虑让它们找到新主人 🌱" if items else "你的衣橱管理得很好，没有长期闲置物品 ✨",
+    }

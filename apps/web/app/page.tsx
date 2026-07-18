@@ -14,6 +14,7 @@ import { MobileControlPanel } from '@/components/features/MobileControlPanel'
 import { MobileBottomNav } from '@/components/features/MobileBottomNav'
 import { TodayFortuneCard } from '@/components/features/fortune/TodayFortuneCard'
 import { DailyRitualCard } from '@/components/features/DailyRitualCard'
+import { DailyOutfitCard } from '@/components/features/DailyOutfitCard'
 import { QuickCheckIn } from '@/components/features/QuickCheckIn'
 import { useChatStore } from '@/store/chat'
 import { useUserStore } from '@/store/user'
@@ -587,6 +588,12 @@ export default function Home() {
                     />
                   </div>
                 )}
+
+                {/* 每日智能穿搭建议 — 已登录用户自动展示 */}
+                {isAuthenticated && !isAuthLoading && (
+                  <DailyOutfitCard isAuthenticated={isAuthenticated} />
+                )}
+
                 <ChatInterface 
                   scene={scene} 
                   weatherElement={weatherElement}

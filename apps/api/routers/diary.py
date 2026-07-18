@@ -343,6 +343,9 @@ async def quick_checkin(
     # 打卡成功，失效 daily-ritual 缓存
     _invalidate_daily_ritual_cache(user_id)
 
+    # 自动更新穿着物品的 wear_count 和 last_worn_date
+    _auto_update_wear_count(user_id, description, ai_tags)
+
     # 计算运势匹配度 & 衣橱单品推荐
     fortune_match_score = _compute_fortune_match(
         ai_tags, description, lucky_elements, lucky_colors
@@ -375,6 +378,99 @@ def _invalidate_daily_ritual_cache(user_id: int) -> None:
             redis_cache.delete_sync(f"daily_ritual:{user_id}:{today_str}")
     except Exception as e:
         logger.debug(f"[Diary] daily_ritual 缓存失效失败: {e}")
+
+
+def _auto_update_wear_count(user_id: int, description: str, ai_tags: dict) -> None:
+    """
+    打卡时自动更新穿着物品的 wear_count 和 last_worn_date
+
+    匹配策略（按优先级）:
+    1. 名称包含匹配：描述文本中出现衣橱物品名称（>= 2字）
+    2. AI标签颜色匹配：AI识别的颜色/五行与衣橱物品吻合
+    """
+    if not description and not ai_tags:
+        return
+
+    try:
+        from apps.api.core.database import DatabasePool
+        from psycopg2.extras import RealDictCursor
+        from datetime import date as _date
+
+        # 查询用户衣橱（仅活跃物品）
+        with DatabasePool.get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    SELECT id, name, category, primary_element, attributes_detail
+                    FROM user_wardrobe
+                    WHERE user_id = %s AND is_active = TRUE
+                    LIMIT 300
+                    """,
+                    [user_id],
+                )
+                wardrobe = [dict(row) for row in cur.fetchall()]
+
+        if not wardrobe:
+            return
+
+        matched_ids = set()
+        desc = description.lower() if description else ""
+
+        # 策略1：名称包含匹配（物品名称出现在描述中）
+        if desc:
+            for item in wardrobe:
+                name = (item.get("name") or "").lower()
+                # 名称至少2字，且描述中包含
+                if len(name) >= 2 and name in desc:
+                    matched_ids.add(item["id"])
+
+        # 策略2：AI识别的五行/颜色与物品匹配（补充兜底）
+        ai_elem = ai_tags.get("primary_element") or ""
+        ai_color = ai_tags.get("color") or ""
+        if ai_elem and not matched_ids:
+            for item in wardrobe:
+                if (item.get("primary_element") or "") == ai_elem:
+                    # 再校验颜色是否也匹配（防止误匹配）
+                    item_detail = item.get("attributes_detail") or {}
+                    if isinstance(item_detail, str):
+                        try:
+                            item_detail = json.loads(item_detail)
+                        except Exception:
+                            item_detail = {}
+                    item_color = ""
+                    if isinstance(item_detail, dict):
+                        ci = item_detail.get("颜色", {})
+                        item_color = (ci.get("名称", "") if isinstance(ci, dict) else str(ci)) or ""
+                    # 颜色匹配或无颜色信息时按五行匹配
+                    if ai_color and item_color and ai_color in item_color:
+                        matched_ids.add(item["id"])
+                    elif not ai_color or not item_color:
+                        matched_ids.add(item["id"])
+
+        if not matched_ids:
+            return
+
+        # 批量更新 wear_count + last_worn_date
+        today = _date.today()
+        with DatabasePool.get_connection() as conn:
+            with conn.cursor() as cur:
+                for item_id in matched_ids:
+                    cur.execute(
+                        """
+                        UPDATE user_wardrobe
+                        SET wear_count = COALESCE(wear_count, 0) + 1,
+                            last_worn_date = %s
+                        WHERE id = %s
+                        """,
+                        [today, item_id],
+                    )
+            conn.commit()
+
+        logger.info(f"[QuickCheckIn] 更新 {len(matched_ids)} 件物品的 wear_count: {list(matched_ids)}")
+
+    except Exception as e:
+        # wear_count 更新失败不影响打卡主流程
+        logger.warning(f"[QuickCheckIn] wear_count 自动更新失败: {e}")
 
 
 @router.get("/{diary_id}", response_model=DiaryResponse)

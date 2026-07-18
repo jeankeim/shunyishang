@@ -5,7 +5,8 @@
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
 
 from apps.api.routers.auth import get_current_user
 from apps.api.schemas.membership import (
@@ -74,6 +75,33 @@ async def mark_read(notification_id: int, user: dict = Depends(get_current_user)
     return {"message": "已读"}
 
 
+class PushFeedbackRequest(BaseModel):
+    """推送行为反馈"""
+    action: str = Field(..., description="行为类型: click/ignore/close")
+
+
+@router.post("/{notification_id}/feedback")
+async def report_feedback(
+    notification_id: int,
+    request: PushFeedbackRequest,
+    user: dict = Depends(get_current_user),
+):
+    """
+    推送行为反馈（行为闭环）
+
+    - click: 点击推送 → 正向反馈，强化相关偏好
+    - ignore: 忽略推送 → 中性，不调整
+    - close: 关闭推送 → 负向反馈，降低该类推送频率
+    """
+    user_id = _get_user_id(user)
+    result = push_service.report_push_feedback(
+        user_id=user_id,
+        notification_id=notification_id,
+        action=request.action,
+    )
+    return result
+
+
 @router.post("/register")
 async def register_push(request: RegisterPushRequest, user: dict = Depends(get_current_user)):
     """注册推送（Web Push subscription，Mock）"""
@@ -85,7 +113,7 @@ async def register_push(request: RegisterPushRequest, user: dict = Depends(get_c
 
 @router.post("/smart-check")
 async def smart_reminder_check(
-    weather_info: Optional[dict] = None,
+    weather_info: Optional[dict] = Body(None),
     user: dict = Depends(get_current_user),
 ):
     """

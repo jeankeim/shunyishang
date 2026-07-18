@@ -11,6 +11,8 @@ import type { WardrobeItem } from '@/lib/api'
 import { getImageUrl } from '@/lib/image'
 import { EmptyState, SkeletonList, ConfirmDialog } from '@/components/ui'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { WardrobeInsights } from '@/components/features/WardrobeInsights'
+import { IdleItemsCard } from '@/components/features/IdleItemsCard'
 
 const AddWardrobeModal = lazy(() => import('@/components/features/AddWardrobeModal').then(m => ({ default: m.AddWardrobeModal })))
 
@@ -286,6 +288,30 @@ export default function WardrobePage() {
           })}
         </div>
       </motion.div>
+
+      {/* 衣橱智能洞察面板 */}
+      {total > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mb-6 md:mb-8"
+        >
+          <WardrobeInsights />
+        </motion.div>
+      )}
+
+      {/* 闲置物品提醒 */}
+      {total > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="mb-6 md:mb-8"
+        >
+          <IdleItemsCard />
+        </motion.div>
+      )}
 
       {/* 衣物展示区 */}
       <motion.div
