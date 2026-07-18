@@ -84,6 +84,8 @@ export function MobileControlPanel({ onSceneChange, onWeatherChange }: MobileCon
                     currentData={radarData.currentData}
                     suggestedData={radarData.suggestedData}
                     xiyongShen={radarData.xiyongShen}
+                    pillars={radarData.pillars}
+                    dayMaster={radarData.dayMaster}
                   />
                 </div>
               )}

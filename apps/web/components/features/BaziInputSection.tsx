@@ -12,7 +12,6 @@ import { toast } from '@/components/ui/Toast'
 import { 
   solarToLunar, 
   lunarToSolar, 
-  getShiChenIndex,
   SHI_CHEN, 
   SHI_CHEN_TIME,
   type LunarDate 
@@ -28,10 +27,11 @@ const YEARS = Array.from({ length: 131 }, (_, i) => 1900 + i)
 // 月份选项 - 静态常量
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1)
 
-// 时辰选项 - 静态常量（预计算）
-const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => ({
-  value: i,
-  label: `${SHI_CHEN[getShiChenIndex(i)]} (${SHI_CHEN_TIME[getShiChenIndex(i)]})`
+// 时辰选项 - 12 个时辰（去重），每个取代表小时
+const SHICHEN_HOURS = [23, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21]
+const HOUR_OPTIONS = SHICHEN_HOURS.map((hour, idx) => ({
+  value: hour,
+  label: `${SHI_CHEN[idx]} (${SHI_CHEN_TIME[idx]})`
 }))
 
 // ============================================================

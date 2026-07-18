@@ -39,6 +39,12 @@ vi.mock('@/components/features/diary/DiaryStats', () => ({
   DiaryStatsPanel: ({ stats }: any) => <div data-testid="diary-stats">{JSON.stringify(stats)}</div>,
 }))
 
+let mockIsAuthenticated = true
+
+vi.mock('@/store/user', () => ({
+  useUserStore: () => ({ isAuthenticated: mockIsAuthenticated }),
+}))
+
 let mockDiaryStore: any = {}
 
 vi.mock('@/store/diary', () => ({
@@ -70,6 +76,7 @@ global.confirm = vi.fn(() => true)
 describe('DiaryPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockIsAuthenticated = true
     mockDiaryStore = {
       diaries: [],
       total: 0,
@@ -142,6 +149,12 @@ describe('DiaryPage', () => {
   it('should call fetchDiaries on mount', () => {
     render(<DiaryPage />)
     expect(mockDiaryStore.fetchDiaries).toHaveBeenCalled()
+  })
+
+  it('should NOT call fetchDiaries when not authenticated', () => {
+    mockIsAuthenticated = false
+    render(<DiaryPage />)
+    expect(mockDiaryStore.fetchDiaries).not.toHaveBeenCalled()
   })
 
   it('should switch to calendar view when tab is clicked', () => {

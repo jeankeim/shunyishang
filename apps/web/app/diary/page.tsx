@@ -78,20 +78,21 @@ export default function DiaryPage() {
     return () => clearError()
   }, [clearError])
 
-  // 数据获取
+  // 数据获取（仅登录时请求，避免未登录用户看到 401 错误）
   useEffect(() => {
-    if (diaryView === 'list') {
+    if (diaryView === 'list' && isAuthenticated) {
       fetchDiaries({ mood: moodFilter || undefined })
     }
-  }, [diaryView, moodFilter, fetchDiaries])
+  }, [diaryView, moodFilter, fetchDiaries, isAuthenticated])
 
   useEffect(() => {
+    if (!isAuthenticated) return
     if (viewMode === 'calendar') {
       fetchCalendar(calendarYear, calendarMonth)
     } else if (viewMode === 'stats') {
       fetchStats()
     }
-  }, [viewMode, calendarYear, calendarMonth, fetchCalendar, fetchStats])
+  }, [viewMode, calendarYear, calendarMonth, fetchCalendar, fetchStats, isAuthenticated])
 
   // === 导航操作 ===
   const navigateTo = useCallback((view: DiaryView, direction: number, diaryId?: number, date?: string) => {
