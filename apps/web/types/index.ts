@@ -27,6 +27,14 @@ export interface RecommendItem {
   thumbnail_url?: string   // 缩略图 URL（400px 宽度）
   source?: 'wardrobe' | 'public'
   item_id?: number
+  // 物品详情字段（用于详情弹窗）
+  attributes_detail?: Record<string, any>  // 完整属性（颜色/面料/款式等）
+  thickness_level?: string  // 厚度等级
+  applicable_weather?: string[]  // 适用天气
+  applicable_seasons?: string[]  // 适用季节
+  temperature_range?: { 最低?: number; 最高?: number; min?: number; max?: number }  // 温度范围
+  functionality?: Record<string, boolean>  // 功能特性
+  gender?: string  // 适用性别
 }
 
 // ========== 聊天相关类型 ==========

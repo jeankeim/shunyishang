@@ -9,6 +9,7 @@ const PosterGenerator = lazy(() => import('./PosterGenerator').then(m => ({ defa
 import { ImageLightbox } from './ImageLightbox'
 import { cn } from '@/lib/utils'
 import { Sparkles } from 'lucide-react'
+import { useUserStore } from '@/store/user'
 
 const ELEMENT_EMOJI: Record<string, string> = {
   '金': '⚪', '木': '🟢', '水': '🔵', '火': '🔴', '土': '🟡',
@@ -31,6 +32,8 @@ export function ChatMessageItem({
   batchIndex = 0,
   isLoading = false,
 }: ChatMessageItemProps) {
+  const user = useUserStore(state => state.user)
+  const displayName = user?.nickname || user?.phone || '用户'
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const isUser = message.role === 'user'
   const isStreaming = message.type !== 'done' && message.role === 'assistant' && message.type !== 'error'
@@ -207,7 +210,7 @@ export function ChatMessageItem({
               xiyongElements={message.metadata?.targetElements || []}
               scene={message.metadata?.scene || ''}
               quote={message.content}
-              username="用户"
+              username={displayName}
             />
             </Suspense>
           </>

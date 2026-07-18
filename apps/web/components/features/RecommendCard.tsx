@@ -6,6 +6,7 @@ import { RecommendItem } from '@/types'
 import { submitFeedback, reportBehavior } from '@/lib/api'
 import { getWuxingConfig } from '@/lib/wuxing-config'
 import { getImageUrl } from '@/lib/image'
+import { ItemDetailModal } from './ItemDetailModal'
 
 interface RecommendCardProps {
   item: RecommendItem
@@ -20,6 +21,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [imageError, setImageError] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
+  const [showDetailModal, setShowDetailModal] = useState(false)
   const [showDislikeReasons, setShowDislikeReasons] = useState(false)
   const [selectedReason, setSelectedReason] = useState<string | null>(null)
   const dwellTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -197,7 +199,14 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
       
       <div className="p-4">
         <div className="flex items-start justify-between gap-2">
-          <h4 className="font-medium text-sm line-clamp-2 text-stone-700">{item.name}</h4>
+          <button
+            onClick={() => setShowDetailModal(true)}
+            className="text-left flex-1 min-w-0 group"
+          >
+            <h4 className="font-medium text-sm line-clamp-2 text-stone-700 group-hover:text-[var(--wuxing-wood)] transition-colors">
+              {item.name}
+            </h4>
+          </button>
           <span
             className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${config.bgClass} ${config.textClass}`}
           >
@@ -377,6 +386,14 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
           <p className="text-xs text-stone-500 mt-2 line-clamp-2">{item.reason}</p>
         )}
       </div>
+
+      {/* 物品详情弹窗 */}
+      {showDetailModal && (
+        <ItemDetailModal
+          item={item}
+          onClose={() => setShowDetailModal(false)}
+        />
+      )}
     </motion.div>
   )
 }

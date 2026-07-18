@@ -198,6 +198,13 @@ const SimpleTemplate: React.FC<PosterTemplateProps> = ({
           </div>
         </div>
       </div>
+
+      {/* 底部引导文字 */}
+      <div className="relative z-10 px-10 py-2 text-center" style={{ background: 'rgba(255,255,255,0.3)' }}>
+        <p className="text-[10px] tracking-wider" style={{ color: '#9CA3AF' }}>
+          扫码登录 shunyishang.com 体验更多功能
+        </p>
+      </div>
     </div>
   );
 };
@@ -389,6 +396,13 @@ const WuxingTemplate: React.FC<PosterTemplateProps> = ({
           <div className="text-sm font-semibold tracking-wider">—— 顺衣尚</div>
         </div>
       </div>
+
+      {/* 底部引导文字 */}
+      <div className="relative z-10 px-10 py-2 text-center" style={{ background: 'rgba(0,0,0,0.15)' }}>
+        <p className="text-[10px] tracking-wider" style={{ color: 'rgba(255,255,255,0.4)' }}>
+          扫码登录 shunyishang.com 体验更多功能
+        </p>
+      </div>
     </div>
   );
 };
@@ -471,28 +485,28 @@ const CardTemplate: React.FC<PosterTemplateProps> = ({
         </div>
 
         {/* 单品网格 */}
-        <div className="flex-1 grid grid-cols-2 gap-3 mb-4">
+        <div className="grid grid-cols-2 gap-4 mb-5">
           {items.slice(0, 4).map((item, index) => (
             <div
               key={index}
-              className="group relative bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+              className="group relative bg-white rounded-2xl overflow-hidden shadow-md"
               style={{
                 border: '1px solid rgba(0, 0, 0, 0.06)',
               }}
             >
               {/* 图片 */}
               {item.image_url ? (
-                <div className="relative w-full h-28 overflow-hidden">
+                <div className="relative w-full overflow-hidden" style={{ aspectRatio: '4/3' }}>
                   <img
                     src={getImageUrl(item.image_url)}
                     alt={item.name}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                   {/* 渐变遮罩 */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   
                   {/* 序号标签 */}
-                  <div className="absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white" 
+                  <div className="absolute top-3 left-3 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white" 
                        style={{ 
                          background: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})`,
                          boxShadow: `0 2px 8px ${theme.primary}40`,
@@ -501,17 +515,17 @@ const CardTemplate: React.FC<PosterTemplateProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="w-full h-28 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                  <span className="text-3xl opacity-30">👕</span>
+                <div className="w-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center" style={{ aspectRatio: '4/3' }}>
+                  <span className="text-4xl opacity-30">👕</span>
                 </div>
               )}
               
               {/* 信息 */}
-              <div className="p-3">
-                <p className="text-xs font-bold truncate mb-1">{item.name}</p>
-                <div className="flex items-center gap-1.5">
+              <div className="p-4">
+                <p className="text-sm font-bold truncate mb-2">{item.name}</p>
+                <div className="flex items-center gap-2">
                   {item.primary_element && (
-                    <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium" 
+                    <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium" 
                           style={{ 
                             background: `${theme.primary}15`,
                             color: theme.primary,
@@ -520,7 +534,7 @@ const CardTemplate: React.FC<PosterTemplateProps> = ({
                     </span>
                   )}
                   {item.color && (
-                    <span className="inline-block px-2 py-0.5 rounded-full text-xs" 
+                    <span className="inline-block px-2.5 py-1 rounded-full text-xs" 
                           style={{ 
                             background: 'rgba(0,0,0,0.05)',
                             opacity: 0.7,
@@ -535,36 +549,36 @@ const CardTemplate: React.FC<PosterTemplateProps> = ({
         </div>
 
         {/* 互动数据（海报分享用 - 展示五行标签和推荐信息） */}
-        <div className="p-4 rounded-2xl mb-4" style={{
+        <div className="p-5 rounded-2xl mb-4" style={{
           background: 'rgba(255, 255, 255, 0.8)',
           backdropFilter: 'blur(20px)',
           border: '1px solid rgba(0, 0, 0, 0.06)',
         }}>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                <span className="text-lg">👗</span>
-                <span className="font-medium">{items.length}件单品</span>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-5">
+              <div className="flex items-center gap-2 text-base text-gray-600">
+                <span className="text-xl">👗</span>
+                <span className="font-semibold">{items.length}件单品</span>
               </div>
               {scene && (
-                <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                  <span className="text-lg">🎯</span>
-                  <span className="font-medium">{scene}</span>
+                <div className="flex items-center gap-2 text-base text-gray-600">
+                  <span className="text-xl">🎯</span>
+                  <span className="font-semibold">{scene}</span>
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+            <div className="flex items-center gap-1.5 text-sm text-gray-500">
               <span>✨</span>
               <span>AI推荐</span>
             </div>
           </div>
           
           {/* 标签 */}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2.5">
             {xiyongElements?.map((element) => (
               <span
                 key={element}
-                className="px-3 py-1 rounded-full text-xs font-bold" 
+                className="px-4 py-1.5 rounded-full text-sm font-bold" 
                 style={{ 
                   background: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})`,
                   color: 'white',
@@ -574,7 +588,7 @@ const CardTemplate: React.FC<PosterTemplateProps> = ({
                 #{element}穿搭
               </span>
             ))}
-            <span className="px-3 py-1 rounded-full text-xs" style={{ 
+            <span className="px-4 py-1.5 rounded-full text-sm" style={{ 
               background: 'rgba(0,0,0,0.05)',
             }}>
               #AI推荐
@@ -584,31 +598,38 @@ const CardTemplate: React.FC<PosterTemplateProps> = ({
 
         {/* 签名 */}
         {signature && (
-          <div className="text-center py-2">
-            <p className="text-sm italic opacity-60">—— {signature}</p>
+          <div className="text-center py-3">
+            <p className="text-base italic opacity-60">—— {signature}</p>
           </div>
         )}
       </div>
 
       {/* 底部品牌标识 */}
-      <div className="relative z-10 px-8 py-3 flex items-center justify-between" style={{ 
-        borderTop: '1px solid rgba(0,0,0,0.06)',
-        background: 'rgba(255,255,255,0.6)',
+      <div className="relative z-10 px-8 py-4 flex items-center justify-between" style={{ 
+        borderTop: '1px solid rgba(0,0,0,0.08)',
+        background: 'rgba(255,255,255,0.7)',
         backdropFilter: 'blur(10px)',
       }}>
-        <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded" style={{ 
+        <div className="flex items-center gap-2.5">
+          <div className="w-6 h-6 rounded" style={{ 
             background: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})` 
           }} />
-          <span className="text-xs font-bold tracking-wider opacity-70">
+          <span className="text-sm font-bold tracking-wider opacity-80">
             顺衣尚
           </span>
         </div>
         <div className="text-right">
-          <div className="text-xs opacity-50">
+          <div className="text-sm opacity-60">
             {new Date().toLocaleDateString('zh-CN')}
           </div>
         </div>
+      </div>
+
+      {/* 底部引导文字 */}
+      <div className="relative z-10 px-8 py-3 text-center" style={{ background: 'rgba(255,255,255,0.5)' }}>
+        <p className="text-sm tracking-wider" style={{ color: '#9CA3AF' }}>
+          扫码登录 shunyishang.com 体验更多功能
+        </p>
       </div>
     </div>
   );

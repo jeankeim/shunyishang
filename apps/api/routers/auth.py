@@ -5,6 +5,7 @@
 
 import json
 import logging
+import os
 from datetime import timedelta, datetime, date, time
 from typing import Optional
 
@@ -172,89 +173,15 @@ async def register(request: UserRegisterRequest):
     """
     用户注册
     
-    手机号或邮箱至少提供一个
-    
-    **源码位置**: `apps/api/routers/auth.py:register()` (第168行起)
-    
-    **核心逻辑**:
-    1. 检查手机号/邮箱是否已注册
-    2. 生成 user_code 和密码哈希
-    3. 插入用户数据到数据库
-    4. 生成 JWT token 返回
-    
-    **请求示例**:
-    ```json
-    {
-        "phone": "13800138000",
-        "password": "123456",
-        "nickname": "张三",
-        "gender": "男"
-    }
-    ```
+    测试/开发期间临时关闭注册，生产环境可通过环境变量 REGISTER_ENABLED 控制。
     """
-    if not request.phone and not request.email:
+    # 通过环境变量控制注册开关，测试期间默认关闭所有环境
+    register_enabled = os.getenv("REGISTER_ENABLED", "").lower()
+    if register_enabled != "true":
         raise HTTPException(
-            status_code=400,
-            detail="手机号或邮箱至少提供一个"
+            status_code=503,
+            detail="测试期间暂不开放注册，请使用测试账号登录"
         )
-    
-    # 检查是否已存在
-    with DatabasePool.get_connection() as conn:
-        with conn.cursor() as cur:
-            if request.phone:
-                cur.execute("SELECT id FROM users WHERE phone = %s", (request.phone,))
-                if cur.fetchone():
-                    raise HTTPException(status_code=400, detail="手机号已注册")
-            
-            if request.email:
-                cur.execute("SELECT id FROM users WHERE email = %s", (request.email,))
-                if cur.fetchone():
-                    raise HTTPException(status_code=400, detail="邮箱已注册")
-            
-            # 创建用户
-            user_code = generate_user_code()
-            password_hash = get_password_hash(request.password)
-            
-            cur.execute(
-                """
-                INSERT INTO users (user_code, phone, email, password_hash, nickname, gender)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                RETURNING id
-                """,
-                (
-                    user_code,
-                    request.phone,
-                    request.email,
-                    password_hash,
-                    request.nickname,
-                    request.gender
-                )
-            )
-            user_id = cur.fetchone()[0]
-            conn.commit()
-    
-    # 生成 token
-    access_token = create_access_token(data={"sub": str(user_id)})
-    
-    return TokenResponse(
-        access_token=access_token,
-        expires_in=settings.jwt_expire_minutes * 60,
-        user=UserResponse(
-            id=user_id,
-            user_code=user_code,
-            phone=request.phone,
-            email=request.email,
-            nickname=request.nickname,
-            gender=request.gender,
-            birth_date=None,
-            birth_time=None,
-            birth_location=None,
-            preferred_city=None,
-            avatar_url=None,
-            bazi=None,
-            xiyong_elements=None
-        )
-    )
 
 
 @router.post("/login", response_model=TokenResponse, summary="用户登录")

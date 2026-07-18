@@ -27,7 +27,7 @@ FONT_CONFIG = {
     'footer': {'size': 32, 'weight': 'normal'},
 }
 
-# 五行配色主题
+# 五行配色主题（与前端 poster-templates.ts 的 WUXING_THEMES 保持一致）
 WUXING_THEMES = {
     'fire': {
         'primary': '#FF6B6B',
@@ -35,23 +35,23 @@ WUXING_THEMES = {
         'background': '#FAFAF8',
     },
     'wood': {
-        'primary': '#4CAF50',
-        'secondary': '#8BC34A',
+        'primary': '#4ADE80',
+        'secondary': '#22D3EE',
         'background': '#F1F8E9',
     },
     'earth': {
-        'primary': '#D4A574',
-        'secondary': '#E6C9A8',
+        'primary': '#FCD34D',
+        'secondary': '#F59E0B',
         'background': '#FFF8E1',
     },
     'metal': {
-        'primary': '#9E9E9E',
-        'secondary': '#BDBDBD',
+        'primary': '#F3F4F6',
+        'secondary': '#D1D5DB',
         'background': '#F5F5F5',
     },
     'water': {
-        'primary': '#2196F3',
-        'secondary': '#64B5F6',
+        'primary': '#60A5FA',
+        'secondary': '#3B82F6',
         'background': '#E3F2FD',
     },
 }
@@ -286,8 +286,12 @@ def generate_simple_poster(
             tag_x += tag_width + 20
     
     # 签名
-    sign_font = get_font(36)
-    draw.text((POSTER_WIDTH - 100, POSTER_HEIGHT - 60), f'—— {signature}', fill='#6B7280', font=sign_font, anchor='rm')
+    sign_font = get_font(32)
+    draw.text((POSTER_WIDTH - 100, POSTER_HEIGHT - 80), f'—— {signature}', fill='#6B7280', font=sign_font, anchor='rm')
+    
+    # 底部引导文字（独立一行，小号字体）
+    guide_font = get_font(20)
+    draw.text((POSTER_WIDTH // 2, POSTER_HEIGHT - 35), '扫码登录 shunyishang.com 体验更多功能', fill='#9CA3AF', font=guide_font, anchor='mm')
     
     return img
 
@@ -426,40 +430,48 @@ def generate_wuxing_poster(
             label_y = name_y + 50
             draw.text((label_x, label_y), item['primary_element'], fill=theme['secondary'], font=label_font, anchor='lm')
     
-    # 底部品牌区
-    footer_y = POSTER_HEIGHT - 120
+    # 底部品牌区（分行布局，避免重叠）
+    footer_y = POSTER_HEIGHT - 160
     
     # 分隔线
     draw.line([(80, footer_y), (POSTER_WIDTH - 80, footer_y)], fill=(255, 255, 255, 25), width=2)
     
-    # 左侧：品牌信息
-    brand_x = 100
-    brand_y = footer_y + 60
+    # 第一行：左侧品牌 + 右侧生成时间
+    row1_y = footer_y + 45
     
     # 品牌图标
+    brand_x = 100
     draw.rounded_rectangle(
-        [brand_x, brand_y - 20, brand_x + 40, brand_y + 20],
+        [brand_x, row1_y - 18, brand_x + 36, row1_y + 18],
         radius=8,
         fill=theme['primary'],
     )
-    brand_icon_font = get_font(20, 'bold')
-    draw.text((brand_x + 20, brand_y), '五行', fill='white', font=brand_icon_font, anchor='mm')
+    brand_icon_font = get_font(18, 'bold')
+    draw.text((brand_x + 18, row1_y), '五行', fill='white', font=brand_icon_font, anchor='mm')
     
     # 品牌名称
-    brand_font = get_font(28, 'bold')
-    draw.text((brand_x + 60, brand_y - 10), '顺衣尚', fill='white', font=brand_font, anchor='lm')
-    brand_sub_font = get_font(22)
-    draw.text((brand_x + 60, brand_y + 20), '传统智慧 · 现代穿搭', fill=(255, 255, 255, 128), font=brand_sub_font, anchor='lm')
+    brand_font = get_font(26, 'bold')
+    draw.text((brand_x + 50, row1_y), '顺衣尚', fill='white', font=brand_font, anchor='lm')
     
-    # 右侧：生成时间和签名
+    # 右侧生成时间
     from datetime import datetime
     current_time = datetime.now().strftime('%H:%M:%S')
+    time_font = get_font(22)
+    draw.text((POSTER_WIDTH - 100, row1_y), f'生成时间：{current_time}', fill=(255, 255, 255, 153), font=time_font, anchor='rm')
     
-    time_font = get_font(24)
-    draw.text((POSTER_WIDTH - 100, brand_y - 20), f'生成时间：{current_time}', fill=(255, 255, 255, 153), font=time_font, anchor='rm')
+    # 第二行：品牌副标题（居中，小号字体）
+    row2_y = row1_y + 40
+    brand_sub_font = get_font(20)
+    draw.text((POSTER_WIDTH // 2, row2_y), '传统智慧 · 现代穿搭', fill=(255, 255, 255, 100), font=brand_sub_font, anchor='mm')
     
-    sign_font = get_font(32, 'bold')
-    draw.text((POSTER_WIDTH - 100, brand_y + 25), '—— 顺衣尚', fill=(255, 255, 255, 204), font=sign_font, anchor='rm')
+    # 第三行：引导文字（居中，小号字体）
+    row3_y = row2_y + 35
+    guide_font = get_font(20)
+    draw.text((POSTER_WIDTH // 2, row3_y), '扫码登录 shunyishang.com 体验更多功能', fill=(255, 255, 255, 80), font=guide_font, anchor='mm')
+    
+    # 第四行：签名（右下角）
+    sign_font = get_font(24, 'bold')
+    draw.text((POSTER_WIDTH - 100, row3_y + 35), '—— 顺衣尚', fill=(255, 255, 255, 153), font=sign_font, anchor='rm')
     
     return img
 
@@ -472,6 +484,7 @@ def generate_card_poster(
     quote: str = '',
     signature: str = '顺衣尚',
     scene: str = '',
+    username: str = '',
 ) -> Image.Image:
     """生成社交卡片风格海报"""
     theme = WUXING_THEMES.get(theme_name, WUXING_THEMES['fire'])
@@ -503,7 +516,7 @@ def generate_card_poster(
         width=2,
     )
     
-    # 用户头像圆圈
+    # 用户头像圆圈（显示用户名首字）
     avatar_x = header_x + 70
     avatar_y = header_y + header_height // 2
     draw.ellipse(
@@ -511,11 +524,13 @@ def generate_card_poster(
         fill=theme['primary'],
     )
     avatar_font = get_font(36, 'bold')
-    draw.text((avatar_x, avatar_y), 'U', fill='white', font=avatar_font, anchor='mm')
+    avatar_char = (username or 'U')[0].upper()
+    draw.text((avatar_x, avatar_y), avatar_char, fill='white', font=avatar_font, anchor='mm')
     
     # 用户名
+    display_name = username or '用户'
     name_font = get_font(32, 'bold')
-    draw.text((avatar_x + 70, avatar_y - 15), '@用户', fill='#212529', font=name_font, anchor='lm')
+    draw.text((avatar_x + 70, avatar_y - 15), f'@{display_name}', fill='#212529', font=name_font, anchor='lm')
     
     # 发布时间
     time_font = get_font(24)
@@ -535,16 +550,16 @@ def generate_card_poster(
     # 单品网格（2x2）
     grid_start_y = scene_y + 100 if scene else title_y + 100
     grid_item_width = 440
-    grid_item_height = 280
+    grid_item_height = 380
     grid_gap = 24
-    
+        
     for i, item in enumerate(items[:4]):
         row = i // 2
         col = i % 2
-        
+            
         item_x = 80 + col * (grid_item_width + grid_gap)
         item_y = grid_start_y + row * (grid_item_height + grid_gap)
-        
+            
         # 卡片背景
         draw.rounded_rectangle(
             [item_x, item_y, item_x + grid_item_width, item_y + grid_item_height],
@@ -553,83 +568,100 @@ def generate_card_poster(
             outline=(0, 0, 0, 15),
             width=2,
         )
-        
-        # 图片区域
-        img_area_height = 200
+            
+        # 图片区域（4:3 比例，避免纵向压缩）
+        img_area_height = 300
         if item.get('image_url'):
             item_img = download_image(item['image_url'])
             if item_img:
-                item_img = item_img.resize((grid_item_width, img_area_height), Image.Resampling.LANCZOS)
+                # 保持宽高比裁剪：先缩放到宽度匹配，再居中裁剪高度
+                orig_w, orig_h = item_img.size
+                target_ratio = grid_item_width / img_area_height
+                orig_ratio = orig_w / orig_h
+                if orig_ratio > target_ratio:
+                    # 原图更宽，按高度缩放后裁左右
+                    new_h = img_area_height
+                    new_w = int(orig_w * new_h / orig_h)
+                    item_img = item_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+                    left = (new_w - grid_item_width) // 2
+                    item_img = item_img.crop((left, 0, left + grid_item_width, new_h))
+                else:
+                    # 原图更高，按宽度缩放后裁上下
+                    new_w = grid_item_width
+                    new_h = int(orig_h * new_w / orig_w)
+                    item_img = item_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+                    top = (new_h - img_area_height) // 2
+                    item_img = item_img.crop((0, top, new_w, top + img_area_height))
                 img.paste(item_img, (item_x, item_y), item_img)
-        
+            
         # 序号标签
         num_bg_x = item_x + 16
         num_bg_y = item_y + 16
         draw.rounded_rectangle(
-            [num_bg_x, num_bg_y, num_bg_x + 40, num_bg_y + 40],
-            radius=20,
+            [num_bg_x, num_bg_y, num_bg_x + 44, num_bg_y + 44],
+            radius=22,
             fill=theme['primary'],
         )
-        num_font = get_font(24, 'bold')
-        draw.text((num_bg_x + 20, num_bg_y + 20), str(i + 1), fill='white', font=num_font, anchor='mm')
-        
+        num_font = get_font(26, 'bold')
+        draw.text((num_bg_x + 22, num_bg_y + 22), str(i + 1), fill='white', font=num_font, anchor='mm')
+            
         # 物品名称
-        name_y = item_y + img_area_height + 20
-        name_font = get_font(28, 'bold')
+        name_y = item_y + img_area_height + 24
+        name_font = get_font(30, 'bold')
         draw.text((item_x + 20, name_y), item['name'], fill='#212529', font=name_font, anchor='lm')
-        
+            
         # 五行标签
         if item.get('primary_element'):
             tag_x = item_x + 20
-            tag_y = name_y + 45
+            tag_y = name_y + 50
             draw.rounded_rectangle(
-                [tag_x, tag_y - 16, tag_x + 60, tag_y + 16],
-                radius=16,
+                [tag_x, tag_y - 18, tag_x + 70, tag_y + 18],
+                radius=18,
                 fill=theme['primary'],
             )
-            tag_font = get_font(22)
-            draw.text((tag_x + 30, tag_y), item['primary_element'], fill='white', font=tag_font, anchor='mm')
-    
-    # 互动数据区域
+            tag_font = get_font(24)
+            draw.text((tag_x + 35, tag_y), item['primary_element'], fill='white', font=tag_font, anchor='mm')
+        
+    # 标签区域（移除假的互动数据）
     interaction_y = grid_start_y + 2 * (grid_item_height + grid_gap) + 40
     draw.rounded_rectangle(
-        [80, interaction_y, POSTER_WIDTH - 80, interaction_y + 200],
+        [80, interaction_y, POSTER_WIDTH - 80, interaction_y + 120],
         radius=24,
         fill=(255, 255, 255, 204),
         outline=(0, 0, 0, 15),
         width=2,
     )
-    
-    # 点赞等数据
-    interaction_font = get_font(28)
-    draw.text((120, interaction_y + 50), '❤️ 128', fill='#212529', font=interaction_font, anchor='lm')
-    draw.text((260, interaction_y + 50), '💬 32', fill='#212529', font=interaction_font, anchor='lm')
-    draw.text((400, interaction_y + 50), '↗️ 分享', fill='#212529', font=interaction_font, anchor='lm')
-    
-    # 标签
+        
+    # 五行标签
     tag_start_x = 120
-    tag_y = interaction_y + 120
+    tag_y = interaction_y + 60
     for element in xiyong_elements:
-        tag_width = 140
+        tag_width = 160
         draw.rounded_rectangle(
-            [tag_start_x, tag_y - 20, tag_start_x + tag_width, tag_y + 20],
-            radius=20,
+            [tag_start_x, tag_y - 22, tag_start_x + tag_width, tag_y + 22],
+            radius=22,
             fill=theme['primary'],
         )
-        tag_font = get_font(24, 'bold')
+        tag_font = get_font(26, 'bold')
         draw.text((tag_start_x + tag_width // 2, tag_y), f'#{element}穿搭', fill='white', font=tag_font, anchor='mm')
-        tag_start_x += tag_width + 16
+        tag_start_x += tag_width + 20
+        
+    # 底部品牌标识（分行布局）
+    footer_y = POSTER_HEIGHT - 120
+    draw.line([(80, footer_y), (POSTER_WIDTH - 80, footer_y)], fill=(0, 0, 0, 20), width=2)
     
-    # 底部品牌标识
-    footer_y = POSTER_HEIGHT - 80
-    draw.line([(80, footer_y), (POSTER_WIDTH - 80, footer_y)], fill=(0, 0, 0, 15), width=2)
-    
-    brand_font = get_font(24, 'bold')
-    draw.text((100, footer_y + 40), '顺衣尚', fill='#6B7280', font=brand_font, anchor='lm')
-    
+    # 第一行：品牌 + 日期
+    row1_y = footer_y + 40
+    brand_font = get_font(26, 'bold')
+    draw.text((100, row1_y), '顺衣尚', fill='#6B7280', font=brand_font, anchor='lm')
+        
     date_font = get_font(24)
     from datetime import datetime
-    draw.text((POSTER_WIDTH - 100, footer_y + 40), datetime.now().strftime('%Y-%m-%d'), fill='#9CA3AF', font=date_font, anchor='rm')
+    draw.text((POSTER_WIDTH - 100, row1_y), datetime.now().strftime('%Y-%m-%d'), fill='#9CA3AF', font=date_font, anchor='rm')
+        
+    # 第二行：引导文字（居中，小号字体，独立一行）
+    guide_font = get_font(20)
+    draw.text((POSTER_WIDTH // 2, row1_y + 38), '扫码登录 shunyishang.com 体验更多功能', fill='#9CA3AF', font=guide_font, anchor='mm')
     
     return img
 
@@ -643,6 +675,7 @@ def generate_poster(
     quote: str = '',
     signature: str = '顺衣尚',
     scene: str = '',
+    username: str = '',
 ) -> bytes:
     """
     生成海报图片
@@ -656,6 +689,7 @@ def generate_poster(
         quote: 引言
         signature: 签名
         scene: 场景
+        username: 用户名（卡片模板使用）
     
     Returns:
         图片字节数据 (PNG)
@@ -694,6 +728,7 @@ def generate_poster(
                 quote=quote,
                 signature=signature,
                 scene=scene,
+                username=username,
             )
         else:
             img = generate_simple_poster(

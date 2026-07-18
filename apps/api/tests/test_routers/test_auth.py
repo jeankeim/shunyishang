@@ -30,91 +30,35 @@ def mock_user():
 
 
 class TestRegister:
-    @pytest.mark.asyncio
-    async def test_register_no_phone_no_email(self, async_client, mock_db_pool):
-        """无手机号和邮箱注册"""
-        response = await async_client.post(
-            "/api/v1/auth/register",
-            json={"password": "123456"},
-        )
-        assert response.status_code == 400
-        assert "手机号或邮箱" in response.json()["detail"]
+    """测试期间注册已关闭，所有请求返回 503"""
 
     @pytest.mark.asyncio
-    async def test_register_with_phone(self, async_client, mock_db_pool):
-        """手机号注册成功"""
-        mock_cursor = mock_db_pool["cursor"]
-        mock_cursor.fetchone.side_effect = [None, (1,)]  # no existing, new user id
-
+    async def test_register_disabled(self, async_client, mock_db_pool):
+        """注册接口已关闭"""
         response = await async_client.post(
             "/api/v1/auth/register",
             json={"phone": "13800138000", "password": "123456", "nickname": "测试"},
         )
-        assert response.status_code == 200
-        data = response.json()
-        assert "access_token" in data
-        assert data["token_type"] == "bearer"
-        assert data["user"]["phone"] == "13800138000"
+        assert response.status_code == 503
+        assert "暂不开放注册" in response.json()["detail"]
 
     @pytest.mark.asyncio
-    async def test_register_with_email(self, async_client, mock_db_pool):
-        """邮箱注册成功"""
-        mock_cursor = mock_db_pool["cursor"]
-        mock_cursor.fetchone.side_effect = [None, (1,)]
-
+    async def test_register_disabled_no_phone(self, async_client, mock_db_pool):
+        """无手机号也返回503"""
         response = await async_client.post(
             "/api/v1/auth/register",
-            json={"email": "test@example.com", "password": "123456"},
+            json={"password": "123456"},
         )
-        assert response.status_code == 200
-
-    @pytest.mark.asyncio
-    async def test_register_phone_exists(self, async_client, mock_db_pool):
-        """手机号已注册"""
-        mock_cursor = mock_db_pool["cursor"]
-        mock_cursor.fetchone.return_value = (1,)  # existing user
-
-        response = await async_client.post(
-            "/api/v1/auth/register",
-            json={"phone": "13800138000", "password": "123456"},
-        )
-        assert response.status_code == 400
-        assert "手机号已注册" in response.json()["detail"]
-
-    @pytest.mark.asyncio
-    async def test_register_email_exists(self, async_client, mock_db_pool):
-        """邮箱已注册"""
-        mock_cursor = mock_db_pool["cursor"]
-        # Only email check is done (no phone), so first fetchone returns existing
-        mock_cursor.fetchone.return_value = (1,)
-
-        response = await async_client.post(
-            "/api/v1/auth/register",
-            json={"email": "test@example.com", "password": "123456"},
-        )
-        assert response.status_code == 400
-        assert "邮箱已注册" in response.json()["detail"]
+        assert response.status_code == 503
 
     @pytest.mark.asyncio
     async def test_register_short_password(self, async_client, mock_db_pool):
-        """密码太短"""
+        """密码太短 - Pydantic 校验先于路由处理，仍返回 422"""
         response = await async_client.post(
             "/api/v1/auth/register",
             json={"phone": "13800138000", "password": "123"},
         )
         assert response.status_code == 422
-
-    @pytest.mark.asyncio
-    async def test_register_with_gender(self, async_client, mock_db_pool):
-        """带性别注册"""
-        mock_cursor = mock_db_pool["cursor"]
-        mock_cursor.fetchone.side_effect = [None, (1,)]
-
-        response = await async_client.post(
-            "/api/v1/auth/register",
-            json={"phone": "13900139000", "password": "123456", "gender": "男"},
-        )
-        assert response.status_code == 200
 
 
 class TestLogin:

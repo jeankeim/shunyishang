@@ -33,6 +33,7 @@ export function usePoster(options: UsePosterOptions = {}) {
   const items: PosterItem[] = options.items || [];
   const xiyongElements = options.xiyongElements || [];
   const scene = options.scene || '';
+  const username = options.username || '';
 
   // 下载海报
   const download = useCallback(async () => {
@@ -51,10 +52,11 @@ export function usePoster(options: UsePosterOptions = {}) {
           color: item.color,
         })),
         xiyong_elements: xiyongElements,
-        theme: selectedTheme.name.toLowerCase(), // fire/wood/earth/metal/water
+        theme: selectedTheme.key, // fire/wood/earth/metal/water
         quote,
         signature,
         scene,
+        username,
       };
       
       // 调用后端 API 生成并下载
@@ -66,7 +68,7 @@ export function usePoster(options: UsePosterOptions = {}) {
     } finally {
       setIsGenerating(false);
     }
-  }, [selectedTemplate, title, items, xiyongElements, selectedTheme, quote, signature, scene]);
+  }, [selectedTemplate, title, items, xiyongElements, selectedTheme, quote, signature, scene, username]);
 
   // 分享海报
   const share = useCallback(async () => {
@@ -85,10 +87,11 @@ export function usePoster(options: UsePosterOptions = {}) {
           color: item.color,
         })),
         xiyong_elements: xiyongElements,
-        theme: selectedTheme.name.toLowerCase(), // fire/wood/earth/metal/water
+        theme: selectedTheme.key, // fire/wood/earth/metal/water
         quote,
         signature,
         scene,
+        username,
       };
       
       // 调用后端 API 生成并分享
@@ -100,7 +103,7 @@ export function usePoster(options: UsePosterOptions = {}) {
     } finally {
       setIsGenerating(false);
     }
-  }, [selectedTemplate, title, items, xiyongElements, selectedTheme, quote, signature, scene]);
+  }, [selectedTemplate, title, items, xiyongElements, selectedTheme, quote, signature, scene, username]);
 
   // 重置海报
   const reset = useCallback(() => {

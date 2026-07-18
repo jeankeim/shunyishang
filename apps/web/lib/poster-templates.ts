@@ -17,6 +17,7 @@ export interface PosterTemplate {
 // 配色主题
 export interface ColorTheme {
   name: string;
+  key: string; // 英文 key，用于后端 API（fire/wood/earth/metal/water）
   primary: string;
   secondary: string;
   background: string;
@@ -28,6 +29,7 @@ export interface ColorTheme {
 export const WUXING_THEMES: Record<string, ColorTheme> = {
   fire: {
     name: '火',
+    key: 'fire',
     primary: '#FF6B6B',
     secondary: '#FF8E53',
     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -36,6 +38,7 @@ export const WUXING_THEMES: Record<string, ColorTheme> = {
   },
   wood: {
     name: '木',
+    key: 'wood',
     primary: '#4ADE80',
     secondary: '#22D3EE',
     background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
@@ -44,6 +47,7 @@ export const WUXING_THEMES: Record<string, ColorTheme> = {
   },
   earth: {
     name: '土',
+    key: 'earth',
     primary: '#FCD34D',
     secondary: '#F59E0B',
     background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
@@ -52,6 +56,7 @@ export const WUXING_THEMES: Record<string, ColorTheme> = {
   },
   metal: {
     name: '金',
+    key: 'metal',
     primary: '#F3F4F6',
     secondary: '#D1D5DB',
     background: 'linear-gradient(135deg, #434343 0%, #000000 100%)',
@@ -60,6 +65,7 @@ export const WUXING_THEMES: Record<string, ColorTheme> = {
   },
   water: {
     name: '水',
+    key: 'water',
     primary: '#60A5FA',
     secondary: '#3B82F6',
     background: 'linear-gradient(135deg, #0575E6 0%, #021B79 100%)',

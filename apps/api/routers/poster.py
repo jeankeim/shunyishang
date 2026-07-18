@@ -24,6 +24,7 @@ class PosterGenerateRequest(BaseModel):
     quote: Optional[str] = ""
     signature: Optional[str] = "顺衣尚"
     scene: Optional[str] = ""
+    username: Optional[str] = ""
 
 
 @router.post("/generate")
@@ -47,6 +48,7 @@ async def generate_poster_image(request: PosterGenerateRequest):
             quote=request.quote or "",
             signature=request.signature or "顺衣尚",
             scene=request.scene or "",
+            username=request.username or "",
         )
         
         # 返回图片
@@ -91,6 +93,7 @@ async def generate_poster_base64(request: PosterGenerateRequest):
             quote=request.quote or "",
             signature=request.signature or "顺衣尚",
             scene=request.scene or "",
+            username=request.username or "",
         )
         
         # 转换为 Base64

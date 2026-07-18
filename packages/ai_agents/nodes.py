@@ -934,10 +934,21 @@ def retrieve_items_node(state: AgentState) -> Dict:
     
     # 按分数排序，取 Top K
     # P3-69 排序稳定性：final_score 相同时用 id/item_code 作为次级键，确保缓存一致性
-    scored_items.sort(
-        key=lambda x: (x["final_score"], _canonical_item_key(x)),
-        reverse=True,
-    )
+    # 换一批增强：非首批次加入小幅随机扰动，使分数接近的物品排序不同，增加批次间差异化
+    if batch_index > 0:
+        for item in scored_items:
+            item["_jittered_score"] = item["final_score"] + random.uniform(-0.05, 0.05)
+        scored_items.sort(
+            key=lambda x: (x["_jittered_score"], _canonical_item_key(x)),
+            reverse=True,
+        )
+        for item in scored_items:
+            del item["_jittered_score"]
+    else:
+        scored_items.sort(
+            key=lambda x: (x["final_score"], _canonical_item_key(x)),
+            reverse=True,
+        )
     
     # 换一批功能：根据 batch_index 跳过前面的批次，返回不同的物品组合
     # batch_index=0 取第1批（0~top_k），batch_index=1 取第2批（top_k~2*top_k），以此类推
@@ -952,8 +963,9 @@ def retrieve_items_node(state: AgentState) -> Dict:
         top_items = scored_items[:top_k]
         logger.info(f"[换一批] 候选不足（{len(scored_items)}件），回退到第1批")
     
-    # 分类多样性优化（含温度安全检查）
-    top_items = _ensure_category_diversity(scored_items, top_k)
+    # 分类多样性优化（关键修复：传入批次物品 top_items 而非全量 scored_items，
+    # 之前传 scored_items 导致每次都从高分段重新选取，批次偏移完全失效）
+    top_items = _ensure_category_diversity(top_items, top_k)
     
     # 五行多样性约束：确保 top-k 中至少覆盖 2 种不同五行属性
     top_items = _ensure_wuxing_diversity(top_items, scored_items, top_k)
@@ -2284,6 +2296,14 @@ def format_output_node(state: AgentState) -> Dict:
             "source": item.get("source") or "public",
             "item_id": item.get("id"),
             "image_url": item.get("image_url"),
+            # 详情字段（用于物品详情弹窗）
+            "attributes_detail": item.get("attributes_detail"),
+            "thickness_level": item.get("thickness_level"),
+            "applicable_weather": item.get("applicable_weather"),
+            "applicable_seasons": item.get("applicable_seasons"),
+            "temperature_range": item.get("temperature_range"),
+            "functionality": item.get("functionality"),
+            "gender": item.get("gender"),
         })
     
     # 最终响应

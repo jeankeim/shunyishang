@@ -33,6 +33,7 @@ export interface PosterGenerateParams {
   quote?: string;
   signature?: string;
   scene?: string;
+  username?: string;
 }
 
 /**
