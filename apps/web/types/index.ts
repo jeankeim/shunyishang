@@ -46,7 +46,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   createdAt: number
-  type?: 'analysis' | 'done' | 'error'
+  type?: 'analysis' | 'done' | 'error' | 'hint'
   metadata?: ChatMessageMetadata
 }
 

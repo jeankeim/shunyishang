@@ -7,6 +7,7 @@ import os
 import time
 import json
 import hashlib
+import random
 import logging
 from typing import Dict, List, Optional, Generator, Any
 from pathlib import Path
@@ -65,6 +66,64 @@ def _is_extreme_temp(temperature: Optional[float]) -> bool:
     if temperature is None:
         return False
     return temperature <= EXTREME_COLD_TEMP or temperature >= EXTREME_HOT_TEMP
+
+
+def _get_current_season(weather_info: Optional[Dict] = None) -> Optional[str]:
+    """
+    推断当前季节
+    
+    使用月份推断（更可靠），温度作为参考。
+    
+    Returns:
+        "春" / "夏" / "秋" / "冬" / None
+    """
+    from datetime import datetime
+    month = datetime.now().month
+    if month in (3, 4, 5):
+        return "春"
+    elif month in (6, 7, 8):
+        return "夏"
+    elif month in (9, 10, 11):
+        return "秋"
+    else:
+        return "冬"
+
+
+def _calculate_season_score(item: Dict, current_season: Optional[str]) -> float:
+    """
+    计算物品的季节适配分
+    
+    Args:
+        item: 物品字典（需含 applicable_seasons 字段）
+        current_season: 当前季节
+    
+    Returns:
+        1.0 = 完全适配 / 0.7 = 轻微不适配 / 0.5 = 无季节信息（中性）
+    """
+    if not current_season:
+        return 0.5
+    
+    applicable_seasons = item.get("applicable_seasons")
+    if not applicable_seasons:
+        return 0.5  # 无季节信息，不惩罚
+    
+    # 解析 applicable_seasons（可能是 JSON 字符串或列表）
+    if isinstance(applicable_seasons, str):
+        import json
+        try:
+            applicable_seasons = json.loads(applicable_seasons)
+        except Exception:
+            return 0.5
+    
+    if not isinstance(applicable_seasons, list) or len(applicable_seasons) == 0:
+        return 0.5  # 空列表视为无限制
+    
+    # 当前季节在适用列表中
+    if current_season in applicable_seasons:
+        return 1.0
+    
+    # 季节不匹配：惩罚
+    return 0.7
 
 
 def _canonical_item_key(item: Dict) -> str:
@@ -520,6 +579,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
     retrieval_mode = state.get("retrieval_mode", "public")
     top_k = state.get("top_k", 5)
     boost_elements = state.get("boost_elements", [])  # 相生辅助五行
+    batch_index = state.get("batch_index", 0)  # 换一批：批次索引
     
     if not search_query:
         return {"error": "搜索查询为空", "retrieved_items": [], "item_sources": {}}
@@ -736,6 +796,9 @@ def retrieve_items_node(state: AgentState) -> Dict:
     # Task 01: 提取子场景（如果有多维度场景识别）
     sub_scene = state.get("sub_scene")
     
+    # 季节适配：推断当前季节，用于评分惩罚
+    current_season = _get_current_season(weather_info)
+    
     # 计算加权分数
     scored_items = []
     for idx, item in enumerate(items):
@@ -785,6 +848,9 @@ def retrieve_items_node(state: AgentState) -> Dict:
         # 温度匹配评分
         temp_score = _calculate_temp_score(item, weather_info)
         
+        # 季节适配评分（季节不匹配时扣分，如夏天不推春季专属物品）
+        season_score = _calculate_season_score(item, current_season)
+        
         # Task 01: 计算场景匹配分（新增）
         scene_score = 0.5  # 默认基础分
         if scene and scene_weight > 0:
@@ -799,13 +865,14 @@ def retrieve_items_node(state: AgentState) -> Dict:
                 preference_score = 0.5
         
         # 加权最终分数（各维度均为 [0,1]，加权和为 [0,1]；轮换奖励作为独立微调项叠加）
+        # 季节分作为乘性因子（0.7~1.0），季节不匹配时整体降分
         final_score = (
             semantic_score * semantic_weight +
             wuxing_score * wuxing_weight +
             scene_score * scene_weight +
             preference_score * pref_weight +
             temp_score * temp_weight
-        ) + rotation_bonus
+        ) * season_score + rotation_bonus
         
         scored_items.append({
             **item,
@@ -814,6 +881,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
             "scene_score": scene_score,
             "preference_score": preference_score,
             "temp_score": temp_score,
+            "season_score": season_score,
             "final_score": final_score,
         })
     
@@ -838,8 +906,8 @@ def retrieve_items_node(state: AgentState) -> Dict:
                     # 高温（≥28°C）：排除厚重和中厚（29°C推针织衫/西装太热）
                     if thickness in ("厚重", "中厚"):
                         continue
-                elif temp >= MILD_HOT_TEMP:
-                    # 中高温（≥25°C）：排除厚重
+                elif temp >= 20:
+                    # 舒适温暖（≥20°C）：排除厚重（20°C以上穿羽绒服/棉服明显不合时宜）
                     if thickness == "厚重":
                         continue
                 elif temp <= EXTREME_COLD_TEMP:
@@ -870,7 +938,19 @@ def retrieve_items_node(state: AgentState) -> Dict:
         key=lambda x: (x["final_score"], _canonical_item_key(x)),
         reverse=True,
     )
-    top_items = scored_items[:top_k]
+    
+    # 换一批功能：根据 batch_index 跳过前面的批次，返回不同的物品组合
+    # batch_index=0 取第1批（0~top_k），batch_index=1 取第2批（top_k~2*top_k），以此类推
+    start_idx = batch_index * top_k
+    end_idx = start_idx + top_k
+    if start_idx < len(scored_items):
+        top_items = scored_items[start_idx:end_idx]
+        if batch_index > 0:
+            logger.info(f"[换一批] batch_index={batch_index}，跳过前{start_idx}件，返回第{batch_index+1}批")
+    else:
+        # 候选不足，回退到第一批并记录日志
+        top_items = scored_items[:top_k]
+        logger.info(f"[换一批] 候选不足（{len(scored_items)}件），回退到第1批")
     
     # 分类多样性优化（含温度安全检查）
     top_items = _ensure_category_diversity(scored_items, top_k)
@@ -1131,6 +1211,24 @@ def _ensure_category_diversity(items: List[Dict], limit: int) -> List[Dict]:
     # 先遍历一次，记录配饰在排序中的位置
     accessory_items = [item for item in valid_items if item.get("category") == "配饰"]
     
+    # 配饰多样性：从 top-3 配饰中随机选一个，避免同一条方巾反复出现
+    if len(accessory_items) > 1:
+        top_n = min(3, len(accessory_items))
+        candidates = accessory_items[:top_n]
+        random.shuffle(candidates)
+        # 将随机化后的候选写回，确保 forced insertion 也用随机顺序
+        accessory_items[:top_n] = candidates
+        # 同时调整 valid_items 中配饰的顺序，使正常遍历也受影响
+        acc_idx = 0
+        new_valid = []
+        for item in valid_items:
+            if item.get("category") == "配饰":
+                new_valid.append(accessory_items[acc_idx])
+                acc_idx += 1
+            else:
+                new_valid.append(item)
+        valid_items = new_valid
+    
     for item in valid_items:
         category = item.get("category", "其他")
         
@@ -1261,7 +1359,7 @@ def _infer_item_thickness(item: Dict) -> str:
     if any(k in item_name for k in medium_keywords):
         return "中厚"
     # 轻薄：适合 >25°C 的衣物
-    thin_keywords = ["衬衫", "T恤", "短裤", "薄", "背心", "吊带", "雪纺", "丝"]
+    thin_keywords = ["衬衫", "T恤", "Polo", "polo", "短裤", "薄", "背心", "吊带", "雪纺", "丝"]
     if any(k in item_name for k in thin_keywords):
         return "轻薄"
 
@@ -1335,10 +1433,22 @@ def _calculate_temp_score(item: Dict, weather_info: Optional[Dict]) -> float:
             score -= 0.2
     # 适中温度（11-24°C）
     else:
-        if thickness == "适中":
-            score += 0.2
-        elif thickness == "中厚":
-            score += 0.1
+        if temp >= 20:
+            # 20-24°C：适中/轻薄最佳，厚重明显不合适
+            if thickness == "适中":
+                score += 0.2
+            elif thickness in ("轻薄", "极薄"):
+                score += 0.1
+            elif thickness == "厚重":
+                score -= 0.3
+            elif thickness == "中厚":
+                score -= 0.1
+        else:
+            # 11-19°C：适中/中厚合适
+            if thickness == "适中":
+                score += 0.2
+            elif thickness == "中厚":
+                score += 0.1
     
     return max(0.0, min(1.0, score))
 

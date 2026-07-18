@@ -90,3 +90,6 @@ apps/web/public/uploads
 # 临时测试脚本 (开发用，不需要提交)
 scripts/test_*.py
 scripts/test_*.png
+
+# 项目改动记录 (本地知识库，不推送)
+CHANGELOG.md

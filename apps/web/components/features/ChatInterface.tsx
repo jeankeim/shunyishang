@@ -88,6 +88,9 @@ function RetrievalModeToggle({ isAuthenticated }: { isAuthenticated: boolean }) 
 export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: ChatInterfaceProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [currentPrompts, setCurrentPrompts] = useState<string[]>([])
+  const [batchIndex, setBatchIndex] = useState(0)  // 换一批：当前批次索引（0-2）
+  const [lastQuery, setLastQuery] = useState<string>('')  // 换一批：记录上次查询内容
+  const [lastBazi, setLastBazi] = useState<BaziInput | undefined>(undefined)  // 换一批：记录上次八字
   const {
     currentConversation,
     currentConversationId,
@@ -317,6 +320,11 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: 
       convId = createConversation()
     }
 
+    // 保存查询内容用于"换一批"功能
+    setLastQuery(content)
+    setLastBazi(bazi ?? userBazi ?? undefined)
+    setBatchIndex(0)  // 新查询重置批次
+
     // 用户消息
     const userMessage: ChatMessage = {
       id: `msg_${Date.now()}`,
@@ -369,6 +377,7 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: 
       retrieval_mode: effectiveRetrievalMode,
       user_id: userId,
       user_city: userCity || undefined,
+      batch_index: batchIndex,
     }
     try {
       const startTime = Date.now()
@@ -422,6 +431,14 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: 
             setIsLoading(false)
             break
 
+          case 'hint':
+            // 非穿搭意图提示：显示友好引导文案
+            updateMessage(convId, aiMessageId, {
+              content: event.data,
+              type: 'hint',
+            })
+            break
+
           case 'error':
             // 根据错误内容显示更友好的提示
             const errorMsg = event.data || ''
@@ -467,6 +484,124 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: 
       // 流式处理完成
     } catch (error) {
       console.error('[推荐请求] 异常:', error)
+      updateMessage(convId, aiMessageId, {
+        content: '连接失败，请检查网络后重试。',
+        type: 'error',
+      })
+      setIsLoading(false)
+    }
+  }
+
+  // 换一批：重新请求相同查询但不同批次
+  const handleRefreshBatch = async () => {
+    if (!lastQuery || batchIndex >= 2) return  // 最多3批（0, 1, 2）
+    
+    const newBatchIndex = batchIndex + 1
+    setBatchIndex(newBatchIndex)
+    
+    // 使用保存的查询参数重新发送请求
+    let convId = currentConversationId
+    if (!convId) {
+      convId = createConversation()
+    }
+
+    // AI 占位消息
+    const aiMessageId = `msg_${Date.now()}`
+    const aiMessage: ChatMessage = {
+      id: aiMessageId,
+      role: 'assistant',
+      content: '',
+      createdAt: Date.now(),
+    }
+    addMessage(convId, aiMessage)
+    setIsLoading(true)
+
+    const effectiveBazi = lastBazi ?? userBazi
+    const userGender = (user?.gender as '男' | '女' | undefined) || effectiveBazi?.gender
+    const effectiveRetrievalMode = isAuthenticated ? retrievalMode : 'public'
+    const userId = user?.id
+
+    const requestParams = {
+      query: lastQuery,
+      scene: scene || undefined,
+      weather_element: weatherElement || undefined,
+      weather: weatherInfo || undefined,
+      bazi: effectiveBazi
+        ? {
+            birth_year: effectiveBazi.birthYear,
+            birth_month: effectiveBazi.birthMonth,
+            birth_day: effectiveBazi.birthDay,
+            birth_hour: effectiveBazi.birthHour,
+            gender: effectiveBazi.gender,
+          }
+        : undefined,
+      gender: userGender,
+      retrieval_mode: effectiveRetrievalMode,
+      user_id: userId,
+      user_city: userCity || undefined,
+      batch_index: newBatchIndex,
+    }
+
+    try {
+      for await (const event of streamRecommendation(requestParams)) {
+        switch (event.type) {
+          case 'analysis':
+            updateMessage(convId, aiMessageId, {
+              type: 'analysis',
+              metadata: {
+                targetElements: event.data.target_elements,
+                baziAnalysis: event.data.bazi_reasoning,
+                elementScores: event.data.element_scores,
+                suggestedElements: event.data.suggested_elements,
+              },
+            })
+            if (event.data.element_scores) {
+              const elements = ['金', '木', '水', '火', '土']
+              const suggestedElements: string[] = event.data.suggested_elements || event.data.target_elements || []
+              const suggestedData: Record<string, number> = {}
+              elements.forEach((el) => {
+                suggestedData[el] = suggestedElements.includes(el) ? 80 : 25
+              })
+              const radarData: RadarData = {
+                currentData: event.data.element_scores,
+                suggestedData,
+                xiyongShen: suggestedElements,
+              }
+              setRadarData(radarData)
+            }
+            break
+          case 'travel_plan':
+            mergeMessageMetadata(convId, aiMessageId, { travelPlan: event.data })
+            break
+          case 'items':
+            mergeMessageMetadata(convId, aiMessageId, { items: event.data })
+            break
+          case 'token':
+            appendMessageContent(convId, aiMessageId, event.data)
+            scrollToBottom()
+            break
+          case 'done':
+            updateMessage(convId, aiMessageId, { type: 'done' })
+            setIsLoading(false)
+            break
+          case 'hint':
+            updateMessage(convId, aiMessageId, {
+              content: event.data,
+              type: 'hint',
+            })
+            break
+          case 'error':
+            const errorMsg = event.data || ''
+            updateMessage(convId, aiMessageId, {
+              content: errorMsg || '换一批失败，请稍后重试',
+              type: 'error',
+            })
+            setIsLoading(false)
+            break
+        }
+      }
+    } catch (error) {
+      console.error('[换一批] 异常:', error)
       updateMessage(convId, aiMessageId, {
         content: '连接失败，请检查网络后重试。',
         type: 'error',
@@ -584,6 +719,9 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: 
                 message={message} 
                 onOpenPoster={scrollToTop}
                 onClosePoster={() => scrollToMessage(message.id)}
+                onRefreshBatch={handleRefreshBatch}
+                batchIndex={batchIndex}
+                isLoading={false}
               />
             ))}
           </div>

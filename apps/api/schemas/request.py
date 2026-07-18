@@ -48,6 +48,9 @@ class RecommendRequest(BaseModel):
     destination: Optional[str] = Field(None, max_length=50, description="目的地城市（可选，也可从提问中自动提取）")
     luggage_size: Optional[str] = Field(None, pattern="^(小|中|大)$", description="行李箱大小：小/中/大（可选，默认中）")
     
+    # 换一批功能：批次索引（0=第一批，1=第二批，2=第三批）
+    batch_index: int = Field(0, ge=0, le=2, description="换一批批次索引（0-2，最多3批）")
+    
     model_config = {
         "json_schema_extra": {
             "examples": [

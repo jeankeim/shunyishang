@@ -35,6 +35,57 @@ for _elem, _colors in ELEMENT_COLOR_MAP.items():
         COLOR_TO_ELEMENT[_c] = _elem
 
 
+# ============================================================
+# 非穿搭意图检测
+# ============================================================
+# 明确的非穿搭话题（优先级高于默认穿搭判定）
+_NON_FASHION_PATTERNS = [
+    "今天天气怎么样", "天气预报", "几点了", "现在时间",
+    "你是谁", "你叫什么", "帮我写", "写代码", "编程",
+    "翻译", "数学", "物理", "化学", "历史", "地理",
+    "新闻", "股票", "基金", "理财", "投资",
+    "做饭", "菜谱", "美食", "餐厅推荐",
+    "电影推荐", "音乐推荐", "游戏推荐",
+    "感冒", "生病", "吃药", "医院",
+]
+
+
+def _is_fashion_intent(query: str) -> bool:
+    """
+    检测用户输入是否为穿搭相关意图
+    
+    策略：宽松判定 —— 只要不包含明确的非穿搭主题关键词，即视为穿搭意图。
+    这样用户输入"今天出门"、"推荐一下"等模糊内容也能正常触发推荐流程。
+    
+    Args:
+        query: 用户输入文本
+    
+    Returns:
+        True = 穿搭意图, False = 非穿搭意图
+    """
+    if not query:
+        return False
+    
+    query_lower = query.lower().strip()
+    
+    # 检查明确的非穿搭模式：匹配到任一则判定为非穿搭意图
+    for pattern in _NON_FASHION_PATTERNS:
+        if pattern in query_lower:
+            return False
+    
+    # 未匹配到任何非穿搭模式，默认视为穿搭意图
+    return True
+
+
+# 诙谐友好的非穿搭提示语
+_NON_FASHION_HINTS = [
+    "哎呀，这里是五行穿搭助手的主场哦～我虽然上知天文下知地理，但最擅长的还是帮你挑衣服！问问今天穿什么吧 👗",
+    "嘿嘿，这个问题超出了我的业务范围啦～我是你的专属穿搭顾问，帮你用五行选美衣才是正经事！试试问我「今天穿什么」？✨",
+    "唔～这个问题我不太在行，但说到穿搭我可就来精神了！告诉我你的场景或心情，让我帮你搭配一套旺运穿搭吧 🎨",
+    "哈哈，你问倒我啦！不过论穿搭我可不含糊～无论是面试、约会还是日常，我都能帮你找到最旺运的那一套！来试试吧 🌟",
+]
+
+
 async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]:
     """
     SSE 流式生成器
@@ -46,6 +97,14 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
     4. done: 结束标记
     """
     try:
+        # ========== 非穿搭意图检测 ==========
+        if not _is_fashion_intent(request.query or ""):
+            import random as _random
+            hint_text = _random.choice(_NON_FASHION_HINTS)
+            yield f"data: {json.dumps({'type': 'hint', 'data': hint_text}, ensure_ascii=False)}\n\n".encode("utf-8")
+            yield f"data: {json.dumps({'type': 'done', 'data': None}, ensure_ascii=False)}\n\n".encode("utf-8")
+            return
+        
         # 生成缓存键（基于查询条件）
         # 注意：缓存键必须覆盖所有会影响推荐结果的输入，否则不同请求会命中错误缓存。
         cache_key_parts = [
@@ -61,6 +120,8 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
             str(request.travel_days) if request.travel_days is not None else "",
             request.destination or "",
             request.luggage_size or "",
+            # 换一批：不同批次返回不同结果
+            str(request.batch_index),
         ]
         # 天气详情（温度/描述/湿度/风力）会改变温度过滤与评分，必须纳入缓存键
         if request.weather:
@@ -157,6 +218,7 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
             travel_days=request.travel_days,
             destination=request.destination,
             luggage_size=request.luggage_size,
+            batch_index=request.batch_index,
         ):
             # 收集结果用于缓存
             if event.get("type") == "analysis":

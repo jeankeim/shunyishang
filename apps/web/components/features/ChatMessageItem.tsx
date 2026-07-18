@@ -18,12 +18,18 @@ interface ChatMessageItemProps {
   message: ChatMessage
   onOpenPoster?: () => void
   onClosePoster?: () => void
+  onRefreshBatch?: () => void
+  batchIndex?: number
+  isLoading?: boolean
 }
 
 export function ChatMessageItem({ 
   message,
   onOpenPoster,
-  onClosePoster 
+  onClosePoster,
+  onRefreshBatch,
+  batchIndex = 0,
+  isLoading = false,
 }: ChatMessageItemProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const isUser = message.role === 'user'
@@ -125,10 +131,16 @@ export function ChatMessageItem({
         )}
 
         {/* 内容 */}
-        <div className="text-stone-700 leading-relaxed whitespace-pre-wrap">
-          {message.content}
-          {isStreaming && message.content && <span className="inline-block w-0.5 h-4 bg-amber-500 ml-0.5 animate-pulse align-middle" />}
-        </div>
+        {message.type === 'hint' ? (
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60 rounded-xl p-4 text-stone-700">
+            <p className="text-sm leading-relaxed">{message.content}</p>
+          </div>
+        ) : (
+          <div className="text-stone-700 leading-relaxed whitespace-pre-wrap">
+            {message.content}
+            {isStreaming && message.content && <span className="inline-block w-0.5 h-4 bg-amber-500 ml-0.5 animate-pulse align-middle" />}
+          </div>
+        )}
 
         {/* 多天行程规划卡片 */}
         {message.metadata?.travelPlan && (
@@ -150,7 +162,7 @@ export function ChatMessageItem({
             </div>
 
             {/* 生成海报按钮 */}
-            <div className="pt-4 flex justify-center">
+            <div className="pt-4 flex justify-center gap-3">
               <button
                 onClick={() => setIsPosterOpen(true)}
                 className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
@@ -158,7 +170,27 @@ export function ChatMessageItem({
                 <Sparkles className="w-5 h-5" />
                 生成分享海报
               </button>
+              
+              {/* 换一批按钮 */}
+              {onRefreshBatch && batchIndex < 2 && !isLoading && (
+                <button
+                  onClick={onRefreshBatch}
+                  className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl font-medium hover:from-blue-600 hover:to-cyan-600 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  换一批
+                </button>
+              )}
             </div>
+            
+            {/* 批次提示 */}
+            {batchIndex > 0 && (
+              <p className="text-center text-xs text-stone-400 mt-2">
+                第 {batchIndex + 1} 批推荐 {batchIndex >= 2 ? '（已是最后一批）' : ''}
+              </p>
+            )}
 
             {/* 海报生成器 */}
             <Suspense fallback={null}>

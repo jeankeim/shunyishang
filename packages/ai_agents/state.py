@@ -32,6 +32,9 @@ class AgentState(TypedDict):
     luggage_size: Optional[str]         # 行李箱大小: 小/中/大
     travel_plan: Optional[Dict]         # 多天行程规划结果
     
+    # === 换一批功能 ===
+    batch_index: int                    # 批次索引（0-2，最多3批）
+    
     # === 分析层 ===
     bazi_result: Optional[Dict]         # 八字计算结果（来自 Task 02）
     annual_luck: Optional[Dict]         # 流年运势（当年）
@@ -102,6 +105,7 @@ def create_initial_state(
     travel_days: Optional[int] = None,
     destination: Optional[str] = None,
     luggage_size: Optional[str] = None,
+    batch_index: int = 0,
 ) -> AgentState:
     """
     创建初始状态
@@ -120,6 +124,7 @@ def create_initial_state(
         travel_days: 旅行天数（可选）
         destination: 目的地城市（可选）
         luggage_size: 行李箱大小（可选，小/中/大）
+        batch_index: 换一批批次索引（0-2，默认0）
     
     Returns:
         AgentState: 初始状态
@@ -138,6 +143,7 @@ def create_initial_state(
         destination=destination,
         luggage_size=luggage_size,
         travel_plan=None,
+        batch_index=batch_index,
         bazi_result=None,
         annual_luck=None,
         major_luck=None,

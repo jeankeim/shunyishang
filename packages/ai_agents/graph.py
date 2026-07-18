@@ -478,6 +478,7 @@ def run_agent_stream(
     travel_days: int = None,
     destination: str = None,
     luggage_size: str = None,
+    batch_index: int = 0,
 ):
     """
     运行 Agent（流式方式，供 SSE 使用）
@@ -547,6 +548,7 @@ def run_agent_stream(
         travel_days=final_travel_days if is_travel_scene else None,
         destination=final_destination if is_travel_scene else None,
         luggage_size=final_luggage_size if is_travel_scene else None,
+        batch_index=batch_index,
     )
     
     # 执行前三个节点（同步）

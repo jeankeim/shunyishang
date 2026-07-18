@@ -119,10 +119,13 @@ export interface RecommendRequest {
   travel_days?: number   // 旅行天数
   destination?: string   // 目的地城市
   luggage_size?: '小' | '中' | '大'  // 行李箱大小
+  
+  // 换一批功能
+  batch_index?: number   // 批次索引（0-2，最多3批）
 }
 
 export interface SSEEvent {
-  type: 'analysis' | 'items' | 'token' | 'done' | 'error' | 'travel_plan'
+  type: 'analysis' | 'items' | 'token' | 'done' | 'error' | 'travel_plan' | 'hint'
   data: any
 }
 
