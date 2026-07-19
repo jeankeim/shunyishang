@@ -59,7 +59,7 @@ WUXING_BOOST_SECONDARY = 0.04    # 次五行命中 boost
 WUXING_BOOST_MIN_CAP = 0.05      # boost 加分最低上限（即使 base=0 也至少 cap 到此值）
 
 # 饰品/文玩五行补救加分
-ORNAMENT_BONUS = 0.04
+ORNAMENT_BONUS = 0.06
 ORNAMENT_CATEGORIES = {"饰品", "文玩"}
 
 # ============================================================

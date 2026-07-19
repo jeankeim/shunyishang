@@ -110,11 +110,15 @@ describe('RecommendCard', () => {
     expect(screen.getByText('🌱')).toBeInTheDocument()
   })
 
-  it('should call onFeedback when like button is clicked', async () => {
+  it('should call onFeedback when like button is clicked via image overlay', async () => {
     const onFeedback = vi.fn()
     render(<RecommendCard item={mockItem} index={0} onFeedback={onFeedback} />)
     
-    // Find the like button by aria-label
+    // 点击图片显示覆盖层
+    const imageDiv = document.querySelector('[style*="example.com"]')
+    fireEvent.click(imageDiv!)
+    
+    // 点击喜欢按钮
     const likeBtn = screen.getByLabelText('喜欢这个推荐')
     fireEvent.click(likeBtn)
     
@@ -146,15 +150,16 @@ describe('RecommendCard', () => {
     expect(screen.getAllByText('70%').length).toBeGreaterThan(0)
   })
 
-  it('should call onImageClick when image is clicked', () => {
-    const onImageClick = vi.fn()
-    render(<RecommendCard item={mockItem} index={0} onImageClick={onImageClick} />)
+  it('should show overlay with like/dislike when image is clicked', () => {
+    render(<RecommendCard item={mockItem} index={0} />)
     
     const imageDiv = document.querySelector('[style*="example.com"]')
-    if (imageDiv) {
-      fireEvent.click(imageDiv)
-      expect(onImageClick).toHaveBeenCalledWith('http://example.com/image.jpg')
-    }
+    fireEvent.click(imageDiv!)
+    
+    expect(screen.getByLabelText('喜欢这个推荐')).toBeInTheDocument()
+    expect(screen.getByLabelText('不喜欢这个推荐')).toBeInTheDocument()
+    expect(screen.getByText('喜欢')).toBeInTheDocument()
+    expect(screen.getByText('不喜欢')).toBeInTheDocument()
   })
 
   it('should not show scene score when scene_score is 0 or undefined', () => {
@@ -168,6 +173,10 @@ describe('RecommendCard', () => {
   it('should disable feedback buttons after feedback is given', async () => {
     render(<RecommendCard item={mockItem} index={0} />)
     
+    // 点击图片显示覆盖层
+    const imageDiv = document.querySelector('[style*="example.com"]')
+    fireEvent.click(imageDiv!)
+    
     const likeBtn = screen.getByLabelText('喜欢这个推荐')
     fireEvent.click(likeBtn)
     
@@ -176,9 +185,23 @@ describe('RecommendCard', () => {
     })
   })
 
-  it('should show thumbnail tag when thumbnail_url is present', () => {
-    const item = { ...mockItem, thumbnail_url: 'http://example.com/thumb.jpg' }
-    render(<RecommendCard item={item} index={0} />)
-    expect(screen.getByText('缩略图')).toBeInTheDocument()
+  it('should show dislike reasons when dislike button is clicked in overlay', () => {
+    render(<RecommendCard item={mockItem} index={0} />)
+    
+    // 点击图片显示覆盖层
+    const imageDiv = document.querySelector('[style*="example.com"]')
+    fireEvent.click(imageDiv!)
+    
+    // 点击不喜欢
+    const dislikeBtn = screen.getByLabelText('不喜欢这个推荐')
+    fireEvent.click(dislikeBtn)
+    
+    // 应显示原因选项
+    expect(screen.getByText('不喜欢的原因？')).toBeInTheDocument()
+    expect(screen.getByText('风格不符')).toBeInTheDocument()
+    expect(screen.getByText('颜色不喜欢')).toBeInTheDocument()
+    expect(screen.getByText('不适合场景')).toBeInTheDocument()
+    expect(screen.getByText('太厚/太薄')).toBeInTheDocument()
+    expect(screen.getByText('其他')).toBeInTheDocument()
   })
 })

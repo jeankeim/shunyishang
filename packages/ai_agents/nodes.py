@@ -754,6 +754,22 @@ def retrieve_items_node(state: AgentState) -> Dict:
             item["source_label"] = "🛒 建议"
             item_sources[_canonical_item_key(item)] = "public"
     
+    # ========== 配饰辅路召回（双路召回策略） ==========
+    # 主路向量检索偏服装语义，配饰天然语义距离远，需辅路补充
+    if retrieval_mode in ("public", "hybrid") and target_elements:
+        existing_ids = {item.get("item_code") for item in items}
+        accent_items = _search_accent_items(
+            target_elements=target_elements,
+            user_gender=user_gender,
+            limit=5,
+            exclude_ids=existing_ids,
+        )
+        for item in accent_items:
+            item["source"] = "public"
+            item["source_label"] = "🛒 建议"
+            item_sources[_canonical_item_key(item)] = "public"
+            items.append(item)
+
     # ========== 后续处理（保持原有逻辑） ==========
     
     # 过滤用户不喜欢的物品
@@ -1672,6 +1688,103 @@ def _vector_search(
         logger.error(f"[Agent] 向量搜索失败: {e}")
         logger.error(f"[Agent] 错误堆栈: {traceback.format_exc()}")
     
+    return items
+
+
+def _search_accent_items(
+    target_elements: List[str],
+    user_gender: Optional[str] = None,
+    limit: int = 5,
+    exclude_ids: Optional[set] = None,
+) -> List[Dict]:
+    """
+    配饰专项检索（辅路召回）
+
+    按五行匹配从配饰/饰品/文玩品类中检索，不依赖向量语义距离。
+    策略：五行命中优先 > 品类轮换（饰品>配饰>文玩）> 随机
+
+    Args:
+        target_elements: 目标五行列表
+        user_gender: 用户性别
+        limit: 返回数量
+        exclude_ids: 需排除的物品ID集合（已在主路中出现的）
+
+    Returns:
+        配饰物品列表
+    """
+    items = []
+    exclude_ids = exclude_ids or set()
+
+    try:
+        with DatabasePool.get_connection() as conn:
+            with conn.cursor() as cur:
+                # 性别过滤
+                if user_gender == "男":
+                    gender_filter = "AND (gender = '中性' OR gender = '男')"
+                elif user_gender == "女":
+                    gender_filter = "AND (gender = '中性' OR gender = '女')"
+                else:
+                    gender_filter = "AND (gender = '中性' OR gender = '男' OR gender IS NULL)"
+
+                # 五行匹配排序：主五行命中 > 次五行命中 > 其他
+                # 品类轮换：饰品优先（产品核心差异化）
+                sql = f"""
+                    SELECT 
+                        item_code, name, category,
+                        primary_element, secondary_element,
+                        attributes_detail, gender,
+                        applicable_weather, applicable_seasons,
+                        temperature_range, functionality, thickness_level,
+                        image_url,
+                        CASE 
+                            WHEN primary_element = ANY(%s) THEN 2
+                            WHEN secondary_element = ANY(%s) THEN 1
+                            ELSE 0
+                        END AS element_match,
+                        CASE category
+                            WHEN '饰品' THEN 3
+                            WHEN '配饰' THEN 2
+                            WHEN '文玩' THEN 1
+                            ELSE 0
+                        END AS category_priority
+                    FROM items
+                    WHERE category IN ('配饰', '饰品', '文玩')
+                    {gender_filter}
+                    ORDER BY element_match DESC, category_priority DESC, RANDOM()
+                    LIMIT %s
+                """
+                cur.execute(sql, (target_elements, target_elements, limit + len(exclude_ids)))
+                rows = cur.fetchall()
+
+                for row in rows:
+                    item_code = row[0]
+                    if item_code in exclude_ids:
+                        continue
+                    items.append({
+                        "item_code": item_code,
+                        "name": row[1],
+                        "category": row[2],
+                        "primary_element": row[3],
+                        "secondary_element": row[4],
+                        "attributes_detail": row[5],
+                        "gender": row[6],
+                        "applicable_weather": row[7],
+                        "applicable_seasons": row[8],
+                        "temperature_range": row[9],
+                        "functionality": row[10],
+                        "thickness_level": row[11],
+                        "image_url": row[12],
+                        "semantic_score": 0.55,  # 辅路给予中等基础分
+                        "source": "public",
+                    })
+                    if len(items) >= limit:
+                        break
+
+    except Exception as e:
+        logger.error(f"[配饰辅路] 检索失败: {e}")
+
+    if items:
+        logger.info(f"[配饰辅路] 召回{len(items)}件: {[i['name'] for i in items]}")
     return items
 
 
