@@ -347,6 +347,9 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: 
     
     // 获取用户ID（衣橱模式需要）
     const userId = user?.id
+    
+    // 防御性降级：衣橱/智能混合模式需要 user_id，若用户资料尚未加载完成则降级为 public
+    const finalRetrievalMode = (effectiveRetrievalMode !== 'public' && !userId) ? 'public' : effectiveRetrievalMode
     // 构建请求参数
     const requestParams = {
       query: content,
@@ -363,7 +366,7 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: 
           }
         : undefined,
       gender: userGender,
-      retrieval_mode: effectiveRetrievalMode,
+      retrieval_mode: finalRetrievalMode,
       user_id: userId,
       user_city: userCity || undefined,
       batch_index: batchIndex,
@@ -509,6 +512,7 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: 
     const userGender = (user?.gender as '男' | '女' | undefined) || effectiveBazi?.gender
     const effectiveRetrievalMode = isAuthenticated ? retrievalMode : 'public'
     const userId = user?.id
+    const finalRetrievalMode = (effectiveRetrievalMode !== 'public' && !userId) ? 'public' : effectiveRetrievalMode
 
     const requestParams = {
       query: lastQuery,
@@ -525,7 +529,7 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: 
           }
         : undefined,
       gender: userGender,
-      retrieval_mode: effectiveRetrievalMode,
+      retrieval_mode: finalRetrievalMode,
       user_id: userId,
       user_city: userCity || undefined,
       batch_index: newBatchIndex,
