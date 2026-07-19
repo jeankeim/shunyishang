@@ -2,18 +2,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
 @import 'tailwindcss';
 
-/* 禁用 oklab 颜色空间，使用传统 sRGB */
-@theme {
-  --color-background: oklch(1 0 0);
-  --color-foreground: oklch(0.145 0 0);
-}
-
 /* 为 html2canvas 兼容性，强制使用 sRGB */
 :root {
   color-scheme: light;
-}
-
-:root {
   --radius: 0.75rem;
   
   /* 春分节气 - 清新淡雅主题 (优化对比度) */
@@ -165,9 +156,9 @@ body {
 
 /* 移动端优化 */
 @media (max-width: 768px) {
-  /* 触摸目标优化 - 最小 44x44px */
-  button, 
-  [role="button"],
+  /* 触摸目标优化 - 最小 44x44px（排除小图标按钮） */
+  button:not(.icon-btn):not([class*="p-1"]):not([class*="p-1.5"]):not([class*="h-8"]):not([class*="h-9"]):not([class*="h-10"]), 
+  [role="button"]:not(.icon-btn),
   input[type="button"],
   input[type="submit"],
   input[type="checkbox"],
@@ -181,11 +172,6 @@ body {
   select,
   textarea {
     font-size: 16px !important;
-  }
-
-  /* 优化滚动 */
-  * {
-    -webkit-overflow-scrolling: touch;
   }
 
   /* 安全区域适配 */
@@ -413,7 +399,7 @@ body {
   @apply hidden sm:block;
 }
 
-/* 移动端卡片优化 */
+/* 移动端卡片优化 - 仅作用于卡片容器内 */
 @media (max-width: 640px) {
   .card-elegant,
   .card-primary,
@@ -421,21 +407,16 @@ body {
     @apply rounded-xl;
   }
   
-  /* 减少移动端圆角 */
-  .rounded-2xl {
-    @apply rounded-xl;
-  }
-  
-  .rounded-3xl {
-    @apply rounded-2xl;
-  }
-  
-  /* 优化移动端内边距 */
-  .p-6 {
+  /* 移动端内边距优化 - 仅作用于卡片容器 */
+  .card-elegant .p-6,
+  .card-primary .p-6,
+  .card-secondary .p-6 {
     @apply p-4;
   }
   
-  .p-8 {
+  .card-elegant .p-8,
+  .card-primary .p-8,
+  .card-secondary .p-8 {
     @apply p-5;
   }
 }
