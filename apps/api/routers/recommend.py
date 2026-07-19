@@ -488,6 +488,85 @@ async def get_daily_pick(
     return result
 
 
+# ========== 用户不喜欢物品 ==========
+
+
+@router.post(
+    "/recommend/dislike",
+    summary="记录用户不喜欢的物品",
+)
+async def report_dislike(
+    item_code: str = Query(..., description="物品编码"),
+    reason: Optional[str] = Query(None, description="原因"),
+    current_user: dict = Depends(get_current_user),
+):
+    """记录用户不喜欢的物品，后续推荐将排除"""
+    user_id = current_user["id"]
+    try:
+        with DatabasePool.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO user_disliked_items (user_id, item_code, reason)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (user_id, item_code) DO NOTHING
+                """, [user_id, item_code, reason])
+                conn.commit()
+        logger.info(f"[Dislike] user={user_id} item={item_code} reason={reason}")
+        return {"success": True, "message": "已记录，后续不再推荐此物品"}
+    except Exception as e:
+        logger.error(f"[Dislike] 记录失败: {e}")
+        raise HTTPException(status_code=500, detail="记录失败")
+
+
+@router.get(
+    "/recommend/disliked",
+    summary="获取用户不喜欢的物品列表",
+)
+async def get_disliked_items(
+    current_user: dict = Depends(get_current_user),
+):
+    """获取用户已标记不喜欢的物品列表"""
+    user_id = current_user["id"]
+    try:
+        with DatabasePool.get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT d.item_code, d.reason, d.created_at, i.name, i.category, i.image_url
+                    FROM user_disliked_items d
+                    LEFT JOIN items i ON d.item_code = i.item_code
+                    WHERE d.user_id = %s
+                    ORDER BY d.created_at DESC
+                """, [user_id])
+                return [dict(row) for row in cur.fetchall()]
+    except Exception as e:
+        logger.error(f"[Dislike] 查询失败: {e}")
+        return []
+
+
+@router.delete(
+    "/recommend/dislike/{item_code}",
+    summary="取消不喜欢",
+)
+async def remove_dislike(
+    item_code: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """取消标记不喜欢"""
+    user_id = current_user["id"]
+    try:
+        with DatabasePool.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "DELETE FROM user_disliked_items WHERE user_id = %s AND item_code = %s",
+                    [user_id, item_code]
+                )
+                conn.commit()
+        return {"success": True}
+    except Exception as e:
+        logger.error(f"[Dislike] 删除失败: {e}")
+        raise HTTPException(status_code=500, detail="操作失败")
+
+
 # ========== 每日智能穿搭建议 ==========
 
 

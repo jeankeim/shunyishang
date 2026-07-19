@@ -584,6 +584,21 @@ def retrieve_items_node(state: AgentState) -> Dict:
     if not search_query:
         return {"error": "搜索查询为空", "retrieved_items": [], "item_sources": {}}
     
+    # ========== 获取用户不喜欢的物品列表（推荐时排除）==========
+    disliked_item_codes = set()
+    if user_id:
+        try:
+            from apps.api.core.database import DatabasePool as _DBPool
+            with _DBPool.get_connection() as _conn:
+                with _conn.cursor() as _cur:
+                    _cur.execute(
+                        "SELECT item_code FROM user_disliked_items WHERE user_id = %s",
+                        [user_id]
+                    )
+                    disliked_item_codes = {row[0] for row in _cur.fetchall()}
+        except Exception:
+            pass
+    
     # ========== Task 3: 根据模式检索 ==========
     items = []
     item_sources = {}
@@ -715,6 +730,14 @@ def retrieve_items_node(state: AgentState) -> Dict:
             item_sources[_canonical_item_key(item)] = "public"
     
     # ========== 后续处理（保持原有逻辑） ==========
+    
+    # 过滤用户不喜欢的物品
+    if disliked_item_codes:
+        before_count = len(items)
+        items = [item for item in items if item.get("item_code") not in disliked_item_codes]
+        if before_count != len(items):
+            logger.info(f"[不喜欢过滤] 排除了 {before_count - len(items)} 件用户不喜欢的物品")
+    
     if not items:
         # 根据模式决定如何处理空结果
         if retrieval_mode == "wardrobe":
@@ -729,7 +752,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
             pass  # 继续执行下面的公共库检索
         
         # 尝试百搭单品兜底（仅public模式和hybrid模式）
-        fallback_items = _get_versatile_items(target_elements, top_k)
+        fallback_items = _get_versatile_items(target_elements, top_k, user_gender=user_gender)
         if fallback_items:
             for item in fallback_items:
                 item["source"] = "public"
@@ -1393,7 +1416,7 @@ def _ensure_wuxing_diversity(items: List[Dict], all_scored: List[Dict], limit: i
     return items
 
 
-def _get_versatile_items(target_elements: List[str], limit: int) -> List[Dict]:
+def _get_versatile_items(target_elements: List[str], limit: int, user_gender: Optional[str] = None) -> List[Dict]:
     """
     获取百搭单品兜底
     
@@ -1402,7 +1425,7 @@ def _get_versatile_items(target_elements: List[str], limit: int) -> List[Dict]:
     # 百搭单品特征：土属性（中性、包容）+ 基础色
     versatile_query = "百搭 中性 基础款 黑色 白色 灰色 米色 舒适"
     
-    items = _vector_search(versatile_query, limit=limit)
+    items = _vector_search(versatile_query, limit=limit, user_gender=user_gender)
     
     return items if items else []
 

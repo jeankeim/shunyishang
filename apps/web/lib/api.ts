@@ -1114,6 +1114,38 @@ export async function smartReminderCheck(weatherInfo?: Record<string, any>): Pro
 }
 
 // ============================================
+// 用户不喜欢物品 API
+// ============================================
+
+export async function reportItemDislike(itemCode: string, reason?: string): Promise<{ success: boolean; message: string }> {
+  const params = new URLSearchParams({ item_code: itemCode })
+  if (reason) params.set('reason', reason)
+  const response = await fetch(`${getAPIBase()}/api/v1/recommend/dislike?${params}`, {
+    method: 'POST',
+    headers: { ...getAuthHeaders() },
+  })
+  if (!response.ok) throw new Error('记录不喜欢失败')
+  return response.json()
+}
+
+export async function getDislikedItems(): Promise<any[]> {
+  const response = await fetch(`${getAPIBase()}/api/v1/recommend/disliked`, {
+    headers: { ...getAuthHeaders() },
+  })
+  if (!response.ok) throw new Error('获取不喜欢列表失败')
+  return response.json()
+}
+
+export async function removeDislike(itemCode: string): Promise<{ success: boolean }> {
+  const response = await fetch(`${getAPIBase()}/api/v1/recommend/dislike/${encodeURIComponent(itemCode)}`, {
+    method: 'DELETE',
+    headers: { ...getAuthHeaders() },
+  })
+  if (!response.ok) throw new Error('取消不喜欢失败')
+  return response.json()
+}
+
+// ============================================
 // 穿搭广场社区 API
 // ============================================
 
