@@ -493,7 +493,7 @@ def _build_style_tip(
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _get_user_city(user_id: int) -> str:
-    """获取用户首选城市"""
+    """获取用户首选城市（优先级：用户设置 > 上次定位 > 默认杭州）"""
     try:
         query = "SELECT preferred_city FROM users WHERE id = %s"
         with DatabasePool.get_connection() as conn:
@@ -504,7 +504,8 @@ def _get_user_city(user_id: int) -> str:
             return row["preferred_city"]
     except Exception as e:
         logger.debug(f"[DailyOutfit] 获取用户城市失败: {e}")
-    return "北京"
+    # 默认回退杭州（而非北京），因为大多数用户在杭州
+    return "杭州"
 
 
 def _get_weather_sync(city: str) -> Dict[str, Any]:

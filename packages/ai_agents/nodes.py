@@ -745,21 +745,31 @@ def retrieve_items_node(state: AgentState) -> Dict:
     # 获取用户偏好（用于偏好加权评分）
     user_prefs = {}
     user_skin_tone: Optional[str] = None
+    user_style_preference: Optional[str] = None
+    user_body_type: Optional[str] = None
     if user_id:
         try:
             from apps.api.services.preference_service import preference_service
             user_prefs = preference_service.get_user_preferences(user_id)
         except Exception as e:
             logger.debug(f"[检索节点] 获取用户偏好失败: {e}")
-        # Week 4: 获取用户肤色信息（用于审美加分）
+        # Week 4: 获取用户审美画像信息（肤色/风格/体型）
         try:
             from apps.api.core.database import DatabasePool
             with DatabasePool.get_connection() as _conn:
                 with _conn.cursor() as _cur:
-                    _cur.execute("SELECT skin_tone FROM users WHERE id = %s", [user_id])
+                    _cur.execute(
+                        "SELECT skin_tone, style_preference, body_type FROM users WHERE id = %s",
+                        [user_id]
+                    )
                     _row = _cur.fetchone()
-                    if _row and _row[0]:
-                        user_skin_tone = _row[0]
+                    if _row:
+                        if _row[0]:
+                            user_skin_tone = _row[0]
+                        if _row[1]:
+                            user_style_preference = _row[1]
+                        if _row[2]:
+                            user_body_type = _row[2]
         except Exception:
             pass
 
@@ -892,9 +902,19 @@ def retrieve_items_node(state: AgentState) -> Dict:
         if item_category in ("饰品", "文玩") and primary in target_elements:
             final_score += 0.04  # 小幅加分，不影响核心排序
         
-        # Week 4: 肤色审美加分
+        # Week 4: 审美画像加分（肤色/风格偏好/体型）
         skin_bonus = _get_skin_tone_bonus(item, user_skin_tone)
         final_score += skin_bonus
+        
+        # 风格偏好加分：用户设置的风格偏好与物品风格匹配时加分
+        if user_style_preference:
+            style_bonus = _get_style_preference_bonus(item, user_style_preference)
+            final_score += style_bonus
+        
+        # 体型适配加分：根据用户体型推荐适合的版型
+        if user_body_type:
+            body_bonus = _get_body_type_bonus(item, user_body_type)
+            final_score += body_bonus
         
         scored_items.append({
             **item,
@@ -910,7 +930,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
     # 过滤掉场景分为0的物品（硬排除）
     scored_items = [item for item in scored_items if item.get("scene_score", 0.5) > 0]
     
-    # 温度硬过滤：极端温度下排除不合适厚度的衣物（增强版：同时检查thickness_level和名称推断）
+    # 温度硬过滤：极端温度下排除不合适厚度的衣物（增强版：同时检查thickness_level、名称推断和temperature_range）
     if weather_info:
         temp = weather_info.get("temperature")
         if temp is not None:
@@ -918,6 +938,19 @@ def retrieve_items_node(state: AgentState) -> Dict:
             for item in scored_items:
                 # P1-32 厚度推断统一：与 _calculate_temp_score 共用同一套规则
                 thickness = _infer_item_thickness(item)
+                
+                # temperature_range 硬排除：当前温度低于物品适用最低温度超过10°C则排除
+                temp_range = item.get("temperature_range")
+                if temp_range and isinstance(temp_range, dict):
+                    range_min = temp_range.get("最低") or temp_range.get("min")
+                    if range_min is not None:
+                        try:
+                            range_min_int = int(range_min)
+                            if temp < range_min_int - 10:
+                                # 当前温度远低于物品适用最低温度，排除
+                                continue
+                        except (ValueError, TypeError):
+                            pass
                 
                 # 温度硬过滤（分层级，阈值统一自模块常量）
                 if temp >= EXTREME_HOT_TEMP:
@@ -1404,7 +1437,11 @@ def _infer_item_thickness(item: Dict) -> str:
 
 
 def _calculate_temp_score(item: Dict, weather_info: Optional[Dict]) -> float:
-    """计算物品的温度适配分（0.0-1.0）"""
+    """计算物品的温度适配分（0.0-1.0）
+    
+    同时考虑 thickness_level 和 temperature_range（物品适用温度范围）。
+    当当前温度低于物品适用最低温度时，给予显著惩罚。
+    """
     if not weather_info:
         return 0.5
     
@@ -1421,6 +1458,29 @@ def _calculate_temp_score(item: Dict, weather_info: Optional[Dict]) -> float:
             functionality = json.loads(functionality)
         except Exception:
             functionality = []
+    
+    # ── temperature_range 检查（物品适用温度范围）──────────────────────────
+    temp_range = item.get("temperature_range")
+    if temp_range and isinstance(temp_range, dict):
+        range_min = temp_range.get("最低") or temp_range.get("min")
+        range_max = temp_range.get("最高") or temp_range.get("max")
+        if range_min is not None:
+            try:
+                range_min = int(range_min)
+                # 当前温度低于物品适用最低温度：每低1度扣0.05，最多扣0.4
+                if temp < range_min:
+                    deficit = range_min - temp
+                    score -= min(0.4, deficit * 0.05)
+            except (ValueError, TypeError):
+                pass
+        if range_max is not None:
+            try:
+                range_max = int(range_max)
+                # 当前温度高于物品适用最高温度：适度扣分
+                if temp > range_max + 5:
+                    score -= 0.15
+            except (ValueError, TypeError):
+                pass
     
     # 极端高温（≥30°C）
     if temp >= EXTREME_HOT_TEMP:
@@ -1522,6 +1582,113 @@ def _get_skin_tone_bonus(item: Dict, skin_tone: Optional[str]) -> float:
         bonus += color_fit.get(secondary, 0.0) * 0.5  # 次五行半额加分
 
     return min(0.05, bonus)  # 上限 0.05
+
+
+# 风格偏好 → 物品风格关键词映射
+_STYLE_KEYWORDS: Dict[str, List[str]] = {
+    "简约": ["简约", "极简", "基础", "纯色", "素色"],
+    "国潮": ["国潮", "中式", "传统", "汉服", "刺绣", "盘扣", "水墨"],
+    "运动": ["运动", "休闲", "户外", "速干", "透气"],
+    "商务": ["商务", "正式", "职业", "西装", "衬衫"],
+    "甜美": ["甜美", "可爱", "蕾丝", "蝴蝶结", "粉色"],
+    "街头": ["街头", "潮流", "涂鸦", "宽松", "oversize"],
+    "文艺": ["文艺", "复古", "棉麻", "亚麻", "民族"],
+    "优雅": ["优雅", "气质", "丝绸", "缎面", "垂坠"],
+    "休闲": ["休闲", "日常", "舒适", "宽松"],
+    "性感": ["性感", "修身", "低领", "露肩"],
+    "知性": ["知性", "干练", "利落", "简约"],
+    "森系": ["森系", "自然", "棉麻", "宽松", "碎花"],
+}
+
+
+def _get_style_preference_bonus(item: Dict, style_preference: Optional[str]) -> float:
+    """
+    计算风格偏好加分（0.0-0.06）
+
+    根据用户设置的风格偏好与物品属性的匹配度给予加分。
+    """
+    if not style_preference:
+        return 0.0
+
+    keywords = _STYLE_KEYWORDS.get(style_preference, [])
+    if not keywords:
+        return 0.0
+
+    bonus = 0.0
+    # 检查物品名称
+    item_name = item.get("name", "")
+    for kw in keywords:
+        if kw in item_name:
+            bonus += 0.03
+            break
+
+    # 检查物品属性详情中的风格
+    detail = item.get("attributes_detail") or {}
+    if isinstance(detail, str):
+        try:
+            detail = json.loads(detail)
+        except Exception:
+            detail = {}
+    if isinstance(detail, dict):
+        style_info = detail.get("款式", {})
+        if isinstance(style_info, dict):
+            style_text = style_info.get("风格", "")
+            for kw in keywords:
+                if kw in style_text:
+                    bonus += 0.03
+                    break
+
+    return min(0.06, bonus)
+
+
+# 体型 → 适合版型映射
+_BODY_TYPE_FIT: Dict[str, Dict[str, float]] = {
+    "偏瘦": {"修身": 0.04, "适中": 0.02, "宽松": 0.01},
+    "标准": {"修身": 0.03, "适中": 0.04, "宽松": 0.02},
+    "偏胖": {"宽松": 0.04, "适中": 0.03, "修身": 0.01},
+}
+
+
+def _get_body_type_bonus(item: Dict, body_type: Optional[str]) -> float:
+    """
+    计算体型适配加分（0.0-0.04）
+
+    根据用户体型与物品版型的匹配度给予加分。
+    """
+    if not body_type:
+        return 0.0
+
+    fit_map = _BODY_TYPE_FIT.get(body_type)
+    if not fit_map:
+        return 0.0
+
+    # 从物品属性推断版型
+    detail = item.get("attributes_detail") or {}
+    if isinstance(detail, str):
+        try:
+            detail = json.loads(detail)
+        except Exception:
+            detail = {}
+
+    fit_type = ""
+    if isinstance(detail, dict):
+        style_info = detail.get("款式", {})
+        if isinstance(style_info, dict):
+            fit_type = style_info.get("版型", "") or style_info.get("细节", [""])[0] if style_info.get("细节") else ""
+
+    # 从名称推断
+    item_name = item.get("name", "")
+    if not fit_type:
+        if any(k in item_name for k in ["修身", "紧身"]):
+            fit_type = "修身"
+        elif any(k in item_name for k in ["宽松", "oversize", "廓形"]):
+            fit_type = "宽松"
+        elif any(k in item_name for k in ["常规", "标准"]):
+            fit_type = "适中"
+
+    if fit_type:
+        return fit_map.get(fit_type, 0.0)
+    return 0.0
 
 
 def _build_travel_scenes(state: AgentState, travel_days: int) -> List[str]:

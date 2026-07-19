@@ -424,9 +424,74 @@ export function WeatherSceneSection({
     return null
   }
 
-  // 初始加载
+  // 初始加载：优先使用用户 preferred_city → 上次定位城市 → 浏览器定位 → 默认北京
   useEffect(() => {
-    fetchWeather(city)
+    const initWeather = async () => {
+      // 1. 尝试从后端获取用户 preferred_city
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+        if (token) {
+          const API_BASE = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
+          const res = await fetch(`${API_BASE}/api/v1/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` }
+          })
+          if (res.ok) {
+            const userData = await res.json()
+            if (userData.preferred_city) {
+              setCity(userData.preferred_city)
+              fetchWeather(userData.preferred_city)
+              return
+            }
+          }
+        }
+      } catch (e) {
+        console.debug('[WeatherScene] 获取用户城市失败:', e)
+      }
+
+      // 2. 尝试使用上次定位的城市
+      try {
+        const historyStr = localStorage.getItem('weather_location_history')
+        if (historyStr) {
+          const history = JSON.parse(historyStr)
+          if (history.length > 0) {
+            const lastCity = history[0].city
+            setCity(lastCity)
+            fetchWeather(lastCity)
+            return
+          }
+        }
+      } catch (e) {
+        console.debug('[WeatherScene] 读取定位历史失败:', e)
+      }
+
+      // 3. 尝试浏览器定位（静默，失败则回退北京）
+      if (navigator.geolocation) {
+        try {
+          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 8000,
+              maximumAge: 600000  // 10分钟缓存
+            })
+          })
+          const { latitude, longitude } = position.coords
+          const cityName = await reverseGeocode(latitude, longitude)
+          if (cityName) {
+            setCity(cityName)
+            fetchWeather(cityName)
+            saveLocationHistory({ city: cityName, timestamp: Date.now(), coords: { lat: latitude, lng: longitude } })
+            return
+          }
+        } catch (e) {
+          console.debug('[WeatherScene] 初始定位失败，使用默认城市')
+        }
+      }
+
+      // 4. 最终回退
+      fetchWeather('北京')
+    }
+
+    initWeather()
   }, [])
 
   // 排序后的场景列表（按时间段 + 使用频率）
