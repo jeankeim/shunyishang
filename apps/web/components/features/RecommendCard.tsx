@@ -24,6 +24,8 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showDislikeReasons, setShowDislikeReasons] = useState(false)
   const [selectedReason, setSelectedReason] = useState<string | null>(null)
+  const [dislikePos, setDislikePos] = useState<{ top: number; right: number } | null>(null)
+  const dislikeBtnRef = useRef<HTMLButtonElement>(null)
   const dwellTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hasReportedView = useRef(false)
   const hasReportedDwell = useRef(false)
@@ -79,7 +81,14 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
     reportBehavior(undefined, item.item_id || item.item_code || '', 'click')
 
     if (action === 'dislike') {
-      // dislike 先展示原因选择器，不立即提交
+      // 计算按钮位置，用于 fixed 定位的原因选择器
+      if (dislikeBtnRef.current) {
+        const rect = dislikeBtnRef.current.getBoundingClientRect()
+        setDislikePos({
+          top: rect.bottom + 4,
+          right: window.innerWidth - rect.right,
+        })
+      }
       setShowDislikeReasons(true)
       return
     }
@@ -140,7 +149,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1, duration: 0.3 }}
       whileTap={{ scale: 0.98 }}
-      className="bg-card rounded-lg border overflow-hidden hover:shadow-lg transition-shadow touch-manipulation"
+      className="bg-card rounded-lg border hover:shadow-lg transition-shadow touch-manipulation"
       style={{ willChange: 'transform' }}
     >
       {/* 元素渐变占位图 */}
@@ -261,6 +270,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
                 </svg>
               </button>
               <button
+                ref={dislikeBtnRef}
                 onClick={() => handleFeedback('dislike')}
                 disabled={!!feedback || isSubmitting}
                 className={`p-1.5 rounded-full transition-all ${
@@ -274,15 +284,16 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
                 </svg>
               </button>
 
-              {/* Dislike 原因选择器 */}
+              {/* Dislike 原因选择器 - 使用 fixed 定位避免被父级 overflow 裁切 */}
               <AnimatePresence>
-                {showDislikeReasons && !feedback && (
+                {showDislikeReasons && !feedback && dislikePos && (
                   <motion.div
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute right-0 top-full mt-1 z-20 bg-white rounded-lg shadow-lg border border-stone-200 p-2 min-w-[140px]"
+                    className="fixed z-50 bg-white rounded-lg shadow-lg border border-stone-200 p-2 min-w-[140px]"
+                    style={{ top: dislikePos.top, right: dislikePos.right }}
                   >
                     <p className="text-xs text-stone-500 mb-1.5 px-1">不喜欢的原因：</p>
                     {DISLIKE_REASONS.map((r) => (
