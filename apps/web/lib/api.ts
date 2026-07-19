@@ -746,6 +746,24 @@ export async function submitFeedback(data: FeedbackRequest): Promise<FeedbackRes
   return response.json()
 }
 
+/**
+ * 撤销推荐反馈
+ */
+export async function cancelFeedback(itemCode: string, itemId?: number): Promise<void> {
+  const params = new URLSearchParams({ item_code: itemCode })
+  if (itemId) params.append('item_id', itemId.toString())
+
+  const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/feedback?${params}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.detail || '撤销反馈失败')
+  }
+}
+
 // ========== 日记接口 ==========
 
 export interface CreateDiaryRequest {

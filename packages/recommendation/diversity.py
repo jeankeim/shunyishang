@@ -311,13 +311,15 @@ def _is_coverage_critical(item: Dict, items: List[Dict]) -> bool:
 
 def _ensure_final_accent(items: List[Dict], all_scored: List[Dict], used_ids: set, top_k: int = 5) -> None:
     """
-    最终点缀保护：确保至少有1件点缀物品（配饰/饰品/文玩）
+    点缀增强：在搭配结构允许时自然纳入点缀物品
 
-    在所有其他保障之后执行。
-    策略优先级：
-    1. 如果结果数 < top_k，直接追加
-    2. 替换非覆盖关键且非温度必需的物品
-    3. 兜底：替换得分最低的物品（即使覆盖关键，因为点缀对产品差异化更重要）
+    定位：配饰是“个人五行增强器 + 场景冲突调节器”，
+    应自然落入第5槽位（上装+下装+外套+鞋履 + 点缀），而非强行替换核心品类。
+
+    策略（仅在不破坏搭配结构时执行）：
+    1. 如果结果数 < top_k，直接追加（有空位自然补入）
+    2. 替换同品类冗余物品（有重复时自然替换）
+    3. 不强制替换覆盖关键物品（保护搭配完整性）
     """
     has_accent = any(item.get("category", "") in ACCENT_CATEGORIES for item in items)
     if has_accent:
@@ -337,14 +339,14 @@ def _ensure_final_accent(items: List[Dict], all_scored: List[Dict], used_ids: se
     if not accent_candidate:
         return
 
-    # 策略1：结果数不足 top_k 时直接追加
+    # 策略1：结果数不足 top_k 时直接追加（有空位，自然补入）
     if len(items) < top_k:
         items.append(accent_candidate)
         used_ids.add(str(accent_candidate.get("id", accent_candidate.get("item_code", ""))))
-        logger.debug(f"[点缀保护] 追加点缀: {accent_candidate.get('name')}({accent_candidate.get('category')})")
+        logger.debug(f"[点缀增强] 追加点缀: {accent_candidate.get('name')}({accent_candidate.get('category')})")
         return
 
-    # 策略2：替换非覆盖关键 + 非温度必需的物品
+    # 策略2：替换同品类冗余物品（不破坏搭配结构）
     for i in range(len(items) - 1, -1, -1):
         if _is_coverage_critical(items[i], items):
             continue
@@ -355,22 +357,14 @@ def _ensure_final_accent(items: List[Dict], all_scored: List[Dict], used_ids: se
         used_ids.discard(str(old_item.get("id", old_item.get("item_code", ""))))
         used_ids.add(str(accent_candidate.get("id", accent_candidate.get("item_code", ""))))
         logger.debug(
-            f"[点缀保护] 补充点缀: {old_item.get('name')}({old_item.get('category')}) "
+            f"[点缀增强] 替换冗余: {old_item.get('name')}({old_item.get('category')}) "
             f"→ {accent_candidate.get('name')}({accent_candidate.get('category')})"
         )
         return
 
-    # 策略3兜底：所有物品都是覆盖关键时，替换得分最低的
-    if items:
-        min_idx = min(range(len(items)), key=lambda i: items[i].get("final_score", 0))
-        old_item = items[min_idx]
-        items[min_idx] = accent_candidate
-        used_ids.discard(str(old_item.get("id", old_item.get("item_code", ""))))
-        used_ids.add(str(accent_candidate.get("id", accent_candidate.get("item_code", ""))))
-        logger.debug(
-            f"[点缀保护-兜底] 替换最低分: {old_item.get('name')}({old_item.get('category')}) "
-            f"→ {accent_candidate.get('name')}({accent_candidate.get('category')})"
-        )
+    # 策略3：不强制替换。搭配完整（上装+下装+外套+鞋履各一件）时，
+    # 点缀不介入，等待下次“换一批”或用户主动询问配饰时再推荐。
+    logger.debug("[点缀增强] 搭配结构完整，不强制插入点缀")
 
 
 def _is_style_match(item: Dict, style_preference: str, keywords: List[str]) -> bool:

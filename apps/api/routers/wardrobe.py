@@ -698,6 +698,49 @@ async def create_feedback(
     return FeedbackResponse(**dict(row))
 
 
+@router.delete("/feedback")
+async def cancel_feedback(
+    item_code: str = Query(..., description="物品编码"),
+    item_id: Optional[int] = Query(None, description="物品ID"),
+    user: dict = Depends(get_current_user)
+):
+    """
+    撤销推荐反馈
+    
+    用户可以撤销之前的点赞/点踩操作，同时移除不喜欢物品记录
+    """
+    user_id = user.get("id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户未登录"
+        )
+    
+    with DatabasePool.get_connection() as conn:
+        with conn.cursor() as cur:
+            # 删除反馈记录（取最近一条）
+            cur.execute("""
+                DELETE FROM feedback_logs
+                WHERE id = (
+                    SELECT id FROM feedback_logs
+                    WHERE user_id = %s AND (item_code = %s OR item_id = %s)
+                    ORDER BY created_at DESC LIMIT 1
+                )
+            """, [user_id, item_code, item_id])
+            
+            # 同时移除不喜欢物品记录（如果是点踩撤销）
+            if item_code:
+                cur.execute("""
+                    DELETE FROM user_disliked_items
+                    WHERE user_id = %s AND item_code = %s
+                """, [user_id, item_code])
+            
+            conn.commit()
+    
+    logger.info(f"[Feedback] 反馈已撤销: user={user_id} item={item_code or item_id}")
+    return {"success": True, "message": "反馈已撤销"}
+
+
 def _get_item_attributes(item_id, item_code, item_source) -> dict:
     """获取物品属性用于偏好学习（6维）"""
     try:

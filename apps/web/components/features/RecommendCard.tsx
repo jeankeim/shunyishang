@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { RecommendItem } from '@/types'
-import { submitFeedback, reportBehavior } from '@/lib/api'
+import { submitFeedback, cancelFeedback, reportBehavior } from '@/lib/api'
 import { getWuxingConfig } from '@/lib/wuxing-config'
 import { getImageUrl } from '@/lib/image'
 import { ItemDetailModal } from './ItemDetailModal'
@@ -35,6 +35,8 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
   const [showOverlay, setShowOverlay] = useState(false)
   const [showReasons, setShowReasons] = useState(false)
   const [feedbackAnimation, setFeedbackAnimation] = useState<'like' | 'dislike' | null>(null)
+  // 点踩多选状态
+  const [selectedReasons, setSelectedReasons] = useState<string[]>([])
   const dwellTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hasReportedView = useRef(false)
   const hasReportedDwell = useRef(false)
@@ -75,12 +77,12 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
     setShowDetails(!showDetails)
   }
 
-  // 点击图片 → 显示反馈覆盖层
+  // 点击图片 → 显示反馈覆盖层（已反馈时显示撤销选项）
   const handleImageTap = () => {
-    if (feedback) return // 已反馈过不再弹出
     reportBehavior(undefined, item.item_id || item.item_code || '', 'image_click')
     setShowOverlay(true)
     setShowReasons(false)
+    setSelectedReasons([])
   }
 
   // 点赞（小爱心）
@@ -115,11 +117,19 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
   const handleDislikeTap = () => {
     reportBehavior(undefined, item.item_id || item.item_code || '', 'click')
     setShowReasons(true)
+    setSelectedReasons([])
   }
 
-  // 选择点踩原因
-  const handleDislikeReason = async (reason: string) => {
-    if (isSubmitting) return
+  // 切换点踩原因选中状态（多选）
+  const toggleReason = (reason: string) => {
+    setSelectedReasons(prev =>
+      prev.includes(reason) ? prev.filter(r => r !== reason) : [...prev, reason]
+    )
+  }
+
+  // 确认提交点踩（多选原因）
+  const handleDislikeConfirm = async () => {
+    if (isSubmitting || selectedReasons.length === 0) return
     setIsSubmitting(true)
     try {
       await submitFeedback({
@@ -128,7 +138,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
         item_code: item.item_code,
         item_source: item.source || 'public',
         action: 'dislike',
-        feedback_reason: reason,
+        feedback_reason: selectedReasons.join(','),
       })
       setFeedback('dislike')
       setFeedbackAnimation('dislike')
@@ -140,6 +150,23 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
       }, 800)
     } catch (error) {
       console.error('反馈提交失败:', error)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // 撤销反馈
+  const handleUndoFeedback = async () => {
+    if (isSubmitting) return
+    setIsSubmitting(true)
+    try {
+      await cancelFeedback(item.item_code || '', item.item_id)
+      setFeedback(null)
+      setShowOverlay(false)
+      setShowReasons(false)
+      setSelectedReasons([])
+    } catch (error) {
+      console.error('撤销反馈失败:', error)
     } finally {
       setIsSubmitting(false)
     }
@@ -208,7 +235,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
 
         {/* ===== 反馈覆盖层 ===== */}
         <AnimatePresence>
-          {showOverlay && !feedback && (
+          {showOverlay && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -217,8 +244,29 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
               className="absolute inset-0 z-20 bg-black/50 backdrop-blur-[2px] flex flex-col items-center justify-center"
               onClick={() => { setShowOverlay(false); setShowReasons(false) }}
             >
-              {/* 点赞/点踩 图标按钮 */}
-              {!showReasons && (
+              {/* 已反馈状态：显示撤销选项 */}
+              {feedback && !feedbackAnimation ? (
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+                  className="flex flex-col items-center gap-3"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="text-2xl">{feedback === 'like' ? '❤️' : '👎'}</span>
+                  <p className="text-xs text-white/80">
+                    {feedback === 'like' ? '已喜欢' : '已标记不喜欢'}
+                  </p>
+                  <button
+                    onClick={handleUndoFeedback}
+                    disabled={isSubmitting}
+                    className="px-4 py-1.5 rounded-full text-[11px] font-medium text-white/90 bg-white/20 hover:bg-white/30 active:scale-95 transition-all border border-white/30"
+                  >
+                    撤销
+                  </button>
+                </motion.div>
+              ) : !showReasons ? (
+                /* 未反馈：点赞/点踩 图标按钮 */
                 <motion.div
                   initial={{ scale: 0.85, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
@@ -271,10 +319,8 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
                     <span className="text-[11px] text-white/85 font-medium">不喜欢</span>
                   </button>
                 </motion.div>
-              )}
-
-              {/* 点踩原因选择器 */}
-              {showReasons && (
+              ) : (
+                /* 点踩原因多选器 */
                 <motion.div
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
@@ -282,25 +328,44 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
                   className="flex flex-col items-center gap-1.5 px-4"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <p className="text-xs text-white/85 font-medium mb-0.5">不喜欢的原因？</p>
+                  <p className="text-xs text-white/85 font-medium mb-0.5">不喜欢的原因？（可多选）</p>
                   <div className="flex flex-wrap justify-center gap-1.5 max-w-[220px]">
-                    {DISLIKE_REASONS.map((r) => (
-                      <button
-                        key={r.value}
-                        onClick={() => handleDislikeReason(r.value)}
-                        disabled={isSubmitting}
-                        className={`px-2.5 py-1 rounded-full text-[11px] font-medium text-white/95 ${r.color} shadow-sm hover:scale-105 active:scale-95 transition-transform ring-1 ${r.ring}`}
-                      >
-                        {r.label}
-                      </button>
-                    ))}
+                    {DISLIKE_REASONS.map((r) => {
+                      const isSelected = selectedReasons.includes(r.value)
+                      return (
+                        <button
+                          key={r.value}
+                          onClick={() => toggleReason(r.value)}
+                          className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all active:scale-95 ring-1 ${
+                            isSelected
+                              ? `${r.color} text-white shadow-md ${r.ring} scale-105`
+                              : 'bg-white/15 text-white/70 ring-white/20 hover:bg-white/25'
+                          }`}
+                        >
+                          {isSelected ? '✓ ' : ''}{r.label}
+                        </button>
+                      )
+                    })}
                   </div>
-                  <button
-                    onClick={() => setShowReasons(false)}
-                    className="mt-1.5 text-[11px] text-white/50 hover:text-white/80 transition-colors"
-                  >
-                    返回
-                  </button>
+                  <div className="flex items-center gap-3 mt-2">
+                    <button
+                      onClick={() => setShowReasons(false)}
+                      className="text-[11px] text-white/50 hover:text-white/80 transition-colors"
+                    >
+                      返回
+                    </button>
+                    <button
+                      onClick={handleDislikeConfirm}
+                      disabled={selectedReasons.length === 0 || isSubmitting}
+                      className={`px-3.5 py-1 rounded-full text-[11px] font-medium transition-all ${
+                        selectedReasons.length > 0
+                          ? 'bg-white/90 text-stone-700 shadow-sm hover:bg-white active:scale-95'
+                          : 'bg-white/10 text-white/30 cursor-not-allowed'
+                      }`}
+                    >
+                      确认{selectedReasons.length > 0 ? `(${selectedReasons.length})` : ''}
+                    </button>
+                  </div>
                 </motion.div>
               )}
             </motion.div>

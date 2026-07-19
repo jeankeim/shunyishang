@@ -17,6 +17,7 @@ vi.mock('framer-motion', () => ({
 // Mock API
 vi.mock('@/lib/api', () => ({
   submitFeedback: vi.fn().mockResolvedValue(undefined),
+  cancelFeedback: vi.fn().mockResolvedValue(undefined),
   reportBehavior: vi.fn().mockResolvedValue(undefined),
 }))
 
@@ -172,7 +173,7 @@ describe('RecommendCard', () => {
     expect(screen.queryByText('场景适配')).not.toBeInTheDocument()
   })
 
-  it('should disable feedback buttons after feedback is given', async () => {
+  it('should show undo option after feedback is given', async () => {
     render(<RecommendCard item={mockItem} index={0} />)
     
     // 点击图片显示覆盖层
@@ -182,12 +183,18 @@ describe('RecommendCard', () => {
     const likeBtn = screen.getByLabelText('喜欢这个推荐')
     fireEvent.click(likeBtn)
     
+    // 等待反馈提交完成，覆盖层关闭
     await waitFor(() => {
-      expect(likeBtn).toBeDisabled()
+      expect(screen.queryByLabelText('喜欢这个推荐')).not.toBeInTheDocument()
     })
+    
+    // 再次点击图片，应显示撤销选项
+    fireEvent.click(imageDiv!)
+    expect(screen.getByText('已喜欢')).toBeInTheDocument()
+    expect(screen.getByText('撤销')).toBeInTheDocument()
   })
 
-  it('should show dislike reasons when dislike button is clicked in overlay', () => {
+  it('should show dislike reasons with multi-select when dislike button is clicked', () => {
     render(<RecommendCard item={mockItem} index={0} />)
     
     // 点击图片显示覆盖层
@@ -198,12 +205,32 @@ describe('RecommendCard', () => {
     const dislikeBtn = screen.getByLabelText('不喜欢这个推荐')
     fireEvent.click(dislikeBtn)
     
-    // 应显示原因选项
-    expect(screen.getByText('不喜欢的原因？')).toBeInTheDocument()
+    // 应显示多选原因选项
+    expect(screen.getByText('不喜欢的原因？（可多选）')).toBeInTheDocument()
     expect(screen.getByText('风格不符')).toBeInTheDocument()
     expect(screen.getByText('颜色不喜欢')).toBeInTheDocument()
     expect(screen.getByText('不适合场景')).toBeInTheDocument()
     expect(screen.getByText('太厚/太薄')).toBeInTheDocument()
     expect(screen.getByText('其他')).toBeInTheDocument()
+    // 确认按钮初始禁用
+    expect(screen.getByText('确认')).toBeInTheDocument()
+  })
+
+  it('should support multi-select for dislike reasons', () => {
+    render(<RecommendCard item={mockItem} index={0} />)
+    
+    const imageDiv = document.querySelector('[style*="example.com"]')
+    fireEvent.click(imageDiv!)
+    fireEvent.click(screen.getByLabelText('不喜欢这个推荐'))
+    
+    // 点击多个原因
+    fireEvent.click(screen.getByText('风格不符'))
+    fireEvent.click(screen.getByText('颜色不喜欢'))
+    
+    // 选中状态显示 ✓ 前缀
+    expect(screen.getByText('✓ 风格不符')).toBeInTheDocument()
+    expect(screen.getByText('✓ 颜色不喜欢')).toBeInTheDocument()
+    // 确认按钮显示选中数量
+    expect(screen.getByText('确认(2)')).toBeInTheDocument()
   })
 })

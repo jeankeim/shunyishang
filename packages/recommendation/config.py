@@ -58,9 +58,13 @@ WUXING_BOOST_PRIMARY = 0.08      # 主五行命中 boost（相生辅助）
 WUXING_BOOST_SECONDARY = 0.04    # 次五行命中 boost
 WUXING_BOOST_MIN_CAP = 0.05      # boost 加分最低上限（即使 base=0 也至少 cap 到此值）
 
-# 饰品/文玩五行补救加分
+# 饰品/文玩五行补救加分（个人五行增强）
 ORNAMENT_BONUS = 0.06
 ORNAMENT_CATEGORIES = {"饰品", "文玩"}
+
+# 配饰场景冲突调节加分（当配饰五行桥接场景→个人喜用神时触发）
+SCENE_MEDIATION_BONUS = 0.04
+ACCENT_CATEGORIES_FOR_MEDIATION = {"配饰", "饰品", "文玩"}
 
 # ============================================================
 # 轮换奖励参数（自有衣物穿着次数少的加分鼓励轮换）
