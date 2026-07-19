@@ -1,8 +1,17 @@
 import type { Metadata, Viewport } from 'next'
+import { Noto_Sans_SC } from 'next/font/google'
 import './globals.css'
 import './accessibility.css'
 import { ThemeProvider } from '@/components/providers/ThemeProvider'
 import { ToastProvider } from '@/components/providers/ToastProvider'
+
+// 自托管字体，避免 Google Fonts CDN 阻塞渲染（国内网络不可达）
+const notoSansSC = Noto_Sans_SC({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '700'],
+  display: 'swap',
+  variable: '--font-noto-sans-sc',
+})
 
 export const metadata: Metadata = {
   title: '顺衣尚 - 五行智能衣橱',
@@ -41,7 +50,7 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
-      <body className="font-sans" suppressHydrationWarning>
+      <body className={`${notoSansSC.variable} font-sans`} suppressHydrationWarning>
         {/* 清理可能损坏的localStorage数据 */}
         <script
           dangerouslySetInnerHTML={{

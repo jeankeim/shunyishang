@@ -23,7 +23,7 @@ export function MobileControlPanel({ onSceneChange, onWeatherChange }: MobileCon
   const hasBazi = isAuthenticated && user?.bazi
   
   return (
-    <div className="md:hidden fixed bottom-16 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[var(--brand-border)]/50 safe-bottom">
+    <div className="md:hidden fixed bottom-16 left-0 right-0 z-[45] bg-white/95 backdrop-blur-md border-t border-[var(--brand-border)]/50 safe-bottom">
       {/* 展开/收起按钮 */}
       <button
         onClick={() => setExpanded(!expanded)}

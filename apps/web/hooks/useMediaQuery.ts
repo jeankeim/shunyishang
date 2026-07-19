@@ -7,15 +7,14 @@ export function useMediaQuery(query: string): boolean {
   
   useEffect(() => {
     const media = window.matchMedia(query)
-    if (media.matches !== matches) {
-      setMatches(media.matches)
-    }
+    // 初始化时同步一次
+    setMatches(media.matches)
     
     const listener = (e: MediaQueryListEvent) => setMatches(e.matches)
     media.addEventListener('change', listener)
     
     return () => media.removeEventListener('change', listener)
-  }, [matches, query])
+  }, [query])  // 仅依赖 query，避免 matches 变化导致重复注册监听器
   
   return matches
 }

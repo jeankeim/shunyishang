@@ -22,7 +22,7 @@
 **核心完成度**: 100%（Week 1-16 全部功能已完成）  
 **商业化功能**: 🔒 支付相关（VIP会员/品牌合作/付费报告）代码已完成，暂未接入支付（个人备案免费版，所有功能免费开放）  
 **生产环境**: 🟢 运行中（Vercel + Zeabur + R2/OSS + Upstash/Redis）  
-**详细进度**: 查看 [PROGRESS.md](PROGRESS.md)
+**测试覆盖**: 前端 908 用例 100% 通过 | 后端 1400+ 用例 99.5% 通过
 
 ---
 
@@ -91,39 +91,96 @@ shunyishang/
 │   │   ├── routers/           # API 路由
 │   │   ├── schemas/           # Pydantic 请求/响应模型
 │   │   ├── services/          # 业务逻辑（20+ 服务模块）
+│   │   ├── tests/             # 后端测试（1400+ 用例）
 │   │   └── main.py            # 应用入口
 │   └── web/                    # Next.js 前端
 │       ├── app/               # 页面路由（9 个页面）
 │       ├── components/        # React 组件
 │       ├── hooks/             # 自定义 Hooks
 │       ├── store/             # Zustand 状态管理
-│       └── lib/               # API 封装/工具函数
+│       ├── lib/               # API 封装/工具函数
+│       └── tests/             # 前端测试（908 用例）
 ├── packages/                   # 跨应用共享库
 │   ├── ai_agents/             # LangGraph Agent（4 节点状态机）
+│   ├── recommendation/        # 推荐引擎（六维融合评分）
 │   ├── utils/                 # 八字/天气/场景/旅行规划
-│   └── db/                    # 数据库连接池（预留：未来 ORM 抽象层）
-├── data/                       # 种子数据 + 五行标准
-├── scripts/                    # 数据库迁移脚本（12 个）+ 工具脚本
-├── TASKS/                      # 周迭代任务文档
-├── PROGRESS.md                 # 项目进度说明
-└── project_spec.md             # 技术规格说明
+│   └── db/                    # 数据库连接池
+├── data/
+│   ├── seeds/                 # 种子数据（100+ 衣物/配饰）
+│   └── standards/             # 五行映射标准（颜色/面料/风格）
+├── scripts/                    # 数据库迁移（15 个）+ 工具脚本
+├── docker-compose.yml          # 本地开发环境编排
+├── Dockerfile                  # 后端容器镜像
+└── Dockerfile.web              # 前端容器镜像
 ```
 
 ---
 
 ## 🚀 快速开始
 
-详见 [PROGRESS.md](PROGRESS.md#-快速开始)
+### 环境要求
+
+- Python 3.11+
+- Node.js 18+
+- PostgreSQL 15 + pgvector 扩展
+- Docker & Docker Compose（可选，用于本地编排）
+
+### 本地开发
+
+```bash
+# 1. 克隆项目
+git clone https://github.com/your-username/shunyishang.git
+cd shunyishang
+
+# 2. 后端设置
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt -r requirements-dev.txt
+cp .env.example .env  # 填写环境变量
+
+# 3. 前端设置
+cd apps/web
+npm install
+cp .env.production.example .env.local  # 填写环境变量
+
+# 4. 初始化数据库
+docker compose up -d db
+psql -f scripts/init_db.sql
+
+# 5. 启动开发服务
+cd apps/web && npm run dev   # 前端 http://localhost:3000
+cd apps/api && uvicorn main:app --reload  # 后端 http://localhost:8000
+```
+
+### 运行测试
+
+```bash
+# 后端测试（1400+ 用例）
+source .venv/bin/activate && python -m pytest apps/api/tests/ -q
+
+# 前端测试（908 用例）
+cd apps/web && npx vitest run
+```
 
 ---
 
-## 📄 文档索引
+## 🔑 环境变量
 
-| 文档 | 说明 |
+复制 `.env.example` 为 `.env` 并填写以下关键配置：
+
+| 变量 | 说明 |
 |------|------|
-| [PROGRESS.md](PROGRESS.md) | 📄 项目进度说明（功能清单/技术亮点/后续计划） |
-| [project_spec.md](project_spec.md) | 📘 技术规格说明（架构设计/技术栈/AI 协作协议） |
-| [PRODUCT_V2_ROADMAP.md](TASKS/PRODUCT_V2_ROADMAP.md) | 🚀 V2 产品路线图（Phase 1-4 全部完成） |
+| `DATABASE_URL` | PostgreSQL 连接串 |
+| `DASHSCOPE_API_KEY` | 阿里百炼 API Key（LLM + Embedding） |
+| `JWT_SECRET_KEY` | JWT 签名密钥 |
+| `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` | Cloudflare R2 对象存储 |
+| `UPSTASH_REDIS_URL` | Redis 缓存连接 |
+| `WEATHER_API_KEY` | 和风天气 API Key |
+
+---
+
+## 📄 License
+
+MIT License
 
 ---
 

@@ -12,6 +12,7 @@ import {
   getPostComments,
   createPostComment,
 } from '@/lib/api'
+import { toast } from '@/components/ui'
 
 // 五行筛选标签
 const ELEMENT_TABS = [
@@ -115,7 +116,7 @@ export default function CommunityPage() {
       setShowCreateModal(false)
       fetchPosts(1, activeElement)
     } catch (e: any) {
-      alert(e.message || '发布失败')
+      toast.error(e.message || '发布失败')
     } finally {
       setPublishing(false)
     }
@@ -181,7 +182,7 @@ export default function CommunityPage() {
         prev.map(p => (p.id === activePostId ? { ...p, comment_count: p.comment_count + 1 } : p))
       )
     } catch (e: any) {
-      alert(e.message || '评论失败')
+      toast.error(e.message || '评论失败')
     } finally {
       setCommenting(false)
     }
@@ -514,15 +515,16 @@ function PostCard({
         )}
       </div>
 
-      {/* 互动栏 */}
-      <div className="flex items-center gap-4 px-4 pb-3 pt-1 border-t border-stone-100">
+      {/* 互动栏 - 触摸目标 ≥ 44px */}
+      <div className="flex items-center gap-1 px-4 pb-3 pt-1 border-t border-stone-100">
         <button
           onClick={onLike}
-          className={`flex items-center gap-1.5 text-sm transition-colors ${
+          aria-label={post.is_liked ? '取消点赞' : '点赞'}
+          className={`flex items-center gap-1.5 min-w-[44px] min-h-[44px] justify-center rounded-xl text-sm transition-all touch-manipulation active:scale-95 ${
             post.is_liked ? 'text-red-500' : 'text-stone-400 hover:text-red-400'
           }`}
         >
-          <svg className="w-4 h-4" fill={post.is_liked ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-5 h-5" fill={post.is_liked ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
           </svg>
           <span>{post.like_count > 0 ? post.like_count : ''}</span>
@@ -530,9 +532,10 @@ function PostCard({
 
         <button
           onClick={onComment}
-          className="flex items-center gap-1.5 text-sm text-stone-400 hover:text-amber-500 transition-colors"
+          aria-label="查看评论"
+          className="flex items-center gap-1.5 min-w-[44px] min-h-[44px] justify-center rounded-xl text-sm text-stone-400 hover:text-amber-500 transition-all touch-manipulation active:scale-95"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
           <span>{post.comment_count > 0 ? post.comment_count : ''}</span>

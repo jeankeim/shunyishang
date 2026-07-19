@@ -93,3 +93,12 @@ scripts/test_*.png
 
 # 项目改动记录 (本地知识库，不推送)
 CHANGELOG.md
+
+# 内部项目规划文档（非运行时，含商业策略）
+TASKS/
+PROGRESS.md
+MIGRATION_CHINA_PLAN.md
+project_spec.md
+
+# 测试运行产物（每次运行变化的输出）
+apps/api/tests/evaluation/evaluation_report.json

@@ -57,6 +57,7 @@ export default function Home() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [showCheckIn, setShowCheckIn] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [smartAlerts, setSmartAlerts] = useState<string[]>([])
   
   // 判断用户是否有八字（已登录且资料完整）
@@ -178,8 +179,31 @@ export default function Home() {
 
   if (!mounted) {
     return (
-      <div className="flex h-dvh bg-stone-50 overflow-hidden items-center justify-center">
-        <div className="text-[var(--brand-body)] text-sm animate-pulse">加载中...</div>
+      <div className="flex h-dvh bg-stone-50 overflow-hidden">
+        {/* 左侧骨架屏 - 匹配最终布局结构，减少布局偏移 */}
+        <div className="w-[280px] lg:w-[320px] hidden md:block bg-white/90 p-5 space-y-5">
+          <div className="text-center mb-4">
+            <div className="h-8 w-24 mx-auto bg-stone-200 rounded-lg animate-pulse" />
+            <div className="h-4 w-32 mx-auto mt-2 bg-stone-100 rounded animate-pulse" />
+          </div>
+          <div className="h-32 bg-stone-100 rounded-xl animate-pulse" />
+          <div className="h-40 bg-stone-100 rounded-xl animate-pulse" />
+        </div>
+        {/* 右侧主内容骨架 */}
+        <div className="flex-1 flex flex-col">
+          <div className="hidden md:block h-14 border-b border-stone-200/60 bg-white" />
+          <div className="md:hidden h-12 border-b border-stone-200/60 bg-white/90 flex items-center px-4">
+            <div className="h-5 w-16 bg-stone-200 rounded animate-pulse" />
+          </div>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-16 h-16 rounded-2xl bg-[var(--brand-surface)] flex items-center justify-center">
+                <span className="text-3xl">🌿</span>
+              </div>
+              <div className="h-4 w-24 bg-stone-200 rounded animate-pulse" />
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -448,10 +472,14 @@ export default function Home() {
                 <Mountain className="w-5 h-5" />
                 <span className="hidden sm:inline">修炼</span>
               </button>
-              {/* 6. 更多 — 下拉(运势/命理/试衣) */}
-              <div className="relative group">
+              {/* 6. 更多 — 下拉(运势/命理/试衣) - 支持 click + 键盘导航 */}
+              <div className="relative">
                 <button
+                  onClick={() => setShowMoreMenu(!showMoreMenu)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMoreMenu(!showMoreMenu) } }}
                   aria-label="更多功能"
+                  aria-expanded={showMoreMenu}
+                  aria-haspopup="menu"
                   className={`relative flex items-center gap-1.5 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
                     activeTab === 'fortune' || activeTab === 'destiny' || activeTab === 'tryon'
                       ? 'bg-[var(--brand-surface)] text-[var(--brand-heading)] shadow-sm'
@@ -460,16 +488,26 @@ export default function Home() {
                 >
                   <MoreHorizontal className="w-5 h-5" />
                   <span className="hidden sm:inline">更多</span>
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className={`w-3 h-3 transition-transform duration-200 ${showMoreMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
-                {/* 下拉菜单 */}
-                <div className="absolute top-full right-0 mt-1 w-40 bg-white rounded-xl shadow-lg border border-stone-200/60 py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                {/* 下拉菜单 - click 触发，支持键盘 Escape 关闭 */}
+                {showMoreMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
+                    <div
+                      role="menu"
+                      aria-label="更多功能菜单"
+                      onKeyDown={(e) => { if (e.key === 'Escape') setShowMoreMenu(false) }}
+                      className="absolute top-full right-0 mt-1 w-40 bg-white rounded-xl shadow-lg border border-stone-200/60 py-1 z-50"
+                    >
                   <button
+                    role="menuitem"
                     onClick={() => {
                       setActiveTab('fortune')
                       window.location.hash = '#fortune'
+                      setShowMoreMenu(false)
                     }}
                     className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
                       activeTab === 'fortune'
@@ -481,9 +519,11 @@ export default function Home() {
                     <span>运势</span>
                   </button>
                   <button
+                    role="menuitem"
                     onClick={() => {
                       setActiveTab('destiny')
                       window.location.hash = '#destiny'
+                      setShowMoreMenu(false)
                     }}
                     className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
                       activeTab === 'destiny'
@@ -495,9 +535,11 @@ export default function Home() {
                     <span>命理</span>
                   </button>
                   <button
+                    role="menuitem"
                     onClick={() => {
                       setActiveTab('tryon')
                       window.location.hash = '#tryon'
+                      setShowMoreMenu(false)
                     }}
                     className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
                       activeTab === 'tryon'
@@ -510,7 +552,9 @@ export default function Home() {
                     </svg>
                     <span>试衣</span>
                   </button>
-                </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>

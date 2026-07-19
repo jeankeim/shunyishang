@@ -23,8 +23,13 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({
   const currentY = useRef(0)
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
-    // 只在顶部时允许下拉刷新
-    if (window.scrollY === 0) {
+    // 检测实际滚动容器是否在顶部（兼容 overflow-y-auto 容器和 window 滚动）
+    const container = containerRef.current
+    const scrollParent = container?.closest('[class*="overflow-y-auto"]') || container?.parentElement
+    const isAtTop = scrollParent
+      ? scrollParent.scrollTop <= 0
+      : window.scrollY === 0
+    if (isAtTop) {
       startY.current = e.touches[0].clientY
     }
   }, [])

@@ -119,9 +119,11 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* 图片加载优化 */
-img {
-  content-visibility: auto;
+/* 图片加载优化 - 仅在支持的浏览器中启用 */
+@supports (content-visibility: auto) {
+  img {
+    content-visibility: auto;
+  }
 }
 
 /* 打印样式 */

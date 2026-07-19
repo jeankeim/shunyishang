@@ -33,7 +33,7 @@ export function MainLayout({ children }: MainLayoutProps) {
 
   return (
     <div
-      className={cn('flex h-screen bg-background')}
+      className={cn('flex h-dvh bg-background')}
       data-element={mounted ? currentTerm?.element : undefined}
     >
       <Sidebar 

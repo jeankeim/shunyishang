@@ -114,10 +114,8 @@ describe('RecommendCard', () => {
     const onFeedback = vi.fn()
     render(<RecommendCard item={mockItem} index={0} onFeedback={onFeedback} />)
     
-    // Find the like button (thumbs up SVG)
-    const buttons = screen.getAllByRole('button')
-    // The first button is the expand/collapse, then like, then dislike
-    const likeBtn = buttons[1]
+    // Find the like button by aria-label
+    const likeBtn = screen.getByLabelText('喜欢这个推荐')
     fireEvent.click(likeBtn)
     
     await waitFor(() => {
@@ -170,8 +168,7 @@ describe('RecommendCard', () => {
   it('should disable feedback buttons after feedback is given', async () => {
     render(<RecommendCard item={mockItem} index={0} />)
     
-    const buttons = screen.getAllByRole('button')
-    const likeBtn = buttons[1]
+    const likeBtn = screen.getByLabelText('喜欢这个推荐')
     fireEvent.click(likeBtn)
     
     await waitFor(() => {

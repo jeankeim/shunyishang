@@ -1,0 +1,4202 @@
+[
+  {
+    "user_id": 1,
+    "gender": "男",
+    "day_master": "甲木",
+    "strength": "身强",
+    "target_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "偏瘦",
+    "style_preference": null
+  },
+  {
+    "user_id": 2,
+    "gender": "女",
+    "day_master": "甲木",
+    "strength": "身弱",
+    "target_elements": [
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "标准",
+    "style_preference": "国潮"
+  },
+  {
+    "user_id": 3,
+    "gender": "男",
+    "day_master": "乙木",
+    "strength": "身强",
+    "target_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "自然色",
+    "body_type": null,
+    "style_preference": "运动"
+  },
+  {
+    "user_id": 4,
+    "gender": "女",
+    "day_master": "乙木",
+    "strength": "身弱",
+    "target_elements": [
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "偏瘦",
+    "style_preference": "商务"
+  },
+  {
+    "user_id": 5,
+    "gender": "男",
+    "day_master": "丙火",
+    "strength": "身强",
+    "target_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": "标准",
+    "style_preference": "甜美"
+  },
+  {
+    "user_id": 6,
+    "gender": "女",
+    "day_master": "丙火",
+    "strength": "身弱",
+    "target_elements": [
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "偏胖",
+    "style_preference": "街头"
+  },
+  {
+    "user_id": 7,
+    "gender": "男",
+    "day_master": "丁火",
+    "strength": "身强",
+    "target_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "偏瘦",
+    "style_preference": "文艺"
+  },
+  {
+    "user_id": 8,
+    "gender": "女",
+    "day_master": "丁火",
+    "strength": "身弱",
+    "target_elements": [
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "标准",
+    "style_preference": "优雅"
+  },
+  {
+    "user_id": 9,
+    "gender": "男",
+    "day_master": "戊土",
+    "strength": "身强",
+    "target_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "偏胖",
+    "style_preference": "休闲"
+  },
+  {
+    "user_id": 10,
+    "gender": "女",
+    "day_master": "戊土",
+    "strength": "身弱",
+    "target_elements": [
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": null,
+    "style_preference": "性感"
+  },
+  {
+    "user_id": 11,
+    "gender": "男",
+    "day_master": "己土",
+    "strength": "身强",
+    "target_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "标准",
+    "style_preference": "运动"
+  },
+  {
+    "user_id": 12,
+    "gender": "女",
+    "day_master": "己土",
+    "strength": "身弱",
+    "target_elements": [
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": null,
+    "body_type": null,
+    "style_preference": "运动"
+  },
+  {
+    "user_id": 13,
+    "gender": "男",
+    "day_master": "庚金",
+    "strength": "身强",
+    "target_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "偏瘦",
+    "style_preference": "运动"
+  },
+  {
+    "user_id": 14,
+    "gender": "女",
+    "day_master": "庚金",
+    "strength": "身弱",
+    "target_elements": [
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "标准",
+    "style_preference": "运动"
+  },
+  {
+    "user_id": 15,
+    "gender": "男",
+    "day_master": "辛金",
+    "strength": "身强",
+    "target_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": "偏胖",
+    "style_preference": "运动"
+  },
+  {
+    "user_id": 16,
+    "gender": "女",
+    "day_master": "辛金",
+    "strength": "身弱",
+    "target_elements": [
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "偏瘦",
+    "style_preference": "运动"
+  },
+  {
+    "user_id": 17,
+    "gender": "男",
+    "day_master": "壬水",
+    "strength": "身强",
+    "target_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "标准",
+    "style_preference": "运动"
+  },
+  {
+    "user_id": 18,
+    "gender": "女",
+    "day_master": "壬水",
+    "strength": "身弱",
+    "target_elements": [
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "偏胖",
+    "style_preference": "运动"
+  },
+  {
+    "user_id": 19,
+    "gender": "男",
+    "day_master": "癸水",
+    "strength": "身强",
+    "target_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "偏瘦",
+    "style_preference": "运动"
+  },
+  {
+    "user_id": 20,
+    "gender": "女",
+    "day_master": "癸水",
+    "strength": "身弱",
+    "target_elements": [
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": "标准",
+    "style_preference": "运动"
+  },
+  {
+    "user_id": 21,
+    "gender": "男",
+    "day_master": "甲木",
+    "strength": "身强",
+    "target_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "偏胖",
+    "style_preference": "休闲"
+  },
+  {
+    "user_id": 22,
+    "gender": "女",
+    "day_master": "甲木",
+    "strength": "身弱",
+    "target_elements": [
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": null,
+    "body_type": "偏瘦",
+    "style_preference": "性感"
+  },
+  {
+    "user_id": 23,
+    "gender": "男",
+    "day_master": "乙木",
+    "strength": "身强",
+    "target_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "标准",
+    "style_preference": "知性"
+  },
+  {
+    "user_id": 24,
+    "gender": "女",
+    "day_master": "乙木",
+    "strength": "身弱",
+    "target_elements": [
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "偏胖",
+    "style_preference": null
+  },
+  {
+    "user_id": 25,
+    "gender": "男",
+    "day_master": "丙火",
+    "strength": "身强",
+    "target_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": null,
+    "style_preference": "简约"
+  },
+  {
+    "user_id": 26,
+    "gender": "女",
+    "day_master": "丙火",
+    "strength": "身弱",
+    "target_elements": [
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "标准",
+    "style_preference": "国潮"
+  },
+  {
+    "user_id": 27,
+    "gender": "男",
+    "day_master": "丁火",
+    "strength": "身强",
+    "target_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "偏胖",
+    "style_preference": "运动"
+  },
+  {
+    "user_id": 28,
+    "gender": "女",
+    "day_master": "丁火",
+    "strength": "身弱",
+    "target_elements": [
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "偏瘦",
+    "style_preference": "商务"
+  },
+  {
+    "user_id": 29,
+    "gender": "男",
+    "day_master": "戊土",
+    "strength": "身强",
+    "target_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "标准",
+    "style_preference": "甜美"
+  },
+  {
+    "user_id": 30,
+    "gender": "女",
+    "day_master": "戊土",
+    "strength": "身弱",
+    "target_elements": [
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": null,
+    "style_preference": "街头"
+  },
+  {
+    "user_id": 31,
+    "gender": "男",
+    "day_master": "己土",
+    "strength": "身强",
+    "target_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "偏瘦",
+    "style_preference": "文艺"
+  },
+  {
+    "user_id": 32,
+    "gender": "女",
+    "day_master": "己土",
+    "strength": "身弱",
+    "target_elements": [
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "标准",
+    "style_preference": "优雅"
+  },
+  {
+    "user_id": 33,
+    "gender": "男",
+    "day_master": "庚金",
+    "strength": "身强",
+    "target_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "偏胖",
+    "style_preference": "休闲"
+  },
+  {
+    "user_id": 34,
+    "gender": "女",
+    "day_master": "庚金",
+    "strength": "身弱",
+    "target_elements": [
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "偏瘦",
+    "style_preference": "性感"
+  },
+  {
+    "user_id": 35,
+    "gender": "男",
+    "day_master": "辛金",
+    "strength": "身强",
+    "target_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": "标准",
+    "style_preference": "知性"
+  },
+  {
+    "user_id": 36,
+    "gender": "女",
+    "day_master": "辛金",
+    "strength": "身弱",
+    "target_elements": [
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": null,
+    "style_preference": "森系"
+  },
+  {
+    "user_id": 37,
+    "gender": "男",
+    "day_master": "壬水",
+    "strength": "身强",
+    "target_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "偏瘦",
+    "style_preference": "简约"
+  },
+  {
+    "user_id": 38,
+    "gender": "女",
+    "day_master": "壬水",
+    "strength": "身弱",
+    "target_elements": [
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "标准",
+    "style_preference": "国潮"
+  },
+  {
+    "user_id": 39,
+    "gender": "男",
+    "day_master": "癸水",
+    "strength": "身强",
+    "target_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "偏胖",
+    "style_preference": "运动"
+  },
+  {
+    "user_id": 40,
+    "gender": "女",
+    "day_master": "癸水",
+    "strength": "身弱",
+    "target_elements": [
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": null,
+    "style_preference": "商务"
+  },
+  {
+    "user_id": 41,
+    "gender": "男",
+    "day_master": "甲木",
+    "strength": "身强",
+    "target_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "标准",
+    "style_preference": "甜美"
+  },
+  {
+    "user_id": 42,
+    "gender": "女",
+    "day_master": "甲木",
+    "strength": "身弱",
+    "target_elements": [
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": null,
+    "style_preference": "街头"
+  },
+  {
+    "user_id": 43,
+    "gender": "男",
+    "day_master": "乙木",
+    "strength": "身强",
+    "target_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "偏瘦",
+    "style_preference": "文艺"
+  },
+  {
+    "user_id": 44,
+    "gender": "女",
+    "day_master": "乙木",
+    "strength": "身弱",
+    "target_elements": [
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "标准",
+    "style_preference": "优雅"
+  },
+  {
+    "user_id": 45,
+    "gender": "男",
+    "day_master": "丙火",
+    "strength": "身强",
+    "target_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": "偏胖",
+    "style_preference": "休闲"
+  },
+  {
+    "user_id": 46,
+    "gender": "女",
+    "day_master": "丙火",
+    "strength": "身弱",
+    "target_elements": [
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": null,
+    "style_preference": "性感"
+  },
+  {
+    "user_id": 47,
+    "gender": "男",
+    "day_master": "丁火",
+    "strength": "身强",
+    "target_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": null,
+    "style_preference": null
+  },
+  {
+    "user_id": 48,
+    "gender": "女",
+    "day_master": "丁火",
+    "strength": "身弱",
+    "target_elements": [
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "偏胖",
+    "style_preference": "森系"
+  },
+  {
+    "user_id": 49,
+    "gender": "男",
+    "day_master": "戊土",
+    "strength": "身强",
+    "target_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "偏瘦",
+    "style_preference": "简约"
+  },
+  {
+    "user_id": 50,
+    "gender": "女",
+    "day_master": "戊土",
+    "strength": "身弱",
+    "target_elements": [
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": null,
+    "body_type": "标准",
+    "style_preference": "国潮"
+  },
+  {
+    "user_id": 51,
+    "gender": "男",
+    "day_master": "己土",
+    "strength": "身强",
+    "target_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "偏胖",
+    "style_preference": null
+  },
+  {
+    "user_id": 52,
+    "gender": "女",
+    "day_master": "己土",
+    "strength": "身弱",
+    "target_elements": [
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "偏瘦",
+    "style_preference": "商务"
+  },
+  {
+    "user_id": 53,
+    "gender": "男",
+    "day_master": "庚金",
+    "strength": "身强",
+    "target_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "标准",
+    "style_preference": "甜美"
+  },
+  {
+    "user_id": 54,
+    "gender": "女",
+    "day_master": "庚金",
+    "strength": "身弱",
+    "target_elements": [
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "偏胖",
+    "style_preference": "街头"
+  },
+  {
+    "user_id": 55,
+    "gender": "男",
+    "day_master": "辛金",
+    "strength": "身强",
+    "target_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": null,
+    "style_preference": "文艺"
+  },
+  {
+    "user_id": 56,
+    "gender": "女",
+    "day_master": "辛金",
+    "strength": "身弱",
+    "target_elements": [
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": null,
+    "body_type": "标准",
+    "style_preference": "优雅"
+  },
+  {
+    "user_id": 57,
+    "gender": "男",
+    "day_master": "壬水",
+    "strength": "身强",
+    "target_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "偏胖",
+    "style_preference": "休闲"
+  },
+  {
+    "user_id": 58,
+    "gender": "女",
+    "day_master": "壬水",
+    "strength": "身弱",
+    "target_elements": [
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "偏瘦",
+    "style_preference": "性感"
+  },
+  {
+    "user_id": 59,
+    "gender": "男",
+    "day_master": "癸水",
+    "strength": "身强",
+    "target_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "标准",
+    "style_preference": "知性"
+  },
+  {
+    "user_id": 60,
+    "gender": "女",
+    "day_master": "癸水",
+    "strength": "身弱",
+    "target_elements": [
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": "偏胖",
+    "style_preference": null
+  },
+  {
+    "user_id": 61,
+    "gender": "男",
+    "day_master": "甲木",
+    "strength": "身强",
+    "target_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "偏瘦",
+    "style_preference": "简约"
+  },
+  {
+    "user_id": 62,
+    "gender": "女",
+    "day_master": "甲木",
+    "strength": "身弱",
+    "target_elements": [
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "标准",
+    "style_preference": null
+  },
+  {
+    "user_id": 63,
+    "gender": "男",
+    "day_master": "乙木",
+    "strength": "身强",
+    "target_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "偏胖",
+    "style_preference": "运动"
+  },
+  {
+    "user_id": 64,
+    "gender": "女",
+    "day_master": "乙木",
+    "strength": "身弱",
+    "target_elements": [
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "偏瘦",
+    "style_preference": null
+  },
+  {
+    "user_id": 65,
+    "gender": "男",
+    "day_master": "丙火",
+    "strength": "身强",
+    "target_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": "标准",
+    "style_preference": "甜美"
+  },
+  {
+    "user_id": 66,
+    "gender": "女",
+    "day_master": "丙火",
+    "strength": "身弱",
+    "target_elements": [
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": null,
+    "body_type": "偏胖",
+    "style_preference": "街头"
+  },
+  {
+    "user_id": 67,
+    "gender": "男",
+    "day_master": "丁火",
+    "strength": "身强",
+    "target_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "偏瘦",
+    "style_preference": "文艺"
+  },
+  {
+    "user_id": 68,
+    "gender": "女",
+    "day_master": "丁火",
+    "strength": "身弱",
+    "target_elements": [
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "标准",
+    "style_preference": "优雅"
+  },
+  {
+    "user_id": 69,
+    "gender": "男",
+    "day_master": "戊土",
+    "strength": "身强",
+    "target_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "偏胖",
+    "style_preference": "休闲"
+  },
+  {
+    "user_id": 70,
+    "gender": "女",
+    "day_master": "戊土",
+    "strength": "身弱",
+    "target_elements": [
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": "偏瘦",
+    "style_preference": "性感"
+  },
+  {
+    "user_id": 71,
+    "gender": "男",
+    "day_master": "己土",
+    "strength": "身强",
+    "target_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "标准",
+    "style_preference": "知性"
+  },
+  {
+    "user_id": 72,
+    "gender": "女",
+    "day_master": "己土",
+    "strength": "身弱",
+    "target_elements": [
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "偏胖",
+    "style_preference": "森系"
+  },
+  {
+    "user_id": 73,
+    "gender": "男",
+    "day_master": "庚金",
+    "strength": "身强",
+    "target_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": null,
+    "body_type": "偏瘦",
+    "style_preference": "简约"
+  },
+  {
+    "user_id": 74,
+    "gender": "女",
+    "day_master": "庚金",
+    "strength": "身弱",
+    "target_elements": [
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": null,
+    "style_preference": "国潮"
+  },
+  {
+    "user_id": 75,
+    "gender": "男",
+    "day_master": "辛金",
+    "strength": "身强",
+    "target_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": "偏胖",
+    "style_preference": "运动"
+  },
+  {
+    "user_id": 76,
+    "gender": "女",
+    "day_master": "辛金",
+    "strength": "身弱",
+    "target_elements": [
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "偏瘦",
+    "style_preference": "商务"
+  },
+  {
+    "user_id": 77,
+    "gender": "男",
+    "day_master": "壬水",
+    "strength": "身强",
+    "target_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "标准",
+    "style_preference": "甜美"
+  },
+  {
+    "user_id": 78,
+    "gender": "女",
+    "day_master": "壬水",
+    "strength": "身弱",
+    "target_elements": [
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": null,
+    "body_type": "偏胖",
+    "style_preference": "街头"
+  },
+  {
+    "user_id": 79,
+    "gender": "男",
+    "day_master": "癸水",
+    "strength": "身强",
+    "target_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "偏瘦",
+    "style_preference": null
+  },
+  {
+    "user_id": 80,
+    "gender": "女",
+    "day_master": "癸水",
+    "strength": "身弱",
+    "target_elements": [
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": "标准",
+    "style_preference": "优雅"
+  },
+  {
+    "user_id": 81,
+    "gender": "男",
+    "day_master": "甲木",
+    "strength": "身强",
+    "target_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "偏胖",
+    "style_preference": null
+  },
+  {
+    "user_id": 82,
+    "gender": "女",
+    "day_master": "甲木",
+    "strength": "身弱",
+    "target_elements": [
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": null,
+    "body_type": null,
+    "style_preference": "性感"
+  },
+  {
+    "user_id": 83,
+    "gender": "男",
+    "day_master": "乙木",
+    "strength": "身强",
+    "target_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "标准",
+    "style_preference": "知性"
+  },
+  {
+    "user_id": 84,
+    "gender": "女",
+    "day_master": "乙木",
+    "strength": "身弱",
+    "target_elements": [
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "偏胖",
+    "style_preference": "森系"
+  },
+  {
+    "user_id": 85,
+    "gender": "男",
+    "day_master": "丙火",
+    "strength": "身强",
+    "target_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": null,
+    "body_type": "偏瘦",
+    "style_preference": "简约"
+  },
+  {
+    "user_id": 86,
+    "gender": "女",
+    "day_master": "丙火",
+    "strength": "身弱",
+    "target_elements": [
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "标准",
+    "style_preference": "国潮"
+  },
+  {
+    "user_id": 87,
+    "gender": "男",
+    "day_master": "丁火",
+    "strength": "身强",
+    "target_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": null,
+    "body_type": "偏胖",
+    "style_preference": "运动"
+  },
+  {
+    "user_id": 88,
+    "gender": "女",
+    "day_master": "丁火",
+    "strength": "身弱",
+    "target_elements": [
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "偏瘦",
+    "style_preference": "商务"
+  },
+  {
+    "user_id": 89,
+    "gender": "男",
+    "day_master": "戊土",
+    "strength": "身强",
+    "target_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "标准",
+    "style_preference": "甜美"
+  },
+  {
+    "user_id": 90,
+    "gender": "女",
+    "day_master": "戊土",
+    "strength": "身弱",
+    "target_elements": [
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": "偏胖",
+    "style_preference": null
+  },
+  {
+    "user_id": 91,
+    "gender": "男",
+    "day_master": "己土",
+    "strength": "身强",
+    "target_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "偏瘦",
+    "style_preference": "文艺"
+  },
+  {
+    "user_id": 92,
+    "gender": "女",
+    "day_master": "己土",
+    "strength": "身弱",
+    "target_elements": [
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "标准",
+    "style_preference": "优雅"
+  },
+  {
+    "user_id": 93,
+    "gender": "男",
+    "day_master": "庚金",
+    "strength": "身强",
+    "target_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "自然色",
+    "body_type": null,
+    "style_preference": "休闲"
+  },
+  {
+    "user_id": 94,
+    "gender": "女",
+    "day_master": "庚金",
+    "strength": "身弱",
+    "target_elements": [
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": null,
+    "style_preference": "性感"
+  },
+  {
+    "user_id": 95,
+    "gender": "男",
+    "day_master": "辛金",
+    "strength": "身强",
+    "target_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": null,
+    "style_preference": "知性"
+  },
+  {
+    "user_id": 96,
+    "gender": "女",
+    "day_master": "辛金",
+    "strength": "身弱",
+    "target_elements": [
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": null,
+    "style_preference": "森系"
+  },
+  {
+    "user_id": 97,
+    "gender": "男",
+    "day_master": "壬水",
+    "strength": "身强",
+    "target_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": null,
+    "style_preference": "简约"
+  },
+  {
+    "user_id": 98,
+    "gender": "女",
+    "day_master": "壬水",
+    "strength": "身弱",
+    "target_elements": [
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "标准",
+    "style_preference": "国潮"
+  },
+  {
+    "user_id": 99,
+    "gender": "男",
+    "day_master": "癸水",
+    "strength": "身强",
+    "target_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "偏胖",
+    "style_preference": "运动"
+  },
+  {
+    "user_id": 100,
+    "gender": "女",
+    "day_master": "癸水",
+    "strength": "身弱",
+    "target_elements": [
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": null,
+    "body_type": "偏瘦",
+    "style_preference": "商务"
+  },
+  {
+    "user_id": 101,
+    "gender": "男",
+    "day_master": "甲木",
+    "strength": "身强",
+    "target_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "标准",
+    "style_preference": "甜美"
+  },
+  {
+    "user_id": 102,
+    "gender": "女",
+    "day_master": "甲木",
+    "strength": "身弱",
+    "target_elements": [
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "偏胖",
+    "style_preference": "街头"
+  },
+  {
+    "user_id": 103,
+    "gender": "男",
+    "day_master": "乙木",
+    "strength": "身强",
+    "target_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "偏瘦",
+    "style_preference": "文艺"
+  },
+  {
+    "user_id": 104,
+    "gender": "女",
+    "day_master": "乙木",
+    "strength": "身弱",
+    "target_elements": [
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "标准",
+    "style_preference": null
+  },
+  {
+    "user_id": 105,
+    "gender": "男",
+    "day_master": "丙火",
+    "strength": "身强",
+    "target_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": null,
+    "body_type": null,
+    "style_preference": "休闲"
+  },
+  {
+    "user_id": 106,
+    "gender": "女",
+    "day_master": "丙火",
+    "strength": "身弱",
+    "target_elements": [
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": null,
+    "style_preference": "性感"
+  },
+  {
+    "user_id": 107,
+    "gender": "男",
+    "day_master": "丁火",
+    "strength": "身强",
+    "target_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "标准",
+    "style_preference": "知性"
+  },
+  {
+    "user_id": 108,
+    "gender": "女",
+    "day_master": "丁火",
+    "strength": "身弱",
+    "target_elements": [
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "偏胖",
+    "style_preference": "森系"
+  },
+  {
+    "user_id": 109,
+    "gender": "男",
+    "day_master": "戊土",
+    "strength": "身强",
+    "target_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "偏瘦",
+    "style_preference": "简约"
+  },
+  {
+    "user_id": 110,
+    "gender": "女",
+    "day_master": "戊土",
+    "strength": "身弱",
+    "target_elements": [
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": "标准",
+    "style_preference": "国潮"
+  },
+  {
+    "user_id": 111,
+    "gender": "男",
+    "day_master": "己土",
+    "strength": "身强",
+    "target_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": null,
+    "body_type": "偏胖",
+    "style_preference": "运动"
+  },
+  {
+    "user_id": 112,
+    "gender": "女",
+    "day_master": "己土",
+    "strength": "身弱",
+    "target_elements": [
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "偏瘦",
+    "style_preference": "商务"
+  },
+  {
+    "user_id": 113,
+    "gender": "男",
+    "day_master": "庚金",
+    "strength": "身强",
+    "target_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "标准",
+    "style_preference": "甜美"
+  },
+  {
+    "user_id": 114,
+    "gender": "女",
+    "day_master": "庚金",
+    "strength": "身弱",
+    "target_elements": [
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "偏胖",
+    "style_preference": "街头"
+  },
+  {
+    "user_id": 115,
+    "gender": "男",
+    "day_master": "辛金",
+    "strength": "身强",
+    "target_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": "偏瘦",
+    "style_preference": "文艺"
+  },
+  {
+    "user_id": 116,
+    "gender": "女",
+    "day_master": "辛金",
+    "strength": "身弱",
+    "target_elements": [
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "标准",
+    "style_preference": "优雅"
+  },
+  {
+    "user_id": 117,
+    "gender": "男",
+    "day_master": "壬水",
+    "strength": "身强",
+    "target_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "偏胖",
+    "style_preference": "休闲"
+  },
+  {
+    "user_id": 118,
+    "gender": "女",
+    "day_master": "壬水",
+    "strength": "身弱",
+    "target_elements": [
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "自然色",
+    "body_type": null,
+    "style_preference": "性感"
+  },
+  {
+    "user_id": 119,
+    "gender": "男",
+    "day_master": "癸水",
+    "strength": "身强",
+    "target_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": null,
+    "style_preference": "知性"
+  },
+  {
+    "user_id": 120,
+    "gender": "女",
+    "day_master": "癸水",
+    "strength": "身弱",
+    "target_elements": [
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": null,
+    "style_preference": "森系"
+  },
+  {
+    "user_id": 121,
+    "gender": "男",
+    "day_master": "甲木",
+    "strength": "身强",
+    "target_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "偏瘦",
+    "style_preference": "简约"
+  },
+  {
+    "user_id": 122,
+    "gender": "女",
+    "day_master": "甲木",
+    "strength": "身弱",
+    "target_elements": [
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": null,
+    "body_type": "标准",
+    "style_preference": "国潮"
+  },
+  {
+    "user_id": 123,
+    "gender": "男",
+    "day_master": "乙木",
+    "strength": "身强",
+    "target_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "偏胖",
+    "style_preference": null
+  },
+  {
+    "user_id": 124,
+    "gender": "女",
+    "day_master": "乙木",
+    "strength": "身弱",
+    "target_elements": [
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "偏瘦",
+    "style_preference": "商务"
+  },
+  {
+    "user_id": 125,
+    "gender": "男",
+    "day_master": "丙火",
+    "strength": "身强",
+    "target_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": null,
+    "style_preference": null
+  },
+  {
+    "user_id": 126,
+    "gender": "女",
+    "day_master": "丙火",
+    "strength": "身弱",
+    "target_elements": [
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "偏胖",
+    "style_preference": "街头"
+  },
+  {
+    "user_id": 127,
+    "gender": "男",
+    "day_master": "丁火",
+    "strength": "身强",
+    "target_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "偏瘦",
+    "style_preference": "文艺"
+  },
+  {
+    "user_id": 128,
+    "gender": "女",
+    "day_master": "丁火",
+    "strength": "身弱",
+    "target_elements": [
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "标准",
+    "style_preference": "优雅"
+  },
+  {
+    "user_id": 129,
+    "gender": "男",
+    "day_master": "戊土",
+    "strength": "身强",
+    "target_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "偏胖",
+    "style_preference": "休闲"
+  },
+  {
+    "user_id": 130,
+    "gender": "女",
+    "day_master": "戊土",
+    "strength": "身弱",
+    "target_elements": [
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": "偏瘦",
+    "style_preference": "性感"
+  },
+  {
+    "user_id": 131,
+    "gender": "男",
+    "day_master": "己土",
+    "strength": "身强",
+    "target_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "标准",
+    "style_preference": "知性"
+  },
+  {
+    "user_id": 132,
+    "gender": "女",
+    "day_master": "己土",
+    "strength": "身弱",
+    "target_elements": [
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "偏胖",
+    "style_preference": "森系"
+  },
+  {
+    "user_id": 133,
+    "gender": "男",
+    "day_master": "庚金",
+    "strength": "身强",
+    "target_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "偏瘦",
+    "style_preference": "简约"
+  },
+  {
+    "user_id": 134,
+    "gender": "女",
+    "day_master": "庚金",
+    "strength": "身弱",
+    "target_elements": [
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "标准",
+    "style_preference": "国潮"
+  },
+  {
+    "user_id": 135,
+    "gender": "男",
+    "day_master": "辛金",
+    "strength": "身强",
+    "target_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": "偏胖",
+    "style_preference": "运动"
+  },
+  {
+    "user_id": 136,
+    "gender": "女",
+    "day_master": "辛金",
+    "strength": "身弱",
+    "target_elements": [
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "偏瘦",
+    "style_preference": "商务"
+  },
+  {
+    "user_id": 137,
+    "gender": "男",
+    "day_master": "壬水",
+    "strength": "身强",
+    "target_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": null,
+    "style_preference": "甜美"
+  },
+  {
+    "user_id": 138,
+    "gender": "女",
+    "day_master": "壬水",
+    "strength": "身弱",
+    "target_elements": [
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "偏胖",
+    "style_preference": "街头"
+  },
+  {
+    "user_id": 139,
+    "gender": "男",
+    "day_master": "癸水",
+    "strength": "身强",
+    "target_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": null,
+    "body_type": "偏瘦",
+    "style_preference": null
+  },
+  {
+    "user_id": 140,
+    "gender": "女",
+    "day_master": "癸水",
+    "strength": "身弱",
+    "target_elements": [
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": null,
+    "style_preference": "优雅"
+  },
+  {
+    "user_id": 141,
+    "gender": "男",
+    "day_master": "甲木",
+    "strength": "身强",
+    "target_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "偏胖",
+    "style_preference": null
+  },
+  {
+    "user_id": 142,
+    "gender": "女",
+    "day_master": "甲木",
+    "strength": "身弱",
+    "target_elements": [
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "偏瘦",
+    "style_preference": "性感"
+  },
+  {
+    "user_id": 143,
+    "gender": "男",
+    "day_master": "乙木",
+    "strength": "身强",
+    "target_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": null,
+    "body_type": "标准",
+    "style_preference": "知性"
+  },
+  {
+    "user_id": 144,
+    "gender": "女",
+    "day_master": "乙木",
+    "strength": "身弱",
+    "target_elements": [
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "偏胖",
+    "style_preference": "森系"
+  },
+  {
+    "user_id": 145,
+    "gender": "男",
+    "day_master": "丙火",
+    "strength": "身强",
+    "target_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": null,
+    "body_type": "偏瘦",
+    "style_preference": "简约"
+  },
+  {
+    "user_id": 146,
+    "gender": "女",
+    "day_master": "丙火",
+    "strength": "身弱",
+    "target_elements": [
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": null,
+    "body_type": "标准",
+    "style_preference": "国潮"
+  },
+  {
+    "user_id": 147,
+    "gender": "男",
+    "day_master": "丁火",
+    "strength": "身强",
+    "target_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "偏胖",
+    "style_preference": "运动"
+  },
+  {
+    "user_id": 148,
+    "gender": "女",
+    "day_master": "丁火",
+    "strength": "身弱",
+    "target_elements": [
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "偏瘦",
+    "style_preference": "商务"
+  },
+  {
+    "user_id": 149,
+    "gender": "男",
+    "day_master": "戊土",
+    "strength": "身强",
+    "target_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": null,
+    "style_preference": "甜美"
+  },
+  {
+    "user_id": 150,
+    "gender": "女",
+    "day_master": "戊土",
+    "strength": "身弱",
+    "target_elements": [
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": null,
+    "body_type": "偏胖",
+    "style_preference": "街头"
+  },
+  {
+    "user_id": 151,
+    "gender": "男",
+    "day_master": "己土",
+    "strength": "身强",
+    "target_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "偏瘦",
+    "style_preference": "文艺"
+  },
+  {
+    "user_id": 152,
+    "gender": "女",
+    "day_master": "己土",
+    "strength": "身弱",
+    "target_elements": [
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": null,
+    "body_type": "标准",
+    "style_preference": null
+  },
+  {
+    "user_id": 153,
+    "gender": "男",
+    "day_master": "庚金",
+    "strength": "身强",
+    "target_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "偏胖",
+    "style_preference": "休闲"
+  },
+  {
+    "user_id": 154,
+    "gender": "女",
+    "day_master": "庚金",
+    "strength": "身弱",
+    "target_elements": [
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "偏瘦",
+    "style_preference": "性感"
+  },
+  {
+    "user_id": 155,
+    "gender": "男",
+    "day_master": "辛金",
+    "strength": "身强",
+    "target_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": "标准",
+    "style_preference": "知性"
+  },
+  {
+    "user_id": 156,
+    "gender": "女",
+    "day_master": "辛金",
+    "strength": "身弱",
+    "target_elements": [
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "偏胖",
+    "style_preference": null
+  },
+  {
+    "user_id": 157,
+    "gender": "男",
+    "day_master": "壬水",
+    "strength": "身强",
+    "target_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "偏瘦",
+    "style_preference": "简约"
+  },
+  {
+    "user_id": 158,
+    "gender": "女",
+    "day_master": "壬水",
+    "strength": "身弱",
+    "target_elements": [
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "标准",
+    "style_preference": "国潮"
+  },
+  {
+    "user_id": 159,
+    "gender": "男",
+    "day_master": "癸水",
+    "strength": "身强",
+    "target_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "偏胖",
+    "style_preference": "运动"
+  },
+  {
+    "user_id": 160,
+    "gender": "女",
+    "day_master": "癸水",
+    "strength": "身弱",
+    "target_elements": [
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": null,
+    "style_preference": null
+  },
+  {
+    "user_id": 161,
+    "gender": "男",
+    "day_master": "甲木",
+    "strength": "身强",
+    "target_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "标准",
+    "style_preference": "甜美"
+  },
+  {
+    "user_id": 162,
+    "gender": "女",
+    "day_master": "甲木",
+    "strength": "身弱",
+    "target_elements": [
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "偏胖",
+    "style_preference": "街头"
+  },
+  {
+    "user_id": 163,
+    "gender": "男",
+    "day_master": "乙木",
+    "strength": "身强",
+    "target_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": null,
+    "body_type": "偏瘦",
+    "style_preference": "文艺"
+  },
+  {
+    "user_id": 164,
+    "gender": "女",
+    "day_master": "乙木",
+    "strength": "身弱",
+    "target_elements": [
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "标准",
+    "style_preference": "优雅"
+  },
+  {
+    "user_id": 165,
+    "gender": "男",
+    "day_master": "丙火",
+    "strength": "身强",
+    "target_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": null,
+    "style_preference": "休闲"
+  },
+  {
+    "user_id": 166,
+    "gender": "女",
+    "day_master": "丙火",
+    "strength": "身弱",
+    "target_elements": [
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "偏瘦",
+    "style_preference": "性感"
+  },
+  {
+    "user_id": 167,
+    "gender": "男",
+    "day_master": "丁火",
+    "strength": "身强",
+    "target_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "标准",
+    "style_preference": "知性"
+  },
+  {
+    "user_id": 168,
+    "gender": "女",
+    "day_master": "丁火",
+    "strength": "身弱",
+    "target_elements": [
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "偏胖",
+    "style_preference": "森系"
+  },
+  {
+    "user_id": 169,
+    "gender": "男",
+    "day_master": "戊土",
+    "strength": "身强",
+    "target_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": null,
+    "style_preference": "简约"
+  },
+  {
+    "user_id": 170,
+    "gender": "女",
+    "day_master": "戊土",
+    "strength": "身弱",
+    "target_elements": [
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": null,
+    "body_type": "标准",
+    "style_preference": "国潮"
+  },
+  {
+    "user_id": 171,
+    "gender": "男",
+    "day_master": "己土",
+    "strength": "身强",
+    "target_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": null,
+    "body_type": "偏胖",
+    "style_preference": "运动"
+  },
+  {
+    "user_id": 172,
+    "gender": "女",
+    "day_master": "己土",
+    "strength": "身弱",
+    "target_elements": [
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "偏瘦",
+    "style_preference": null
+  },
+  {
+    "user_id": 173,
+    "gender": "男",
+    "day_master": "庚金",
+    "strength": "身强",
+    "target_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "标准",
+    "style_preference": "甜美"
+  },
+  {
+    "user_id": 174,
+    "gender": "女",
+    "day_master": "庚金",
+    "strength": "身弱",
+    "target_elements": [
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": null,
+    "style_preference": "街头"
+  },
+  {
+    "user_id": 175,
+    "gender": "男",
+    "day_master": "辛金",
+    "strength": "身强",
+    "target_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": "偏瘦",
+    "style_preference": "文艺"
+  },
+  {
+    "user_id": 176,
+    "gender": "女",
+    "day_master": "辛金",
+    "strength": "身弱",
+    "target_elements": [
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "标准",
+    "style_preference": "优雅"
+  },
+  {
+    "user_id": 177,
+    "gender": "男",
+    "day_master": "壬水",
+    "strength": "身强",
+    "target_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "偏胖",
+    "style_preference": "休闲"
+  },
+  {
+    "user_id": 178,
+    "gender": "女",
+    "day_master": "壬水",
+    "strength": "身弱",
+    "target_elements": [
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": null,
+    "body_type": "偏瘦",
+    "style_preference": "性感"
+  },
+  {
+    "user_id": 179,
+    "gender": "男",
+    "day_master": "癸水",
+    "strength": "身强",
+    "target_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": null,
+    "body_type": "标准",
+    "style_preference": null
+  },
+  {
+    "user_id": 180,
+    "gender": "女",
+    "day_master": "癸水",
+    "strength": "身弱",
+    "target_elements": [
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": null,
+    "style_preference": "森系"
+  },
+  {
+    "user_id": 181,
+    "gender": "男",
+    "day_master": "甲木",
+    "strength": "身强",
+    "target_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "偏瘦",
+    "style_preference": null
+  },
+  {
+    "user_id": 182,
+    "gender": "女",
+    "day_master": "甲木",
+    "strength": "身弱",
+    "target_elements": [
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "标准",
+    "style_preference": null
+  },
+  {
+    "user_id": 183,
+    "gender": "男",
+    "day_master": "乙木",
+    "strength": "身强",
+    "target_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "偏胖",
+    "style_preference": "运动"
+  },
+  {
+    "user_id": 184,
+    "gender": "女",
+    "day_master": "乙木",
+    "strength": "身弱",
+    "target_elements": [
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": null,
+    "body_type": "偏瘦",
+    "style_preference": "商务"
+  },
+  {
+    "user_id": 185,
+    "gender": "男",
+    "day_master": "丙火",
+    "strength": "身强",
+    "target_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": "标准",
+    "style_preference": "甜美"
+  },
+  {
+    "user_id": 186,
+    "gender": "女",
+    "day_master": "丙火",
+    "strength": "身弱",
+    "target_elements": [
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "偏胖",
+    "style_preference": "街头"
+  },
+  {
+    "user_id": 187,
+    "gender": "男",
+    "day_master": "丁火",
+    "strength": "身强",
+    "target_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": null,
+    "body_type": "偏瘦",
+    "style_preference": "文艺"
+  },
+  {
+    "user_id": 188,
+    "gender": "女",
+    "day_master": "丁火",
+    "strength": "身弱",
+    "target_elements": [
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": null,
+    "body_type": "标准",
+    "style_preference": "优雅"
+  },
+  {
+    "user_id": 189,
+    "gender": "男",
+    "day_master": "戊土",
+    "strength": "身强",
+    "target_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": null,
+    "body_type": null,
+    "style_preference": "休闲"
+  },
+  {
+    "user_id": 190,
+    "gender": "女",
+    "day_master": "戊土",
+    "strength": "身弱",
+    "target_elements": [
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": "偏瘦",
+    "style_preference": "性感"
+  },
+  {
+    "user_id": 191,
+    "gender": "男",
+    "day_master": "己土",
+    "strength": "身强",
+    "target_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "avoid_elements": [
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": null,
+    "body_type": "标准",
+    "style_preference": "知性"
+  },
+  {
+    "user_id": 192,
+    "gender": "女",
+    "day_master": "己土",
+    "strength": "身弱",
+    "target_elements": [
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水",
+      "木"
+    ],
+    "boost_elements": [
+      "木"
+    ],
+    "skin_tone": "暖白皮",
+    "body_type": "偏胖",
+    "style_preference": "森系"
+  },
+  {
+    "user_id": 193,
+    "gender": "男",
+    "day_master": "庚金",
+    "strength": "身强",
+    "target_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "偏瘦",
+    "style_preference": "简约"
+  },
+  {
+    "user_id": 194,
+    "gender": "女",
+    "day_master": "庚金",
+    "strength": "身弱",
+    "target_elements": [
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": null,
+    "body_type": "标准",
+    "style_preference": null
+  },
+  {
+    "user_id": 195,
+    "gender": "男",
+    "day_master": "辛金",
+    "strength": "身强",
+    "target_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "avoid_elements": [
+      "土",
+      "金"
+    ],
+    "boost_elements": [
+      "金"
+    ],
+    "skin_tone": null,
+    "body_type": "偏胖",
+    "style_preference": "运动"
+  },
+  {
+    "user_id": 196,
+    "gender": "女",
+    "day_master": "辛金",
+    "strength": "身弱",
+    "target_elements": [
+      "土",
+      "金"
+    ],
+    "avoid_elements": [
+      "水",
+      "木",
+      "火"
+    ],
+    "boost_elements": [
+      "火"
+    ],
+    "skin_tone": "冷白皮",
+    "body_type": "偏瘦",
+    "style_preference": "商务"
+  },
+  {
+    "user_id": 197,
+    "gender": "男",
+    "day_master": "壬水",
+    "strength": "身强",
+    "target_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": null,
+    "body_type": null,
+    "style_preference": "甜美"
+  },
+  {
+    "user_id": 198,
+    "gender": "女",
+    "day_master": "壬水",
+    "strength": "身弱",
+    "target_elements": [
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "自然色",
+    "body_type": "偏胖",
+    "style_preference": "街头"
+  },
+  {
+    "user_id": 199,
+    "gender": "男",
+    "day_master": "癸水",
+    "strength": "身强",
+    "target_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "avoid_elements": [
+      "金",
+      "水"
+    ],
+    "boost_elements": [
+      "水"
+    ],
+    "skin_tone": "小麦色",
+    "body_type": "偏瘦",
+    "style_preference": "文艺"
+  },
+  {
+    "user_id": 200,
+    "gender": "女",
+    "day_master": "癸水",
+    "strength": "身弱",
+    "target_elements": [
+      "金",
+      "水"
+    ],
+    "avoid_elements": [
+      "木",
+      "火",
+      "土"
+    ],
+    "boost_elements": [
+      "土"
+    ],
+    "skin_tone": "黑皮",
+    "body_type": "标准",
+    "style_preference": "优雅"
+  }
+]

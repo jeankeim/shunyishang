@@ -37,6 +37,31 @@ from packages.utils.scene_mapper import (
 )
 from packages.utils.scene_mapping import calculate_scene_match_score
 from packages.utils.wuxing_rules import ELEMENT_COLOR_MAP
+from packages.recommendation.engine import score_and_rank_items, _canonical_item_key
+from packages.recommendation.config import (
+    MAX_TARGET_ELEMENTS as _MAX_TARGET_ELEMENTS,
+    EXTREME_HOT_TEMP, HOT_TEMP, MILD_HOT_TEMP,
+    EXTREME_COLD_TEMP, MILD_COLD_TEMP,
+    compute_recommend_weights as _compute_recommend_weights,
+)
+from packages.recommendation.scoring import (
+    infer_item_thickness as _infer_item_thickness,
+    calculate_temp_score as _calculate_temp_score,
+    calculate_season_score as _calculate_season_score,
+    get_current_season as _get_current_season,
+    calculate_skin_tone_bonus as _get_skin_tone_bonus,
+    calculate_style_preference_bonus as _get_style_preference_bonus,
+    calculate_body_type_bonus as _get_body_type_bonus,
+)
+from packages.recommendation.filters import (
+    build_weather_filter as _build_weather_filter,
+    build_scene_filter as _build_scene_filter,
+    build_gender_filter,
+)
+from packages.recommendation.diversity import (
+    ensure_category_diversity as _ensure_category_diversity,
+    ensure_wuxing_diversity as _ensure_wuxing_diversity,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -796,300 +821,30 @@ def retrieve_items_node(state: AgentState) -> Dict:
         except Exception:
             pass
 
-    # 动态计算权重（配置化：消除硬编码 if-else 链）
-    # P2-74 偏好有效性校验：user_prefs 非空，但所有候选物品的属性都不在偏好键中时，
-    # calculate_preference_score 会全部返回 0.5 中性分，白占 pref_weight 稀释其它维度。
-    # 此时回退到 has_prefs=False 的权重方案，让其它有效维度获得完整权重。
-    _PREF_DIMENSION_MAP = {
-        "color": "color",
-        "primary_element": "element",
-        "category": "category",
-        "style": "style",
-        "material": "material",
-        "thickness_level": "thickness",
-    }
-    has_prefs = bool(user_prefs)
-    if has_prefs and items:
-        pref_hit = False
-        for it in items:
-            for attr, dim in _PREF_DIMENSION_MAP.items():
-                if dim in user_prefs and it.get(attr) and it.get(attr) in user_prefs[dim]:
-                    pref_hit = True
-                    break
-            if pref_hit:
-                break
-        if not pref_hit:
-            logger.info("[检索节点] 用户偏好与当前候选物品无交集，回退到无偏好权重方案")
-            has_prefs = False
-    is_extreme_temp = False
-    if weather_info:
-        temp_val = weather_info.get("temperature")
-        is_extreme_temp = _is_extreme_temp(temp_val)
-    
-    weights = _compute_recommend_weights(
-        has_bazi=bool(bazi_result),
-        has_scene=bool(scene),
-        has_prefs=has_prefs,
-        is_extreme_temp=is_extreme_temp,
+    # ========== 委托推荐引擎完成评分/过滤/排序/多样性 ==========
+    engine_result = score_and_rank_items(
+        items=items,
+        target_elements=target_elements,
+        boost_elements=boost_elements,
+        bazi_result=bazi_result,
+        scene=scene,
+        sub_scene=sub_scene,
+        weather_info=weather_info,
+        user_id=user_id,
+        user_prefs=user_prefs,
+        user_skin_tone=user_skin_tone,
+        user_style_preference=user_style_preference,
+        user_body_type=user_body_type,
+        top_k=top_k,
+        batch_index=batch_index,
     )
-    semantic_weight = weights["semantic"]
-    wuxing_weight = weights["wuxing"]
-    scene_weight = weights["scene"]
-    pref_weight = weights["pref"]
-    temp_weight = weights["temp"]
-    
-    # Task 01: 提取子场景（如果有多维度场景识别）
-    sub_scene = state.get("sub_scene")
-    
-    # 季节适配：推断当前季节，用于评分惩罚
-    current_season = _get_current_season(weather_info)
-    
-    # 计算加权分数
-    scored_items = []
-    for idx, item in enumerate(items):
-        # 防御性检查：确保 item 是字典
-        if not isinstance(item, dict):
-            logger.error(f"[检索节点] 错误: items[{idx}] 不是字典类型，type={type(item)}, value={item}")
-            continue
-        
-        semantic_score = item.get("semantic_score", 0.5)
-        
-        # 计算五行匹配分
-        wuxing_score = 0.0
-        primary = item.get("primary_element", "")
-        secondary = item.get("secondary_element")
-        
-        if primary in target_elements:
-            wuxing_score += 0.6
-        if secondary and secondary in target_elements:
-            wuxing_score += 0.3
-        
-        # 相生加分：忌神但生喜用神的五行，给予适度加分（弱于 target 元素）
-        # P2-62 上限约束：boost 加分不得超过 base 命中分，避免忌神关联单品越过直接命中喜用神单品
-        if boost_elements:
-            base_target_score = 0.0
-            if primary in target_elements:
-                base_target_score += 0.6
-            if secondary and secondary in target_elements:
-                base_target_score += 0.3
-            boost_raw = 0.0
-            if primary in boost_elements:
-                boost_raw += 0.08
-            if secondary and secondary in boost_elements:
-                boost_raw += 0.04
-            boost_capped = min(boost_raw, max(base_target_score, 0.05))
-            wuxing_score += boost_capped
-        
-        # 归一化：确保五行分不超过 1.0，与其它 [0,1] 维度加权时语义一致
-        wuxing_score = min(1.0, wuxing_score)
-        
-        # wear_count 轮换奖励：作为独立微调项，不再混入五行分
-        # （穿着次数少的自有衣物给予小幅加分鼓励轮换；公共库物品无 wear_count，rotation_bonus=0 不受影响）
-        wear_count = item.get("wear_count")  # None for public items → no rotation bonus
-        rotation_bonus = 0.0
-        if wear_count is not None and isinstance(wear_count, (int, float)) and wear_count >= 0:
-            rotation_bonus = max(0.0, 0.05 - wear_count * 0.01)  # 0次=+0.05, 5次=0
-        
-        # 温度匹配评分
-        temp_score = _calculate_temp_score(item, weather_info)
-        
-        # 季节适配评分（季节不匹配时扣分，如夏天不推春季专属物品）
-        season_score = _calculate_season_score(item, current_season)
-        
-        # Task 01: 计算场景匹配分（新增）
-        scene_score = 0.5  # 默认基础分
-        if scene and scene_weight > 0:
-            scene_score = calculate_scene_match_score(item, scene, sub_scene)
-        
-        # 计算偏好匹配分
-        preference_score = 0.5  # 默认中性分
-        if user_prefs and pref_weight > 0:
-            try:
-                preference_score = preference_service.calculate_preference_score(item, user_prefs)
-            except Exception:
-                preference_score = 0.5
-        
-        # 加权最终分数（各维度均为 [0,1]，加权和为 [0,1]；轮换奖励作为独立微调项叠加）
-        # 季节分作为乘性因子（0.7~1.0），季节不匹配时整体降分
-        final_score = (
-            semantic_score * semantic_weight +
-            wuxing_score * wuxing_weight +
-            scene_score * scene_weight +
-            preference_score * pref_weight +
-            temp_score * temp_weight
-        ) * season_score + rotation_bonus
-        
-        # 饰品/文玩五行补救加分：当五行缺某元素时，优先推荐对应五行的饰品
-        # （饰品作为"点缀"，不影响整体穿搭温度适配性，且可精准补五行）
-        item_category = item.get("category", "")
-        if item_category in ("饰品", "文玩") and primary in target_elements:
-            final_score += 0.04  # 小幅加分，不影响核心排序
-        
-        # Week 4: 审美画像加分（肤色/风格偏好/体型）
-        skin_bonus = _get_skin_tone_bonus(item, user_skin_tone)
-        final_score += skin_bonus
-        
-        # 风格偏好加分：用户设置的风格偏好与物品风格匹配时加分
-        if user_style_preference:
-            style_bonus = _get_style_preference_bonus(item, user_style_preference)
-            final_score += style_bonus
-        
-        # 体型适配加分：根据用户体型推荐适合的版型
-        if user_body_type:
-            body_bonus = _get_body_type_bonus(item, user_body_type)
-            final_score += body_bonus
-        
-        scored_items.append({
-            **item,
-            "semantic_score": semantic_score,
-            "wuxing_score": wuxing_score,
-            "scene_score": scene_score,
-            "preference_score": preference_score,
-            "temp_score": temp_score,
-            "season_score": season_score,
-            "final_score": final_score,
-        })
-    
-    # 过滤掉场景分为0的物品（硬排除）
-    scored_items = [item for item in scored_items if item.get("scene_score", 0.5) > 0]
-    
-    # 温度硬过滤：极端温度下排除不合适厚度的衣物（增强版：同时检查thickness_level、名称推断和temperature_range）
-    if weather_info:
-        temp = weather_info.get("temperature")
-        if temp is not None:
-            temp_filtered = []
-            for item in scored_items:
-                # P1-32 厚度推断统一：与 _calculate_temp_score 共用同一套规则
-                thickness = _infer_item_thickness(item)
-                
-                # temperature_range 硬排除：当前温度低于物品适用最低温度超过10°C则排除
-                temp_range = item.get("temperature_range")
-                if temp_range and isinstance(temp_range, dict):
-                    range_min = temp_range.get("最低") or temp_range.get("min")
-                    if range_min is not None:
-                        try:
-                            range_min_int = int(range_min)
-                            if temp < range_min_int - 10:
-                                # 当前温度远低于物品适用最低温度，排除
-                                continue
-                        except (ValueError, TypeError):
-                            pass
-                
-                # 温度硬过滤（分层级，阈值统一自模块常量）
-                if temp >= EXTREME_HOT_TEMP:
-                    # 极端高温（≥30°C）：排除厚重和中厚
-                    if thickness in ("厚重", "中厚"):
-                        continue
-                elif temp >= HOT_TEMP:
-                    # 高温（≥28°C）：排除厚重和中厚（29°C推针织衫/西装太热）
-                    if thickness in ("厚重", "中厚"):
-                        continue
-                elif temp >= 20:
-                    # 舒适温暖（≥20°C）：排除厚重（20°C以上穿羽绒服/棉服明显不合时宜）
-                    if thickness == "厚重":
-                        continue
-                elif temp <= EXTREME_COLD_TEMP:
-                    # 极端低温：排除极薄和轻薄
-                    if thickness in ("极薄", "轻薄"):
-                        continue
-                elif temp <= MILD_COLD_TEMP:
-                    # 低温：排除极薄
-                    if thickness == "极薄":
-                        continue
-                
-                temp_filtered.append(item)
-            if temp_filtered:  # 过滤后仍有候选，正常应用
-                scored_items = temp_filtered
-            elif scored_items:
-                # 所有候选都被温度硬过滤排除：不再静默保留全部（会导致严寒推短袖/酷暑推羽绒），
-                # 退而保留"温度适配分最高"的一批最不坏候选，避免明显不合适的推荐。
-                max_ts = max(it.get("temp_score", 0.5) for it in scored_items)
-                least_bad = [it for it in scored_items if it.get("temp_score", 0.5) >= max_ts - 1e-9]
-                logger.warning(
-                    f"[温度过滤] 温度={temp}°C 下所有候选均不合适，回退保留温度适配分最高的 {len(least_bad)} 件"
-                )
-                scored_items = least_bad
-    
-    # 按分数排序，取 Top K
-    # P3-69 排序稳定性：final_score 相同时用 id/item_code 作为次级键，确保缓存一致性
-    # 换一批增强：非首批次加入小幅随机扰动，使分数接近的物品排序不同，增加批次间差异化
-    if batch_index > 0:
-        for item in scored_items:
-            item["_jittered_score"] = item["final_score"] + random.uniform(-0.05, 0.05)
-        scored_items.sort(
-            key=lambda x: (x["_jittered_score"], _canonical_item_key(x)),
-            reverse=True,
-        )
-        for item in scored_items:
-            del item["_jittered_score"]
-    else:
-        scored_items.sort(
-            key=lambda x: (x["final_score"], _canonical_item_key(x)),
-            reverse=True,
-        )
-    
-    # 换一批功能：根据 batch_index 跳过前面的批次，返回不同的物品组合
-    # batch_index=0 取第1批（0~top_k），batch_index=1 取第2批（top_k~2*top_k），以此类推
-    start_idx = batch_index * top_k
-    end_idx = start_idx + top_k
-    if start_idx < len(scored_items):
-        top_items = scored_items[start_idx:end_idx]
-        if batch_index > 0:
-            logger.info(f"[换一批] batch_index={batch_index}，跳过前{start_idx}件，返回第{batch_index+1}批")
-    else:
-        # 候选不足，回退到第一批并记录日志
-        top_items = scored_items[:top_k]
-        logger.info(f"[换一批] 候选不足（{len(scored_items)}件），回退到第1批")
-    
-    # 分类多样性优化（关键修复：传入批次物品 top_items 而非全量 scored_items，
-    # 之前传 scored_items 导致每次都从高分段重新选取，批次偏移完全失效）
-    top_items = _ensure_category_diversity(top_items, top_k)
-    
-    # 五行多样性约束：确保 top-k 中至少覆盖 2 种不同五行属性
-    top_items = _ensure_wuxing_diversity(top_items, scored_items, top_k)
-    
-    # 温度安全检查：确保推荐结果中没有极端不合适的物品
-    if weather_info:
-        temp = weather_info.get("temperature")
-        if temp is not None and _is_extreme_temp(temp):
-            # 在极端温度下，替换 temp_score < 0.3 的物品
-            temp_safe_items = [i for i in top_items if (i.get("temp_score") or 1.0) >= 0.3]
-            if len(temp_safe_items) < len(top_items) and scored_items:
-                # 从备选中找温度安全的物品补充
-                used_ids = {i.get("id") for i in temp_safe_items}
-                for candidate in scored_items:
-                    if candidate.get("id") not in used_ids and (candidate.get("temp_score") or 0) >= 0.3:
-                        temp_safe_items.append(candidate)
-                        used_ids.add(candidate.get("id"))
-                        if len(temp_safe_items) >= top_k:
-                            break
-                top_items = temp_safe_items[:top_k]
-    
-    # 检查是否全部五行不匹配 → 降级策略
-    # P3-63 退化防御：若所有候选 semantic_score 都是缺省 0.5（向量检索失败/无 embedding），
-    # 则按 semantic 排序无意义，改用 temp_score+scene_score 组合排序，保留有效维度信息。
-    if all(item["wuxing_score"] == 0 for item in top_items):
-        semantic_values = {item.get("semantic_score", 0.5) for item in scored_items}
-        if len(semantic_values) <= 1:
-            # semantic 无区分度，改用 temp_score + scene_score 组合
-            scored_items.sort(
-                key=lambda x: (
-                    (x.get("temp_score") or 0.5) + (x.get("scene_score") or 0.5),
-                    _canonical_item_key(x),
-                ),
-                reverse=True,
-            )
-            logger.info("[检索节点] P3-63 触发: semantic_score 全相同，降级为 temp+scene 排序")
-        else:
-            scored_items.sort(
-                key=lambda x: (x["semantic_score"], _canonical_item_key(x)),
-                reverse=True,
-            )
-        top_items = _ensure_category_diversity(scored_items, top_k)
-        
-        if not top_items:
-            top_items = _get_versatile_items(target_elements, top_k)
-    
+    scored_items = engine_result["scored_items"]
+    top_items = engine_result["top_items"]
+
+    # 兜底：引擎返回空时尝试百搭单品
+    if not top_items:
+        top_items = _get_versatile_items(target_elements, top_k, user_gender=user_gender)
+
     # 更新 item_sources（统一 key 规则，消除衣橱用 id / 公共库用 item_code 的键不一致）
     for item in top_items:
         item_sources[_canonical_item_key(item)] = item.get("source", "public")
