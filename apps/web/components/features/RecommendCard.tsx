@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { RecommendItem } from '@/types'
 import { submitFeedback, reportBehavior } from '@/lib/api'
@@ -284,34 +285,47 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
                 </svg>
               </button>
 
-              {/* Dislike 原因选择器 - 使用 fixed 定位避免被父级 overflow 裁切 */}
+              {/* Dislike 原因选择器 - 使用 Portal 渲染到 body，避免 framer-motion transform 破坏 fixed 定位 */}
               <AnimatePresence>
                 {showDislikeReasons && !feedback && dislikePos && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    transition={{ duration: 0.15 }}
-                    className="fixed z-50 bg-white rounded-lg shadow-lg border border-stone-200 p-2 min-w-[140px]"
-                    style={{ top: dislikePos.top, right: dislikePos.right }}
-                  >
-                    <p className="text-xs text-stone-500 mb-1.5 px-1">不喜欢的原因：</p>
-                    {DISLIKE_REASONS.map((r) => (
-                      <button
-                        key={r.value}
-                        onClick={() => handleDislikeReason(r.value)}
-                        className="w-full text-left px-2 py-1.5 text-xs rounded-md hover:bg-red-50 hover:text-red-600 text-stone-600 transition-colors"
+                  <>
+                    {/* 点击空白区域关闭 */}
+                    {createPortal(
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setShowDislikeReasons(false)}
+                      />,
+                      document.body
+                    )}
+                    {createPortal(
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        transition={{ duration: 0.15 }}
+                        className="fixed z-50 bg-white rounded-lg shadow-lg border border-stone-200 p-2 min-w-[140px]"
+                        style={{ top: dislikePos.top, right: dislikePos.right }}
                       >
-                        {r.label}
-                      </button>
-                    ))}
-                    <button
-                      onClick={() => setShowDislikeReasons(false)}
-                      className="w-full text-center px-2 py-1 text-xs text-stone-400 hover:text-stone-600 mt-1 border-t border-stone-100 pt-1"
-                    >
-                      取消
-                    </button>
-                  </motion.div>
+                        <p className="text-xs text-stone-500 mb-1.5 px-1">不喜欢的原因：</p>
+                        {DISLIKE_REASONS.map((r) => (
+                          <button
+                            key={r.value}
+                            onClick={() => handleDislikeReason(r.value)}
+                            className="w-full text-left px-2 py-1.5 text-xs rounded-md hover:bg-red-50 hover:text-red-600 text-stone-600 transition-colors"
+                          >
+                            {r.label}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => setShowDislikeReasons(false)}
+                          className="w-full text-center px-2 py-1 text-xs text-stone-400 hover:text-stone-600 mt-1 border-t border-stone-100 pt-1"
+                        >
+                          取消
+                        </button>
+                      </motion.div>,
+                      document.body
+                    )}
+                  </>
                 )}
               </AnimatePresence>
             </div>

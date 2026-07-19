@@ -1353,6 +1353,33 @@ def _ensure_category_diversity(items: List[Dict], limit: int) -> List[Dict]:
                     result[i] = accessory_items[0]
                     break
     
+    # 新增：确保饰品/文玩（手串、佛珠等传统文化饰品）至少出现1件
+    # 这是产品核心差异化点，必须保证传统文化饰品在推荐中可见
+    ornament_categories = {"饰品", "文玩"}
+    has_ornament = any(item.get("category") in ornament_categories for item in result)
+    ornament_items = [item for item in valid_items if item.get("category") in ornament_categories]
+    
+    if not has_ornament and ornament_items and len(result) >= limit:
+        # 优先替换同属点缀类的物品（如已有一件"配饰"），避免挤占核心服装
+        replaced = False
+        for i in range(len(result) - 1, -1, -1):
+            if result[i].get("category") in accent_categories and result[i].get("category") not in ornament_categories:
+                result[i] = ornament_items[0]
+                replaced = True
+                break
+        
+        if not replaced:
+            # 没有可替换的点缀类，替换分数最低且同分类有多件的服装
+            for i in range(len(result) - 1, -1, -1):
+                if result[i].get("category") in ["上装", "下装", "裙装", "外套"]:
+                    if (result[i].get("temp_score") or 0) >= 0.7:
+                        continue
+                    cat = result[i].get("category")
+                    same_cat_count = sum(1 for item in result if item.get("category") == cat)
+                    if same_cat_count > 1:
+                        result[i] = ornament_items[0]
+                        break
+    
     return result
 
 
