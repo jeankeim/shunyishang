@@ -16,13 +16,13 @@ interface RecommendCardProps {
   onImageClick?: (imageUrl: string) => void
 }
 
-// 点踩原因配置：每个原因对应不同颜色
+// 点踩原因配置：五行传统色系（低饱和、雅致）
 const DISLIKE_REASONS = [
-  { value: 'style', label: '风格不符', color: 'bg-violet-500', ring: 'ring-violet-300' },
-  { value: 'color', label: '颜色不喜欢', color: 'bg-rose-500', ring: 'ring-rose-300' },
-  { value: 'scene', label: '不适合场景', color: 'bg-amber-500', ring: 'ring-amber-300' },
-  { value: 'thickness', label: '太厚/太薄', color: 'bg-cyan-500', ring: 'ring-cyan-300' },
-  { value: 'other', label: '其他', color: 'bg-stone-500', ring: 'ring-stone-300' },
+  { value: 'style', label: '风格不符', color: 'bg-[#5B7B6A]', ring: 'ring-[#5B7B6A]/30' },   // 松石绿
+  { value: 'color', label: '颜色不喜欢', color: 'bg-[#8B6B5B]', ring: 'ring-[#8B6B5B]/30' }, // 赫石棕
+  { value: 'scene', label: '不适合场景', color: 'bg-[#6B7B8B]', ring: 'ring-[#6B7B8B]/30' }, // 青灰蓝
+  { value: 'thickness', label: '太厚/太薄', color: 'bg-[#7B6B5B]', ring: 'ring-[#7B6B5B]/30' }, // 檀木色
+  { value: 'other', label: '其他', color: 'bg-[#5A5A5A]', ring: 'ring-[#5A5A5A]/30' },       // 墨灰
 ]
 
 export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick }: RecommendCardProps) {
@@ -220,40 +220,55 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
               {/* 点赞/点踩 图标按钮 */}
               {!showReasons && (
                 <motion.div
-                  initial={{ scale: 0.8, opacity: 0 }}
+                  initial={{ scale: 0.85, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                  className="flex items-center gap-6"
+                  transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+                  className="flex items-center gap-5"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {/* 小爱心 - 点赞 */}
+                  {/* 小爱心 - 点赞（空心→实心动画） */}
                   <button
                     onClick={handleLike}
                     disabled={isSubmitting}
-                    className="flex flex-col items-center gap-1.5 group"
+                    className="flex flex-col items-center gap-1 group"
                     aria-label="喜欢这个推荐"
                   >
-                    <div className="w-14 h-14 rounded-full bg-white/95 shadow-lg flex items-center justify-center group-hover:scale-110 group-active:scale-95 transition-transform">
-                      <svg className="w-7 h-7 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                      </svg>
+                    <div className="w-11 h-11 rounded-full bg-white/90 shadow-md flex items-center justify-center group-hover:scale-105 group-active:scale-90 transition-transform">
+                      <motion.svg
+                        className="w-5 h-5 text-rose-400"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                        initial={false}
+                        animate={isSubmitting ? { scale: [1, 1.3, 1] } : {}}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <motion.path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                          initial={{ fill: 'rgba(255,255,255,0)' }}
+                          animate={isSubmitting ? { fill: 'rgba(244,63,94,1)' } : { fill: 'rgba(255,255,255,0)' }}
+                          transition={{ duration: 0.4, ease: 'easeInOut' }}
+                        />
+                      </motion.svg>
                     </div>
-                    <span className="text-xs text-white/90 font-medium">喜欢</span>
+                    <span className="text-[11px] text-white/85 font-medium">喜欢</span>
                   </button>
 
                   {/* 点踩 */}
                   <button
                     onClick={handleDislikeTap}
                     disabled={isSubmitting}
-                    className="flex flex-col items-center gap-1.5 group"
+                    className="flex flex-col items-center gap-1 group"
                     aria-label="不喜欢这个推荐"
                   >
-                    <div className="w-14 h-14 rounded-full bg-white/95 shadow-lg flex items-center justify-center group-hover:scale-110 group-active:scale-95 transition-transform">
-                      <svg className="w-7 h-7 text-stone-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <div className="w-11 h-11 rounded-full bg-white/90 shadow-md flex items-center justify-center group-hover:scale-105 group-active:scale-90 transition-transform">
+                      <svg className="w-5 h-5 text-stone-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" />
                       </svg>
                     </div>
-                    <span className="text-xs text-white/90 font-medium">不喜欢</span>
+                    <span className="text-[11px] text-white/85 font-medium">不喜欢</span>
                   </button>
                 </motion.div>
               )}
@@ -261,20 +276,20 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
               {/* 点踩原因选择器 */}
               {showReasons && (
                 <motion.div
-                  initial={{ scale: 0.85, opacity: 0 }}
+                  initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 22 }}
-                  className="flex flex-col items-center gap-2 px-4"
+                  transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+                  className="flex flex-col items-center gap-1.5 px-4"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <p className="text-sm text-white/90 font-medium mb-1">不喜欢的原因？</p>
-                  <div className="flex flex-wrap justify-center gap-2 max-w-[240px]">
+                  <p className="text-xs text-white/85 font-medium mb-0.5">不喜欢的原因？</p>
+                  <div className="flex flex-wrap justify-center gap-1.5 max-w-[220px]">
                     {DISLIKE_REASONS.map((r) => (
                       <button
                         key={r.value}
                         onClick={() => handleDislikeReason(r.value)}
                         disabled={isSubmitting}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium text-white ${r.color} shadow-md hover:scale-105 active:scale-95 transition-transform ring-2 ${r.ring} ring-offset-1 ring-offset-black/20`}
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-medium text-white/95 ${r.color} shadow-sm hover:scale-105 active:scale-95 transition-transform ring-1 ${r.ring}`}
                       >
                         {r.label}
                       </button>
@@ -282,7 +297,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
                   </div>
                   <button
                     onClick={() => setShowReasons(false)}
-                    className="mt-2 text-xs text-white/60 hover:text-white/90 transition-colors"
+                    className="mt-1.5 text-[11px] text-white/50 hover:text-white/80 transition-colors"
                   >
                     返回
                   </button>
@@ -302,10 +317,10 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
               className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none"
             >
               <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: [0, 1.3, 1] }}
-                transition={{ duration: 0.5 }}
-                className="text-5xl"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: [0, 1.2, 1], opacity: 1 }}
+                transition={{ duration: 0.4, ease: 'easeOut' }}
+                className="text-4xl"
               >
                 {feedbackAnimation === 'like' ? '❤️' : '👋'}
               </motion.div>

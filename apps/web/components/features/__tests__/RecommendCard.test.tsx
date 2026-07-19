@@ -8,6 +8,8 @@ vi.mock('framer-motion', () => ({
   motion: {
     div: ({ children, onClick, ...props }: any) => <div onClick={onClick} {...props}>{children}</div>,
     button: ({ children, onClick, ...props }: any) => <button onClick={onClick} {...props}>{children}</button>,
+    svg: ({ children, ...props }: any) => <svg {...props}>{children}</svg>,
+    path: (props: any) => <path {...props} />,
   },
   AnimatePresence: ({ children }: any) => <>{children}</>,
 }))

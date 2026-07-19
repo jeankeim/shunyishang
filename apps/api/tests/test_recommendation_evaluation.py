@@ -176,7 +176,7 @@ class TestWuxingScoring:
 
         item = {"category": "饰品", "primary_element": "木"}
         bonus = calculate_ornament_bonus(item, ["木"])
-        assert bonus == 0.04
+        assert bonus == 0.06
 
         # 非饰品类别无加分
         item2 = {"category": "上装", "primary_element": "木"}

@@ -261,7 +261,7 @@ def ensure_outfit_completeness(
         _ensure_body_type_guarantee(items, all_scored, body_type, used_ids)
 
     # 最终点缀保护：确保至少有1件点缀物品（配饰/饰品/文玩）
-    _ensure_final_accent(items, all_scored, used_ids)
+    _ensure_final_accent(items, all_scored, used_ids, limit)
 
     # 五行保障：确保 top-1 匹配喜用神（放在最后，确保不被其他保障覆盖）
     if target_elements and len(items) >= 1:
@@ -309,12 +309,15 @@ def _is_coverage_critical(item: Dict, items: List[Dict]) -> bool:
     return False
 
 
-def _ensure_final_accent(items: List[Dict], all_scored: List[Dict], used_ids: set) -> None:
+def _ensure_final_accent(items: List[Dict], all_scored: List[Dict], used_ids: set, top_k: int = 5) -> None:
     """
     最终点缀保护：确保至少有1件点缀物品（配饰/饰品/文玩）
 
-    在所有其他保障之后执行，替换最低优先级的非覆盖物品。
-    仅替换非覆盖关键且非温度必需的物品。
+    在所有其他保障之后执行。
+    策略优先级：
+    1. 如果结果数 < top_k，直接追加
+    2. 替换非覆盖关键且非温度必需的物品
+    3. 兜底：替换得分最低的物品（即使覆盖关键，因为点缀对产品差异化更重要）
     """
     has_accent = any(item.get("category", "") in ACCENT_CATEGORIES for item in items)
     if has_accent:
@@ -334,7 +337,14 @@ def _ensure_final_accent(items: List[Dict], all_scored: List[Dict], used_ids: se
     if not accent_candidate:
         return
 
-    # 找可替换的物品：非覆盖关键 + 非温度必需 + 位置靠后
+    # 策略1：结果数不足 top_k 时直接追加
+    if len(items) < top_k:
+        items.append(accent_candidate)
+        used_ids.add(str(accent_candidate.get("id", accent_candidate.get("item_code", ""))))
+        logger.debug(f"[点缀保护] 追加点缀: {accent_candidate.get('name')}({accent_candidate.get('category')})")
+        return
+
+    # 策略2：替换非覆盖关键 + 非温度必需的物品
     for i in range(len(items) - 1, -1, -1):
         if _is_coverage_critical(items[i], items):
             continue
@@ -349,6 +359,18 @@ def _ensure_final_accent(items: List[Dict], all_scored: List[Dict], used_ids: se
             f"→ {accent_candidate.get('name')}({accent_candidate.get('category')})"
         )
         return
+
+    # 策略3兜底：所有物品都是覆盖关键时，替换得分最低的
+    if items:
+        min_idx = min(range(len(items)), key=lambda i: items[i].get("final_score", 0))
+        old_item = items[min_idx]
+        items[min_idx] = accent_candidate
+        used_ids.discard(str(old_item.get("id", old_item.get("item_code", ""))))
+        used_ids.add(str(accent_candidate.get("id", accent_candidate.get("item_code", ""))))
+        logger.debug(
+            f"[点缀保护-兜底] 替换最低分: {old_item.get('name')}({old_item.get('category')}) "
+            f"→ {accent_candidate.get('name')}({accent_candidate.get('category')})"
+        )
 
 
 def _is_style_match(item: Dict, style_preference: str, keywords: List[str]) -> bool:
