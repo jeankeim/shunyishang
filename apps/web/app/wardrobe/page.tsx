@@ -148,7 +148,7 @@ export default function WardrobePage() {
             </div>
           </motion.div>
           
-          <h2 className="text-3xl font-bold text-stone-800 mb-3" style={{ fontFamily: 'serif' }}>
+          <h2 className="text-3xl font-bold text-[var(--brand-heading)] mb-3" style={{ fontFamily: 'serif' }}>
             我的衣橱
           </h2>
           <p className="text-stone-500 mb-2">登录后开启您的五行穿搭之旅</p>
@@ -171,7 +171,7 @@ export default function WardrobePage() {
             <motion.h1 
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
-              className="text-2xl md:text-4xl font-bold text-stone-800 tracking-tight"
+              className="text-2xl md:text-4xl font-bold text-[var(--brand-heading)] tracking-tight"
               style={{ fontFamily: 'serif' }}
             >
               我的衣橱
@@ -224,7 +224,7 @@ export default function WardrobePage() {
           <div className="flex gap-2">
             <button
               onClick={() => setViewMode('flow')}
-              className={`p-2 rounded-lg transition-all touch-feedback ${viewMode === 'flow' ? 'bg-stone-800 text-white' : 'text-[var(--brand-subtle)] hover:text-stone-600'}`}
+              className={`p-2 rounded-lg transition-all touch-feedback ${viewMode === 'flow' ? 'bg-[var(--brand-heading)] text-white shadow-sm' : 'text-[var(--brand-subtle)] hover:text-[var(--brand-heading)] hover:bg-[var(--brand-surface)]'}`}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -232,7 +232,7 @@ export default function WardrobePage() {
             </button>
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-lg transition-all touch-feedback ${viewMode === 'grid' ? 'bg-stone-800 text-white' : 'text-[var(--brand-subtle)] hover:text-stone-600'}`}
+              className={`p-2 rounded-lg transition-all touch-feedback ${viewMode === 'grid' ? 'bg-[var(--brand-heading)] text-white shadow-sm' : 'text-[var(--brand-subtle)] hover:text-[var(--brand-heading)] hover:bg-[var(--brand-surface)]'}`}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -455,7 +455,7 @@ export default function WardrobePage() {
                       </div>
                       
                       {/* 名称 */}
-                      <h3 className="font-medium text-stone-800 truncate" title={item.name}>
+                      <h3 className="font-medium text-[var(--brand-heading)] truncate" title={item.name}>
                         {item.name}
                       </h3>
                     </div>

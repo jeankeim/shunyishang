@@ -398,7 +398,7 @@ export default function Home() {
                 className={`relative flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
                   activeTab === 'chat'
                     ? 'bg-[var(--brand-surface)] text-[var(--brand-heading)] shadow-sm'
-                    : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
+                    : 'text-stone-600 hover:bg-[var(--brand-surface)] hover:text-[var(--brand-heading)]'
                 }`}
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -416,7 +416,7 @@ export default function Home() {
                 className={`relative flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
                   activeTab === 'wardrobe'
                     ? 'bg-[var(--brand-surface)] text-[var(--brand-heading)] shadow-sm'
-                    : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
+                    : 'text-stone-600 hover:bg-[var(--brand-surface)] hover:text-[var(--brand-heading)]'
                 }`}
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -434,7 +434,7 @@ export default function Home() {
                 className={`relative flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
                   activeTab === 'community'
                     ? 'bg-[var(--brand-surface)] text-[var(--brand-heading)] shadow-sm'
-                    : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
+                    : 'text-stone-600 hover:bg-[var(--brand-surface)] hover:text-[var(--brand-heading)]'
                 }`}
               >
                 <Users className="w-5 h-5" />
@@ -450,7 +450,7 @@ export default function Home() {
                 className={`relative flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
                   activeTab === 'diary'
                     ? 'bg-[var(--brand-surface)] text-[var(--brand-heading)] shadow-sm'
-                    : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
+                    : 'text-stone-600 hover:bg-[var(--brand-surface)] hover:text-[var(--brand-heading)]'
                 }`}
               >
                 <BookOpen className="w-5 h-5" />
@@ -466,7 +466,7 @@ export default function Home() {
                 className={`relative flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
                   activeTab === 'cultivation'
                     ? 'bg-[var(--brand-surface)] text-[var(--brand-heading)] shadow-sm'
-                    : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
+                    : 'text-stone-600 hover:bg-[var(--brand-surface)] hover:text-[var(--brand-heading)]'
                 }`}
               >
                 <Mountain className="w-5 h-5" />
@@ -483,7 +483,7 @@ export default function Home() {
                   className={`relative flex items-center gap-1.5 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
                     activeTab === 'fortune' || activeTab === 'destiny' || activeTab === 'tryon'
                       ? 'bg-[var(--brand-surface)] text-[var(--brand-heading)] shadow-sm'
-                      : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'
+                      : 'text-stone-600 hover:bg-[var(--brand-surface)] hover:text-[var(--brand-heading)]'
                   }`}
                 >
                   <MoreHorizontal className="w-5 h-5" />

@@ -199,7 +199,7 @@ export default function CommunityPage() {
     return (
       <div className="max-w-lg mx-auto text-center py-16">
         <p className="text-5xl mb-4">🏛️</p>
-        <h2 className="text-lg font-semibold text-stone-800 mb-2">穿搭广场</h2>
+        <h2 className="text-lg font-semibold text-[var(--brand-heading)] mb-2">穿搭广场</h2>
         <p className="text-sm text-stone-500">登录后即可浏览和分享穿搭灵感</p>
       </div>
     )
@@ -210,7 +210,7 @@ export default function CommunityPage() {
       {/* 顶部标题 */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-xl font-bold text-stone-800">穿搭广场</h1>
+          <h1 className="text-xl font-bold text-[var(--brand-heading)]">穿搭广场</h1>
           <p className="text-xs text-stone-500 mt-0.5">分享穿搭灵感，发现五行穿搭美学</p>
         </div>
         <button
@@ -290,7 +290,7 @@ export default function CommunityPage() {
               className="w-full max-w-lg bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl"
               onClick={e => e.stopPropagation()}
             >
-              <h3 className="text-lg font-semibold text-stone-800 mb-4">分享穿搭</h3>
+              <h3 className="text-lg font-semibold text-[var(--brand-heading)] mb-4">分享穿搭</h3>
 
               <textarea
                 value={newContent}
@@ -356,7 +356,7 @@ export default function CommunityPage() {
               className="w-full max-w-lg bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl max-h-[70vh] flex flex-col"
               onClick={e => e.stopPropagation()}
             >
-              <h3 className="text-lg font-semibold text-stone-800 mb-3">
+              <h3 className="text-lg font-semibold text-[var(--brand-heading)] mb-3">
                 评论 ({comments.length})
               </h3>
 

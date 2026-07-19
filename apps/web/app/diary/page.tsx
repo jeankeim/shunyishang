@@ -221,7 +221,7 @@ export default function DiaryPage() {
         <button
           onClick={goToList}
           className={`flex items-center gap-1 transition-colors ${
-            diaryView === 'list' ? 'text-stone-800 font-semibold' : 'text-stone-400 hover:text-stone-600'
+            diaryView === 'list' ? 'text-[var(--brand-heading)] font-semibold' : 'text-stone-400 hover:text-[var(--brand-body)]'
           }`}
         >
           <span className="text-base">📓</span>
@@ -417,7 +417,7 @@ export default function DiaryPage() {
                   </svg>
                 </motion.button>
                 <div>
-                  <h2 className="text-lg font-bold text-stone-800">
+                  <h2 className="text-lg font-bold text-[var(--brand-heading)]">
                     {editInitialData ? '编辑日记' : '新建日记'}
                   </h2>
                   <p className="text-xs text-stone-500">

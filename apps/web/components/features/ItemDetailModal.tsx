@@ -123,7 +123,7 @@ export function ItemDetailModal({ item, onClose }: ItemDetailModalProps) {
             {/* 标题 + 五行标签 */}
             <div className="flex items-start justify-between gap-3 mb-4">
               <div>
-                <h2 className="text-lg font-bold text-stone-800 leading-snug">{item.name}</h2>
+                <h2 className="text-lg font-bold text-[var(--brand-heading)] leading-snug">{item.name}</h2>
                 <p className="text-sm text-stone-500 mt-1">{item.category}</p>
               </div>
               <span

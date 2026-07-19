@@ -32,13 +32,13 @@ export function MajorLuckCard({ luckPeriods, currentLuck }: MajorLuckCardProps) 
       {/* 当前大运 */}
       {currentLuck && (
         <div className="bg-gradient-to-br from-white to-stone-50/50 rounded-2xl p-5 shadow-sm border border-stone-100">
-          <h3 className="text-sm font-semibold text-stone-800 mb-3 flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-[var(--brand-heading)] mb-3 flex items-center gap-2">
             <span className="w-1.5 h-1.5 bg-gradient-to-r from-[#4A90C4] to-[#3DA35D] rounded-full" />
             当前大运
           </h3>
           <div className="flex items-center gap-4">
             <div className="w-20 h-20 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-[#3DA35D]/10 to-[#4A90C4]/10 border border-[#3DA35D]/20">
-              <p className="text-2xl font-bold text-stone-800">{currentLuck.ganzhi}</p>
+              <p className="text-2xl font-bold text-[var(--brand-heading)]">{currentLuck.ganzhi}</p>
               <p className="text-xs text-stone-500">{currentLuck.element}</p>
             </div>
             <div className="flex-1 space-y-2">
@@ -63,7 +63,7 @@ export function MajorLuckCard({ luckPeriods, currentLuck }: MajorLuckCardProps) 
 
       {/* 大运时间线 */}
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
-        <h3 className="text-sm font-semibold text-stone-800 mb-4 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-[var(--brand-heading)] mb-4 flex items-center gap-2">
           <span className="w-1.5 h-1.5 bg-gradient-to-r from-[#B89B5E] to-[#C75B5B] rounded-full" />
           大运周期
         </h3>
@@ -94,7 +94,7 @@ export function MajorLuckCard({ luckPeriods, currentLuck }: MajorLuckCardProps) 
                   <div className={`flex-1 flex items-center gap-2 p-2 rounded-xl transition-all ${
                     isCurrent ? `${colors.bg} border ${colors.border}` : 'hover:bg-stone-50'
                   }`}>
-                    <span className="text-sm font-bold text-stone-800 w-12">{period.ganzhi}</span>
+                    <span className="text-sm font-bold text-[var(--brand-heading)] w-12">{period.ganzhi}</span>
                     <span className={`text-xs font-medium w-5 text-center ${colors.text}`}>{period.element}</span>
                     <span className="text-xs text-stone-400 w-16">{period.start_age}-{period.end_age}岁</span>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${levelStyle}`}>

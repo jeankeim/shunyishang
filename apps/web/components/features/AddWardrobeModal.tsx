@@ -468,8 +468,8 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
                 onClick={() => updateAnalysisField('secondary_element', undefined)}
                 className={`px-3 py-2 rounded-xl text-sm transition-all ${
                   !analysis.secondary_element
-                    ? 'bg-stone-800 text-white'
-                    : 'bg-white text-[var(--brand-body)] hover:bg-stone-50'
+                    ? 'bg-[var(--brand-heading)] text-white shadow-sm'
+                    : 'bg-white text-[var(--brand-body)] hover:bg-[var(--brand-surface)]'
                 }`}
               >
                 无

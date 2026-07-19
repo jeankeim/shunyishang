@@ -36,7 +36,7 @@ export function DiaryStatsPanel({ stats }: DiaryStatsProps) {
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-stone-100">
           <p className="text-xs text-stone-500 mb-1">总日记数</p>
-          <p className="text-2xl font-bold text-stone-800">{stats.total_diaries}</p>
+          <p className="text-2xl font-bold text-[var(--brand-heading)]">{stats.total_diaries}</p>
         </div>
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-stone-100">
           <p className="text-xs text-stone-500 mb-1">连续打卡</p>
@@ -55,7 +55,7 @@ export function DiaryStatsPanel({ stats }: DiaryStatsProps) {
       {/* 心情分布 */}
       {moodData.length > 0 && (
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
-          <h3 className="text-sm font-semibold text-stone-800 mb-3">心情分布</h3>
+          <h3 className="text-sm font-semibold text-[var(--brand-heading)] mb-3">心情分布</h3>
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>

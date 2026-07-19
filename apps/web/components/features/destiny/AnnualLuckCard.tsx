@@ -41,7 +41,7 @@ export function AnnualLuckCard({ data }: AnnualLuckCardProps) {
       {/* 流年概览 */}
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-stone-800 flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-[var(--brand-heading)] flex items-center gap-2">
             <span className="w-1.5 h-1.5 bg-gradient-to-r from-[#C75B5B] to-[#B89B5E] rounded-full" />
             {annual_luck.year} 流年运势
           </h3>
@@ -50,7 +50,7 @@ export function AnnualLuckCard({ data }: AnnualLuckCardProps) {
               {relation.label}
             </span>
             <div className="text-right">
-              <span className="text-2xl font-bold text-stone-800">{overall_score}</span>
+              <span className="text-2xl font-bold text-[var(--brand-heading)]">{overall_score}</span>
               <span className="text-xs text-stone-400 ml-1">分</span>
             </div>
           </div>

@@ -129,7 +129,7 @@ export function TodayFortuneCard({ onNavigateToFortune }: TodayFortuneCardProps)
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-stone-800">{dateStr} {weekday}</span>
+                <span className="text-sm font-semibold text-[var(--brand-heading)]">{dateStr} {weekday}</span>
                 <span className={`text-[10px] px-1.5 py-0.5 rounded-full bg-gradient-to-r ${level.gradient} text-white font-medium`}>
                   {level.label}
                 </span>
