@@ -680,6 +680,21 @@ async def create_feedback(
     except Exception as e:
         logger.warning(f"[Feedback] 偏好学习失败: {e}")
     
+    # 点踩时同步写入不喜欢物品表（硬性排除，后续推荐不再出现）
+    if request.action == "dislike" and request.item_code:
+        try:
+            with DatabasePool.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO user_disliked_items (user_id, item_code, reason)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (user_id, item_code) DO NOTHING
+                    """, [user_id, request.item_code, request.feedback_reason])
+                    conn.commit()
+            logger.info(f"[Feedback] 不喜欢物品已记录: user={user_id} item={request.item_code}")
+        except Exception as e:
+            logger.warning(f"[Feedback] 不喜欢物品记录失败: {e}")
+    
     return FeedbackResponse(**dict(row))
 
 
