@@ -1493,11 +1493,15 @@ export interface DailyOutfit {
 /**
  * 获取每日智能穿搭建议（基于八字+运势+天气+季节+偏好+衣橱）
  * @param batchIndex 换一批批次 (0-2)
+ * @param city 前端定位城市（优先于用户设置，确保与首页天气显示一致）
  */
-export async function getDailyOutfit(batchIndex = 0): Promise<DailyOutfit | null> {
+export async function getDailyOutfit(batchIndex = 0, city?: string): Promise<DailyOutfit | null> {
   try {
-    const params = batchIndex > 0 ? `?batch_index=${batchIndex}` : ''
-    const response = await fetch(`${getAPIBase()}/api/v1/recommend/daily-outfit${params}`, {
+    const params = new URLSearchParams()
+    if (batchIndex > 0) params.append('batch_index', String(batchIndex))
+    if (city) params.append('city', city)
+    const queryStr = params.toString() ? `?${params.toString()}` : ''
+    const response = await fetch(`${getAPIBase()}/api/v1/recommend/daily-outfit${queryStr}`, {
       headers: getAuthHeaders(),
     })
     if (!response.ok) {

@@ -56,6 +56,7 @@ THICKNESS_COLD = {"适中", "中厚", "厚重"}  # <=14°C
 def generate_daily_outfit(
     user_id: int,
     batch_index: int = 0,
+    city_override: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     生成每日智能穿搭建议
@@ -63,6 +64,7 @@ def generate_daily_outfit(
     Args:
         user_id: 用户 ID
         batch_index: 换一批批次 (0-2)
+        city_override: 前端定位城市（优先于用户设置）
 
     Returns:
         {
@@ -87,8 +89,8 @@ def generate_daily_outfit(
     avoid_elements: List[str] = user_bazi.get("avoid_elements", [])
     primary_lucky = lucky_elements[0] if lucky_elements else (suggested_elements[0] if suggested_elements else "土")
 
-    # ── 2. 天气 ────────────────────────────────────────────────────────────
-    city = _get_user_city(user_id)
+    # ── 2. 天气（优先使用前端定位城市，确保与首页天气显示一致）───────────────
+    city = city_override or _get_user_city(user_id)
     weather = _get_weather_sync(city)
     temperature = weather.get("temperature", 22)
     weather_desc = weather.get("weather", "晴")

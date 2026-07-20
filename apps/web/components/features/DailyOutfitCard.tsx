@@ -19,9 +19,11 @@ const ELEMENT_COLORS: Record<string, string> = {
 interface DailyOutfitCardProps {
   /** 是否已登录 */
   isAuthenticated: boolean
+  /** 前端定位城市（传递给后端确保天气一致） */
+  city?: string
 }
 
-export function DailyOutfitCard({ isAuthenticated }: DailyOutfitCardProps) {
+export function DailyOutfitCard({ isAuthenticated, city }: DailyOutfitCardProps) {
   const [data, setData] = useState<DailyOutfit | null>(null)
   const [loading, setLoading] = useState(false)
   const [batchIndex, setBatchIndex] = useState(0)
@@ -34,7 +36,7 @@ export function DailyOutfitCard({ isAuthenticated }: DailyOutfitCardProps) {
     setLoading(true)
     setError(false)
     try {
-      const result = await getDailyOutfit(batch)
+      const result = await getDailyOutfit(batch, city || undefined)
       if (result) {
         setData(result)
       } else {
@@ -46,7 +48,7 @@ export function DailyOutfitCard({ isAuthenticated }: DailyOutfitCardProps) {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, city])
 
   useEffect(() => {
     if (isAuthenticated) {

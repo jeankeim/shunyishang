@@ -577,6 +577,7 @@ async def remove_dislike(
 )
 async def get_daily_outfit(
     batch_index: int = Query(0, ge=0, le=2, description="换一批批次 (0-2)"),
+    city: Optional[str] = Query(None, max_length=20, description="前端定位城市（优先于用户设置）"),
     current_user: dict = Depends(get_current_user),
 ):
     """
@@ -597,7 +598,7 @@ async def get_daily_outfit(
     today = date.today()
 
     # ── Redis 缓存 ──────────────────────────────────────────────────────────
-    cache_key = f"daily_outfit:{user_id}:{today.isoformat()}:{batch_index}"
+    cache_key = f"daily_outfit:{user_id}:{today.isoformat()}:{batch_index}:{city or 'default'}"
     if settings.redis_enabled:
         try:
             cached = await cache.get(cache_key)
@@ -610,7 +611,7 @@ async def get_daily_outfit(
     # ── 调用核心服务 ────────────────────────────────────────────────────────
     from apps.api.services.daily_outfit_service import generate_daily_outfit
 
-    result = generate_daily_outfit(user_id, batch_index=batch_index)
+    result = generate_daily_outfit(user_id, batch_index=batch_index, city_override=city)
 
     # ── 写入缓存 ────────────────────────────────────────────────────────────
     if settings.redis_enabled:

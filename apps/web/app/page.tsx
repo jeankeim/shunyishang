@@ -635,7 +635,7 @@ export default function Home() {
 
                 {/* 每日智能穿搭建议 — 已登录用户自动展示 */}
                 {isAuthenticated && !isAuthLoading && (
-                  <DailyOutfitCard isAuthenticated={isAuthenticated} />
+                  <DailyOutfitCard isAuthenticated={isAuthenticated} city={userCity} />
                 )}
 
                 <ChatInterface 

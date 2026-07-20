@@ -171,7 +171,7 @@ class TestWuxingScoring:
         assert score <= 1.0
 
     def test_ornament_bonus(self):
-        """饰品/文玩五行补救加分"""
+        """饰品/文玩五行补救加分（个人五行增强）"""
         from packages.recommendation.scoring import calculate_ornament_bonus
 
         item = {"category": "饰品", "primary_element": "木"}
@@ -181,6 +181,30 @@ class TestWuxingScoring:
         # 非饰品类别无加分
         item2 = {"category": "上装", "primary_element": "木"}
         assert calculate_ornament_bonus(item2, ["木"]) == 0.0
+
+    def test_ornament_scene_mediation_bonus(self):
+        """配饰场景冲突调节加分（桥接场景→个人喜用神）"""
+        from packages.recommendation.scoring import calculate_ornament_bonus
+
+        # 场景=金，用户喜用=水，配饰=金 → 金生水，触发调节加分
+        item = {"category": "配饰", "primary_element": "金"}
+        bonus = calculate_ornament_bonus(item, ["水"], scene_elements=["金"])
+        assert bonus == 0.04  # 仅场景调节（配饰不是饰品/文玩，无个人增强）
+
+        # 场景=金，用户喜用=木，配饰=水 → 金生水、水生木，完美桥接
+        item2 = {"category": "饰品", "primary_element": "水"}
+        bonus2 = calculate_ornament_bonus(item2, ["木"], scene_elements=["金"])
+        assert bonus2 == 0.04  # 场景调节（水不在target中，无个人增强）
+
+        # 场景=金，用户喜用=水，配饰=水(饰品) → 个人增强 + 场景调节双重加分
+        item3 = {"category": "饰品", "primary_element": "水"}
+        bonus3 = calculate_ornament_bonus(item3, ["水"], scene_elements=["金"])
+        assert bonus3 == 0.10  # 0.06(个人) + 0.04(场景: 金生水=配饰元素)
+
+        # 无场景时不触发调节
+        item4 = {"category": "配饰", "primary_element": "金"}
+        bonus4 = calculate_ornament_bonus(item4, ["水"], scene_elements=None)
+        assert bonus4 == 0.0  # 配饰不在ORNAMENT_CATEGORIES中，无个人增强
 
 
 # ============================================================

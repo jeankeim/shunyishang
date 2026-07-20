@@ -15,6 +15,7 @@ from packages.recommendation.config import (
     WUXING_PRIMARY_SCORE, WUXING_SECONDARY_SCORE,
     WUXING_BOOST_PRIMARY, WUXING_BOOST_SECONDARY, WUXING_BOOST_MIN_CAP,
     ORNAMENT_BONUS, ORNAMENT_CATEGORIES,
+    SCENE_MEDIATION_BONUS, ACCENT_CATEGORIES_FOR_MEDIATION,
     ROTATION_MAX_BONUS, ROTATION_DECAY_PER_WEAR,
     SKIN_TONE_COLOR_FIT, SKIN_TONE_MAX_BONUS,
     STYLE_KEYWORDS, STYLE_NAME_BONUS, STYLE_DETAIL_BONUS, STYLE_FIELD_BONUS, STYLE_MAX_BONUS,
@@ -80,17 +81,50 @@ def calculate_wuxing_score(
     return min(1.0, score)
 
 
-def calculate_ornament_bonus(item: Dict, target_elements: List[str]) -> float:
+def calculate_ornament_bonus(
+    item: Dict,
+    target_elements: List[str],
+    scene_elements: Optional[List[str]] = None,
+) -> float:
     """
-    饰品/文玩五行补救加分
+    配饰双重角色加分：个人五行增强 + 场景冲突调节
 
-    当物品属于饰品/文玩类别且五行命中 target 时，给予小幅加分。
+    角色1（个人五行增强）：
+        饰品/文玩五行命中 target_elements → +ORNAMENT_BONUS
+        作用：强化用户个人能量场
+
+    角色2（场景冲突调节）：
+        当场景五行与个人喜用神存在差异时，配饰五行能桥接两者 → +SCENE_MEDIATION_BONUS
+        桥接条件：场景元素 → 配饰元素 → 个人喜用神（相生链）
+        例：场景=金，用户喜用=木，配饰=水 → 金生水、水生木 ✓
+        作用：在保持个人五行核心的同时满足场景需求
     """
+    from packages.utils.wuxing_rules import WUXING_SHENG
+
     category = item.get("category", "")
     primary = item.get("primary_element", "")
+    bonus = 0.0
+
+    # 角色1：个人五行增强（饰品/文玩命中喜用神）
     if category in ORNAMENT_CATEGORIES and primary in target_elements:
-        return ORNAMENT_BONUS
-    return 0.0
+        bonus += ORNAMENT_BONUS
+
+    # 角色2：场景冲突调节（配饰五行桥接场景→个人）
+    if category in ACCENT_CATEGORIES_FOR_MEDIATION and scene_elements and primary:
+        for scene_elem in scene_elements:
+            if scene_elem == primary:
+                # 配饰五行 = 场景五行，且场景五行生用户喜用神
+                generated = WUXING_SHENG.get(scene_elem, "")
+                if generated in target_elements:
+                    bonus += SCENE_MEDIATION_BONUS
+                    break
+            elif WUXING_SHENG.get(scene_elem) == primary:
+                # 场景生配饰，且配饰元素直接是喜用神或生喜用神
+                if primary in target_elements or WUXING_SHENG.get(primary, "") in target_elements:
+                    bonus += SCENE_MEDIATION_BONUS
+                    break
+
+    return bonus
 
 
 # ============================================================
@@ -485,8 +519,14 @@ def calculate_final_score(
     rotation_bonus = calculate_rotation_bonus(item)
     final_score += rotation_bonus
 
-    # 饰品五行补救
-    final_score += calculate_ornament_bonus(item, target_elements)
+    # 配饰双重角色加分（个人五行增强 + 场景冲突调节）
+    scene_elements = None
+    if scene:
+        from packages.utils.scene_mapper import get_scene_elements
+        scene_info = get_scene_elements(scene)
+        if scene_info:
+            scene_elements = scene_info.get("primary", [])
+    final_score += calculate_ornament_bonus(item, target_elements, scene_elements)
 
     # 审美画像加分
     final_score += calculate_skin_tone_bonus(item, skin_tone)
