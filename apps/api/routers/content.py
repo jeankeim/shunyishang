@@ -6,7 +6,7 @@
 import json
 import logging
 import random
-from datetime import date, datetime
+from datetime import date as date_, datetime
 from pathlib import Path
 from typing import List, Optional
 
@@ -48,14 +48,14 @@ def _load_wiki_data() -> None:
 _load_wiki_data()
 
 
-def _get_today_element(target_date: Optional[date] = None) -> str:
+def _get_today_element(target_date: Optional[date_] = None) -> str:
     """
     根据日期的日柱天干推算当日五行
 
     使用 cnlunar 获取当天日柱干支，取天干查 TIANGAN_WUXING 映射。
     """
     if target_date is None:
-        target_date = date.today()
+        target_date = date_.today()
 
     try:
         import cnlunar
@@ -85,6 +85,8 @@ async def get_wuxing_tips(
     根据当日日柱天干推算五行，返回1条匹配的百科知识。
     也可通过 element 参数直接指定五行元素。
     """
+    today = date_.today()  # 避免被参数名 date 遮蔽
+
     # 解析日期
     target_date = None
     if date:
@@ -108,7 +110,7 @@ async def get_wuxing_tips(
     selected = random.choice(candidates)
 
     return {
-        "date": (target_date or date.today()).isoformat(),
+        "date": (target_date or today).isoformat(),
         "element": today_element,
         **selected,
     }
