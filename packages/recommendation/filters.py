@@ -50,14 +50,24 @@ def apply_temperature_hard_filter(
     for item in scored_items:
         thickness = infer_item_thickness(item)
 
-        # temperature_range 硬排除：当前温度低于物品适用最低温度超过10°C则排除
+        # temperature_range 硬排除
         temp_range = item.get("temperature_range")
         if temp_range and isinstance(temp_range, dict):
+            # 最低温排除：当前温度低于物品适用最低温度超过10°C则排除
             range_min = temp_range.get("最低") or temp_range.get("min")
             if range_min is not None:
                 try:
                     range_min_int = int(range_min)
                     if temp < range_min_int - 10:
+                        continue
+                except (ValueError, TypeError):
+                    pass
+            # 最高温排除：当前温度高于物品适用最高温度超过8°C则排除
+            range_max = temp_range.get("最高") or temp_range.get("max")
+            if range_max is not None:
+                try:
+                    range_max_int = int(range_max)
+                    if temp > range_max_int + 8:
                         continue
                 except (ValueError, TypeError):
                     pass
