@@ -4,12 +4,13 @@ import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { useUserStore } from '@/store/user'
-import { Calendar, MapPin, User, Save, Loader2, X, Sparkles, LogOut } from 'lucide-react'
+import { Calendar, MapPin, User, Save, Loader2, X, Sparkles, LogOut, Compass, Sun } from 'lucide-react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { getUserProfile, calculateBazi, updateUserBazi } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { PreferenceRadar } from './PreferenceRadar'
+import { AuthModal } from './AuthModal'
 
 interface UserProfileData {
   nickname: string | null
@@ -74,6 +75,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
   const [analyzing, setAnalyzing] = useState(false)
   const [fullProfile, setFullProfile] = useState<FullUserProfile | null>(null)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
   const [formData, setFormData] = useState<UserProfileData>({
     nickname: '',
     gender: '',
@@ -323,10 +325,93 @@ export function UserProfile({ onClose }: UserProfileProps) {
   )
 
   if (!isAuthenticated || !user) {
+    const valueProps = [
+      { Icon: Compass, color: 'var(--wuxing-wood)', title: '八字五行 · 命理定制', desc: '精准解析你的五行喜忌' },
+      { Icon: Sparkles, color: 'var(--wuxing-water)', title: 'AI 智能推荐 · 千人千面', desc: '每套搭配为你量身定制' },
+      { Icon: Sun, color: 'var(--wuxing-fire)', title: '每日运势 · 顺时而搭', desc: '顺应天时，日日好运' },
+    ]
+
     return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-[var(--brand-subtle)]">请先登录</p>
-      </div>
+      <>
+        <div className="min-h-full flex items-center justify-center bg-gradient-to-br from-[var(--brand-surface)] via-white to-[#F0F7FA] px-6 py-10">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+            className="w-full max-w-xs text-center"
+          >
+            {/* 品牌图标 - 采用 App 图标叶枝式样 */}
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.1, type: 'spring', stiffness: 260, damping: 20 }}
+              className="mx-auto mb-4 w-16 h-16 rounded-[22px] bg-gradient-to-br from-[#F7F5EF] to-[#ECE8DE] border border-white/70 flex items-center justify-center shadow-sm"
+            >
+              <span className="text-[34px] leading-none">🌿</span>
+            </motion.div>
+
+            {/* 专业背书徽章 */}
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 mb-3 rounded-full bg-white/70 border border-[#3DA35D]/20 text-[11px] text-[var(--brand-body)] shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#3DA35D]" />
+              传统命理 × 现代 AI
+            </div>
+
+            <h2 className="text-2xl font-bold bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] bg-clip-text text-transparent font-serif tracking-tight">
+              顺衣尚
+            </h2>
+            <p className="mt-1.5 text-sm text-[var(--brand-body)] tracking-wide">
+              天人合一 · 五行穿搭 · 每日好运
+            </p>
+
+            {/* 核心价值主张 */}
+            <div className="mt-6 space-y-3.5 text-left">
+              {valueProps.map((p, i) => {
+                const { Icon } = p
+                return (
+                  <motion.div
+                    key={p.title}
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.35 + i * 0.1 }}
+                    className="flex items-center gap-3"
+                  >
+                    <div
+                      className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center"
+                      style={{ background: `${p.color}1A` }}
+                    >
+                      <Icon className="w-[18px] h-[18px]" style={{ color: p.color }} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-[var(--brand-heading)] truncate">{p.title}</p>
+                      <p className="text-xs text-[var(--brand-subtle)] truncate">{p.desc}</p>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </div>
+
+            {/* 登录 CTA */}
+            <motion.button
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowAuthModal(true)}
+              className="mt-7 w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] text-white font-semibold text-base shadow-lg hover:shadow-xl transition-shadow"
+            >
+              <Sparkles className="w-5 h-5" />
+              免费开启五行穿搭
+            </motion.button>
+
+            <p className="mt-3 text-xs text-[var(--brand-subtle)]">
+              登录即可解锁专属于你的命理穿搭方案
+            </p>
+          </motion.div>
+        </div>
+
+        <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+      </>
     )
   }
 

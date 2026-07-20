@@ -20,16 +20,16 @@ import { useChatStore } from '@/store/chat'
 import { useUserStore } from '@/store/user'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Users, BookOpen, Mountain, Compass, CircleDot, MoreHorizontal } from 'lucide-react'
+import { Users, BookOpen, Mountain, Compass, MoreHorizontal } from 'lucide-react'
 import { SkeletonCard } from '@/components/ui'
 
 // 懒加载衣橱页面，减少首页初始加载时间
 const WardrobePage = lazy(() => import('./wardrobe/page'))
 const DiaryPage = lazy(() => import('./diary/page'))
-const FortunePage = lazy(() => import('./fortune/page'))
-const DestinyPage = lazy(() => import('./destiny/page'))
 const CommunityPage = lazy(() => import('./community/page'))
 const CultivationPage = lazy(() => import('./cultivation/page'))
+// 运势 + 命理 合并为综合页面
+const DestinyFortuneHub = lazy(() => import('@/components/features/DestinyFortuneHub').then(m => ({ default: m.DestinyFortuneHub })))
 const AuthModal = lazy(() => import('@/components/features/AuthModal').then(m => ({ default: m.AuthModal })))
 
 // 统一的页面加载骨架屏
@@ -111,8 +111,6 @@ export default function Home() {
         setActiveTab('profile')
       } else if (window.location.hash === '#wardrobe') {
         setActiveTab('wardrobe')
-      } else if (window.location.hash === '#tryon') {
-        setActiveTab('tryon')
       } else if (window.location.hash === '#diary') {
         setActiveTab('diary')
       } else if (window.location.hash === '#fortune') {
@@ -481,7 +479,7 @@ export default function Home() {
                   aria-expanded={showMoreMenu}
                   aria-haspopup="menu"
                   className={`relative flex items-center gap-1.5 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
-                    activeTab === 'fortune' || activeTab === 'destiny' || activeTab === 'tryon'
+                    activeTab === 'fortune' || activeTab === 'destiny'
                       ? 'bg-[var(--brand-surface)] text-[var(--brand-heading)] shadow-sm'
                       : 'text-stone-600 hover:bg-[var(--brand-surface)] hover:text-[var(--brand-heading)]'
                   }`}
@@ -500,8 +498,9 @@ export default function Home() {
                       role="menu"
                       aria-label="更多功能菜单"
                       onKeyDown={(e) => { if (e.key === 'Escape') setShowMoreMenu(false) }}
-                      className="absolute top-full right-0 mt-1 w-40 bg-white rounded-xl shadow-lg border border-stone-200/60 py-1 z-50"
+                      className="absolute top-full right-0 mt-1 w-64 bg-white rounded-xl shadow-lg border border-stone-200/60 py-1 z-50"
                     >
+                  {/* 运势 + 命理（已合并为综合页面） */}
                   <button
                     role="menuitem"
                     onClick={() => {
@@ -510,48 +509,37 @@ export default function Home() {
                       setShowMoreMenu(false)
                     }}
                     className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-                      activeTab === 'fortune'
+                      activeTab === 'fortune' || activeTab === 'destiny'
                         ? 'text-[var(--brand-heading)] bg-[var(--brand-surface)]'
                         : 'text-stone-600 hover:bg-stone-50'
                     }`}
                   >
                     <Compass className="w-4 h-4" />
-                    <span>运势</span>
+                    <span>运势命理</span>
                   </button>
-                  <button
+
+                  {/* 分隔线 */}
+                  <div className="my-1 border-t border-stone-100" />
+
+                  {/* 试衣 — 暂未上线，置于末尾并禁用 */}
+                  <div
                     role="menuitem"
-                    onClick={() => {
-                      setActiveTab('destiny')
-                      window.location.hash = '#destiny'
-                      setShowMoreMenu(false)
-                    }}
-                    className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-                      activeTab === 'destiny'
-                        ? 'text-[var(--brand-heading)] bg-[var(--brand-surface)]'
-                        : 'text-stone-600 hover:bg-stone-50'
-                    }`}
+                    aria-disabled="true"
+                    className="px-4 py-2.5 opacity-70 cursor-not-allowed select-none"
                   >
-                    <CircleDot className="w-4 h-4" />
-                    <span>命理</span>
-                  </button>
-                  <button
-                    role="menuitem"
-                    onClick={() => {
-                      setActiveTab('tryon')
-                      window.location.hash = '#tryon'
-                      setShowMoreMenu(false)
-                    }}
-                    className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-                      activeTab === 'tryon'
-                        ? 'text-[var(--brand-heading)] bg-[var(--brand-surface)]'
-                        : 'text-stone-600 hover:bg-stone-50'
-                    }`}
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <span>试衣</span>
-                  </button>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 text-sm font-medium text-stone-400">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span>试衣</span>
+                      </div>
+                      <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-stone-100 text-stone-400">敬请期待</span>
+                    </div>
+                    <p className="mt-1 text-[11px] leading-snug text-stone-400">
+                      AI人物形象智能穿搭推荐功能 - 稍后上线，敬请期待
+                    </p>
+                  </div>
                     </div>
                   </>
                 )}
@@ -675,23 +663,6 @@ export default function Home() {
                 />
               </motion.div>
             )}
-            {activeTab === 'tryon' && (
-              <motion.div
-                key="tryon"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
-                className="h-[calc(100vh-200px)] min-h-[400px]"
-              >
-                <iframe
-                  src="/tryon"
-                  className="w-full h-full border-0 rounded-xl"
-                  title="虚拟试衣"
-                  aria-label="虚拟试衣页面"
-                />
-              </motion.div>
-            )}
             {activeTab === 'diary' && (
               <motion.div
                 key="diary"
@@ -705,29 +676,22 @@ export default function Home() {
                 </Suspense>
               </motion.div>
             )}
-            {activeTab === 'fortune' && (
+            {(activeTab === 'fortune' || activeTab === 'destiny') && (
               <motion.div
-                key="fortune"
+                key="destiny-fortune"
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.25, ease: "easeOut" }}
               >
                 <Suspense fallback={<PageLoadingFallback />}>
-                  <FortunePage />
-                </Suspense>
-              </motion.div>
-            )}
-            {activeTab === 'destiny' && (
-              <motion.div
-                key="destiny"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
-              >
-                <Suspense fallback={<PageLoadingFallback />}>
-                  <DestinyPage />
+                  <DestinyFortuneHub
+                    activeTab={activeTab === 'destiny' ? 'destiny' : 'fortune'}
+                    onTabChange={(tab) => {
+                      setActiveTab(tab)
+                      window.location.hash = `#${tab}`
+                    }}
+                  />
                 </Suspense>
               </motion.div>
             )}

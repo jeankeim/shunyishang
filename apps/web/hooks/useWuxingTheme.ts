@@ -53,9 +53,12 @@ function elementToChinese(element: string): string {
 
 /**
  * 将 data-element 属性应用到 HTML 根元素
+ * 同时强制 data-theme="light" 防止设备深色模式覆盖品牌色
  */
 function applyElementToDOM(element: string) {
   if (typeof document !== 'undefined') {
     document.documentElement.setAttribute('data-element', element)
+    // 强制浅色主题，防止 prefers-color-scheme: dark 触发暗色变量
+    document.documentElement.setAttribute('data-theme', 'light')
   }
 }

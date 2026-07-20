@@ -103,16 +103,19 @@ def run_recommendation_for_case(
 def run_evaluation(
     sample_size: int = None,
     verbose: bool = True,
-) -> Dict:
+    return_results: bool = False,
+):
     """
     运行完整评估
     
     Args:
         sample_size: 采样数量（None=全量）
         verbose: 是否输出详细日志
+        return_results: 为 True 时额外返回逐用例结果列表（供 CI 门禁统计安全违规）
     
     Returns:
-        评估报告字典
+        - return_results=False（默认）: 评估报告字典（向后兼容）
+        - return_results=True: (评估报告字典, 逐用例 EvaluationResult 列表)
     """
     print("=" * 60)
     print("🎯 推荐算法评估系统")
@@ -193,6 +196,8 @@ def run_evaluation(
     # 4. 输出报告
     print_report(report)
     
+    if return_results:
+        return report, results
     return report
 
 

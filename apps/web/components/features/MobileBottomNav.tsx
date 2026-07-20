@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, Shirt, Users, User, Menu, Scan, BookOpen, Compass, CircleDot, Mountain } from 'lucide-react'
+import { Sparkles, Shirt, Users, User, Menu, Scan, BookOpen, Compass, Mountain } from 'lucide-react'
 
 type TabId = 'chat' | 'wardrobe' | 'tryon' | 'profile' | 'diary' | 'fortune' | 'destiny' | 'community' | 'cultivation'
 
@@ -19,16 +19,16 @@ const PRIMARY_ITEMS = [
   { id: 'profile' as const, Icon: User, label: '我的' },
 ]
 
-// 次级功能（通过"更多"展开）：试衣 | 日记 | 运势 | 命理 | 修炼
+// 次级功能（通过"更多"展开）：日记 | 运势命理 | 修炼
+// 注：运势与命理已合并为综合页（id: 'fortune'）
 const SECONDARY_ITEMS = [
-  { id: 'tryon' as const, Icon: Scan, label: '试衣' },
   { id: 'diary' as const, Icon: BookOpen, label: '日记' },
-  { id: 'fortune' as const, Icon: Compass, label: '运势' },
-  { id: 'destiny' as const, Icon: CircleDot, label: '命理' },
+  { id: 'fortune' as const, Icon: Compass, label: '运势命理' },
   { id: 'cultivation' as const, Icon: Mountain, label: '修炼' },
 ]
 
-const SECONDARY_IDS: TabId[] = SECONDARY_ITEMS.map(i => i.id)
+// 高亮判断需覆盖合并前的 destiny
+const SECONDARY_IDS: TabId[] = ['diary', 'fortune', 'destiny', 'cultivation']
 
 export function MobileBottomNav({ activeTab, onTabChange }: MobileBottomNavProps) {
   const [showMore, setShowMore] = useState(false)
@@ -74,7 +74,7 @@ export function MobileBottomNav({ activeTab, onTabChange }: MobileBottomNavProps
               </div>
               <div className="px-6 pb-6 pt-2">
                 <h3 className="text-sm font-semibold text-stone-400 mb-4">更多功能</h3>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   {SECONDARY_ITEMS.map((item) => {
                     const isActive = activeTab === item.id
                     const { Icon } = item
@@ -92,7 +92,20 @@ export function MobileBottomNav({ activeTab, onTabChange }: MobileBottomNavProps
                       </button>
                     )
                   })}
+                  {/* 试衣 — 暂未上线，置于末尾并禁用 */}
+                  <div
+                    aria-disabled="true"
+                    className="relative flex flex-col items-center gap-2 py-3 px-1 rounded-xl opacity-50 cursor-not-allowed select-none"
+                  >
+                    <Scan className="w-6 h-6 text-stone-400" />
+                    <span className="text-xs font-medium text-stone-500">试衣</span>
+                    <span className="absolute -top-0.5 right-0 px-1 py-px rounded-full text-[9px] font-medium bg-stone-100 text-stone-400">敬请期待</span>
+                  </div>
                 </div>
+                {/* 试衣占位提示 */}
+                <p className="mt-3 text-[11px] leading-snug text-stone-400 text-center">
+                  AI人物形象智能穿搭推荐功能 - 稍后上线，敬请期待
+                </p>
               </div>
             </motion.div>
           </>

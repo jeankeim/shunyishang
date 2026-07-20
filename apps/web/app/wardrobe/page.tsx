@@ -12,6 +12,7 @@ import { getImageUrl } from '@/lib/image'
 import { EmptyState, SkeletonList, ConfirmDialog } from '@/components/ui'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { WardrobeInsights } from '@/components/features/WardrobeInsights'
+import { WuxingBaguaChart } from '@/components/features/WuxingBaguaChart'
 import { IdleItemsCard } from '@/components/features/IdleItemsCard'
 
 const AddWardrobeModal = lazy(() => import('@/components/features/AddWardrobeModal').then(m => ({ default: m.AddWardrobeModal })))
@@ -78,11 +79,6 @@ export default function WardrobePage() {
     ? items.filter((item) => item.primary_element === filterElement)
     : items
 
-  // 计算五行比例
-  const getElementPercentage = (element: string) => {
-    if (total === 0) return 0
-    return Math.round(((elementStats[element] || 0) / total) * 100)
-  }
 
   // 未登录状态
   if (!isAuthenticated) {
@@ -118,35 +114,46 @@ export default function WardrobePage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center max-w-md mx-auto px-6 relative z-10"
         >
-          <motion.div 
-            className="w-32 h-32 mx-auto mb-8 relative"
-            animate={{ rotate: [0, 360] }}
-            transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
-          >
-            {/* 五行圆环 */}
-            {WUXING_ELEMENTS.map((element, i) => {
-              const config = WUXING_CONFIG[element]
-              const angle = (i * 72 - 90) * (Math.PI / 180)
-              const x = 48 + 40 * Math.cos(angle)
-              const y = 48 + 40 * Math.sin(angle)
-              return (
-                <div
-                  key={element}
-                  className="absolute w-8 h-8 rounded-full flex items-center justify-center text-lg shadow-lg"
-                  style={{
-                    left: x - 16,
-                    top: y - 16,
-                    background: `linear-gradient(135deg, ${config.gradientFrom}, ${config.gradientTo})`,
-                  }}
-                >
-                  {config.emoji}
-                </div>
-              )
-            })}
+          <div className="w-36 h-36 mx-auto mb-8 relative">
+            {/* 柔和光晕 */}
+            <div className="absolute inset-4 rounded-full bg-gradient-to-br from-[#3DA35D]/10 to-[#4A90C4]/10 blur-xl" />
+            {/* 引导圆环 */}
+            <div className="absolute inset-3 rounded-full border border-[var(--brand-heading)]/10" />
+            {/* 旋转的五行环 */}
+            <motion.div
+              className="absolute inset-0"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
+            >
+              {WUXING_ELEMENTS.map((element, i) => {
+                const config = WUXING_CONFIG[element]
+                const angle = (i * 72 - 90) * (Math.PI / 180)
+                const x = 72 + 50 * Math.cos(angle)
+                const y = 72 + 50 * Math.sin(angle)
+                return (
+                  <motion.div
+                    key={element}
+                    className="absolute w-9 h-9 rounded-full flex items-center justify-center shadow-md ring-2 ring-white/70"
+                    style={{
+                      left: x - 18,
+                      top: y - 18,
+                      background: `linear-gradient(135deg, ${config.gradientFrom}, ${config.gradientTo})`,
+                    }}
+                    animate={{ rotate: -360 }}
+                    transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
+                  >
+                    <span className="text-white text-sm font-semibold" style={{ fontFamily: 'serif' }}>{element}</span>
+                  </motion.div>
+                )
+              })}
+            </motion.div>
+            {/* 中心徽标 */}
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-3xl">👗</span>
+              <div className="w-14 h-14 rounded-full bg-white/90 backdrop-blur-sm shadow-lg flex items-center justify-center">
+                <span className="text-2xl font-bold bg-gradient-to-br from-[#3DA35D] to-[#4A90C4] bg-clip-text text-transparent" style={{ fontFamily: 'serif' }}>衣</span>
+              </div>
             </div>
-          </motion.div>
+          </div>
           
           <h2 className="text-3xl font-bold text-[var(--brand-heading)] mb-3" style={{ fontFamily: 'serif' }}>
             我的衣橱
@@ -220,7 +227,7 @@ export default function WardrobePage() {
         className="mb-6 md:mb-8 p-4 md:p-6 bg-white/70 backdrop-blur-xl rounded-2xl md:rounded-3xl border border-white/50 shadow-xl shadow-stone-200/20"
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xs md:text-sm font-medium text-stone-500 uppercase tracking-wider">五行能量分布</h3>
+          <h3 className="text-xs md:text-sm font-medium text-stone-500 uppercase tracking-wider">五行能量分布 · 八卦图</h3>
           <div className="flex gap-2">
             <button
               onClick={() => setViewMode('flow')}
@@ -240,52 +247,25 @@ export default function WardrobePage() {
             </button>
           </div>
         </div>
-        
-        {/* 五行条形图 - 移动端横向滚动 */}
-        <div className="flex gap-2 md:gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1 md:mx-0 md:px-0 md:pb-0">
-          {WUXING_ELEMENTS.map((element, index) => {
-            const config = WUXING_CONFIG[element]
-            const count = elementStats[element] || 0
-            const percentage = getElementPercentage(element)
-            const isActive = filterElement === element
 
-            return (
-              <motion.button
-                key={element}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 + index * 0.05 }}
-                onClick={() => handleFilterChange(isActive ? null : element)}
-                className={`flex-shrink-0 w-[60px] md:flex-1 group relative overflow-hidden rounded-xl md:rounded-2xl p-3 md:p-4 transition-all touch-feedback ${
-                  isActive 
-                    ? 'ring-2 ring-offset-2 scale-105 shadow-lg' 
-                    : 'hover:scale-102 hover:shadow-md'
-                }`}
-                style={{
-                  background: `linear-gradient(135deg, ${config.gradientFrom}20, ${config.gradientTo}10)`,
-                  borderColor: isActive ? config.gradientFrom : 'transparent',
-                }}
-              >
-                <div className="text-center relative z-10">
-                  <span className="text-xl md:text-2xl mb-1 md:mb-2 block">{config.emoji}</span>
-                  <span className="text-sm md:text-lg font-bold text-stone-700">{element}</span>
-                  <div className="mt-0.5 md:mt-1 text-xl md:text-2xl font-bold" style={{ color: config.gradientFrom }}>
-                    {count}
-                  </div>
-                  <span className="text-[10px] md:text-xs text-[var(--brand-subtle)]">{percentage}%</span>
-                </div>
-                
-                {/* 背景进度条 */}
-                <div 
-                  className="absolute bottom-0 left-0 right-0 transition-all duration-500"
-                  style={{
-                    height: `${Math.max(percentage, 8)}%`,
-                    background: `linear-gradient(to top, ${config.gradientFrom}30, transparent)`,
-                  }}
-                />
-              </motion.button>
-            )
-          })}
+        {/* 道家五行八卦图 - 点击节点按五行筛选 */}
+        <WuxingBaguaChart
+          elementStats={elementStats}
+          total={total}
+          filterElement={filterElement}
+          onFilter={(el) => handleFilterChange(filterElement === el ? null : el)}
+        />
+
+        {/* 图例说明 */}
+        <div className="mt-3 flex items-center justify-center gap-4 text-[11px] text-[var(--brand-subtle)]">
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-4 h-0 border-t" style={{ borderColor: 'var(--wuxing-wood)', opacity: 0.6 }} />
+            外环相生
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-4 h-0 border-t border-dashed" style={{ borderColor: 'var(--brand-subtle)' }} />
+            内星相克
+          </span>
         </div>
       </motion.div>
 

@@ -257,7 +257,8 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
                 logger.error(f"[Cache] 缓存写入失败: {e}")
                 
     except Exception as e:
-        # 错误处理
+        # 错误处理：记录完整堆栈，避免 SSE 错误事件成为诊断盲区
+        logger.error(f"[SSE] 推荐流程异常: {e}", exc_info=True)
         error_event = {"type": "error", "data": str(e)}
         yield f"data: {json.dumps(error_event, ensure_ascii=False)}\n\n".encode("utf-8")
         

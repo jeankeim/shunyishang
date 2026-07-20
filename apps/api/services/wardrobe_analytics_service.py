@@ -640,11 +640,15 @@ def _query_diary_items_detail(diary_id: int) -> List[Dict[str, Any]]:
 # ─────────────────────────────────────────────────────────────────────────────────
 
 def _parse_date(val) -> Optional[date]:
-    """安全解析日期"""
-    if isinstance(val, date):
-        return val
+    """安全解析日期
+
+    注意：datetime 是 date 的子类，isinstance(datetime_obj, date) 为 True，
+    因此必须先判断 datetime 并转为 date，否则后续 (date - datetime) 会抛 TypeError。
+    """
     if isinstance(val, datetime):
         return val.date()
+    if isinstance(val, date):
+        return val
     if isinstance(val, str):
         for fmt in ("%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"):
             try:
