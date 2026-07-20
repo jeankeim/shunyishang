@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Noto_Sans_SC } from 'next/font/google'
+import { Noto_Sans_SC, Noto_Serif_SC } from 'next/font/google'
 import './globals.css'
 import './accessibility.css'
 import { ThemeProvider } from '@/components/providers/ThemeProvider'
@@ -11,6 +11,14 @@ const notoSansSC = Noto_Sans_SC({
   weight: ['300', '400', '500', '700'],
   display: 'swap',
   variable: '--font-noto-sans-sc',
+})
+
+// 宋体标题字体 - 新中式高级感（Editorial Ink 方案）
+const notoSerifSC = Noto_Serif_SC({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
+  variable: '--font-noto-serif-sc',
 })
 
 export const metadata: Metadata = {
@@ -50,7 +58,7 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
-      <body className={`${notoSansSC.variable} font-sans`} suppressHydrationWarning>
+      <body className={`${notoSansSC.variable} ${notoSerifSC.variable} font-sans`} suppressHydrationWarning>
         {/* 清理可能损坏的localStorage数据 */}
         <script
           dangerouslySetInnerHTML={{

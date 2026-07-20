@@ -26,6 +26,11 @@ const config: Config = {
           '"Noto Color Emoji"',
         ],
         serif: [
+          'var(--font-noto-serif-sc)',
+          'Noto Serif SC',
+          'Songti SC',
+          'STSong',
+          '"Source Han Serif SC"',
           'Lora',
           'Georgia',
           'Cambria',
@@ -69,11 +74,11 @@ const config: Config = {
           foreground: 'hsl(var(--card-foreground))',
         },
         wuxing: {
-          metal: '#9CAFB8',  // 银霜 - 提高辨识度
-          wood: '#3DA35D',   // 春芽绿 - WCAG 4.8:1
-          water: '#4A90C4',  // 春雨青 - WCAG 4.6:1
-          fire: '#C75B5B',   // 朱砂红 - 减少粉感
-          earth: '#B89B5E',  // 春泥黄 - WCAG 4.5:1
+          metal: '#8FA3AB',  // 银霍 - 降饱和新中式
+          wood: '#4E8560',   // 黛绿 - 降饱和，青瓷感
+          water: '#4F7D9E',  // 黛蓝 - 降饱和，尘蓝
+          fire: '#A85D57',   // 绞红 - 降饱和，砖红
+          earth: '#9C8654',  // 赭石 - 降饱和，青铜
         },
       },
       borderRadius: {
