@@ -492,6 +492,11 @@ def score_common_sense(
                 if violation:
                     violations.append(violation)
                     temp_sense_score -= 1.75
+                # temperature_range 超限检查（与生产过滤逻辑对齐）
+                range_violation = _check_temp_range_violation(temp, item)
+                if range_violation:
+                    violations.append(range_violation)
+                    temp_sense_score -= 1.75
     temp_sense_score = max(0, temp_sense_score)
     
     # 季节常识 (4分)
@@ -535,15 +540,40 @@ def score_common_sense(
 
 
 def _check_temp_violation(temp: float, thickness: str, item_name: str) -> Optional[str]:
-    """检查温度常识违反"""
-    if temp >= 35 and thickness == "厚重":
+    """检查温度常识违反（与生产温度硬过滤阈值对齐）"""
+    if temp >= 30 and thickness == "厚重":
         return f"极热({temp}°C)推荐厚重衣物: {item_name}"
-    if temp >= 32 and thickness in ("厚重", "中厚"):
+    if temp >= 28 and thickness in ("厚重", "中厚"):
         return f"高温({temp}°C)推荐{thickness}衣物: {item_name}"
     if temp <= 0 and thickness in ("极薄", "轻薄"):
         return f"严寒({temp}°C)推荐{thickness}衣物: {item_name}"
     if temp <= 5 and thickness == "极薄":
         return f"低温({temp}°C)推荐极薄衣物: {item_name}"
+    return None
+
+
+def _check_temp_range_violation(temp: float, item: Dict) -> Optional[str]:
+    """检查物品适用温度范围超限（与生产最高温硬过滤对齐）"""
+    temp_range = item.get("temperature_range")
+    if not temp_range or not isinstance(temp_range, dict):
+        return None
+    item_name = item.get("name", "")
+    # 最高温超限：当前温度 > 物品最高适用温度 + 8°C
+    range_max = temp_range.get("最高") or temp_range.get("max")
+    if range_max is not None:
+        try:
+            if temp > int(range_max) + 8:
+                return f"温度超限({temp}°C>最高{range_max}°C+8): {item_name}"
+        except (ValueError, TypeError):
+            pass
+    # 最低温超限：当前温度 < 物品最低适用温度 - 10°C
+    range_min = temp_range.get("最低") or temp_range.get("min")
+    if range_min is not None:
+        try:
+            if temp < int(range_min) - 10:
+                return f"温度超限({temp}°C<最低{range_min}°C-10): {item_name}"
+        except (ValueError, TypeError):
+            pass
     return None
 
 
