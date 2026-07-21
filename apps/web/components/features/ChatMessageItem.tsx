@@ -145,6 +145,14 @@ export function ChatMessageItem({
           </div>
         )}
 
+        {/* 软降级提示横幅（如衣橱→公共库） */}
+        {message.metadata?.notice && (
+          <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+            <span className="leading-none mt-0.5">ℹ️</span>
+            <span className="leading-relaxed">{message.metadata.notice}</span>
+          </div>
+        )}
+
         {/* 多天行程规划卡片 */}
         {message.metadata?.travelPlan && (
           <TravelPlanCard data={message.metadata.travelPlan} />

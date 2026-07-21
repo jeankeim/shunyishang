@@ -17,6 +17,7 @@ from openai import OpenAI, APITimeoutError, APIError, RateLimitError
 from apps.api.core.config import settings
 from apps.api.core.database import DatabasePool
 from apps.api.core.cache import cache as redis_cache
+from apps.api.core.retry import llm_retry
 from packages.ai_agents.state import AgentState
 from packages.ai_agents.wardrobe_client import wardrobe_client
 from packages.utils.bazi_calculator import (
@@ -577,6 +578,19 @@ def _compute_recommend_weights(
 # ============================================================
 # Node B: retrieve_items_node
 # ============================================================
+@llm_retry(max_attempts=3, min_wait=1.0, max_wait=6.0)
+def _embed_query_with_retry(text: str) -> list:
+    """
+    带指数退避重试的查询向量生成（衣橱/混合模式用）。
+
+    向量 API 出现超时/限流/连接抖动时自动重试 2 次（1s→2s→4s 退避）；
+    3 次仍失败会抛 LLMServiceError，由调用方决定降级策略。
+    公共库走的是另一套带缓存的 _encode_text_with_dashscope，不经过这里。
+    """
+    from apps.api.services.embedding_service import embedding_service
+    return embedding_service.generate_embedding(text)
+
+
 def retrieve_items_node(state: AgentState) -> Dict:
     """
     物品检索节点（增强版 + Task 3 三种模式）
@@ -652,8 +666,31 @@ def retrieve_items_node(state: AgentState) -> Dict:
             }
         
         # 生成查询向量
-        from apps.api.services.embedding_service import embedding_service
-        query_embedding = embedding_service.generate_embedding(search_query)
+        # embedding 服务异常（如向量 API 超时/限流）时：先自动重试；
+        # 重试仍失败则不再直接报错中断，而是【降级到公共库】并带 retrieval_fallback
+        # 标志，让前端明确告知用户"衣橱暂时不可用，已临时用公共库"。
+        try:
+            query_embedding = _embed_query_with_retry(search_query)
+        except Exception as e:
+            logger.error(f"[衣橱检索] 向量生成重试后仍失败，降级公共库: {e}", exc_info=True)
+            public_items = _vector_search(
+                search_query,
+                limit=50,
+                user_gender=user_gender,
+                weather_info=weather_info,
+                scene=scene,
+                sub_scene=sub_scene,
+            )
+            for item in public_items:
+                item["source"] = "public"
+                item["source_label"] = "🛒 建议"
+                item_sources[_canonical_item_key(item)] = "public"
+            return {
+                "retrieved_items": public_items,
+                "item_sources": item_sources,
+                # 通知：前端据此提示"衣橱暂时不可用，已切公共库"
+                "retrieval_fallback": "wardrobe_to_public",
+            }
         
         # 从衣橱检索
         items = wardrobe_client.vector_search_wardrobe(
@@ -694,23 +731,27 @@ def retrieve_items_node(state: AgentState) -> Dict:
         # 模式 C: 混合推荐 - 优先衣橱，不足补充公共库
         if user_id and not wardrobe_client.check_wardrobe_empty(user_id):
             # 生成查询向量
-            from apps.api.services.embedding_service import embedding_service
-            query_embedding = embedding_service.generate_embedding(search_query)
-            
-            # 先从衣橱检索
-            wardrobe_items = wardrobe_client.vector_search_wardrobe(
-                user_id=user_id,
-                query_embedding=query_embedding,  # 已经是 List[float]，无需 .tolist()
-                target_elements=target_elements,
-                weather_info=weather_info,
-                limit=top_k
-            )
-            
-            items.extend(wardrobe_items)
-            for item in wardrobe_items:
-                item_sources[_canonical_item_key(item)] = "wardrobe"
-                item["source"] = "wardrobe"
-                item["source_label"] = "🏠 自有"
+            # 混合模式下 embedding 失败时跳过衣橱检索，继续用公共库兜底，
+            # 避免异常中断整个推荐流程（先重试，仍失败再降级）。
+            try:
+                query_embedding = _embed_query_with_retry(search_query)
+                
+                # 先从衣橱检索
+                wardrobe_items = wardrobe_client.vector_search_wardrobe(
+                    user_id=user_id,
+                    query_embedding=query_embedding,  # 已经是 List[float]，无需 .tolist()
+                    target_elements=target_elements,
+                    weather_info=weather_info,
+                    limit=top_k
+                )
+                
+                items.extend(wardrobe_items)
+                for item in wardrobe_items:
+                    item_sources[_canonical_item_key(item)] = "wardrobe"
+                    item["source"] = "wardrobe"
+                    item["source_label"] = "🏠 自有"
+            except Exception as e:
+                logger.error(f"[混合检索] 衣橱检索失败，降级为公共库: {e}", exc_info=True)
         
         # 如果衣橱结果不足，从公共库补充
         if len(items) < top_k:

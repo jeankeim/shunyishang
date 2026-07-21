@@ -431,9 +431,17 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: 
             })
             break
 
+          case 'notice':
+            // 后端软降级通知（如衣橱→公共库）：以温和横幅追加，不打断推荐结果
+            mergeMessageMetadata(convId, aiMessageId, {
+              notice: typeof event.data === 'string' ? event.data : String(event.data ?? ''),
+            })
+            break
+
           case 'error':
             // 根据错误内容显示更友好的提示
-            const errorMsg = event.data || ''
+            // 安全提取：后端通常返回字符串，防御 object/null 导致 .includes 报错
+            const errorMsg = typeof event.data === 'string' ? event.data : (event.data == null ? '' : JSON.stringify(event.data))
             let userFriendlyMsg = '抱歉，服务暂时不可用，请稍后重试。'
             
             // 调试：打印错误信息
@@ -455,6 +463,9 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: 
               // 空错误信息，可能是流处理中的临时问题，忽略
               console.warn('[推荐] 收到空错误事件，忽略')
               return
+            } else if (finalRetrievalMode === 'wardrobe') {
+              // 衣橱模式下的未知错误：通常是衣橱为空或衣物缺少语义向量
+              userFriendlyMsg = '👗 暂时无法从您的衣橱生成推荐。\n\n💡 建议：\n1. 确认衣橱中已添加衣物\n2. 或切换到「智能混合」/「全局库」模式再试'
             }
             
             // 如果已经有推荐卡片，不覆盖错误信息，只在控制台记录
@@ -583,8 +594,13 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: 
               type: 'hint',
             })
             break
+          case 'notice':
+            mergeMessageMetadata(convId, aiMessageId, {
+              notice: typeof event.data === 'string' ? event.data : String(event.data ?? ''),
+            })
+            break
           case 'error':
-            const errorMsg = event.data || ''
+            const errorMsg = typeof event.data === 'string' ? event.data : ''
             updateMessage(convId, aiMessageId, {
               content: errorMsg || '换一批失败，请稍后重试',
               type: 'error',

@@ -47,6 +47,7 @@ export interface ChatMessageMetadata {
   suggestedElements?: string[]
   scene?: string
   travelPlan?: any  // 多天行程规划数据
+  notice?: string  // 软降级提示（如衣橱→公共库），以温和横幅展示
 }
 
 export interface ChatMessage {

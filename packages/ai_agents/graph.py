@@ -276,6 +276,14 @@ def run_agent_stream(
         yield {"type": "error", "data": "没有找到合适的衣物"}
         return
     
+    # 软降级通知：衣橱模式因向量 API 抖动重试后仍失败，已自动降级公共库，
+    # 向前端发一条 notice 事件（不中断推荐结果），保障用户知情而非静默切换。
+    if initial_state.get("retrieval_fallback") == "wardrobe_to_public":
+        yield {
+            "type": "notice",
+            "data": "衣橱推荐暂时不可用，已临时为您使用公共库推荐。稍后可再试「我的衣橱」。",
+        }
+    
     # 输出分析结果
     bazi_result = initial_state.get("bazi_result")
     bazi_reasoning = bazi_result.get("reasoning") if bazi_result else None

@@ -201,6 +201,7 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
         collected_items = None
         collected_travel_plan = None  # P2-98：收集旅行规划事件
         collected_reason = []
+        is_fallback = False  # 衣橱→公共库软降级：不应把降级结果缓存到 wardrobe 键下
         
         # 优先使用 request.gender，其次从 bazi_input 中获取
         user_gender = request.gender or (bazi_input.get("gender") if bazi_input else None)
@@ -229,6 +230,9 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
                 collected_travel_plan = event.get("data")
             elif event.get("type") == "token":
                 collected_reason.append(event.get("data", ""))
+            elif event.get("type") == "notice":
+                # 收到软降级通知：标记本次为降级结果，跳过缓存写入
+                is_fallback = True
             
             # 编码为 SSE 格式
             data = json.dumps(event, ensure_ascii=False)
@@ -239,7 +243,9 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
                 break
         
         # 缓存完整结果（如果收集到了）
-        if collected_analysis and collected_items and settings.redis_enabled:
+        # 软降级（衣橱→公共库）的结果不写缓存，避免后续相同衣橱请求命中
+        # 后静默返回公共库结果（且丢失 notice 提示）。
+        if collected_analysis and collected_items and settings.redis_enabled and not is_fallback:
             try:
                 cache_data = {
                     "analysis": collected_analysis,

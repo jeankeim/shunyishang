@@ -125,7 +125,7 @@ export interface RecommendRequest {
 }
 
 export interface SSEEvent {
-  type: 'analysis' | 'items' | 'token' | 'done' | 'error' | 'travel_plan' | 'hint'
+  type: 'analysis' | 'items' | 'token' | 'done' | 'error' | 'travel_plan' | 'hint' | 'notice'
   data: any
 }
 
