@@ -10,6 +10,7 @@ import 'react-datepicker/dist/react-datepicker.css'
 import { getUserProfile, calculateBazi, updateUserBazi } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { PreferenceRadar } from './PreferenceRadar'
+import { SkinSettings } from './SkinSettings'
 import { AuthModal } from './AuthModal'
 
 interface UserProfileData {
@@ -477,7 +478,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
             </motion.div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form id="profile-form" onSubmit={handleSubmit} className="space-y-6">
             {/* 基本信息 */}
             <section className="bg-white rounded-2xl p-5 shadow-sm border border-[var(--brand-border)]/40">
               <h3 className="text-lg font-semibold text-[var(--brand-heading)] pb-3 mb-4 border-b border-[var(--brand-border)]/40">
@@ -787,34 +788,41 @@ export function UserProfile({ onClose }: UserProfileProps) {
               </div>
             </section>
 
-            {/* 操作按钮 */}
-            <div className="flex justify-end gap-3 pt-6 border-t border-[var(--brand-border)]/60">
-              <button
-                type="button"
-                onClick={handleCancel}
-                className="px-6 py-3 text-[var(--brand-subtle)] hover:bg-[var(--brand-surface)] rounded-xl font-medium transition-all hover:scale-105 active:scale-95"
-              >
-                取消
-              </button>
-              <button 
-                type="submit" 
-                disabled={saving}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[var(--wuxing-wood)] to-[var(--wuxing-water)] hover:opacity-90 disabled:from-stone-300 disabled:to-stone-400 text-white rounded-xl font-medium transition-all shadow-md hover:shadow-lg hover:scale-105 active:scale-95 disabled:scale-100"
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    保存中...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-5 w-5" />
-                    保存更改
-                  </>
-                )}
-              </button>
-            </div>
           </form>
+
+          {/* 应用设置 - 皮肤切换 */}
+          <div className="mt-6">
+            <SkinSettings />
+          </div>
+
+          {/* 操作按钮 - 保存 / 取消 */}
+          <div className="flex justify-end gap-3 pt-6 mt-6 border-t border-[var(--brand-border)]/60">
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="px-6 py-3 text-[var(--brand-subtle)] hover:bg-[var(--brand-surface)] rounded-xl font-medium transition-all hover:scale-105 active:scale-95"
+            >
+              取消
+            </button>
+            <button
+              type="submit"
+              form="profile-form"
+              disabled={saving}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[var(--wuxing-wood)] to-[var(--wuxing-water)] hover:opacity-90 disabled:from-stone-300 disabled:to-stone-400 text-white rounded-xl font-medium transition-all shadow-md hover:shadow-lg hover:scale-105 active:scale-95 disabled:scale-100"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  保存中...
+                </>
+              ) : (
+                <>
+                  <Save className="h-5 w-5" />
+                  保存更改
+                </>
+              )}
+            </button>
+          </div>
 
           {/* 退出登录 */}
           <div className="pt-6 mt-6 border-t border-[var(--brand-border)]/60">

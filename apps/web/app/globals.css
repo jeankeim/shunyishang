@@ -236,6 +236,163 @@ h1, h2, h3,
   }
 }
 
+/* ============================================
+   多皮肤系统 - 用户可选（html[data-skin] 特异性高于 [data-element]，确保覆盖）
+   auto 皮肤不在此定义，回落节气自动主题
+   ============================================ */
+
+/* 宣纸·墨韵（浅·暖白水墨 + 朱砂） */
+html[data-skin="xuan"] {
+  color-scheme: light;
+  --background: 40 40% 96%;
+  --foreground: 30 12% 16%;
+  --card: 45 55% 98%;
+  --card-foreground: 30 12% 16%;
+  --popover: 45 55% 98%;
+  --popover-foreground: 30 12% 16%;
+  --primary: 5 50% 44%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 40 30% 92%;
+  --secondary-foreground: 30 12% 16%;
+  --muted: 40 25% 91%;
+  --muted-foreground: 30 10% 40%;
+  --accent: 40 30% 92%;
+  --accent-foreground: 30 12% 16%;
+  --border: 40 25% 86%;
+  --input: 40 25% 88%;
+  --ring: 5 50% 44%;
+  --wuxing-metal: #94918a;
+  --wuxing-wood: #4E8560;
+  --wuxing-water: #4F7D9E;
+  --wuxing-fire: #A8443A;
+  --wuxing-earth: #9C8654;
+  --brand-heading: #2b2622;
+  --brand-body: #4a413a;
+  --brand-subtle: #6b5f54;
+  --brand-surface: #f2ece0;
+  --brand-border: #e6ddcd;
+  --brand-surface-active: #ece2d2;
+}
+
+/* 天青·素雅（浅·冷调青瓷 + 黛蓝） */
+html[data-skin="tianqing"] {
+  color-scheme: light;
+  --background: 200 30% 97%;
+  --foreground: 205 25% 20%;
+  --card: 0 0% 100%;
+  --card-foreground: 205 25% 20%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 205 25% 20%;
+  --primary: 203 34% 46%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 200 25% 93%;
+  --secondary-foreground: 205 25% 20%;
+  --muted: 200 20% 92%;
+  --muted-foreground: 205 12% 40%;
+  --accent: 200 28% 92%;
+  --accent-foreground: 205 25% 20%;
+  --border: 200 22% 86%;
+  --input: 200 22% 88%;
+  --ring: 203 34% 46%;
+  --wuxing-metal: #8FA3AB;
+  --wuxing-wood: #4E8560;
+  --wuxing-water: #4F7D9E;
+  --wuxing-fire: #A85D57;
+  --wuxing-earth: #9C8654;
+  --brand-heading: #1E3A47;
+  --brand-body: #3A5A68;
+  --brand-subtle: #5A7A88;
+  --brand-surface: #EAF2F6;
+  --brand-border: #D8E6EC;
+  --brand-surface-active: #E0EEF4;
+}
+
+/* 玄光·紫夜（深·深空紫黑 + 香槟金）—— 与 mystic 报告皮肤同源 */
+html[data-skin="violet"] {
+  color-scheme: dark;
+  --background: 255 30% 8%;
+  --foreground: 265 20% 92%;
+  --card: 252 32% 13%;
+  --card-foreground: 265 20% 92%;
+  --popover: 252 32% 13%;
+  --popover-foreground: 265 20% 92%;
+  --primary: 40 50% 58%;
+  --primary-foreground: 260 30% 12%;
+  --secondary: 255 20% 18%;
+  --secondary-foreground: 265 20% 92%;
+  --muted: 255 18% 16%;
+  --muted-foreground: 260 12% 68%;
+  --accent: 255 20% 20%;
+  --accent-foreground: 265 20% 92%;
+  --border: 260 20% 22%;
+  --input: 260 20% 20%;
+  --ring: 40 50% 58%;
+  --wuxing-metal: #A9BBC2;
+  --wuxing-wood: #6BA07E;
+  --wuxing-water: #6E97BB;
+  --wuxing-fire: #C07E77;
+  --wuxing-earth: #B8A06E;
+  --brand-heading: #f0eaf5;
+  --brand-body: #c9c1d8;
+  --brand-subtle: #9a90b0;
+  --brand-surface: #17132b;
+  --brand-border: #2a2340;
+  --brand-surface-active: #221c3a;
+}
+
+/* 静奢·墨玉（深·墨绿藏青曜石 + 暖金）—— 同时覆盖 mystic 报告皮肤为 jade */
+html[data-skin="jade"] {
+  color-scheme: dark;
+  --background: 162 25% 7%;
+  --foreground: 140 12% 91%;
+  --card: 165 30% 10%;
+  --card-foreground: 140 12% 91%;
+  --popover: 165 30% 10%;
+  --popover-foreground: 140 12% 91%;
+  --primary: 43 40% 55%;
+  --primary-foreground: 165 30% 10%;
+  --secondary: 165 18% 16%;
+  --secondary-foreground: 140 12% 91%;
+  --muted: 165 16% 14%;
+  --muted-foreground: 150 10% 66%;
+  --accent: 165 18% 18%;
+  --accent-foreground: 140 12% 91%;
+  --border: 160 18% 20%;
+  --input: 160 18% 18%;
+  --ring: 43 40% 55%;
+  --wuxing-metal: #A9BBC2;
+  --wuxing-wood: #6BA07E;
+  --wuxing-water: #6E97BB;
+  --wuxing-fire: #C07E77;
+  --wuxing-earth: #B8A06E;
+  --brand-heading: #eef2ec;
+  --brand-body: #c4d0c6;
+  --brand-subtle: #8fa096;
+  --brand-surface: #10201c;
+  --brand-border: #22332d;
+  --brand-surface-active: #1a2d26;
+  /* mystic 报告皮肤 → 静奢青 */
+  --myst-glow: rgba(58, 118, 106, 0.20);
+  --myst-grad-from: #10201c;
+  --myst-grad-mid: #0a1512;
+  --myst-grad-to: #070f0d;
+  --myst-modal-glow: rgba(58, 118, 106, 0.22);
+  --myst-modal-from: #12221e;
+  --myst-modal-to: #0a1512;
+  --myst-accent: #d8c58f;
+  --myst-accent-soft: #b8a56f;
+  --myst-accent-deep: #9c8a56;
+  --myst-heading: #eef2ec;
+  --myst-body: #c4d0c6;
+  --myst-body-strong: #dde6dd;
+  --myst-subtle: #8fa096;
+  --myst-border: rgba(184, 165, 111, 0.20);
+  --myst-border-soft: rgba(184, 165, 111, 0.14);
+  --myst-chip-bg: rgba(184, 165, 111, 0.13);
+  --myst-chip-bg-hover: rgba(184, 165, 111, 0.22);
+  --myst-star: rgba(216, 197, 143, 0.45);
+}
+
 /* 减少动画 - 无障碍支持 */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -303,6 +460,123 @@ h1, h2, h3,
 
 .scene-button-active {
   @apply flex items-center gap-2 p-2.5 rounded-xl border-0 bg-gradient-to-br from-[var(--brand-surface)] to-[var(--brand-surface-active)] shadow-[0_2px_10px_rgba(61,163,93,0.15)];
+}
+
+/* ============================================
+   玄光神秘 / 静奢暗夜 - 运势报告高端皮肤（方案二/五）
+   --myst-* 默认为玄光紫；html[data-skin="jade"] 会覆盖为静奢青
+   这些报告面板为固定“命理报告”深色装饰，强调色跟随全局皮肤
+   ============================================ */
+
+/* 默认：玄光紫（深空紫黑 + 香槟金） */
+:root {
+  --myst-glow: rgba(122, 90, 168, 0.22);
+  --myst-grad-from: #17132b;
+  --myst-grad-mid: #0d0a1a;
+  --myst-grad-to: #0a0812;
+  --myst-modal-glow: rgba(122, 90, 168, 0.25);
+  --myst-modal-from: #191430;
+  --myst-modal-to: #0d0a1a;
+  --myst-accent: #e4c892;
+  --myst-accent-soft: #c6a87c;
+  --myst-accent-deep: #b9945f;
+  --myst-heading: #f0eaf5;
+  --myst-body: #cfc7dd;
+  --myst-body-strong: #e8e2f0;
+  --myst-subtle: #9a90b0;
+  --myst-border: rgba(198, 168, 124, 0.22);
+  --myst-border-soft: rgba(198, 168, 124, 0.15);
+  --myst-chip-bg: rgba(198, 168, 124, 0.14);
+  --myst-chip-bg-hover: rgba(198, 168, 124, 0.24);
+  --myst-star: rgba(228, 200, 146, 0.5);
+}
+
+/* 静奢青变体已整合至 html[data-skin="jade"]（见上方多皮肤系统） */
+
+.mystic-panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  background:
+    radial-gradient(120% 80% at 85% 0%, var(--myst-glow), transparent 60%),
+    linear-gradient(160deg, var(--myst-grad-from) 0%, var(--myst-grad-mid) 60%, var(--myst-grad-to) 100%);
+  border: 1px solid var(--myst-border);
+  box-shadow: 0 8px 40px rgba(10, 8, 24, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  color: var(--myst-body);
+}
+
+/* 微光星象光斑 */
+.mystic-panel::before,
+.mystic-modal::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(1.5px 1.5px at 20% 30%, var(--myst-star), transparent),
+    radial-gradient(1.5px 1.5px at 72% 18%, var(--myst-star), transparent),
+    radial-gradient(1px 1px at 42% 72%, rgba(255, 255, 255, 0.3), transparent),
+    radial-gradient(1px 1px at 85% 60%, var(--myst-star), transparent);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.mystic-heading {
+  font-family: var(--font-noto-serif-sc), 'Noto Serif SC', 'Songti SC', 'STSong', serif;
+  color: var(--myst-heading);
+  letter-spacing: 0.02em;
+}
+
+.mystic-subtle {
+  color: var(--myst-subtle);
+}
+
+.mystic-gold {
+  color: var(--myst-accent);
+}
+
+.mystic-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--myst-border-soft);
+  border-radius: 0.75rem;
+  color: var(--myst-body);
+}
+
+.mystic-btn {
+  background: linear-gradient(135deg, var(--myst-accent-soft) 0%, var(--myst-accent) 50%, var(--myst-accent-deep) 100%);
+  color: #2a2036;
+  font-weight: 600;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 18px rgba(198, 168, 124, 0.28);
+  transition: all 0.2s ease;
+}
+
+.mystic-btn:hover {
+  box-shadow: 0 6px 26px rgba(198, 168, 124, 0.42);
+  filter: brightness(1.05);
+}
+
+.mystic-chip {
+  background: var(--myst-chip-bg);
+  color: var(--myst-accent);
+  border: 1px solid var(--myst-border);
+  border-radius: 9999px;
+  transition: all 0.2s ease;
+}
+
+.mystic-chip:hover {
+  background: var(--myst-chip-bg-hover);
+}
+
+.mystic-modal {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 70% at 80% -5%, var(--myst-modal-glow), transparent 55%),
+    linear-gradient(165deg, var(--myst-modal-from) 0%, var(--myst-modal-to) 70%);
+  border: 1px solid var(--myst-border);
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.6);
+  color: var(--myst-body);
 }
 
 /* ============================================

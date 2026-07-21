@@ -381,76 +381,83 @@ export default function FortunePage() {
         </div>
       )}
 
-      {/* 年度运势详批入口 */}
-      <div className="mt-6 bg-gradient-to-br from-[var(--brand-surface)] to-[var(--brand-surface-active)] rounded-2xl p-5 border border-[var(--brand-border)]">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h3 className="text-base font-semibold text-stone-800">年度运势详批</h3>
-            <p className="text-xs text-stone-500 mt-0.5">AI 深度解析本年度运势，助您趋吉避凶</p>
-          </div>
-          <span className="text-2xl">🔮</span>
-        </div>
-        <button
-          onClick={handleGenerateReport}
-          disabled={generatingReport}
-          className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium text-sm shadow-md hover:shadow-lg transition-all disabled:opacity-50"
-        >
-          {generatingReport ? 'AI 正在生成报告...' : '生成年度运势报告'}
-        </button>
-
-        {/* 新生成的报告 */}
-        {annualReport && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-4 bg-white rounded-xl p-4 border border-stone-200/60"
-          >
-            <h4 className="font-semibold text-stone-800 mb-2">
-              {annualReport.year}年运势详批
-            </h4>
-            <p className="text-sm text-stone-600 mb-3 line-clamp-3">
-              {annualReport.content?.overall}
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={(e) => { e.preventDefault(); setReportView(annualReport) }}
-                className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg text-sm font-medium"
-              >
-                查看完整报告
-              </button>
+      {/* 运势报告高端皮肤区（跟随全局皮肤） */}
+      <div className="mt-6 space-y-4">
+      {/* 年度运势详批入口 - 玄光神秘高端皮肤 */}
+      <div className="mystic-panel p-5">
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="mystic-heading text-base font-semibold">年度运势详批</h3>
+              <p className="mystic-subtle text-xs mt-0.5">AI 深度解析本年度运势，助您趋吉避凶</p>
             </div>
-          </motion.div>
-        )}
-      </div>
+            <span className="text-2xl">🔮</span>
+          </div>
+          <button
+            onClick={handleGenerateReport}
+            disabled={generatingReport}
+            className="mystic-btn w-full py-3 text-sm disabled:opacity-50"
+          >
+            {generatingReport ? 'AI 正在生成报告...' : '生成年度运势报告'}
+          </button>
 
-      {/* 已保存的报告列表 */}
-      {savedReports.length > 0 && (
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
-          <h3 className="text-sm font-semibold text-stone-800 mb-3">我的运势报告</h3>
-          <div className="space-y-2">
-            {savedReports.map((report) => (
-              <div
-                key={report.id}
-                className="flex items-center justify-between p-3 bg-stone-50 rounded-xl hover:bg-stone-100 transition-colors"
-              >
-                <div>
-                  <p className="text-sm font-medium text-stone-700">{report.title || `${report.report_year}年运势详批`}</p>
-                  <p className="text-xs text-stone-500 mt-0.5">
-                    {report.report_type === 'annual_fortune' ? '年度运势' : report.report_type}
-                    {report.created_at && ` · ${new Date(report.created_at).toLocaleDateString('zh-CN')}`}
-                  </p>
-                </div>
+          {/* 新生成的报告 */}
+          {annualReport && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mystic-card mt-4 p-4"
+            >
+              <h4 className="mystic-heading font-semibold mb-2">
+                {annualReport.year}年运势详批
+              </h4>
+              <p className="text-sm mb-3 line-clamp-3" style={{ color: '#cfc7dd' }}>
+                {annualReport.content?.overall}
+              </p>
+              <div className="flex gap-2">
                 <button
-                  onClick={(e) => handleViewReport(report.id, e)}
-                  className="px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg text-xs font-medium"
+                  onClick={(e) => { e.preventDefault(); setReportView(annualReport) }}
+                  className="mystic-chip px-4 py-2 text-sm font-medium"
                 >
-                  查看
+                  查看完整报告
                 </button>
               </div>
-            ))}
+            </motion.div>
+          )}
+        </div>
+      </div>
+
+      {/* 已保存的报告列表 - 玄光神秘高端皮肤 */}
+      {savedReports.length > 0 && (
+        <div className="mystic-panel p-5">
+          <div className="relative z-10">
+            <h3 className="mystic-heading text-sm font-semibold mb-3">我的运势报告</h3>
+            <div className="space-y-2">
+              {savedReports.map((report) => (
+                <div
+                  key={report.id}
+                  className="mystic-card flex items-center justify-between p-3 transition-colors"
+                >
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: '#e8e2f0' }}>{report.title || `${report.report_year}年运势详批`}</p>
+                    <p className="mystic-subtle text-xs mt-0.5">
+                      {report.report_type === 'annual_fortune' ? '年度运势' : report.report_type}
+                      {report.created_at && ` · ${new Date(report.created_at).toLocaleDateString('zh-CN')}`}
+                    </p>
+                  </div>
+                  <button
+                    onClick={(e) => handleViewReport(report.id, e)}
+                    className="mystic-chip px-3 py-1.5 text-xs font-medium"
+                  >
+                    查看
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
+      </div>
     </div>
 
     {/* 报告详情弹窗 - 使用 Portal 渲染到 body，确保不受父容器影响 */}
@@ -463,14 +470,15 @@ export default function FortunePage() {
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="w-full max-w-lg bg-white rounded-2xl p-6 shadow-2xl max-h-[80vh] overflow-y-auto"
+          className="mystic-modal w-full max-w-lg rounded-2xl p-6 max-h-[80vh] overflow-y-auto"
           onClick={e => e.stopPropagation()}
         >
+          <div className="relative z-10">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-stone-800">
+            <h3 className="mystic-heading text-lg font-bold">
               {reportView.year || reportView.title} 运势详批
             </h3>
-            <button onClick={() => setReportView(null)} className="text-stone-400 hover:text-stone-600 text-xl">✕</button>
+            <button onClick={() => setReportView(null)} className="mystic-subtle hover:text-white text-xl">✕</button>
           </div>
 
           {reportView.content && (
@@ -483,20 +491,20 @@ export default function FortunePage() {
                 { key: 'health', label: '健康运', icon: '' },
               ].map(({ key, label, icon }) => (
                 reportView.content[key] && (
-                  <div key={key} className="bg-stone-50 rounded-xl p-3">
-                    <h4 className="font-medium text-stone-700 mb-1">{icon} {label}</h4>
-                    <p className="text-stone-600 leading-relaxed">{reportView.content[key]}</p>
+                  <div key={key} className="mystic-card p-3">
+                    <h4 className="mystic-gold font-medium mb-1">{icon} {label}</h4>
+                    <p className="leading-relaxed" style={{ color: '#cfc7dd' }}>{reportView.content[key]}</p>
                   </div>
                 )
               ))}
 
               {reportView.content.monthly_breakdown && (
-                <div className="bg-stone-50 rounded-xl p-3">
-                  <h4 className="font-medium text-stone-700 mb-2">📅 月度运势</h4>
+                <div className="mystic-card p-3">
+                  <h4 className="mystic-gold font-medium mb-2">📅 月度运势</h4>
                   <div className="grid grid-cols-2 gap-2">
                     {reportView.content.monthly_breakdown.map((m: string, i: number) => (
-                      <div key={i} className="text-xs text-stone-600">
-                        <span className="font-medium text-stone-500">{i + 1}月：</span>{m}
+                      <div key={i} className="text-xs" style={{ color: '#cfc7dd' }}>
+                        <span className="font-medium mystic-subtle">{i + 1}月：</span>{m}
                       </div>
                     ))}
                   </div>
@@ -504,22 +512,23 @@ export default function FortunePage() {
               )}
 
               {reportView.content.lucky_months && (
-                <div className="flex flex-wrap gap-2">
-                  <span className="text-xs text-stone-500">幸运月份：</span>
+                <div className="flex flex-wrap gap-2 items-center">
+                  <span className="text-xs mystic-subtle">幸运月份：</span>
                   {reportView.content.lucky_months.map((m: string, i: number) => (
-                    <span key={i} className="px-2 py-0.5 bg-[var(--wuxing-earth)]/15 text-[var(--wuxing-earth)] rounded-full text-xs">{m}</span>
+                    <span key={i} className="mystic-chip px-2 py-0.5 text-xs">{m}</span>
                   ))}
                 </div>
               )}
 
               {reportView.content.style_advice && (
-                <div className="bg-purple-50 rounded-xl p-3">
-                  <h4 className="font-medium text-purple-700 mb-1">👗 穿搭建议</h4>
-                  <p className="text-purple-600 text-sm">{reportView.content.style_advice}</p>
+                <div className="mystic-card p-3">
+                  <h4 className="mystic-gold font-medium mb-1">👗 穿搭建议</h4>
+                  <p className="text-sm" style={{ color: '#cfc7dd' }}>{reportView.content.style_advice}</p>
                 </div>
               )}
             </div>
           )}
+          </div>
         </motion.div>
       </div>,
       document.body
