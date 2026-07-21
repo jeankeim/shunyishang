@@ -118,8 +118,8 @@ export function WuxingBaguaChart({ elementStats, total, filterElement, onFilter 
               <span className="absolute inset-0 flex items-center justify-center text-2xl md:text-3xl text-white/20 font-serif select-none">
                 {gua}
               </span>
-              <span className="relative text-base md:text-lg font-bold text-white leading-none">{count}</span>
-              <span className="relative text-[10px] md:text-xs text-white/85 leading-none mt-0.5">{element}</span>
+              <span className="relative text-base md:text-lg font-bold text-white leading-none font-serif">{count}</span>
+              <span className="relative text-[11px] md:text-sm text-white/90 leading-none mt-0.5 font-serif">{element}</span>
             </div>
             <span className="text-[10px] text-[var(--brand-subtle)] leading-none">{percentage}%</span>
           </motion.button>

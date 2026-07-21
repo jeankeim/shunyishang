@@ -396,11 +396,12 @@ export default function WardrobePage() {
                           style={{ background: `linear-gradient(135deg, ${config.gradientFrom}30, ${config.gradientTo}20)` }}
                         >
                           <motion.span 
-                            className="text-6xl opacity-60"
-                            animate={{ scale: [1, 1.1, 1] }}
+                            className="text-7xl font-serif opacity-70"
+                            style={{ color: config.gradientFrom }}
+                            animate={{ scale: [1, 1.05, 1] }}
                             transition={{ duration: 3, repeat: Infinity }}
                           >
-                            {config.emoji}
+                            {config.element}
                           </motion.span>
                         </div>
                       )}
@@ -414,13 +415,13 @@ export default function WardrobePage() {
                       {/* 五行标签 */}
                       <div className="flex items-center gap-2 mb-2">
                         <span 
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm font-serif"
                           style={{ 
                             background: `linear-gradient(135deg, ${config.gradientFrom}, ${config.gradientTo})`,
                             color: 'white',
                           }}
                         >
-                          {config.emoji} {item.primary_element}
+                          {config.element}
                         </span>
                         {item.secondary_element && (
                           <span className="text-xs text-[var(--brand-subtle)] bg-stone-100 px-2 py-0.5 rounded-full">
