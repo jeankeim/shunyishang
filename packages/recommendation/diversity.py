@@ -11,7 +11,8 @@ from typing import Dict, List
 
 from packages.recommendation.config import (
     CATEGORY_LIMITS, DEFAULT_CATEGORY_LIMIT,
-    ACCENT_CATEGORIES, TEMP_SAFETY_THRESHOLD, TEMP_ESSENTIAL_THRESHOLD,
+    ACCENT_CATEGORIES, MAX_ACCENT_ITEMS,
+    TEMP_SAFETY_THRESHOLD, TEMP_ESSENTIAL_THRESHOLD,
 )
 
 logger = logging.getLogger(__name__)
@@ -29,8 +30,8 @@ def ensure_category_diversity(items: List[Dict], limit: int) -> List[Dict]:
 
     策略：
     - 核心服装（上装/下装/裙装/外套）每类最多2件
-    - 配饰/鞋履每类最多1件
-    - 饰品/文玩作为点缀（最多2/1件）
+    - 点缀类（配饰/饰品/文玩）合并计数，单套最多 MAX_ACCENT_ITEMS 件（避免一次出现多件配饰）
+    - 鞋履每类最多1件
     - 确保至少1件点缀类物品（如果存在）
     - 确保至少1件饰品/文玩（产品核心差异化）
 
@@ -67,15 +68,22 @@ def ensure_category_diversity(items: List[Dict], limit: int) -> List[Dict]:
     # 按分类限制选取
     result = []
     category_count: Dict[str, int] = {}
+    accent_count = 0  # 点缀类（配饰/饰品/文玩）合并计数
 
     for item in valid_items:
         category = item.get("category", "其他")
         max_count = CATEGORY_LIMITS.get(category, DEFAULT_CATEGORY_LIMIT)
         current_count = category_count.get(category, 0)
 
+        # 点缀类合并限量：三类共享 MAX_ACCENT_ITEMS 的总额度
+        if category in ACCENT_CATEGORIES and accent_count >= MAX_ACCENT_ITEMS:
+            continue
+
         if current_count < max_count:
             result.append(item)
             category_count[category] = current_count + 1
+            if category in ACCENT_CATEGORIES:
+                accent_count += 1
             if len(result) >= limit:
                 break
 

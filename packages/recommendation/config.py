@@ -129,6 +129,8 @@ CATEGORY_LIMITS: Dict[str, int] = {
 }
 DEFAULT_CATEGORY_LIMIT = 1
 ACCENT_CATEGORIES = {"配饰", "饰品", "文玩"}
+# 点缀类（配饰/饰品/文玩）单套搭配总量上限：合并计数，避免一次推荐出现多件配饰
+MAX_ACCENT_ITEMS = 1
 
 # 温度安全检查阈值
 TEMP_SAFETY_THRESHOLD = 0.3    # temp_score < 0.3 视为温度不安全

@@ -59,10 +59,6 @@ from packages.recommendation.filters import (
     build_scene_filter as _build_scene_filter,
     build_gender_filter,
 )
-from packages.recommendation.diversity import (
-    ensure_category_diversity as _ensure_category_diversity,
-    ensure_wuxing_diversity as _ensure_wuxing_diversity,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -1193,66 +1189,6 @@ def _ensure_category_diversity(items: List[Dict], limit: int) -> List[Dict]:
                         break
     
     return result
-
-
-def _ensure_wuxing_diversity(items: List[Dict], all_scored: List[Dict], limit: int) -> List[Dict]:
-    """
-    五行多样性约束：确保推荐结果至少覆盖 2 种不同五行属性
-    
-    策略：
-    - 如果 top-k 中所有物品都是同一五行，用次高分的不同五行物品替换最低分的重复物品
-    - 最多替换 1 件，避免过度干预排序
-    
-    Args:
-        items: 当前 top-k 物品列表
-        all_scored: 所有已评分物品（已排序）
-        limit: top-k 数量
-    
-    Returns:
-        List[Dict]: 五行多样性优化后的物品列表
-    """
-    if len(items) < 2:
-        return items
-    
-    # 统计当前五行分布
-    elements = set()
-    for item in items:
-        elem = item.get("primary_element", "")
-        if elem:
-            elements.add(elem)
-    
-    # 已满足多样性（≥2 种五行），无需调整
-    if len(elements) >= 2:
-        return items
-    
-    # 找出当前主导五行
-    dominant_element = elements.pop() if elements else None
-    
-    # 从备选物品中找分数最高的不同五行物品
-    # P3-94 温度安全检查：极端温度下不引入 temp_score<0.3 的候选，避免多样性替换绕过温度安全
-    used_ids = {str(item.get("id", item.get("item_code", ""))) for item in items}
-    best_replacement = None
-    for candidate in all_scored:
-        cand_elem = candidate.get("primary_element", "")
-        cand_id = str(candidate.get("id", candidate.get("item_code", "")))
-        if cand_elem and cand_elem != dominant_element and cand_id not in used_ids:
-            if (candidate.get("temp_score") or 0) < 0.3:
-                continue  # 跳过温度不安全的候选
-            best_replacement = candidate
-            break
-    
-    if best_replacement:
-        # 替换分数最低的重复五行物品
-        for i in range(len(items) - 1, -1, -1):
-            if items[i].get("primary_element", "") == dominant_element:
-                logger.debug(
-                    f"[五行多样性] 替换: {items[i].get('name')}({dominant_element}) "
-                    f"→ {best_replacement.get('name')}({best_replacement.get('primary_element')})"
-                )
-                items[i] = best_replacement
-                break
-    
-    return items
 
 
 def _get_versatile_items(target_elements: List[str], limit: int, user_gender: Optional[str] = None) -> List[Dict]:

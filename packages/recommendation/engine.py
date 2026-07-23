@@ -175,17 +175,17 @@ def score_and_rank_items(
 
     # ========== 7. 批次偏移 ==========
     start_idx = batch_index * top_k
-    end_idx = start_idx + top_k
     if start_idx < len(scored_items):
-        top_items = scored_items[start_idx:end_idx]
+        diversity_pool = scored_items[start_idx:]
         if batch_index > 0:
             logger.info(f"[换一批] batch_index={batch_index}，跳过前{start_idx}件")
     else:
-        top_items = scored_items[:top_k]
+        diversity_pool = scored_items
         logger.info(f"[换一批] 候选不足（{len(scored_items)}件），回退到第1批")
 
     # ========== 8. 多样性优化 ==========
-    top_items = ensure_category_diversity(top_items, top_k)
+    # 传入批次起点之后的完整候选池：品类/点缀去重后仍能用普通服装回填到 top_k，避免因去重导致数量不足
+    top_items = ensure_category_diversity(diversity_pool, top_k)
     top_items = ensure_wuxing_diversity(top_items, scored_items, top_k)
 
     # ========== 9. 温度安全检查 ==========

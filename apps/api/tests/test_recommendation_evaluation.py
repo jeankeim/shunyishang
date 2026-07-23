@@ -665,6 +665,23 @@ class TestDiversity:
         upper_count = sum(1 for i in result if i.get("category") == "上装")
         assert upper_count <= 2
 
+    def test_accent_items_capped_to_one(self):
+        """点缀类（配饰/饰品/文玩）合并计数，单套搭配最多 1 件"""
+        from packages.recommendation.diversity import ensure_category_diversity
+        from packages.recommendation.config import ACCENT_CATEGORIES, MAX_ACCENT_ITEMS
+
+        items = [
+            {"id": 1, "category": "配饰", "name": "针织帽"},
+            {"id": 2, "category": "饰品", "name": "手串"},
+            {"id": 3, "category": "文玩", "name": "佛珠"},
+            {"id": 4, "category": "上装", "name": "衬衫"},
+            {"id": 5, "category": "下装", "name": "长裤"},
+        ]
+        result = ensure_category_diversity(items, 5)
+
+        accent_count = sum(1 for i in result if i.get("category") in ACCENT_CATEGORIES)
+        assert accent_count <= MAX_ACCENT_ITEMS, f"点缀类应≤{MAX_ACCENT_ITEMS} 件，实际 {accent_count} 件"
+
     def test_wuxing_diversity_replacement(self):
         """五行多样性替换"""
         from packages.recommendation.diversity import ensure_wuxing_diversity
