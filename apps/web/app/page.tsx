@@ -12,7 +12,6 @@ import { Sidebar } from '@/components/features/Sidebar'
 import { Header } from '@/components/features/Header'
 import { MobileControlPanel } from '@/components/features/MobileControlPanel'
 import { MobileBottomNav } from '@/components/features/MobileBottomNav'
-import { TodayFortuneCard } from '@/components/features/fortune/TodayFortuneCard'
 import { DailyRitualCard } from '@/components/features/DailyRitualCard'
 import { DailyOutfitCard } from '@/components/features/DailyOutfitCard'
 import { QuickCheckIn } from '@/components/features/QuickCheckIn'
@@ -604,18 +603,6 @@ export default function Home() {
                       onNavigateToWardrobe={() => {
                         setActiveTab('wardrobe')
                         window.location.hash = '#wardrobe'
-                      }}
-                    />
-                  </div>
-                )}
-
-                {/* 未登录时仍显示运势卡片（如果有八字） */}
-                {!isAuthenticated && !isAuthLoading && hasBazi && (
-                  <div className="mb-4">
-                    <TodayFortuneCard
-                      onNavigateToFortune={() => {
-                        setActiveTab('fortune')
-                        window.location.hash = '#fortune'
                       }}
                     />
                   </div>
