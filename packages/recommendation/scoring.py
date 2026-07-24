@@ -138,8 +138,11 @@ def infer_item_thickness(item: Dict) -> str:
     优先级：名称暗示厚重 > DB thickness_level > 名称暗示中厚/轻薄 > 空串
     解决硬过滤与温度评分依据不同源的割裂问题。
     """
-    item_name = item.get("name", "")
-    db_thickness = item.get("thickness_level", "") or ""
+    # 用 `or ""` 兜底：DB name/thickness 列可能为 NULL（用户自建衣橱物品），
+    # 此时 .get(key, "") 仍返回 None，导致后续 `k in item_name` 抛
+    # TypeError: argument of type 'NoneType' is not iterable。
+    item_name = item.get("name") or ""
+    db_thickness = item.get("thickness_level") or ""
 
     heavy_keywords = ["羽绒", "棉袄", "棉衣", "大衣", "毛呢", "羊毛大衣", "皮草"]
     if any(k in item_name for k in heavy_keywords):
@@ -361,7 +364,7 @@ def calculate_style_preference_bonus(item: Dict, style_preference: Optional[str]
     # 2. 名称关键词匹配
     keywords = STYLE_KEYWORDS.get(style_preference, [])
     if keywords:
-        item_name = item.get("name", "")
+        item_name = item.get("name") or ""  # 兜底 NULL name
         for kw in keywords:
             if kw in item_name:
                 bonus += STYLE_NAME_BONUS
@@ -377,7 +380,7 @@ def calculate_style_preference_bonus(item: Dict, style_preference: Optional[str]
     if isinstance(detail, dict):
         style_info = detail.get("款式", {})
         if isinstance(style_info, dict):
-            style_text = style_info.get("风格", "")
+            style_text = style_info.get("风格") or ""  # 兜底 NULL 值
             if keywords:
                 for kw in keywords:
                     if kw in style_text:
@@ -417,7 +420,7 @@ def calculate_body_type_bonus(item: Dict, body_type: Optional[str]) -> float:
                     fit_type = details[0]
 
     # 从名称推断
-    item_name = item.get("name", "")
+    item_name = item.get("name") or ""  # 兜底 NULL name
     if not fit_type:
         if any(k in item_name for k in ["修身", "紧身"]):
             fit_type = "修身"
