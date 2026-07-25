@@ -87,7 +87,14 @@ source .venv/bin/activate
 mkdir -p "$PROJECT_DIR/logs"
 
 # 使用 nohup 在后台启动，输出到日志文件
-nohup python3 -m uvicorn apps.api.main:app --reload --host 0.0.0.0 --port 8000 > "$PROJECT_DIR/logs/backend.log" 2>&1 &
+# 注意：--reload 必须用 --reload-dir 限定只监视业务代码目录（apps/packages），
+# 否则默认会监视整个项目根目录（含 .venv 数以万计的依赖文件），
+# 导致 uvicorn 频繁误触发重载、把正在进行的 SSE 流式推荐请求打断（表现为“连不上服务器”）。
+nohup python3 -m uvicorn apps.api.main:app --reload \
+    --reload-dir "$PROJECT_DIR/apps" \
+    --reload-dir "$PROJECT_DIR/packages" \
+    --reload-exclude "*.log" \
+    --host 0.0.0.0 --port 8000 > "$PROJECT_DIR/logs/backend.log" 2>&1 &
 
 # 等待后端启动
 for i in {1..60}; do
