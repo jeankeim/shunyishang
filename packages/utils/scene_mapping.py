@@ -344,7 +344,7 @@ def calculate_scene_match_score(item: Dict, scene: str, sub_scene: Optional[str]
             for func in rules["preferred_functionality"]:
                 if functionality.get(func) is True or functionality.get(func) == "true":
                     current_bonus += 0.05
-        except:
+        except Exception:
             pass
     elif isinstance(functionality, dict):
         # 如果是字典，按原逻辑处理
@@ -353,7 +353,7 @@ def calculate_scene_match_score(item: Dict, scene: str, sub_scene: Optional[str]
                 current_bonus += 0.05
     
     # 4. 关键词扣分（加强惩罚：每个匹配扣0.5，确保不适合的物品不会出现在推荐中）
-    item_name = item.get("name", "")
+    item_name = item.get("name") or ""
     for keyword in rules["excluded_keywords"]:
         if keyword in item_name:
             current_bonus -= 0.5
@@ -393,7 +393,7 @@ def calculate_scene_match_score(item: Dict, scene: str, sub_scene: Optional[str]
             overlap_max = min(item_max, scene_max)
             if overlap_max > overlap_min:
                 current_bonus += 0.1
-        except:
+        except Exception:
             pass
     
     # 7. 子场景特殊规则

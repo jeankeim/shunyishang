@@ -387,14 +387,14 @@ def _is_style_match(item: Dict, style_preference: str, keywords: List[str]) -> b
     """判断物品是否匹配用户风格偏好"""
     if item.get("style") == style_preference:
         return True
-    item_name = item.get("name", "")
+    item_name = item.get("name") or ""
     if any(kw in item_name for kw in keywords):
         return True
     detail = item.get("attributes_detail") or {}
     if isinstance(detail, dict):
         style_info = detail.get("款式", {})
         if isinstance(style_info, dict):
-            style_text = style_info.get("风格", "")
+            style_text = style_info.get("风格") or ""
             if any(kw in style_text for kw in keywords):
                 return True
     return False
