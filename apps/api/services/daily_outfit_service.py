@@ -101,7 +101,7 @@ def generate_daily_outfit(
     try:
         user_prefs = preference_service.get_user_preferences(user_id)
     except Exception as e:
-        logger.debug(f"[DailyOutfit] 偏好获取失败: {e}")
+        logger.warning(f"[DailyOutfit] 偏好获取失败: {e}")
 
     # ── 4. 查询衣橱 ────────────────────────────────────────────────────────
     wardrobe_items = _query_wardrobe(user_id)

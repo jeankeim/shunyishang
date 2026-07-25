@@ -135,7 +135,7 @@ def get_user_behavior_preferences(user_id: int) -> Dict[str, Dict[str, float]]:
         return result
 
     except Exception as e:
-        logger.debug(f"[行为偏好] 获取失败 user={user_id}: {e}")
+        logger.warning(f"[行为偏好] 获取失败 user={user_id}: {e}")
         return {}
 
 
@@ -236,5 +236,5 @@ def record_user_behavior(
                 conn.commit()
         return True
     except Exception as e:
-        logger.debug(f"[行为记录] 失败: {e}")
+        logger.warning(f"[行为记录] 失败: {e}")
         return False
