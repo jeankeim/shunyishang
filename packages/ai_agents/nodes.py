@@ -579,12 +579,30 @@ def _embed_query_with_retry(text: str) -> list:
     """
     带指数退避重试的查询向量生成（衣橱/混合模式用）。
 
-    向量 API 出现超时/限流/连接抖动时自动重试 2 次（1s→2s→4s 退避）；
-    3 次仍失败会抛 LLMServiceError，由调用方决定降级策略。
+    向量 API 出现超时/限流/连接抖动时自动重试 2 次（1s→2s 退避）；
+    3 次仍失败会抛出异常，由调用方决定降级策略。
     公共库走的是另一套带缓存的 _encode_text_with_dashscope，不经过这里。
     """
     from apps.api.services.embedding_service import embedding_service
-    return embedding_service.generate_embedding(text)
+
+    max_attempts = 3
+    last_error = None
+    for attempt in range(max_attempts):
+        try:
+            return embedding_service.generate_embedding(text)
+        except Exception as e:
+            last_error = e
+            if attempt < max_attempts - 1:
+                backoff = 2 ** attempt  # 1s → 2s
+                logger.warning(
+                    f"[向量生成] 第 {attempt + 1}/{max_attempts} 次失败，{backoff}s 后重试: {e}"
+                )
+                time.sleep(backoff)
+            else:
+                logger.error(
+                    f"[向量生成] 重试 {max_attempts} 次仍失败: {e}", exc_info=True
+                )
+    raise last_error
 
 
 def retrieve_items_node(state: AgentState) -> Dict:
