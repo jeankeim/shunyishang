@@ -107,9 +107,12 @@ class PreferenceService:
             if pt not in prefs:
                 prefs[pt] = {}
             # 时间衰减：每日衰减 2%，最低保留 10%
-            days_old = row.get('days_old', 0)
+            # 注意：days_old 与 weight 从 PostgreSQL 取出均为 Decimal，
+            # 必须先 float() 转换，否则 Decimal * float 会抛 TypeError
+            # （该异常会被上层 try/except 静默吞掉，导致全局偏好加权失效）。
+            days_old = float(row.get('days_old', 0) or 0)
             decay_factor = max(0.1, 1.0 - days_old * 0.02)
-            prefs[pt][row['pref_key']] = row['weight'] * decay_factor
+            prefs[pt][row['pref_key']] = float(row['weight']) * decay_factor
 
         # 写入 Redis 缓存
         if settings.redis_enabled:
