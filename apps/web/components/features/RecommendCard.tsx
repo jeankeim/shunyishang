@@ -37,6 +37,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
   const [feedbackAnimation, setFeedbackAnimation] = useState<'like' | 'dislike' | null>(null)
   // 点踩多选状态
   const [selectedReasons, setSelectedReasons] = useState<string[]>([])
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const dwellTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hasReportedView = useRef(false)
   const hasReportedDwell = useRef(false)
@@ -83,6 +84,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
     setShowOverlay(true)
     setShowReasons(false)
     setSelectedReasons([])
+    setSubmitError(null)
   }
 
   // 点赞（小爱心）
@@ -108,6 +110,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
       }, 800)
     } catch (error) {
       console.error('反馈提交失败:', error)
+      setSubmitError(error instanceof Error ? error.message : '提交失败，请重试')
     } finally {
       setIsSubmitting(false)
     }
@@ -118,6 +121,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
     reportBehavior(undefined, item.item_id || item.item_code || '', 'click')
     setShowReasons(true)
     setSelectedReasons([])
+    setSubmitError(null)
   }
 
   // 切换点踩原因选中状态（多选）
@@ -131,6 +135,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
   const handleDislikeConfirm = async () => {
     if (isSubmitting || selectedReasons.length === 0) return
     setIsSubmitting(true)
+    setSubmitError(null)
     try {
       await submitFeedback({
         session_id: sessionId,
@@ -150,6 +155,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
       }, 800)
     } catch (error) {
       console.error('反馈提交失败:', error)
+      setSubmitError(error instanceof Error ? error.message : '提交失败，请重试')
     } finally {
       setIsSubmitting(false)
     }
@@ -358,14 +364,17 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
                       onClick={handleDislikeConfirm}
                       disabled={selectedReasons.length === 0 || isSubmitting}
                       className={`px-3.5 py-1 rounded-full text-[11px] font-medium transition-all ${
-                        selectedReasons.length > 0
+                        selectedReasons.length > 0 && !isSubmitting
                           ? 'bg-white/90 text-stone-700 shadow-sm hover:bg-white active:scale-95'
                           : 'bg-white/10 text-white/30 cursor-not-allowed'
                       }`}
                     >
-                      确认{selectedReasons.length > 0 ? `(${selectedReasons.length})` : ''}
+                      {isSubmitting ? '提交中…' : `确认${selectedReasons.length > 0 ? `(${selectedReasons.length})` : ''}`}
                     </button>
                   </div>
+                  {submitError && (
+                    <p className="text-[10px] text-red-300 mt-1.5">{submitError}</p>
+                  )}
                 </motion.div>
               )}
             </motion.div>

@@ -736,10 +736,11 @@ export async function submitFeedback(data: FeedbackRequest): Promise<FeedbackRes
       ...getAuthHeaders(),
     },
     body: JSON.stringify(data),
+    signal: AbortSignal.timeout(10000), // 10秒超时，避免请求挂起导致按钮永久锁死
   })
 
   if (!response.ok) {
-    const error = await response.json()
+    const error = await response.json().catch(() => ({}))
     throw new Error(error.detail || '提交反馈失败')
   }
 
@@ -756,10 +757,11 @@ export async function cancelFeedback(itemCode: string, itemId?: number): Promise
   const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/feedback?${params}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
+    signal: AbortSignal.timeout(10000),
   })
 
   if (!response.ok) {
-    const error = await response.json()
+    const error = await response.json().catch(() => ({}))
     throw new Error(error.detail || '撤销反馈失败')
   }
 }
