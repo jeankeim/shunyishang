@@ -137,6 +137,31 @@ SCENE_MAPPING: Dict[str, Dict] = {
 
 
 # ============================================================
+# 场景 → 适宜风格映射
+# ============================================================
+# 定义各场景下得体的服装风格。用于场景适配评分中的“风格得体度”软信号，
+# 以及推荐多样性中的“场景风格保障”，避免推荐风格与场合明显冲突的单品
+# （例如给「约会」推「运动」风、给「商务」推「街头」风）。
+# 点缀类（饰品/文玩/配饰）不分风格，视为始终得体。
+SCENE_PREFERRED_STYLES: Dict[str, List[str]] = {
+    "商务": ["商务", "知性", "简约", "优雅"],
+    "面试": ["商务", "知性", "简约"],
+    "约会": ["优雅", "甜美", "性感", "休闲"],
+    "运动": ["运动", "休闲"],
+    "居家": ["休闲", "简约", "森系"],
+    "婚礼": ["优雅", "商务", "知性"],
+    "派对": ["街头", "性感", "优雅", "甜美"],
+    "旅行": ["休闲", "运动", "简约"],
+    "出差": ["商务", "休闲", "简约"],
+    "度假": ["休闲", "甜美", "森系", "运动"],
+    "户外探险": ["运动", "休闲"],
+}
+
+# 点缀类品类：不受场景风格约束（配饰/饰品/文玩任何场合皆可点缀）
+SCENE_STYLE_NEUTRAL_CATEGORIES = {"饰品", "文玩", "配饰"}
+
+
+# ============================================================
 # 子场景特殊规则
 # ============================================================
 
@@ -229,6 +254,39 @@ def get_sub_scene_rules(sub_scene: str) -> Optional[Dict]:
     return SUB_SCENE_RULES.get(sub_scene)
 
 
+def get_scene_preferred_styles(scene: str) -> Optional[List[str]]:
+    """
+    获取场景适宜风格列表
+
+    Returns:
+        风格列表；未定义风格规则的场景（如日常/会议）返回 None，
+        表示不对风格做限制
+    """
+    return SCENE_PREFERRED_STYLES.get(scene)
+
+
+def is_style_scene_appropriate(item: Dict, scene: str) -> bool:
+    """
+    判断物品风格是否适合场景
+
+    规则（与评估器 _is_scene_appropriate 保持一致）：
+    - 点缀类（配饰/饰品/文玩）始终得体
+    - 未定义风格规则的场景（返回 None）不做限制，视为得体
+    - 物品无风格信息时不惩罚（真实 DB 物品可能缺 style 字段）
+    - 其余情况：风格命中场景适宜风格列表即得体
+    """
+    category = item.get("category", "")
+    if category in SCENE_STYLE_NEUTRAL_CATEGORIES:
+        return True
+    preferred = SCENE_PREFERRED_STYLES.get(scene)
+    if not preferred:
+        return True
+    style = item.get("style", "")
+    if not style:
+        return True
+    return style in preferred
+
+
 def calculate_scene_match_score(item: Dict, scene: str, sub_scene: Optional[str] = None) -> float:
     """
     计算物品与场景的匹配度
@@ -304,6 +362,17 @@ def calculate_scene_match_score(item: Dict, scene: str, sub_scene: Optional[str]
     thickness = item.get("thickness_level", "")
     if thickness in rules["preferred_thickness"]:
         current_bonus += 0.05
+
+    # 5.5 风格-场景得体度（软信号）
+    # 仅在物品有 style 且该场景定义了风格规则、且非点缀类时生效，
+    # 使场景明显不搭的风格（如约会推运动风）排序下沉，但不硬排除。
+    style = item.get("style", "")
+    preferred_styles = SCENE_PREFERRED_STYLES.get(scene)
+    if style and preferred_styles and category not in SCENE_STYLE_NEUTRAL_CATEGORIES:
+        if style in preferred_styles:
+            current_bonus += 0.1
+        else:
+            current_bonus -= 0.15
     
     # 6. 温度范围匹配（兼容中文键“最低/最高”和英文键“min/max”）
     temp_range = item.get("temperature_range")

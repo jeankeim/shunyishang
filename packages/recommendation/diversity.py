@@ -146,6 +146,7 @@ def ensure_outfit_completeness(
     style_preference: str = None,
     body_type: str = None,
     target_elements: List[str] = None,
+    scene: str = None,
 ) -> List[Dict]:
     """
     搭配完整性保障 + 个性化保障
@@ -267,6 +268,13 @@ def ensure_outfit_completeness(
     # 体型保障：确保 top-5 中至少1件体型匹配
     if body_type and len(items) >= 3:
         _ensure_body_type_guarantee(items, all_scored, body_type, used_ids)
+
+    # 场景风格保障：避免推荐风格与场合明显冲突（如约会推运动风）
+    # 在风格/体型保障之后执行，保护个人风格与品类覆盖不被破坏
+    if scene and len(items) >= 3:
+        _ensure_scene_style_guarantee(
+            items, all_scored, scene, style_preference, target_elements, used_ids,
+        )
 
     # 最终点缀保护：确保至少有1件点缀物品（配饰/饰品/文玩）
     _ensure_final_accent(items, all_scored, used_ids, limit)
@@ -511,6 +519,147 @@ def _ensure_body_type_guarantee(
             f"→ {body_candidate.get('name')}(版型:{best_fit})"
         )
         return
+
+
+def _ensure_scene_style_guarantee(
+    items: List[Dict],
+    all_scored: List[Dict],
+    scene: str,
+    style_preference: str,
+    target_elements: List[str],
+    used_ids: set,
+) -> None:
+    """
+    场景风格保障：降低 top-k 中风格与场合明显冲突的物品数量
+
+    背景：评分体系中“场景适配”按物品风格判定得体与否（如约会适合
+    优雅/甜美/性感/休闲）。若 top-k 中多数物品风格不得体，场景得分会归零。
+
+    策略：
+    1. 统计当前场景得体物品数（风格适宜或点缀类）
+    2. 目标：不得体物品 ≤ 2（即得体数 ≥ len-2），使场景得分脱离 0
+    3. 换入同品类、场景适宜风格、温度安全的候选（优先五行匹配），保护品类覆盖
+    4. 不破坏个人风格保障（至少保留2件精确风格匹配）与覆盖关键物品
+    """
+    from packages.utils.scene_mapping import (
+        get_scene_preferred_styles, SCENE_STYLE_NEUTRAL_CATEGORIES,
+    )
+
+    preferred_styles = get_scene_preferred_styles(scene)
+    if not preferred_styles:
+        return  # 未定义风格规则的场景不干预（与评估器一致）
+
+    def _appropriate(it: Dict) -> bool:
+        cat = it.get("category", "")
+        if cat in SCENE_STYLE_NEUTRAL_CATEGORIES:
+            return True
+        st = it.get("style", "")
+        if not st:
+            return True
+        return st in preferred_styles
+
+    target_appropriate = max(3, len(items) - 2)
+
+    # 最多尝试 len(items) 轮，每轮换一件，避免死循环
+    for _ in range(len(items)):
+        if sum(1 for it in items if _appropriate(it)) >= target_appropriate:
+            return
+
+        # 当前精确个人风格匹配数（用于保护个性化保障）
+        style_match_count = (
+            sum(1 for it in items if it.get("style") == style_preference)
+            if style_preference else 99
+        )
+
+        # 找一件可换出的：不得体 + 非覆盖关键 + 不降低个人风格保障
+        swap_idx = None
+        for i in range(len(items) - 1, -1, -1):
+            it = items[i]
+            if _appropriate(it):
+                continue
+            if _is_coverage_critical(it, items):
+                continue
+            if (style_preference and it.get("style") == style_preference
+                    and style_match_count <= 2):
+                continue
+            swap_idx = i
+            break
+
+        if swap_idx is None:
+            return
+
+        old = items[swap_idx]
+        old_cat = old.get("category", "")
+        replacement = _find_scene_style_candidate(
+            all_scored, preferred_styles, used_ids, old_cat, target_elements, items,
+        )
+        if not replacement:
+            return
+
+        items[swap_idx] = replacement
+        used_ids.discard(str(old.get("id", old.get("item_code", ""))))
+        used_ids.add(str(replacement.get("id", replacement.get("item_code", ""))))
+        logger.debug(
+            f"[场景风格保障] {old.get('name')}({old.get('style')}) "
+            f"→ {replacement.get('name')}({replacement.get('style')})"
+        )
+
+
+def _find_scene_style_candidate(
+    all_scored: List[Dict],
+    preferred_styles: List[str],
+    used_ids: set,
+    prefer_category: str,
+    target_elements: List[str],
+    items: List[Dict],
+) -> Dict | None:
+    """
+    从已排序候选中找场景适宜风格的物品（温度安全）
+
+    优先级：同品类+风格+五行匹配 > 同品类+风格 > 任意品类+风格+五行 > 任意品类+风格
+    优先同品类以保持品类覆盖；优先五行匹配以保护八字得分。
+    跨品类回退时遵守 CATEGORY_LIMITS，避免引入品类过度集中。
+    """
+    te = target_elements or []
+
+    # 当前品类分布（用于跨品类回退时的限额检查；同品类替换不改变计数）
+    cat_counts: Dict[str, int] = {}
+    for it in items:
+        c = it.get("category", "")
+        cat_counts[c] = cat_counts.get(c, 0) + 1
+
+    def _within_limit(cat: str) -> bool:
+        return cat_counts.get(cat, 0) < CATEGORY_LIMITS.get(cat, DEFAULT_CATEGORY_LIMIT)
+
+    def _pick(same_cat: bool, need_element: bool) -> Dict | None:
+        for c in all_scored:
+            cid = str(c.get("id", c.get("item_code", "")))
+            if cid in used_ids:
+                continue
+            cand_cat = c.get("category", "")
+            if same_cat:
+                if cand_cat != prefer_category:
+                    continue
+            elif not _within_limit(cand_cat):
+                # 跨品类引入时不得超过该品类上限
+                continue
+            if c.get("style") not in preferred_styles:
+                continue
+            if (c.get("temp_score") or 0) < TEMP_SAFETY_THRESHOLD:
+                continue
+            if need_element and c.get("primary_element") not in te:
+                continue
+            return c
+        return None
+
+    if prefer_category:
+        return (
+            (_pick(True, True) if te else None)
+            or _pick(True, False)
+            or (_pick(False, True) if te else None)
+            or _pick(False, False)
+        )
+    return (_pick(False, True) if te else None) or _pick(False, False)
 
 
 def _ensure_wuxing_top1(

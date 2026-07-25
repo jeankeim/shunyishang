@@ -197,6 +197,7 @@ def score_and_rank_items(
         style_preference=user_style_preference,
         body_type=user_body_type,
         target_elements=target_elements,
+        scene=scene,
     )
 
     # ========== 10. 五行全不匹配降级 ==========
