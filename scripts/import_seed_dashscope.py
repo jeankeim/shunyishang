@@ -8,6 +8,7 @@ import json
 import time
 import sys
 import os
+import argparse
 from pathlib import Path
 
 import psycopg2
@@ -73,9 +74,12 @@ def get_embeddings_batch(texts: list) -> list:
         raise Exception(f"DashScope API error: {response.code} - {response.message}")
 
 
-def load_seed_data():
-    """读取种子数据"""
-    data_path = SEED_DATA_PATH if SEED_DATA_PATH.exists() else SEED_DATA_PATH_FALLBACK
+def load_seed_data(file_path: Path = None):
+    """读取种子数据（可指定文件，默认用存量 seed）"""
+    if file_path is not None:
+        data_path = file_path
+    else:
+        data_path = SEED_DATA_PATH if SEED_DATA_PATH.exists() else SEED_DATA_PATH_FALLBACK
     log("INFO", f"读取数据: {data_path}")
     with open(data_path, "r", encoding="utf-8") as f:
         items = json.load(f)
@@ -189,6 +193,18 @@ def verify_import(conn):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--file", type=str, default=None, help="指定 seed JSON 文件路径（默认存量 seed）")
+    args = parser.parse_args()
+    seed_file = None
+    if args.file:
+        seed_file = Path(args.file)
+        if not seed_file.is_absolute():
+            seed_file = Path(__file__).parent.parent / args.file
+        if not seed_file.exists():
+            log("ERROR", f"指定文件不存在: {seed_file}")
+            return 1
+
     # 加载 .env
     from dotenv import load_dotenv
     load_dotenv(Path(__file__).parent.parent / ".env")
@@ -205,7 +221,7 @@ def main():
     log("INFO", "=" * 50)
 
     try:
-        items = load_seed_data()
+        items = load_seed_data(seed_file)
         conn = connect_db()
         success, fail = import_data(items, conn)
 

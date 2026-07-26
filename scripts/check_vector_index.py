@@ -101,15 +101,15 @@ with engine.connect() as conn:
     random_vector = [random.uniform(-1, 1) for _ in range(1024)]
     vector_str = f"[{','.join(map(str, random_vector))}]"
     
-    # 测试查询
+    # 测试查询（使用 cosine 距离 <=>，与生产环境 _vector_search 保持一致）
     import time
     start = time.time()
     
     result = conn.execute(text("""
         EXPLAIN ANALYZE
-        SELECT item_code, name, embedding <-> :query_vector as distance
+        SELECT item_code, name, 1 - (embedding <=> :query_vector) as similarity
         FROM items
-        ORDER BY embedding <-> :query_vector
+        ORDER BY embedding <=> :query_vector
         LIMIT 5
     """), {"query_vector": vector_str})
     
