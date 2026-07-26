@@ -102,3 +102,18 @@ project_spec.md
 
 # 测试运行产物（每次运行变化的输出）
 apps/api/tests/evaluation/evaluation_report.json
+
+# 数据库备份（含用户数据，禁止提交）
+backups/
+
+# 敏感个人证件/图片（禁止提交）
+身份证*.jpg
+身份证*.png
+黑色上衣.jpg
+黑色上衣.png
+
+# 本地临时文件/报告（不推送）
+推荐算法迭代复盘.html
+.coverage
+.coverage *
+*.coverage
