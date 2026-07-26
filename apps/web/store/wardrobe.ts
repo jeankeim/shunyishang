@@ -38,7 +38,7 @@ interface WardrobeState {
   clearError: () => void
 
   // AI 打标
-  fetchTaggingPreview: (description: string) => Promise<void>
+  fetchTaggingPreview: (description: string, imageUrl?: string) => Promise<void>
   clearTaggingPreview: () => void
 }
 
@@ -133,10 +133,10 @@ export const useWardrobeStore = create<WardrobeState>()(
       clearError: () => set({ error: null }),
 
       // AI 打标预览
-      fetchTaggingPreview: async (description: string) => {
+      fetchTaggingPreview: async (description: string, imageUrl?: string) => {
         set({ isTaggingLoading: true, error: null })
         try {
-          const result = await previewTagging(description)
+          const result = await previewTagging(description, imageUrl)
           set({ taggingPreview: result, isTaggingLoading: false })
         } catch (error) {
           set({
