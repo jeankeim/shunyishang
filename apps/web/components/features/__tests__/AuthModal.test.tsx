@@ -192,6 +192,8 @@ describe('AuthModal', () => {
     fireEvent.change(screen.getByPlaceholderText('请输入昵称（可选）'), { target: { value: 'TestUser' } })
     fireEvent.change(screen.getByPlaceholderText('请输入手机号（手机号或邮箱至少填一个）'), { target: { value: '13800000000' } })
     fireEvent.change(screen.getByPlaceholderText('请输入密码（至少6位）'), { target: { value: 'password123' } })
+    // PIPL：勾选隐私政策同意后才能提交
+    fireEvent.click(screen.getByRole('checkbox'))
     fireEvent.click(getSubmitButton())
     
     await waitFor(() => {
@@ -201,8 +203,22 @@ describe('AuthModal', () => {
         password: 'password123',
         nickname: 'TestUser',
         gender: '男',
+        privacy_consent: true,
       })
     })
+  })
+
+  it('should disable register submit until privacy consent is checked', () => {
+    render(<AuthModal isOpen={true} onClose={vi.fn()} />)
+    clickTab('注册')
+
+    fireEvent.change(screen.getByPlaceholderText('请输入手机号（手机号或邮箱至少填一个）'), { target: { value: '13800000000' } })
+    fireEvent.change(screen.getByPlaceholderText('请输入密码（至少6位）'), { target: { value: 'password123' } })
+
+    // 未勾选隐私政策时提交按钮禁用
+    expect(getSubmitButton()).toBeDisabled()
+    fireEvent.click(screen.getByRole('checkbox'))
+    expect(getSubmitButton()).not.toBeDisabled()
   })
 
   it('should show error message when error exists', () => {

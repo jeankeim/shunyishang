@@ -48,6 +48,7 @@ from fastapi.staticfiles import StaticFiles
 from apps.api.core.config import settings
 from apps.api.core.database import DatabasePool, check_db_health
 from apps.api.core.cache import cache
+from apps.api.core.rate_limit import check_rate_limit, get_client_ip
 from apps.api.core.logging_config import init_logging, get_logger
 from apps.api.schemas.response import HealthResponse
 from apps.api.routers import recommend, bazi, weather, auth, wardrobe, poster, diary, fortune, membership, travel, destiny, community, cultivation, content
@@ -56,6 +57,22 @@ from apps.api.routers.push import router as push_router, payment_router
 # 初始化日志系统
 init_logging()
 logger = get_logger(__name__)
+
+# 初始化 Sentry 错误监控（未配置 DSN 时跳过，开发环境零影响）
+if settings.sentry_dsn:
+    try:
+        import sentry_sdk
+
+        sentry_sdk.init(
+            dsn=settings.sentry_dsn,
+            environment=settings.app_env,
+            traces_sample_rate=settings.sentry_traces_sample_rate,
+            # PIPL 合规：不上报用户 IP/Cookie 等默认 PII
+            send_default_pii=False,
+        )
+        logger.info(f"Sentry 错误监控已启用 (env={settings.app_env})")
+    except Exception as e:
+        logger.warning(f"Sentry 初始化失败（不影响启动）: {e}")
 
 
 @asynccontextmanager
@@ -145,6 +162,29 @@ async def log_requests(request: Request, call_next):
     duration = time.time() - start
     logger.debug(f"{request.method} {request.url.path} → {response.status_code} ({duration:.3f}s)")
     return response
+
+
+# 全局 API 限流中间件（每 IP 每分钟，健康检查/文档/静态资源豁免）
+_RATE_LIMIT_EXEMPT_PREFIXES = ("/health", "/docs", "/redoc", "/openapi.json", "/static", "/uploads")
+
+
+@app.middleware("http")
+async def global_rate_limit(request: Request, call_next):
+    """全局限流：超限返回 429 + Retry-After"""
+    path = request.url.path
+    if not path.startswith(_RATE_LIMIT_EXEMPT_PREFIXES):
+        ip = get_client_ip(request)
+        allowed, retry_after = await check_rate_limit(
+            f"rl:global:{ip}", settings.rate_limit_global_per_minute, 60
+        )
+        if not allowed:
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "请求过于频繁，请稍后再试"},
+                headers={"Retry-After": str(retry_after)},
+            )
+    return await call_next(request)
 
 
 # 挂载路由

@@ -182,13 +182,29 @@ class TestUpdateBazi:
             with patch("packages.utils.bazi_calculator.calculate_bazi", return_value=mock_bazi):
                 response = await async_client.post(
                     "/api/v1/auth/bazi",
-                    json={"birth_year": 1990, "birth_month": 5, "birth_day": 15, "birth_hour": 10, "gender": "男"},
+                    json={"birth_year": 1990, "birth_month": 5, "birth_day": 15, "birth_hour": 10, "gender": "男",
+                          "sensitive_consent": True},
                     headers=auth_headers,
                 )
             assert response.status_code == 200
             data = response.json()
             assert data["bazi"] is not None
             assert "水" in data["xiyong_elements"]
+        finally:
+            test_app.dependency_overrides.clear()
+
+    @pytest.mark.asyncio
+    async def test_update_bazi_without_consent(self, async_client, auth_headers, test_app, mock_user):
+        """PIPL：未勾选敏感信息同意时拒绝保存八字"""
+        test_app.dependency_overrides[get_current_user] = lambda: mock_user
+        try:
+            response = await async_client.post(
+                "/api/v1/auth/bazi",
+                json={"birth_year": 1990, "birth_month": 5, "birth_day": 15, "birth_hour": 10, "gender": "男"},
+                headers=auth_headers,
+            )
+            assert response.status_code == 400
+            assert "同意" in response.json()["detail"]
         finally:
             test_app.dependency_overrides.clear()
 
@@ -242,6 +258,7 @@ class TestGetProfile:
             date(1990, 5, 15), time(10, 0, 0), "北京", "北京", None,
             None, None,
             datetime(2025, 1, 1), datetime(2025, 1, 1),
+            None, None, None, None,  # skin_tone, style_preference, body_type, aesthetic_tags
         )
         test_app.dependency_overrides[get_current_user] = lambda: mock_user
         try:
@@ -285,6 +302,7 @@ class TestUpdateProfile:
             date(1990, 5, 15), time(10, 0, 0), "北京", "北京", None,
             None, None,
             datetime(2025, 1, 1), datetime(2025, 7, 2),
+            None, None, None, None,  # skin_tone, style_preference, body_type, aesthetic_tags
         )
         test_app.dependency_overrides[get_current_user] = lambda: mock_user
         try:
@@ -312,16 +330,33 @@ class TestUpdateProfile:
             date(1990, 5, 15), time(10, 0, 0), "北京", "北京", None,
             mock_bazi, ["水"],
             datetime(2025, 1, 1), datetime(2025, 7, 2),
+            None, None, None, None,  # skin_tone, style_preference, body_type, aesthetic_tags
         )
         test_app.dependency_overrides[get_current_user] = lambda: mock_user
         try:
             with patch("packages.utils.bazi_calculator.calculate_bazi", return_value=mock_bazi):
                 response = await async_client.patch(
                     "/api/v1/auth/profile",
-                    json={"birth_date": "1990-05-15", "birth_time": "10:00:00", "gender": "男"},
+                    json={"birth_date": "1990-05-15", "birth_time": "10:00:00", "gender": "男",
+                          "sensitive_consent": True},
                     headers=auth_headers,
                 )
             assert response.status_code == 200
+        finally:
+            test_app.dependency_overrides.clear()
+
+    @pytest.mark.asyncio
+    async def test_update_birth_info_without_consent(self, async_client, auth_headers, test_app, mock_user):
+        """PIPL：修改出生信息未勾选同意时拒绝"""
+        test_app.dependency_overrides[get_current_user] = lambda: mock_user
+        try:
+            response = await async_client.patch(
+                "/api/v1/auth/profile",
+                json={"birth_date": "1990-05-15"},
+                headers=auth_headers,
+            )
+            assert response.status_code == 400
+            assert "同意" in response.json()["detail"]
         finally:
             test_app.dependency_overrides.clear()
 
@@ -334,6 +369,7 @@ class TestUpdateProfile:
             None, None, None, None, None,
             None, None,
             datetime(2025, 1, 1), datetime(2025, 1, 1),
+            None, None, None, None,  # skin_tone, style_preference, body_type, aesthetic_tags
         )
         test_app.dependency_overrides[get_current_user] = lambda: mock_user
         try:
@@ -355,6 +391,7 @@ class TestUpdateProfile:
             None, None, None, None, "http://img.com/avatar.jpg",
             None, None,
             datetime(2025, 1, 1), datetime(2025, 7, 2),
+            None, None, None, None,  # skin_tone, style_preference, body_type, aesthetic_tags
         )
         test_app.dependency_overrides[get_current_user] = lambda: mock_user
         try:

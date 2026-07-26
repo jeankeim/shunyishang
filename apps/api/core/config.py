@@ -66,6 +66,23 @@ class Settings(BaseSettings):
     oss_endpoint: str = "https://oss-cn-hangzhou-internal.aliyuncs.com"  # ECS 内网
     oss_public_url: str = ""  # 如 https://images.shunyishang.cn
     
+    # === API 限流 / LLM 配额配置 ===
+    rate_limit_enabled: bool = True                # 限流总开关（测试环境可关闭）
+    rate_limit_global_per_minute: int = 120        # 全局：每 IP 每分钟最大请求数
+    rate_limit_auth_per_minute: int = 5            # 登录/注册：每 IP 每分钟最大次数
+    llm_quota_enabled: bool = True                 # LLM 日配额开关
+    llm_daily_quota: int = 30                      # 每身份（登录用户/游客IP）每日 LLM 推荐次数
+
+    # === PII 敏感字段加密（PIPL 合规）===
+    # 生成密钥: python -m apps.api.core.pii_crypto genkey
+    # 未配置时降级明文存储（仅限开发环境），生产环境必须配置
+    pii_encryption_key: str = ""
+
+    # === 错误监控（Sentry）===
+    # 未配置 DSN 时不初始化，开发环境零影响
+    sentry_dsn: str = ""
+    sentry_traces_sample_rate: float = 0.1  # 性能追踪采样率（免费额度有限，保持低采样）
+
     # === JWT 配置 ===
     jwt_secret_key: str = ""  # 生产环境必须设置
     jwt_algorithm: str = "HS256"

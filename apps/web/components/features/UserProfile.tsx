@@ -7,7 +7,7 @@ import { useUserStore } from '@/store/user'
 import { Calendar, MapPin, User, Save, Loader2, X, Sparkles, LogOut, Compass, Sun } from 'lucide-react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
-import { getUserProfile, calculateBazi, updateUserBazi } from '@/lib/api'
+import { getUserProfile, calculateBazi, updateUserBazi, deleteAccount } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { PreferenceRadar } from './PreferenceRadar'
 import { SkinSettings } from './SkinSettings'
@@ -76,6 +76,10 @@ export function UserProfile({ onClose }: UserProfileProps) {
   const [analyzing, setAnalyzing] = useState(false)
   const [fullProfile, setFullProfile] = useState<FullUserProfile | null>(null)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  // 注销账号：两步确认（展开确认区 + 输入“注销”二次确认）
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [formData, setFormData] = useState<UserProfileData>({
     nickname: '',
@@ -92,6 +96,8 @@ export function UserProfile({ onClose }: UserProfileProps) {
   })
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [showCityDropdown, setShowCityDropdown] = useState(false)
+  // PIPL 敏感信息处理同意（修改出生信息时必须勾选）
+  const [sensitiveConsent, setSensitiveConsent] = useState(false)
 
   // 获取完整用户资料（带请求去重）
   useEffect(() => {
@@ -200,7 +206,8 @@ export function UserProfile({ onClose }: UserProfileProps) {
         birth_month: birthDate.getMonth() + 1,
         birth_day: birthDate.getDate(),
         birth_hour: hours,
-        gender: formData.gender as '男' | '女'
+        gender: formData.gender as '男' | '女',
+        sensitive_consent: true, // 已在保存资料时勾选敏感信息同意
       })
 
       // 刷新用户信息
@@ -243,6 +250,18 @@ export function UserProfile({ onClose }: UserProfileProps) {
         setMessage({ type: 'success', text: '没有需要更新的信息' })
         setTimeout(() => setMessage(null), 3000)
         return
+      }
+
+      // PIPL：修改出生信息属敏感个人信息，需单独同意
+      const touchesSensitive = updateData.birth_date !== undefined ||
+                               updateData.birth_time !== undefined ||
+                               updateData.birth_location !== undefined
+      if (touchesSensitive) {
+        if (!sensitiveConsent) {
+          setMessage({ type: 'error', text: '请先勾选同意将出生信息用于八字穿搭分析' })
+          return
+        }
+        updateData.sensitive_consent = true
       }
 
       await updateProfile(updateData)
@@ -313,6 +332,22 @@ export function UserProfile({ onClose }: UserProfileProps) {
     } catch (error) {
       console.error('退出登录失败:', error)
       setMessage({ type: 'error', text: '退出登录失败，请重试' })
+    }
+  }
+
+  // 注销账号（PIPL：不可逆删除全部个人数据）
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== '注销') return
+    setDeleting(true)
+    try {
+      await deleteAccount()
+      // 后端已删除账号，清空本地状态并刷新
+      await logout().catch(() => {})
+      window.location.href = '/'
+    } catch (error) {
+      console.error('注销账号失败:', error)
+      setMessage({ type: 'error', text: error instanceof Error ? error.message : '注销账号失败，请重试' })
+      setDeleting(false)
     }
   }
 
@@ -574,6 +609,28 @@ export function UserProfile({ onClose }: UserProfileProps) {
                   className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[var(--brand-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--wuxing-wood)] focus:border-transparent transition-all hover:border-[var(--wuxing-wood)]/40"
                 />
               </div>
+
+              {/* PIPL 敏感信息单独同意 */}
+              <label className="flex items-start gap-2 mt-5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={sensitiveConsent}
+                  onChange={(e) => setSensitiveConsent(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-[var(--wuxing-wood)]"
+                />
+                <span className="text-xs text-[var(--brand-subtle)] leading-relaxed">
+                  我同意将出生日期、时辰、地点（敏感个人信息）用于八字穿搭分析，详见
+                  <a
+                    href="/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[var(--wuxing-wood)] hover:underline mx-0.5"
+                  >
+                    《隐私政策》
+                  </a>
+                  （修改出生信息时必勾）
+                </span>
+              </label>
             </section>
 
             {/* 偏好设置 */}
@@ -856,6 +913,59 @@ export function UserProfile({ onClose }: UserProfileProps) {
               >
                 <LogOut className="h-4 w-4" />
                 退出登录
+              </button>
+            )}
+          </div>
+
+          {/* 注销账号（PIPL 删除权入口） */}
+          <div className="pt-4 mt-4">
+            {showDeleteConfirm ? (
+              <motion.div
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-red-50/80 rounded-xl p-4 border border-red-200/60"
+              >
+                <p className="text-sm text-red-700 font-medium mb-2">注销账号后将立即且不可恢复地删除：</p>
+                <ul className="text-xs text-red-600/90 list-disc pl-4 space-y-0.5 mb-3">
+                  <li>账号信息与出生信息（含八字分析结果）</li>
+                  <li>衣橱数据及上传的全部照片</li>
+                  <li>穿搭日记、收藏与历史推荐记录</li>
+                </ul>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder='请输入“注销”以确认'
+                  className="w-full px-3 py-2.5 mb-3 text-sm rounded-xl border border-red-200 bg-white text-red-700 placeholder:text-red-300 focus:outline-none focus:ring-2 focus:ring-red-400"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleDeleteAccount}
+                    disabled={deleteConfirmText !== '注销' || deleting}
+                    className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed text-white text-sm rounded-xl font-medium transition-all active:scale-95"
+                  >
+                    {deleting ? '注销中...' : '确认永久注销'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDeleteConfirm(false)
+                      setDeleteConfirmText('')
+                    }}
+                    className="flex-1 px-4 py-2.5 bg-white hover:bg-stone-50 text-stone-600 text-sm rounded-xl font-medium border border-stone-200 transition-all active:scale-95"
+                  >
+                    取消
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="w-full text-center text-xs text-[var(--brand-subtle)] hover:text-red-500 transition-colors py-2"
+              >
+                注销账号（彻底删除全部个人数据）
               </button>
             )}
           </div>

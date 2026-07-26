@@ -222,6 +222,8 @@ export interface BaziCalculateRequest {
   birth_day: number
   birth_hour: number
   gender: '男' | '女'
+  /** PIPL 敏感信息处理同意（保存八字到账号时必传 true） */
+  sensitive_consent?: boolean
 }
 
 export interface BaziCalculateResponse {
@@ -288,6 +290,8 @@ export interface RegisterRequest {
   password: string
   nickname?: string
   gender?: string
+  /** PIPL 单独同意：已阅读并同意隐私政策 */
+  privacy_consent?: boolean
 }
 
 export interface AuthResponse {
@@ -445,6 +449,8 @@ export interface UpdateProfileRequest {
   style_preference?: string | null
   body_type?: string | null
   aesthetic_tags?: string[] | null
+  /** PIPL 敏感信息处理同意（修改出生信息时必传 true） */
+  sensitive_consent?: boolean
 }
 
 export async function updateProfile(request: UpdateProfileRequest): Promise<User> {
@@ -499,6 +505,26 @@ export async function logout(): Promise<void> {
   } finally {
     setAuthToken(null)
   }
+}
+
+/**
+ * 注销账号（PIPL：彻底删除账号及全部个人数据，不可恢复）
+ */
+export async function deleteAccount(): Promise<void> {
+  const response = await fetch(`${getAPIBase()}/api/v1/auth/account`, {
+    method: 'DELETE',
+    headers: {
+      ...getAuthHeaders(),
+    },
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.detail || '注销账号失败，请重试')
+  }
+
+  // 注销成功，清除本地凭证
+  setAuthToken(null)
 }
 
 // ========== 衣橱管理接口 ==========

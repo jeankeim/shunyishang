@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from psycopg2.extras import RealDictCursor
 
 from apps.api.core.database import DatabasePool
+from apps.api.core.pii_crypto import decrypt_date
 from apps.api.services.user_service import get_user_bazi
 from apps.api.routers.auth import get_current_user
 from apps.api.schemas.destiny import (
@@ -96,7 +97,7 @@ async def get_major_luck(
             cur.execute("SELECT birth_date FROM users WHERE id = %s", [user_id])
             row = cur.fetchone()
 
-    current_age = _calculate_current_age(row.get('birth_date') if row else None)
+    current_age = _calculate_current_age(decrypt_date(row.get('birth_date')) if row else None)
     current = get_current_major_luck(user_bazi, gender, current_age, by, bm, bd)
 
     return MajorLuckResponse(

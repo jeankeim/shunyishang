@@ -11,6 +11,7 @@ from typing import Optional
 from psycopg2.extras import RealDictCursor
 
 from apps.api.core.database import DatabasePool
+from apps.api.core.pii_crypto import decrypt_date
 
 logger = logging.getLogger(__name__)
 
@@ -63,15 +64,14 @@ def get_user_bazi(user_id: int, include_extended: bool = False) -> dict:
 
     if include_extended:
         gender = row.get('gender', '男')
-        birth_date = row.get('birth_date')
+        # 敏感字段解密（兼容明文历史数据）
+        birth_date = decrypt_date(row.get('birth_date'))
 
         # 解析出生日期
         _birth_year = None
         _birth_month = None
         _birth_day = None
         if birth_date:
-            if isinstance(birth_date, str):
-                birth_date = date.fromisoformat(birth_date)
             _birth_year = birth_date.year
             _birth_month = birth_date.month
             _birth_day = birth_date.day

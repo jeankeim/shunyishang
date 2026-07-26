@@ -38,6 +38,8 @@ interface RegisterData {
   password: string
   nickname?: string
   gender?: string
+  /** PIPL 单独同意：已阅读并同意隐私政策 */
+  privacy_consent?: boolean
 }
 
 export const useUserStore = create<UserState>()(

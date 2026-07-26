@@ -24,6 +24,8 @@ from apps.api.core.security import (
     generate_user_code
 )
 from apps.api.core.config import settings
+from apps.api.core.rate_limit import auth_rate_limit
+from apps.api.core.pii_crypto import encrypt_pii, decrypt_pii, decrypt_date, decrypt_time
 from packages.utils.bazi_calculator import calculate_bazi
 
 router = APIRouter()
@@ -41,6 +43,7 @@ class UserRegisterRequest(BaseModel):
     password: str = Field(..., min_length=6, description="密码")
     nickname: Optional[str] = Field(None, description="昵称")
     gender: Optional[str] = Field(None, pattern="^(男|女)?$", description="性别")
+    privacy_consent: bool = Field(False, description="是否已同意隐私政策（PIPL 必须为 true）")
 
 
 class UserLoginRequest(BaseModel):
@@ -82,6 +85,7 @@ class UpdateBaziRequest(BaseModel):
     birth_day: int = Field(..., ge=1, le=31)
     birth_hour: int = Field(..., ge=0, le=23)
     gender: str = Field(..., pattern="^(男|女)$")
+    sensitive_consent: bool = Field(False, description="是否单独同意处理出生信息（PIPL 敏感信息，必须为 true）")
 
 
 class UpdateProfileRequest(BaseModel):
@@ -98,6 +102,7 @@ class UpdateProfileRequest(BaseModel):
     style_preference: Optional[str] = Field(None, max_length=50, description="风格偏好: 简约/韩系/日系/国潮/复古/商务/街头/文艺")
     body_type: Optional[str] = Field(None, max_length=20, description="体型: 偏瘦/标准/偏胖")
     aesthetic_tags: Optional[List[str]] = Field(None, description="扩展审美标签数组")
+    sensitive_consent: bool = Field(False, description="更新出生信息时需单独同意（PIPL 敏感信息）")
 
 
 class UserProfileResponse(BaseModel):
@@ -166,9 +171,9 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
                 "email": row[3],
                 "nickname": row[4],
                 "gender": row[5],
-                "birth_date": row[6],
-                "birth_time": row[7],
-                "birth_location": row[8],
+                "birth_date": decrypt_date(row[6]),
+                "birth_time": decrypt_time(row[7]),
+                "birth_location": decrypt_pii(row[8]),
                 "preferred_city": row[9],
                 "avatar_url": row[10],
                 "bazi": row[11],
@@ -178,7 +183,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
 
 # ========== 路由 ==========
 
-@router.post("/register", response_model=TokenResponse, summary="用户注册")
+@router.post("/register", response_model=TokenResponse, summary="用户注册",
+             dependencies=[Depends(auth_rate_limit)])
 async def register(request: UserRegisterRequest):
     """
     用户注册
@@ -193,8 +199,16 @@ async def register(request: UserRegisterRequest):
             detail="测试期间暂不开放注册，请使用测试账号登录"
         )
 
+    # PIPL：注册必须先同意隐私政策
+    if not request.privacy_consent:
+        raise HTTPException(
+            status_code=400,
+            detail="请先阅读并同意隐私政策"
+        )
 
-@router.post("/login", response_model=TokenResponse, summary="用户登录")
+
+@router.post("/login", response_model=TokenResponse, summary="用户登录",
+             dependencies=[Depends(auth_rate_limit)])
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     """
     用户登录
@@ -239,6 +253,11 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
                 )
             
             user_id, user_code, phone, email, password_hash, nickname, gender, birth_date, birth_time, birth_location, preferred_city, avatar_url, bazi, xiyong, is_active = row
+            
+            # 敏感字段解密（兼容明文历史数据）
+            birth_date = decrypt_date(birth_date)
+            birth_time = decrypt_time(birth_time)
+            birth_location = decrypt_pii(birth_location)
             
             if not is_active:
                 raise HTTPException(status_code=401, detail="账户已禁用")
@@ -318,6 +337,13 @@ async def update_bazi(
     """
     from packages.utils.bazi_calculator import calculate_bazi
     
+    # PIPL：出生信息属敏感个人信息，需单独同意
+    if not request.sensitive_consent:
+        raise HTTPException(
+            status_code=400,
+            detail="请先同意将出生信息用于八字分析（敏感个人信息处理同意）"
+        )
+    
     # 计算八字
     bazi_result = calculate_bazi(
         request.birth_year,
@@ -337,12 +363,13 @@ async def update_bazi(
                     birth_time = %s,
                     gender = %s,
                     bazi = %s,
-                    xiyong_elements = %s
+                    xiyong_elements = %s,
+                    privacy_agreed_at = COALESCE(privacy_agreed_at, NOW())
                 WHERE id = %s
                 """,
                 (
-                    f"{request.birth_year}-{request.birth_month:02d}-{request.birth_day:02d}",
-                    f"{request.birth_hour:02d}:00:00",
+                    encrypt_pii(f"{request.birth_year}-{request.birth_month:02d}-{request.birth_day:02d}"),
+                    encrypt_pii(f"{request.birth_hour:02d}:00:00"),
                     request.gender,
                     bazi_result,
                     bazi_result["suggested_elements"],
@@ -416,9 +443,9 @@ async def get_profile(current_user: dict = Depends(get_current_user)):
                 "email": row[2],
                 "nickname": row[3],
                 "gender": row[4],
-                "birth_date": row[5],
-                "birth_time": row[6],
-                "birth_location": row[7],
+                "birth_date": decrypt_date(row[5]),
+                "birth_time": decrypt_time(row[6]),
+                "birth_location": decrypt_pii(row[7]),
                 "preferred_city": row[8],
                 "avatar_url": row[9],
                 "bazi": row[10],
@@ -458,6 +485,20 @@ async def update_profile(
     update_fields = []
     params = []
     
+    # PIPL：更新出生信息（敏感个人信息）需单独同意
+    touches_sensitive = (
+        request.birth_date is not None
+        or request.birth_time is not None
+        or request.birth_location is not None
+    )
+    if touches_sensitive and not request.sensitive_consent:
+        raise HTTPException(
+            status_code=400,
+            detail="请先同意将出生信息用于八字分析（敏感个人信息处理同意）"
+        )
+    if touches_sensitive:
+        update_fields.append("privacy_agreed_at = COALESCE(privacy_agreed_at, NOW())")
+    
     if request.nickname is not None:
         update_fields.append("nickname = %s")
         params.append(request.nickname)
@@ -468,15 +509,15 @@ async def update_profile(
     
     if request.birth_date is not None:
         update_fields.append("birth_date = %s")
-        params.append(request.birth_date)
+        params.append(encrypt_pii(request.birth_date))
     
     if request.birth_time is not None:
         update_fields.append("birth_time = %s")
-        params.append(request.birth_time)
+        params.append(encrypt_pii(request.birth_time))
     
     if request.birth_location is not None:
         update_fields.append("birth_location = %s")
-        params.append(request.birth_location)
+        params.append(encrypt_pii(request.birth_location))
     
     if request.preferred_city is not None:
         update_fields.append("preferred_city = %s")
@@ -579,7 +620,7 @@ async def delete_account(current_user: dict = Depends(get_current_user)):
     
     **核心逻辑**: 软删除，将 `is_active` 设为 FALSE
     
-    **注意**: 用户数据保留，仅标记为 inactive
+    **注意**: 用户数据保留，仅标记为 inactive；彻底注销请用 DELETE /account
     """
     with DatabasePool.get_connection() as conn:
         with conn.cursor() as cur:
@@ -588,3 +629,54 @@ async def delete_account(current_user: dict = Depends(get_current_user)):
                 (current_user["id"],)
             )
             conn.commit()
+
+
+@router.delete("/account", status_code=204, summary="注销账号（彻底删除）")
+async def deregister_account(current_user: dict = Depends(get_current_user)):
+    """
+    注销账号：彻底删除用户及全部个人数据（PIPL 合规要求）
+    
+    **核心逻辑**:
+    1. 收集用户上传的图片 URL（自定义衣橱物品 + 头像）
+    2. 删除 users 行，业务表由外键 ON DELETE CASCADE 自动级联删除；
+       user_disliked_items 无外键约束，需显式删除
+    3. 事务提交后 best-effort 清理对象存储中的图片
+    
+    **注意**: 操作不可逆，前端应做二次确认
+    """
+    user_id = current_user["id"]
+    image_urls: List[str] = []
+
+    with DatabasePool.get_connection() as conn:
+        with conn.cursor() as cur:
+            # 1. 收集需清理的图片：用户自定义衣橱物品 + 头像
+            cur.execute(
+                "SELECT image_url FROM user_wardrobe WHERE user_id = %s AND is_custom = TRUE AND image_url IS NOT NULL",
+                (user_id,)
+            )
+            image_urls = [row[0] for row in cur.fetchall() if row and row[0]]
+            if current_user.get("avatar_url"):
+                image_urls.append(current_user["avatar_url"])
+
+            # 2. 删除无外键约束的关联表，再删除用户（其余表 CASCADE）
+            cur.execute("DELETE FROM user_disliked_items WHERE user_id = %s", (user_id,))
+            cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
+            conn.commit()
+
+    # 3. 清理对象存储图片（best-effort，失败不影响注销结果）
+    try:
+        from apps.api.services.storage import get_storage_service
+        storage = get_storage_service()
+        if storage.available:
+            for url in image_urls:
+                try:
+                    storage.delete_file(url)
+                    thumb = storage.get_thumbnail_url(url)
+                    if thumb and thumb != url:
+                        storage.delete_file(thumb)
+                except Exception as e:
+                    logger.warning(f"注销清理图片失败 {url}: {e}")
+    except Exception as e:
+        logger.warning(f"注销后存储清理异常: {e}")
+
+    logger.info(f"用户 {user_id} 已注销，清理图片 {len(image_urls)} 张")

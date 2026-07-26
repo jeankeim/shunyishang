@@ -21,6 +21,7 @@ from apps.api.core.config import settings
 from apps.api.core.cache import cache
 from apps.api.core.database import DatabasePool
 from apps.api.routers.auth import get_current_user
+from apps.api.core.quota import llm_daily_quota
 from apps.api.services.user_service import get_user_bazi
 from apps.api.services.fortune_engine import calculate_daily_fortune
 from packages.utils.wuxing_rules import ELEMENT_COLOR_MAP
@@ -276,6 +277,7 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
 @router.post(
     "/recommend/stream",
     summary="流式推荐接口",
+    dependencies=[Depends(llm_daily_quota)],
     responses={
         200: {
             "description": "SSE 流式响应",

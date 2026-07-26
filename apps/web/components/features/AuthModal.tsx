@@ -24,6 +24,8 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [password, setPassword] = useState('')
   const [nickname, setNickname] = useState('')
   const [gender, setGender] = useState<'男' | '女'>('男')
+  // PIPL 单独同意：注册前必须勾选隐私政策
+  const [privacyConsent, setPrivacyConsent] = useState(false)
   
   const { login, loginWithEmail, register, isLoading, error, clearError } = useUserStore()
 
@@ -45,6 +47,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
           password,
           nickname: nickname || undefined,
           gender,
+          privacy_consent: privacyConsent,
         })
       }
       onClose()
@@ -53,6 +56,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       setEmail('')
       setPassword('')
       setNickname('')
+      setPrivacyConsent(false)
     } catch (err) {
       // 错误已在 store 中处理
     }
@@ -318,6 +322,29 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   </div>
                 </div>
 
+                {/* 隐私政策单独同意（PIPL） */}
+                <label className="flex items-start gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={privacyConsent}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPrivacyConsent(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 accent-[var(--wuxing-wood,#4f7a4f)]"
+                  />
+                  <span className="text-xs text-slate-400 leading-relaxed">
+                    我已阅读并同意
+                    <a
+                      href="/privacy"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline mx-0.5"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      《隐私政策》
+                    </a>
+                    ，知悉本产品将在我后续主动填写时处理出生日期等敏感个人信息用于穿搭建议
+                  </span>
+                </label>
+
                 {/* 错误提示 */}
                 {error && (
                   <div className="p-3 bg-red-500/10 text-red-400 text-sm rounded-lg">
@@ -328,7 +355,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 <button
                   type="submit"
                   className="w-full bg-primary hover:bg-primary/90 text-white font-medium py-2.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={isLoading || (!phone && !email)}
+                  disabled={isLoading || (!phone && !email) || !privacyConsent}
                 >
                   {isLoading ? '注册中...' : '注册'}
                 </button>

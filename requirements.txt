@@ -14,6 +14,9 @@ numpy<2.0.0
 # Environment
 python-dotenv
 
+# 错误监控（Sentry，未配置 SENTRY_DSN 时不初始化）
+sentry-sdk[fastapi]>=2.0.0
+
 # === Week 2 新增 ===
 # Web Framework
 fastapi>=0.110.0
