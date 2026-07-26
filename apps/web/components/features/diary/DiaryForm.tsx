@@ -155,9 +155,11 @@ export function DiaryForm({ initialData, onSubmit, onCancel, isEdit }: DiaryForm
         tag = await previewTagging('请根据图片分析这件衣物', image_url)
       }
       // 3) 加入待存入候选
+      // 名称优先用 AI 建议名；缺失时用「颜色+分类」兜底，最后才回退占位
+      const fallbackName = `${tag.color && tag.color !== '未知' ? tag.color : ''}${tag.category || ''}`.trim()
       const pending: PendingItem = {
         tempId: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        name: tag.suggested_name || '未命名衣物',
+        name: tag.suggested_name || fallbackName || '未命名衣物',
         category: tag.category,
         image_url,
         primary_element: tag.primary_element,

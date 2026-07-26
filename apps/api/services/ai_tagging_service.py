@@ -28,6 +28,7 @@ class AITaggingService:
             base_url=settings.dashscope_base_url
         )
         self.model = settings.qwen_model
+        self.vl_model = settings.qwen_vl_model  # 多模态视觉模型（拍照看图）
         self.timeout = 30.0
     
     async def analyze_item(
@@ -66,17 +67,28 @@ class AITaggingService:
             }
         """
         
-        prompt = self._build_prompt(description, image_url)
-        
+        use_vision = self._is_fetchable_image(image_url)
+        prompt = self._build_prompt(description, has_image=use_vision)
+        model = self.vl_model if use_vision else self.model
+
+        # 视觉路径：把图片作为多模态输入让模型"看"；文字路径：仅传描述
+        if use_vision:
+            user_content = [
+                {"type": "text", "text": prompt},
+                {"type": "image_url", "image_url": {"url": image_url}},
+            ]
+        else:
+            user_content = prompt
+
         try:
             response = await self.client.chat.completions.create(
-                model=self.model,
+                model=model,
                 messages=[
                     {
                         "role": "system", 
                         "content": "你是专业的五行穿搭顾问，擅长分析衣物的五行属性。请严格按照JSON格式输出，不要输出其他内容。"
                     },
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": user_content}
                 ],
                 temperature=0.3,  # 降低随机性，提高一致性
                 response_format={"type": "json_object"},
@@ -85,25 +97,57 @@ class AITaggingService:
             
             result = json.loads(response.choices[0].message.content)
             
+            # suggested_name 兜底：AI 有时只识别属性却不给名称，
+            # 用"颜色+分类"生成友好名称，避免前端出现"未命名衣物"
+            if not (result.get("suggested_name") or "").strip():
+                result["suggested_name"] = self._fallback_name(result)
+            
             # 计算置信度
             result["confidence"] = self._calculate_confidence(result, description)
             
-            logger.info(f"AI打标成功: {description} -> {result.get('primary_element')} (confidence: {result['confidence']:.2f})")
+            logger.info(
+                f"AI打标成功[{'视觉' if use_vision else '文字'}]: {description} "
+                f"-> {result.get('primary_element')} (confidence: {result['confidence']:.2f})"
+            )
             
             return result
             
         except Exception as e:
-            logger.error(f"AI打标失败: {e}")
+            logger.error(f"AI打标失败[{'视觉' if use_vision else '文字'}]: {e}")
             # 返回默认值，让用户手动修正
             return self._get_default_result(description, str(e))
     
-    def _build_prompt(self, description: str, image_url: Optional[str] = None) -> str:
-        """构建分析提示词（增强版）"""
+    @staticmethod
+    def _is_fetchable_image(image_url: Optional[str]) -> bool:
+        """
+        判断 image_url 是否为模型可获取的图片
+
+        仅公网 http(s) URL 或 base64 data URI 才能被远端视觉模型读取；
+        本地相对路径等无法获取，退回纯文字打标。
+        """
+        if not image_url:
+            return False
+        return image_url.startswith(("http://", "https://", "data:image/"))
+    
+    def _build_prompt(self, description: str, has_image: bool = False) -> str:
+        """构建分析提示词（增强版）
+
+        Args:
+            description: 衣物文字描述
+            has_image: 是否随消息附带图片（多模态路径），为真时以图为主、文字为辅
+        """
         
+        if has_image:
+            source_hint = (
+                "请以图片为主识别这件衣物（颜色/材质/款式/分类等），文字描述仅作补充参考。\n"
+                f"用户补充描述（可能为占位或空）: {description}"
+            )
+        else:
+            source_hint = f"衣物描述: {description}"
+
         prompt = f"""你是一个专业的五行穿搭顾问。请分析这件衣物的五行属性。
 
-衣物描述: {description}
-{f"图片参考: {image_url}" if image_url else ""}
+{source_hint}
 
 请根据以下规则分析：
 
@@ -158,19 +202,19 @@ class AITaggingService:
    - 文玩类：佛珠（小叶紫檀/沉香/崖柏/菩提子）、木质手串、蜜蜡
    - 饰品类：水晶、玛瑙、玉石、翡翠、银饰、碧玺、黑曜石
    - **传统文化寓意映射**：
-     - 黑曜石 → 辟邪净化，水属性
+     - 黑曜石 → 静心宁神，水属性
      - 紫水晶 → 智慧开悟，水属性
-     - 黄水晶/貔貅 → 招财纳福，土/金属性
+     - 黄水晶/貔貅 → 纳福寓意，土/金属性
      - 粉水晶/芙蓉石 → 旺桃花人缘，火属性
      - 绿幽灵 → 正财事业，木属性
-     - 红玛瑙/南红 → 护身辟邪，火属性
+     - 红玛瑙/南红 → 沉稳安心，火属性
      - 和田玉 → 温润养人，土/金属性
      - 翡翠 → 通灵养性，木属性
      - 银饰 → 解毒安神，金属性
      - 小叶紫檀/沉香/崖柏 → 安神定气，木属性
      - 菩提子 → 开悟增慧，木/金属性
      - 蜜蜡/琥珀 → 温养身心，土属性
-   - 饰品/文玩类 functionality 填 ["禅修", "辟邪", "招财", "日常", "装饰"] 等
+   - 饰品/文玩类 functionality 填 ["禅修", "静心", "纳福", "日常", "装饰"] 等
 
 请以 JSON 格式输出分析结果，不要输出其他内容：
 {{
@@ -190,13 +234,23 @@ class AITaggingService:
     "applicable_weather": ["适用天气: 晴/多云/阴/雨/雪"],
     "applicable_seasons": ["适用季节: 春/夏/秋/冬"],
     "temperature_range": {{"min": 最低温度, "max": 最高温度}},
-    "functionality": ["功能场景: 面试/约会/商务/日常/运动/派对/居家/旅行/禅修/辟邪/招财"],
+    "functionality": ["功能场景: 面试/约会/商务/日常/运动/派对/居家/旅行/禅修/静心/纳福"],
     "thickness_level": "厚度等级: 轻薄/适中/加厚/厚重",
     "suggested_name": "建议名称"
 }}"""
         
         return prompt
     
+    @staticmethod
+    def _fallback_name(result: Dict) -> str:
+        """AI 未返回 suggested_name 时，用"颜色+分类"兜底生成名称"""
+        color = (result.get("color") or "").strip()
+        if color in ("", "未知"):
+            color = ""
+        category = (result.get("category") or "").strip()
+        name = f"{color}{category}".strip()
+        return name or "衣物"
+
     def _calculate_confidence(self, result: Dict, description: str) -> float:
         """
         计算置信度

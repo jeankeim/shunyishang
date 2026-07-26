@@ -143,7 +143,9 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
       return
     }
     setError('')
-    await fetchTaggingPreview(descriptionText || '请根据图片分析这件衣物')
+    // 优先用已上传的服务器图片 URL（公网可取，供视觉模型看图）；本地 base64 兜底
+    const analyzeImage = imageUrl || localImage || undefined
+    await fetchTaggingPreview(descriptionText || '请根据图片分析这件衣物', analyzeImage)
   }, [description, localImage, imageUrl, fetchTaggingPreview])
 
   // 进入确认步骤
