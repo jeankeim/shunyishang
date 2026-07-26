@@ -318,12 +318,12 @@ export function DiaryDetail({ diary, onEdit, onDelete, onTriggerReview, onBack }
               onClick={onTriggerReview}
               className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] text-white"
             >
-              {diary.ai_review?.score ? '重新点评' : '生成点评'}
+              {typeof diary.ai_review?.score === 'number' ? '重新点评' : '生成点评'}
             </motion.button>
           )}
         </div>
 
-        {diary.ai_review?.score ? (
+        {typeof diary.ai_review?.score === 'number' ? (
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 flex items-center justify-center">

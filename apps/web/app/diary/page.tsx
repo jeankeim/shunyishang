@@ -134,6 +134,7 @@ export default function DiaryPage() {
     notes?: string
     rating?: number
     image_urls?: string[]
+    items?: { item_source: string; wardrobe_item_id?: number }[]
     trigger_ai_review?: boolean
   }) => {
     const diary = await createNewDiary({
@@ -143,6 +144,7 @@ export default function DiaryPage() {
       notes: data.notes,
       rating: data.rating,
       image_urls: data.image_urls,
+      items: data.items,
       trigger_ai_review: data.trigger_ai_review,
     })
     // 创建成功后直接跳到详情

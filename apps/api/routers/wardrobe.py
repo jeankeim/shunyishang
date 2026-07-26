@@ -6,6 +6,7 @@
 import logging
 import json
 import os
+import re
 import time
 import uuid
 from typing import Optional
@@ -97,11 +98,24 @@ async def upload_wardrobe_image(
                 detail=f"图片大小超过限制（最大 5MB）"
             )
         
-        # 3. 生成唯一文件名
+        # 3. 生成唯一文件名（对象名仅保留 ASCII 安全字符：
+        #    中文/空格等非 ASCII 字符会进入 R2 URL，导致下游（如 AI 视觉模型下载图片）拉取失败）
         timestamp = int(time.time())
         unique_id = str(uuid.uuid4())[:8]
         original_filename = file.filename or "image.jpg"
-        safe_filename = f"{user_id}_{timestamp}_{unique_id}_{original_filename}"
+        # 拆出扩展名并校验，非法则按 content_type 兜底
+        ext = os.path.splitext(original_filename)[1].lower()
+        if ext not in {".jpg", ".jpeg", ".png", ".webp"}:
+            ext = {
+                "image/jpeg": ".jpg",
+                "image/jpg": ".jpg",
+                "image/png": ".png",
+                "image/webp": ".webp",
+            }.get(file.content_type, ".jpg")
+        # 文件名主体：仅保留 ASCII 字母数字/下划线/连字符，其余（中文、空格等）替换为下划线
+        stem = os.path.splitext(original_filename)[0]
+        safe_stem = re.sub(r"[^A-Za-z0-9_-]+", "_", stem).strip("_")[:40] or "image"
+        safe_filename = f"{user_id}_{timestamp}_{unique_id}_{safe_stem}{ext}"
         
         # 4. 上传到对象存储
         storage_service = get_storage_service()

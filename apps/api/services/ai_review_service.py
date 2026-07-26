@@ -114,6 +114,9 @@ def generate_ai_review(
 
     优先使用 LLM 生成，失败时回退到规则兜底。
     """
+    # 无穿搭单品时无需调用 LLM，直接返回友好的规则兜底文案
+    if not outfit_items:
+        return _rule_based_review(user_bazi, outfit_items, weather, occasion)
     try:
         return _llm_review(user_bazi, outfit_items, weather, occasion)
     except Exception as e:

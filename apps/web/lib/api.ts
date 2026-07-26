@@ -718,8 +718,8 @@ export async function previewTagging(description: string, image_url?: string): P
   })
 
   if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.detail || 'AI 打标失败')
+    const error = await response.json().catch(() => null)
+    throw new Error(error?.detail || (response.status >= 500 ? 'AI 打标服务暂时不可用，请稍后重试' : 'AI 打标失败'))
   }
 
   return response.json()
