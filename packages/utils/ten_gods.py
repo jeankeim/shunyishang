@@ -49,7 +49,7 @@ TEN_GODS: Dict[str, Dict[str, Any]] = {
     },
     "劫财": {
         "element_relation": "同我",
-        "description": "行动力强，破财之兆",
+        "description": "行动力强，宜稳健理财",
         "style_keywords": ["活力", "运动", "明快"],
     },
     "食神": {

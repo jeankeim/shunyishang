@@ -21,7 +21,7 @@ const TEN_GOD_COLORS: Record<string, { bg: string; text: string; border: string 
 // 十神描述映射
 const TEN_GOD_DESC: Record<string, string> = {
   '比肩': '独立自主，竞争合作',
-  '劫财': '行动力强，破财之兆',
+  '劫财': '行动力强，宜稳健理财',
   '食神': '才华横溢，福禄之兆',
   '伤官': '聪明叛逆，创新之兆',
   '偏财': '意外之财，投资之兆',

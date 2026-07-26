@@ -376,6 +376,6 @@ def _generate_yearly_advice(
     if suggested:
         parts.append(f"年度宜多穿戴{'、'.join(suggested[:2])}属性的衣物，以增强运势。")
 
-    parts.append(f"日主{day_master}，宜顺势而为，趋吉避凶。")
+    parts.append(f"日主{day_master}，宜顺势而为，从容应对。")
 
     return "".join(parts)

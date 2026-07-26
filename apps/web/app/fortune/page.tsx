@@ -389,7 +389,7 @@ export default function FortunePage() {
           <div className="flex items-center justify-between mb-3">
             <div>
               <h3 className="mystic-heading text-base font-semibold">年度运势详批</h3>
-              <p className="mystic-subtle text-xs mt-0.5">AI 深度解析本年度运势，助您趋吉避凶</p>
+              <p className="mystic-subtle text-xs mt-0.5">AI 深度解析本年度运势，助您从容规划</p>
             </div>
             <span className="text-2xl">🔮</span>
           </div>
