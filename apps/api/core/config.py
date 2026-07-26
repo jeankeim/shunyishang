@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     dashscope_api_key: str = ""
     dashscope_base_url: str = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"  # 国际端点（境外服务器）
     qwen_model: str = "qwen-plus"  # 国内端点使用 qwen-plus（质量更高）
+    qwen_vl_model: str = "qwen-vl-plus"  # 多模态视觉模型：拍照识别衣物五行属性
     
     # === OpenAI 配置 (备用) ===
     openai_api_key: str = ""
