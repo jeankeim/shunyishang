@@ -14,7 +14,6 @@ from typing import Dict, List, Optional
 
 from packages.recommendation.config import (
     MAX_TARGET_ELEMENTS,
-    BATCH_JITTER_RANGE,
     compute_recommend_weights,
 )
 from packages.recommendation.scoring import (
@@ -163,48 +162,86 @@ def score_and_rank_items(
     # ========== 5. 温度硬过滤 ==========
     scored_items = apply_temperature_hard_filter(scored_items, weather_info)
 
-    # ========== 6. 排序 ==========
-    if batch_index > 0:
-        for item in scored_items:
-            item["_jittered_score"] = item["final_score"] + random.uniform(-BATCH_JITTER_RANGE, BATCH_JITTER_RANGE)
-        scored_items.sort(key=lambda x: (x["_jittered_score"], _canonical_item_key(x)), reverse=True)
-        for item in scored_items:
-            del item["_jittered_score"]
-    else:
-        scored_items.sort(key=lambda x: (x["final_score"], _canonical_item_key(x)), reverse=True)
+    # ========== 6. 排序（确定性：分数 + 规范key，保证批次选择可复现） ==========
+    scored_items.sort(key=lambda x: (x["final_score"], _canonical_item_key(x)), reverse=True)
 
-    # ========== 7. 批次偏移 ==========
-    start_idx = batch_index * top_k
-    if start_idx < len(scored_items):
-        diversity_pool = scored_items[start_idx:]
-        if batch_index > 0:
-            logger.info(f"[换一批] batch_index={batch_index}，跳过前{start_idx}件")
-    else:
-        diversity_pool = scored_items
-        logger.info(f"[换一批] 候选不足（{len(scored_items)}件），回退到第1批")
-
-    # ========== 8. 多样性优化 ==========
-    # 传入批次起点之后的完整候选池：品类/点缀去重后仍能用普通服装回填到 top_k，避免因去重导致数量不足
-    top_items = ensure_category_diversity(diversity_pool, top_k)
-    top_items = ensure_wuxing_diversity(top_items, scored_items, top_k)
-
-    # ========== 9. 温度安全检查 ==========
-    top_items = apply_temperature_safety_check(top_items, scored_items, weather_info, top_k)
-
-    # ========== 9.5 搭配完整性保障（在温度安全后执行，确保不被覆盖） ==========
-    top_items = ensure_outfit_completeness(
-        top_items, scored_items, top_k,
-        style_preference=user_style_preference,
-        body_type=user_body_type,
+    # ========== 7-10. 批次选择（换一批：批次间物品不重合） ==========
+    top_items = _select_batch_items(
+        scored_items=scored_items,
+        top_k=top_k,
+        batch_index=batch_index,
+        weather_info=weather_info,
+        user_style_preference=user_style_preference,
+        user_body_type=user_body_type,
         target_elements=target_elements,
         scene=scene,
     )
 
-    # ========== 10. 五行全不匹配降级 ==========
-    if all(item.get("wuxing_score", 0) == 0 for item in top_items):
-        top_items = _handle_wuxing_fallback(scored_items, top_k)
-
     return {"scored_items": scored_items, "top_items": top_items}
+
+
+def _select_batch_items(
+    scored_items: List[Dict],
+    top_k: int,
+    batch_index: int,
+    weather_info: Optional[Dict],
+    user_style_preference: Optional[str],
+    user_body_type: Optional[str],
+    target_elements: List[str],
+    scene: Optional[str],
+) -> List[Dict]:
+    """
+    批次选择：确定性模拟前序批次并显式排除已展示物品，保证批次间不重合
+
+    实现方式：
+    - 整条选择链路确定性可复现（排序稳定 + 种子化随机源），
+      因此 batch_index=N 时可精确重算第 0..N-1 批的展示集合并全部排除，
+      下游多样性/温度安全/搭配完整性保障也只从排除后的池中补充，不会捞回前批物品
+    - 新候选不足 top_k 时，已展示物品按分数序垫在池尾兜底（物理上无法完全不重合时优先保障可穿性）
+    """
+    # 种子仅由候选集合决定（与 batch_index 无关），保证同一候选集下各批次模拟一致
+    seed_material = "|".join(_canonical_item_key(it) for it in scored_items)
+
+    excluded_keys: set = set()
+    top_items: List[Dict] = []
+
+    for b in range(batch_index + 1):
+        pool = [it for it in scored_items if _canonical_item_key(it) not in excluded_keys]
+        if len(pool) < top_k and excluded_keys:
+            # 新候选不足：已展示物品垫在池尾兜底（新鲜候选优先被选中）
+            shown = [it for it in scored_items if _canonical_item_key(it) in excluded_keys]
+            pool = pool + shown
+            logger.info(
+                f"[换一批] batch_index={b} 新候选不足（剩{len(pool) - len(shown)}件），复用已展示物品补足"
+            )
+
+        # 8. 多样性优化（种子化随机源：同一候选集下选择结果可复现）
+        rng = random.Random(f"{seed_material}#batch{b}")
+        batch_items = ensure_category_diversity(pool, top_k, rng=rng)
+        batch_items = ensure_wuxing_diversity(batch_items, pool, top_k)
+
+        # 9. 温度安全检查
+        batch_items = apply_temperature_safety_check(batch_items, pool, weather_info, top_k)
+
+        # 9.5 搭配完整性保障（在温度安全后执行，确保不被覆盖）
+        batch_items = ensure_outfit_completeness(
+            batch_items, pool, top_k,
+            style_preference=user_style_preference,
+            body_type=user_body_type,
+            target_elements=target_elements,
+            scene=scene,
+        )
+
+        # 10. 五行全不匹配降级
+        if all(item.get("wuxing_score", 0) == 0 for item in batch_items):
+            batch_items = _handle_wuxing_fallback(pool, top_k, rng=rng)
+
+        excluded_keys.update(_canonical_item_key(it) for it in batch_items)
+        top_items = batch_items
+        if b > 0:
+            logger.info(f"[换一批] batch_index={b}：本批{len(batch_items)}件，累计排除{len(excluded_keys)}件")
+
+    return top_items
 
 
 def _check_pref_relevance(user_prefs: Dict, items: List[Dict]) -> bool:
@@ -224,7 +261,7 @@ def _check_pref_relevance(user_prefs: Dict, items: List[Dict]) -> bool:
     return False
 
 
-def _handle_wuxing_fallback(scored_items: List[Dict], top_k: int) -> List[Dict]:
+def _handle_wuxing_fallback(scored_items: List[Dict], top_k: int, rng: Optional[random.Random] = None) -> List[Dict]:
     """五行全不匹配时的降级策略"""
     semantic_values = {item.get("semantic_score", 0.5) for item in scored_items}
     if len(semantic_values) <= 1:
@@ -240,7 +277,7 @@ def _handle_wuxing_fallback(scored_items: List[Dict], top_k: int) -> List[Dict]:
     else:
         scored_items.sort(key=lambda x: (x["semantic_score"], _canonical_item_key(x)), reverse=True)
 
-    result = ensure_category_diversity(scored_items, top_k)
+    result = ensure_category_diversity(scored_items, top_k, rng=rng)
     # 降级路径也保障搭配完整性（无风格/体型/五行信息，因为全不匹配）
     result = ensure_outfit_completeness(result, scored_items, top_k)
     return result

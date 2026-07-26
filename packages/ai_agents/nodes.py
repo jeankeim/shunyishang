@@ -30,34 +30,15 @@ from packages.utils.destiny_calculator import (
     get_current_major_luck,
 )
 from packages.utils.scene_mapper import (
-    extract_scene_from_text,
     extract_scene_multidimensional,
     get_scene_elements,
     get_color_by_element,
     build_search_query,
 )
-from packages.utils.scene_mapping import calculate_scene_match_score
-from packages.utils.wuxing_rules import ELEMENT_COLOR_MAP
-from packages.recommendation.engine import score_and_rank_items, _canonical_item_key
-from packages.recommendation.config import (
-    MAX_TARGET_ELEMENTS as _MAX_TARGET_ELEMENTS,
-    EXTREME_HOT_TEMP, HOT_TEMP, MILD_HOT_TEMP,
-    EXTREME_COLD_TEMP, MILD_COLD_TEMP,
-    compute_recommend_weights as _compute_recommend_weights,
-)
-from packages.recommendation.scoring import (
-    infer_item_thickness as _infer_item_thickness,
-    calculate_temp_score as _calculate_temp_score,
-    calculate_season_score as _calculate_season_score,
-    get_current_season as _get_current_season,
-    calculate_skin_tone_bonus as _get_skin_tone_bonus,
-    calculate_style_preference_bonus as _get_style_preference_bonus,
-    calculate_body_type_bonus as _get_body_type_bonus,
-)
+from packages.recommendation.engine import score_and_rank_items
 from packages.recommendation.filters import (
     build_weather_filter as _build_weather_filter,
     build_scene_filter as _build_scene_filter,
-    build_gender_filter,
 )
 
 logger = logging.getLogger(__name__)
@@ -72,22 +53,6 @@ DEFAULT_MAX_WAIT = 1.5  # 秒（优化：从 3.0 降低到 1.5）
 
 # 推荐五行数量上限（与 merge_recommendations 的截断保持一致，避免流年等增强突破上限）
 MAX_TARGET_ELEMENTS = 3
-
-# ============================================================
-# 温度分层阈值（统一"极端温度加权""温度硬过滤""温度评分"三处判定，消除阈值割裂）
-# ============================================================
-EXTREME_HOT_TEMP = 30    # ≥30°C：极端高温（触发温度权重 + 硬排除 厚重/中厚 + 温度评分偏薄）
-HOT_TEMP = 28            # ≥28°C：高温（硬排除 厚重/中厚，只推轻薄）
-MILD_HOT_TEMP = 25       # ≥25°C：中高温（硬排除 厚重）
-EXTREME_COLD_TEMP = 5    # ≤5°C：极端低温（触发温度权重 + 硬排除 极薄/轻薄 + 温度评分偏厚）
-MILD_COLD_TEMP = 10      # ≤10°C：低温（硬排除 极薄）
-
-
-def _is_extreme_temp(temperature: Optional[float]) -> bool:
-    """判断是否为极端温度（与硬过滤的强排除档位一致）。"""
-    if temperature is None:
-        return False
-    return temperature <= EXTREME_COLD_TEMP or temperature >= EXTREME_HOT_TEMP
 
 
 def _canonical_item_key(item: Dict) -> str:
@@ -443,74 +408,6 @@ def _enhance_query_with_llm(
         logger.error(f"[Agent] LLM 增强查询失败（重试后）: {e}")
         # 降级：直接使用用户输入
         return user_input
-
-
-# ============================================================
-# 推荐权重配置化（替代原硬编码 if-else 链）
-# ============================================================
-
-# 基础权重预设表：(has_bazi, has_scene, has_prefs) -> weights
-_WEIGHT_PRESETS = {
-    # 有八字 + 有场景
-    (True,  True,  True):  {"semantic": 0.50, "wuxing": 0.25, "scene": 0.15, "pref": 0.10, "temp": 0.00},
-    (True,  True,  False): {"semantic": 0.50, "wuxing": 0.30, "scene": 0.20, "pref": 0.00, "temp": 0.00},
-    # 有八字 + 无场景
-    (True,  False, True):  {"semantic": 0.50, "wuxing": 0.35, "scene": 0.00, "pref": 0.15, "temp": 0.00},
-    (True,  False, False): {"semantic": 0.55, "wuxing": 0.45, "scene": 0.00, "pref": 0.00, "temp": 0.00},
-    # 无八字 + 有场景
-    (False, True,  True):  {"semantic": 0.55, "wuxing": 0.15, "scene": 0.20, "pref": 0.10, "temp": 0.00},
-    (False, True,  False): {"semantic": 0.60, "wuxing": 0.20, "scene": 0.20, "pref": 0.00, "temp": 0.00},
-    # 无八字 + 无场景
-    (False, False, True):  {"semantic": 0.55, "wuxing": 0.30, "scene": 0.00, "pref": 0.15, "temp": 0.00},
-    (False, False, False): {"semantic": 0.60, "wuxing": 0.40, "scene": 0.00, "pref": 0.00, "temp": 0.00},
-}
-
-# 极端温度时，温度维度占比
-_EXTREME_TEMP_RATIO = 0.25
-
-
-def _compute_recommend_weights(
-    has_bazi: bool,
-    has_scene: bool,
-    has_prefs: bool,
-    is_extreme_temp: bool = False,
-) -> Dict[str, float]:
-    """
-    配置化计算推荐权重（替代原 20+ 分支的 if-else 链）
-    
-    策略：
-    1. 从预设表查基础权重
-    2. 极端温度时，温度维度占 25%，其余维度按比例缩减
-    
-    Args:
-        has_bazi: 是否有八字信息
-        has_scene: 是否有场景信息
-        has_prefs: 是否有用户偏好
-        is_extreme_temp: 是否极端温度（≤5°C 或 ≥32°C）
-    
-    Returns:
-        Dict[str, float]: 各维度权重（总和=1.0）
-    """
-    preset = _WEIGHT_PRESETS.get(
-        (has_bazi, has_scene, has_prefs),
-        _WEIGHT_PRESETS[(False, False, False)],  # 默认兜底
-    ).copy()
-    
-    if is_extreme_temp:
-        preset["temp"] = _EXTREME_TEMP_RATIO
-        # 按原比例缩减其他维度，确保总和=1.0
-        remaining = 1.0 - _EXTREME_TEMP_RATIO
-        other_sum = sum(v for k, v in preset.items() if k != "temp")
-        if other_sum > 0:
-            scale = remaining / other_sum
-            for k in preset:
-                if k != "temp":
-                    preset[k] = round(preset[k] * scale, 4)
-        # P2-72 强制归一：用 semantic 吸收浮点累积误差，确保总和精确等于 1.0
-        total_without_semantic = sum(v for k, v in preset.items() if k != "semantic")
-        preset["semantic"] = round(1.0 - total_without_semantic, 4)
-    
-    return preset
 
 
 # ============================================================
@@ -1439,169 +1336,6 @@ def _search_accent_items(
     if items:
         logger.info(f"[配饰辅路] 召回{len(items)}件: {[i['name'] for i in items]}")
     return items
-
-
-def _build_weather_filter(weather_info: Optional[Dict]) -> str:
-    """
-    构建天气过滤SQL条件
-    
-    根据温度和天气状况生成过滤条件：
-    - 温度过滤：优先推荐适合当前温度的衣物
-    - 天气状况过滤：雨天推荐防水衣物等
-    
-    Args:
-        weather_info: 天气信息 {"temperature": int, "weather_desc": str}
-    
-    Returns:
-        str: SQL过滤条件
-    """
-    if not weather_info:
-        return ""
-    
-    conditions = []
-    temperature = weather_info.get("temperature")
-    weather_desc = weather_info.get("weather_desc", "")
-    
-    # 温度过滤逻辑（阈值统一使用模块常量，与 _calculate_temp_score / 硬过滤对齐）
-    if temperature is not None:
-        # 6 档位与 _calculate_temp_score 完全对齐：
-        #   ≥EXTREME_HOT_TEMP(30) / ≥HOT_TEMP(28) / ≥MILD_HOT_TEMP(25)
-        #   ≤EXTREME_COLD_TEMP(5) / ≤MILD_COLD_TEMP(10) / 适中(11-24)
-        if temperature <= EXTREME_COLD_TEMP:
-            # 极端低温（≤5°C）：优先厚重/中厚衣物
-            conditions.append(
-                f"(thickness_level IN ('厚重', '中厚') OR "
-                f"temperature_range->>'最低' IS NOT NULL AND "
-                f"(temperature_range->>'最低')::int <= {EXTREME_COLD_TEMP})"
-            )
-        elif temperature <= MILD_COLD_TEMP:
-            # 低温（6-10°C）：优先中厚/适中/厚重衣物
-            conditions.append(
-                f"(thickness_level IN ('厚重', '中厚', '适中') OR "
-                f"temperature_range->>'最低' IS NOT NULL AND "
-                f"(temperature_range->>'最低')::int <= {MILD_COLD_TEMP})"
-            )
-        elif temperature < MILD_HOT_TEMP:
-            # 适中温度（11-24°C）：适中/轻薄/极薄均可
-            conditions.append(
-                f"(thickness_level IN ('适中', '轻薄', '极薄', '中厚') OR "
-                f"temperature_range->>'最低' IS NOT NULL AND "
-                f"(temperature_range->>'最低')::int <= {MILD_HOT_TEMP})"
-            )
-        elif temperature < HOT_TEMP:
-            # 中高温（25-27°C）：优先轻薄/极薄/适中，排除厚重
-            conditions.append(
-                f"(thickness_level IN ('轻薄', '极薄', '适中') OR "
-                f"temperature_range->>'最高' IS NOT NULL AND "
-                f"(temperature_range->>'最高')::int >= {MILD_HOT_TEMP})"
-            )
-        elif temperature < EXTREME_HOT_TEMP:
-            # 高温（28-29°C）：只推轻薄/极薄/适中
-            conditions.append(
-                f"(thickness_level IN ('轻薄', '极薄', '适中') OR "
-                f"temperature_range->>'最高' IS NOT NULL AND "
-                f"(temperature_range->>'最高')::int >= {HOT_TEMP})"
-            )
-        else:
-            # 极端高温（≥30°C）：只推轻薄/极薄
-            conditions.append(
-                f"(thickness_level IN ('轻薄', '极薄') OR "
-                f"temperature_range->>'最高' IS NOT NULL AND "
-                f"(temperature_range->>'最高')::int >= {EXTREME_HOT_TEMP})"
-            )
-    
-    # 天气状况过滤（软过滤：不硬性排除，只在 SQL 中不添加过滤条件）
-    # 天气过滤已移至评分逻辑中处理，这里不再硬性过滤
-    # 原因：硬过滤会导致结果过少，应该让向量搜索先返回结果，再根据天气评分
-    if weather_desc:
-        weather_desc_lower = weather_desc.lower()
-        
-        # 注释掉硬过滤，改为在评分时考虑天气因素
-        # if any(kw in weather_desc_lower for kw in ['雨', '雪', '阴雨']):
-        #     conditions.append(
-        #         "(applicable_weather ? '雨天' OR "
-        #         "functionality->>'防水' = 'true' OR "
-        #         "applicable_weather ? '多云')"
-        #     )
-        # elif any(kw in weather_desc_lower for kw in ['晴', '晴朗']):
-        #     conditions.append(
-        #         "(applicable_weather ? '晴天' OR "
-        #         "functionality->>'防晒' = 'true' OR "
-        #         "applicable_weather ? '温和')"
-        #     )
-    
-    return " AND ".join(conditions) if conditions else ""
-
-
-def _build_scene_filter(scene: Optional[str], sub_scene: Optional[str] = None) -> str:
-    """
-    构建场景过滤SQL条件（统一从 scene_mapping.py 读取规则）
-    
-    消除原先硬编码的 scene_exclusions 字典与 scene_mapping.py 的不同步问题。
-    所有场景的 excluded_categories / excluded_keywords 统一来源于 SCENE_MAPPING。
-    
-    Args:
-        scene: 场景名称
-        sub_scene: 子场景名称（可选）
-    
-    Returns:
-        str: SQL过滤条件
-    """
-    if not scene:
-        return ""
-    
-    from packages.utils.scene_mapping import get_scene_rules, get_sub_scene_rules
-    
-    rules = get_scene_rules(scene)
-    if not rules:
-        return ""
-    
-    conditions = []
-    
-    # 1. 排除特定类别（来自 SCENE_MAPPING.excluded_categories）
-    excluded_cats = rules.get("excluded_categories", [])
-    if excluded_cats:
-        categories_str = ",".join([f"'{cat}'" for cat in excluded_cats])
-        conditions.append(f"category NOT IN ({categories_str})")
-    
-    # 2. 排除包含特定关键词的衣物（来自 SCENE_MAPPING.excluded_keywords）
-    excluded_kws = rules.get("excluded_keywords", [])
-    if excluded_kws:
-        keyword_conditions = []
-        for keyword in excluded_kws:
-            keyword_conditions.append(f"name NOT LIKE '%%{keyword}%%'")
-        conditions.append(" AND ".join(keyword_conditions))
-    
-    # 2.1 子场景特殊排除关键词
-    if sub_scene:
-        sub_rules = get_sub_scene_rules(sub_scene)
-        if sub_rules and "extra_excluded_keywords" in sub_rules:
-            for keyword in sub_rules["extra_excluded_keywords"]:
-                conditions.append(f"name NOT LIKE '%%{keyword}%%'")
-    
-    # 3. 排除特定厚度的衣物（基于 preferred_thickness 的反向过滤）
-    # 仅当场景明确指定了 preferred_thickness 时，排除不在列表中的厚度
-    preferred_thickness = rules.get("preferred_thickness", [])
-    if preferred_thickness and scene in ("运动", "度假"):
-        # 仅对极端场景做硬过滤：运动排除厚重，度假排除厚重
-        all_thickness = ["极薄", "轻薄", "适中", "中厚", "厚重"]
-        exclude_thickness = [t for t in all_thickness if t not in preferred_thickness]
-        if exclude_thickness:
-            thickness_str = ",".join([f"'{t}'" for t in exclude_thickness])
-            conditions.append(f"thickness_level NOT IN ({thickness_str})")
-    
-    # 4. 运动场景功能硬过滤（来自 SCENE_MAPPING.preferred_functionality）
-    if scene == "运动":
-        preferred_funcs = rules.get("preferred_functionality", [])
-        sport_funcs = [f for f in preferred_funcs if f in ("透气", "速干", "运动", "弹性")]
-        if sport_funcs:
-            func_conditions = []
-            for func in sport_funcs:
-                func_conditions.append(f"(functionality->>'{func}')::boolean = true")
-            if func_conditions:
-                conditions.append(f"({' OR '.join(func_conditions)})")
-    
-    return " AND ".join(conditions) if conditions else ""
 
 
 def _build_weather_details(weather_info: Optional[Dict], retrieved_items: List[Dict]) -> str:

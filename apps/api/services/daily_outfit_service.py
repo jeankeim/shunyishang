@@ -395,26 +395,41 @@ def _select_diverse_items(
     - 每个品类不超过 CATEGORY_MAX_PER_OUTFIT 限制
     - 优先确保 上装+下装 或 裙装 的核心搭配
     - 配饰/鞋履作为补充
-    - batch_index > 0 时跳过前 N*target_count 个高分物品
+    - 换一批：逐批模拟并排除前序批次已选物品，保证批次间不重合；
+      候选耗尽时回退复用已展示物品
     """
+    excluded_ids: set = set()
+    selected: List[Dict[str, Any]] = []
+
+    for _ in range(batch_index + 1):
+        selected = _pick_one_batch(scored, target_count, excluded_ids)
+        if not selected and excluded_ids:
+            # 候选耗尽：回退复用已展示物品
+            excluded_ids.clear()
+            selected = _pick_one_batch(scored, target_count, excluded_ids)
+        excluded_ids.update(item["id"] for item in selected)
+
+    return selected
+
+
+def _pick_one_batch(
+    scored: List[tuple],
+    target_count: int,
+    excluded_ids: set,
+) -> List[Dict[str, Any]]:
+    """从评分结果中选出一批物品（跳过已排除 id，遵守品类限制）"""
     selected: List[Dict[str, Any]] = []
     category_count: Dict[str, int] = {}
 
-    # 分页偏移（换一批）
-    skip = batch_index * target_count
-    offset = 0
-
     for item, score in scored:
+        if item.get("id") in excluded_ids:
+            continue
+
         category = item.get("category") or "其他"
         current = category_count.get(category, 0)
         max_allowed = CATEGORY_MAX_PER_OUTFIT.get(category, 1)
 
         if current >= max_allowed:
-            continue
-
-        # 换一批：跳过前 skip 个有效物品
-        if offset < skip:
-            offset += 1
             continue
 
         payload = _format_item(item, score)

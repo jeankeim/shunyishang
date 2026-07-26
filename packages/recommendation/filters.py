@@ -242,6 +242,7 @@ def build_scene_filter(scene: Optional[str], sub_scene: Optional[str] = None) ->
     构建场景过滤SQL条件
 
     统一从 scene_mapping.py 读取规则，消除硬编码不同步问题。
+    注意：所有拼入 SQL 的字符串均经过单引号转义，防止配置值意外破坏 SQL 结构。
     """
     if not scene:
         return ""
@@ -254,10 +255,14 @@ def build_scene_filter(scene: Optional[str], sub_scene: Optional[str] = None) ->
 
     conditions = []
 
+    def _escape(val: str) -> str:
+        """转义 SQL 字符串中的单引号"""
+        return val.replace("'", "''")
+
     # 排除特定类别
     excluded_cats = rules.get("excluded_categories", [])
     if excluded_cats:
-        categories_str = ",".join([f"'{cat}'" for cat in excluded_cats])
+        categories_str = ",".join([f"'{_escape(cat)}'" for cat in excluded_cats])
         conditions.append(f"category NOT IN ({categories_str})")
 
     # 排除包含特定关键词的衣物
@@ -265,7 +270,7 @@ def build_scene_filter(scene: Optional[str], sub_scene: Optional[str] = None) ->
     if excluded_kws:
         keyword_conditions = []
         for keyword in excluded_kws:
-            keyword_conditions.append(f"name NOT LIKE '%%{keyword}%%'")
+            keyword_conditions.append(f"name NOT LIKE '%%{_escape(keyword)}%%'")
         conditions.append(" AND ".join(keyword_conditions))
 
     # 子场景特殊排除
@@ -273,7 +278,7 @@ def build_scene_filter(scene: Optional[str], sub_scene: Optional[str] = None) ->
         sub_rules = get_sub_scene_rules(sub_scene)
         if sub_rules and "extra_excluded_keywords" in sub_rules:
             for keyword in sub_rules["extra_excluded_keywords"]:
-                conditions.append(f"name NOT LIKE '%%{keyword}%%'")
+                conditions.append(f"name NOT LIKE '%%{_escape(keyword)}%%'")
 
     # 排除特定厚度（仅极端场景）
     preferred_thickness = rules.get("preferred_thickness", [])
@@ -281,7 +286,7 @@ def build_scene_filter(scene: Optional[str], sub_scene: Optional[str] = None) ->
         all_thickness = ["极薄", "轻薄", "适中", "中厚", "厚重"]
         exclude_thickness = [t for t in all_thickness if t not in preferred_thickness]
         if exclude_thickness:
-            thickness_str = ",".join([f"'{t}'" for t in exclude_thickness])
+            thickness_str = ",".join([f"'{_escape(t)}'" for t in exclude_thickness])
             conditions.append(f"thickness_level NOT IN ({thickness_str})")
 
     # 运动场景功能硬过滤
@@ -291,7 +296,7 @@ def build_scene_filter(scene: Optional[str], sub_scene: Optional[str] = None) ->
         if sport_funcs:
             func_conditions = []
             for func in sport_funcs:
-                func_conditions.append(f"(functionality->>'{func}')::boolean = true")
+                func_conditions.append(f"(functionality->>'{_escape(func)}')::boolean = true")
             if func_conditions:
                 conditions.append(f"({' OR '.join(func_conditions)})")
 

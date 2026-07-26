@@ -324,7 +324,7 @@ class TestTemperatureThresholds:
 
     def test_constants_values(self):
         """验证模块常量值正确"""
-        from packages.ai_agents.nodes import (
+        from packages.recommendation.config import (
             EXTREME_HOT_TEMP, HOT_TEMP, MILD_HOT_TEMP,
             EXTREME_COLD_TEMP, MILD_COLD_TEMP,
         )
@@ -336,7 +336,7 @@ class TestTemperatureThresholds:
 
     def test_extreme_cold_boundary_at_5(self):
         """EXTREME_COLD_TEMP=5 边界：厚重加分，轻薄扣分"""
-        from packages.ai_agents.nodes import _calculate_temp_score
+        from packages.recommendation.scoring import calculate_temp_score as _calculate_temp_score
         heavy = {"name": "羽绒服", "thickness_level": "厚重"}
         thin = {"name": "T恤", "thickness_level": "轻薄"}
 
@@ -348,7 +348,7 @@ class TestTemperatureThresholds:
 
     def test_mild_cold_boundary_at_10(self):
         """MILD_COLD_TEMP=10 边界：厚重加分，极薄扣分"""
-        from packages.ai_agents.nodes import _calculate_temp_score
+        from packages.recommendation.scoring import calculate_temp_score as _calculate_temp_score
         heavy = {"name": "大衣", "thickness_level": "厚重"}
         very_thin = {"name": "背心", "thickness_level": "极薄"}
 
@@ -360,7 +360,7 @@ class TestTemperatureThresholds:
 
     def test_mild_hot_boundary_at_25(self):
         """MILD_HOT_TEMP=25 边界：轻薄加分，厚重扣分"""
-        from packages.ai_agents.nodes import _calculate_temp_score
+        from packages.recommendation.scoring import calculate_temp_score as _calculate_temp_score
         thin = {"name": "T恤", "thickness_level": "轻薄"}
         heavy = {"name": "棉衣", "thickness_level": "厚重"}
 
@@ -372,7 +372,7 @@ class TestTemperatureThresholds:
 
     def test_hot_boundary_at_28(self):
         """HOT_TEMP=28 边界：轻薄加分，厚重/中厚扣分"""
-        from packages.ai_agents.nodes import _calculate_temp_score
+        from packages.recommendation.scoring import calculate_temp_score as _calculate_temp_score
         thin = {"name": "衬衫", "thickness_level": "轻薄"}
         medium = {"name": "卫衣", "thickness_level": "中厚"}
 
@@ -384,7 +384,7 @@ class TestTemperatureThresholds:
 
     def test_extreme_hot_boundary_at_30(self):
         """EXTREME_HOT_TEMP=30 边界：轻薄加分，厚重扣分"""
-        from packages.ai_agents.nodes import _calculate_temp_score
+        from packages.recommendation.scoring import calculate_temp_score as _calculate_temp_score
         thin = {"name": "T恤", "thickness_level": "轻薄"}
         heavy = {"name": "羽绒服", "thickness_level": "厚重"}
 
@@ -396,7 +396,7 @@ class TestTemperatureThresholds:
 
     def test_temp_score_always_in_01_range(self):
         """温度评分始终在 [0, 1] 范围"""
-        from packages.ai_agents.nodes import _calculate_temp_score
+        from packages.recommendation.scoring import calculate_temp_score as _calculate_temp_score
         for temp in [-10, 0, 5, 10, 15, 20, 25, 28, 30, 40, 50]:
             for thickness in ["极薄", "轻薄", "适中", "中厚", "厚重"]:
                 item = {"name": "测试衣物", "thickness_level": thickness}
@@ -414,11 +414,11 @@ class TestTemperatureFilterFallback:
         """
         复现 nodes.py:823-865 的温度硬过滤 + 回退逻辑。
         """
-        from packages.ai_agents.nodes import (
+        from packages.recommendation.config import (
             EXTREME_HOT_TEMP, HOT_TEMP, MILD_HOT_TEMP,
             EXTREME_COLD_TEMP, MILD_COLD_TEMP,
-            _infer_item_thickness,
         )
+        from packages.recommendation.scoring import infer_item_thickness as _infer_item_thickness
 
         temp_filtered = []
         for item in scored_items:
@@ -513,22 +513,22 @@ class TestIsExtremeTemp:
     """极端温度判断辅助函数"""
 
     def test_none_returns_false(self):
-        from packages.ai_agents.nodes import _is_extreme_temp
+        from packages.recommendation.config import is_extreme_temp as _is_extreme_temp
         assert _is_extreme_temp(None) is False
 
     def test_extreme_cold(self):
-        from packages.ai_agents.nodes import _is_extreme_temp
+        from packages.recommendation.config import is_extreme_temp as _is_extreme_temp
         assert _is_extreme_temp(5) is True
         assert _is_extreme_temp(0) is True
         assert _is_extreme_temp(-10) is True
 
     def test_extreme_hot(self):
-        from packages.ai_agents.nodes import _is_extreme_temp
+        from packages.recommendation.config import is_extreme_temp as _is_extreme_temp
         assert _is_extreme_temp(30) is True
         assert _is_extreme_temp(35) is True
 
     def test_moderate_temp(self):
-        from packages.ai_agents.nodes import _is_extreme_temp
+        from packages.recommendation.config import is_extreme_temp as _is_extreme_temp
         assert _is_extreme_temp(15) is False
         assert _is_extreme_temp(20) is False
         assert _is_extreme_temp(25) is False

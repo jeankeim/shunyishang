@@ -371,8 +371,9 @@ class TestRetrieveItemsNode:
     def test_public_mode_no_items_fallback(self):
         state = self._base_state(retrieval_mode="public")
         with patch("packages.ai_agents.nodes._vector_search", return_value=[]):
-            with patch("packages.ai_agents.nodes._get_versatile_items", return_value=[]):
-                result = retrieve_items_node(state)
+            with patch("packages.ai_agents.nodes._search_accent_items", return_value=[]):
+                with patch("packages.ai_agents.nodes._get_versatile_items", return_value=[]):
+                    result = retrieve_items_node(state)
         assert "error" in result
         assert result["retrieved_items"] == []
 

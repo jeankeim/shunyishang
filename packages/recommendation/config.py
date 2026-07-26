@@ -22,6 +22,13 @@ MILD_HOT_TEMP = 25       # >=25°C：中高温
 EXTREME_COLD_TEMP = 5    # <=5°C：极端低温
 MILD_COLD_TEMP = 10      # <=10°C：低温
 
+
+def is_extreme_temp(temperature) -> bool:
+    """判断是否为极端温度（与硬过滤的强排除档位一致）"""
+    if temperature is None:
+        return False
+    return temperature <= EXTREME_COLD_TEMP or temperature >= EXTREME_HOT_TEMP
+
 # ============================================================
 # 推荐五行数量上限
 # ============================================================
@@ -164,11 +171,6 @@ PREF_CACHE_TTL = 600            # 偏好缓存 TTL（秒）
 SEASON_MATCH_SCORE = 1.0        # 季节完全匹配
 SEASON_MISMATCH_SCORE = 0.7     # 季节不匹配（惩罚）
 SEASON_UNKNOWN_SCORE = 0.5      # 无季节信息（中性）
-
-# ============================================================
-# 换一批随机扰动范围
-# ============================================================
-BATCH_JITTER_RANGE = 0.05
 
 
 def compute_recommend_weights(

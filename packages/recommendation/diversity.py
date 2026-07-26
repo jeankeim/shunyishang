@@ -24,7 +24,7 @@ SHOE_CATEGORIES = {"鞋履"}                  # 足部覆盖
 OUTFIT_CORE_CATEGORIES = {"上装", "下装", "裙装", "外套", "鞋履"}  # 核心服装品类
 
 
-def ensure_category_diversity(items: List[Dict], limit: int) -> List[Dict]:
+def ensure_category_diversity(items: List[Dict], limit: int, rng: random.Random = None) -> List[Dict]:
     """
     确保推荐结果包含不同分类的物品
 
@@ -38,6 +38,7 @@ def ensure_category_diversity(items: List[Dict], limit: int) -> List[Dict]:
     Args:
         items: 已排序的物品列表
         limit: 返回数量
+        rng: 可选确定性随机源（换一批需要可复现的选择结果），缺省用全局 random
 
     Returns:
         多样化后的物品列表
@@ -52,7 +53,7 @@ def ensure_category_diversity(items: List[Dict], limit: int) -> List[Dict]:
     if len(accessory_items) > 1:
         top_n = min(3, len(accessory_items))
         candidates = accessory_items[:top_n]
-        random.shuffle(candidates)
+        (rng or random).shuffle(candidates)
         accessory_items[:top_n] = candidates
         # 调整 valid_items 中点缀类的顺序
         acc_idx = 0

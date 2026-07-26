@@ -191,10 +191,12 @@ class TestBuildWeatherFilter:
         assert "thickness_level" in result
 
     def test_mild_no_filter(self):
-        """温和天气不添加温度过滤"""
+        """温和天气（11-24°C）添加宽松温度过滤（与公共库 6 档对齐）"""
         client = WardrobeClient()
         result = client._build_wardrobe_weather_filter({"temperature": 20, "weather_desc": "多云"})
-        assert result == ""
+        # 6 档对齐后，适中温度也会生成宽松过滤（允许适中/轻薄/极薄/中厚）
+        assert "thickness_level" in result
+        assert "适中" in result
 
     def test_rain_excludes_silk(self):
         client = WardrobeClient()

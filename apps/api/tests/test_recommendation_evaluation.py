@@ -820,8 +820,8 @@ class TestEngineIntegration:
         assert "木" in top_elements
 
     def test_batch_index_offset(self):
-        """批次索引偏移（换一批）"""
-        from packages.recommendation.engine import score_and_rank_items
+        """批次索引偏移（换一批）：批次间物品不重合"""
+        from packages.recommendation.engine import score_and_rank_items, _canonical_item_key
 
         # 使用不同分类避免多样性约束限制
         categories = ["上装", "下装", "裙装", "外套", "饰品", "上装", "下装", "裙装", "外套", "饰品"]
@@ -834,9 +834,13 @@ class TestEngineIntegration:
         result1 = score_and_rank_items(items=items, target_elements=["木"], top_k=3, batch_index=0)
         result2 = score_and_rank_items(items=items, target_elements=["木"], top_k=3, batch_index=1)
 
-        # 不同批次应返回不同物品（大概率）
         assert len(result1["top_items"]) == 3
         assert len(result2["top_items"]) == 3
+
+        # 不同批次的物品必须完全不重合
+        keys1 = {_canonical_item_key(i) for i in result1["top_items"]}
+        keys2 = {_canonical_item_key(i) for i in result2["top_items"]}
+        assert keys1.isdisjoint(keys2), f"批次间物品重叠: {keys1 & keys2}"
 
 
 # ============================================================

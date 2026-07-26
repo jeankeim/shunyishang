@@ -10,6 +10,10 @@ from typing import List, Dict, Optional, Any
 import numpy as np
 
 from apps.api.core.database import DatabasePool
+from packages.recommendation.config import (
+    EXTREME_HOT_TEMP, HOT_TEMP, MILD_HOT_TEMP,
+    EXTREME_COLD_TEMP, MILD_COLD_TEMP,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -189,49 +193,68 @@ class WardrobeClient:
     def _build_wardrobe_weather_filter(self, weather_info: Optional[Dict]) -> str:
         """
         构建衣橱物品的天气过滤条件
-        
-        复用 Week 2 的天气过滤逻辑
+
+        与公共库 filters.py:build_weather_filter 保持 6 档对齐，
+        使用相同的厚度词表（厚重/中厚/适中/轻薄/极薄）和中文 JSON 键（最低/最高）。
         """
         if not weather_info:
             return ""
-        
+
         conditions = []
         temperature = weather_info.get("temperature")
-        weather_desc = weather_info.get("weather_desc", "")
-        
-        # 温度过滤
+
         if temperature is not None:
-            if temperature < 5:
-                # 极冷：优先厚重/加厚衣物
+            if temperature <= EXTREME_COLD_TEMP:
+                # 极端低温（≤5°C）：优先厚重/中厚衣物
                 conditions.append(
-                    "(thickness_level IN ('厚重', '加厚') OR "
-                    "temperature_range::jsonb->>'min' IS NOT NULL AND "
-                    "(temperature_range::jsonb->>'min')::int < 10)"
+                    f"(thickness_level IN ('厚重', '中厚') OR "
+                    f"temperature_range->>'最低' IS NOT NULL AND "
+                    f"(temperature_range->>'最低')::int <= {EXTREME_COLD_TEMP})"
                 )
-            elif temperature < 15:
-                # 中等温度
+            elif temperature <= MILD_COLD_TEMP:
+                # 低温（6-10°C）：厚重/中厚/适中
                 conditions.append(
-                    "(thickness_level IN ('适中', '加厚') OR "
-                    "temperature_range::jsonb->>'min' IS NOT NULL)"
+                    f"(thickness_level IN ('厚重', '中厚', '适中') OR "
+                    f"temperature_range->>'最低' IS NOT NULL AND "
+                    f"(temperature_range->>'最低')::int <= {MILD_COLD_TEMP})"
                 )
-            elif temperature > 28:
-                # 炎热：优先轻薄
+            elif temperature < MILD_HOT_TEMP:
+                # 适中温度（11-24°C）：适中/轻薄/极薄/中厚均可
                 conditions.append(
-                    "(thickness_level = '轻薄' OR "
-                    "temperature_range::jsonb->>'max' IS NOT NULL AND "
-                    "(temperature_range::jsonb->>'max')::int > 25)"
+                    f"(thickness_level IN ('适中', '轻薄', '极薄', '中厚') OR "
+                    f"temperature_range->>'最低' IS NOT NULL AND "
+                    f"(temperature_range->>'最低')::int <= {MILD_HOT_TEMP})"
                 )
-        
-        # 天气状况过滤
+            elif temperature < HOT_TEMP:
+                # 中高温（25-27°C）：轻薄/极薄/适中
+                conditions.append(
+                    f"(thickness_level IN ('轻薄', '极薄', '适中') OR "
+                    f"temperature_range->>'最高' IS NOT NULL AND "
+                    f"(temperature_range->>'最高')::int >= {MILD_HOT_TEMP})"
+                )
+            elif temperature < EXTREME_HOT_TEMP:
+                # 高温（28-29°C）：轻薄/极薄/适中
+                conditions.append(
+                    f"(thickness_level IN ('轻薄', '极薄', '适中') OR "
+                    f"temperature_range->>'最高' IS NOT NULL AND "
+                    f"(temperature_range->>'最高')::int >= {HOT_TEMP})"
+                )
+            else:
+                # 极端高温（≥30°C）：只推轻薄/极薄
+                conditions.append(
+                    f"(thickness_level IN ('轻薄', '极薄') OR "
+                    f"temperature_range->>'最高' IS NOT NULL AND "
+                    f"(temperature_range->>'最高')::int >= {EXTREME_HOT_TEMP})"
+                )
+
+        # 雨雪天：排除丝绸等不宜沾水的材质
+        weather_desc = weather_info.get("weather_desc", "")
         if "雨" in weather_desc or "雪" in weather_desc:
-            # 雨雪天：排除不宜沾水的衣物（如丝绸）
-            # 注意：%% 转义是 psycopg2 要求，当 SQL 使用命名参数 %(name)s 时，
-            # 字面量 % 必须写成 %%，否则 psycopg2 会将 %丝绸% 误判为参数占位符
             conditions.append(
                 "(attributes_detail::jsonb->>'material' IS NULL OR "
                 "attributes_detail::jsonb->>'material' NOT LIKE '%%丝绸%%')"
             )
-        
+
         if conditions:
             return " AND ".join([f"({c})" for c in conditions])
         return ""
