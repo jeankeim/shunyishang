@@ -1,10 +1,10 @@
 // Service Worker for PWA - 离线缓存支持
-const CACHE_NAME = 'shunyishang-v2'
+// v3: HTML 改为网络优先，修复部署后旧缓存 HTML 引用已删除 chunk 导致的 ChunkLoadError
+const CACHE_NAME = 'shunyishang-v3'
 const OFFLINE_URL = '/offline.html'
 
-// 需要预缓存的关键资源
+// 需要预缓存的关键资源（不预缓存 '/'：HTML 必须网络优先，避免版本不一致）
 const PRECACHE_URLS = [
-  '/',
   '/manifest.json',
   '/offline.html',
   '/icons/icon-192.png',
@@ -36,10 +36,37 @@ self.addEventListener('activate', (event) => {
   )
 })
 
-// 网络请求拦截 - 缓存优先策略
+// 网络请求拦截
+// 策略：HTML 文档网络优先（保证拿到最新版本）；带 hash 的静态资源缓存优先；API 网络优先
 self.addEventListener('fetch', (event) => {
   // 跳过非 GET 请求
   if (event.request.method !== 'GET') return
+
+  // HTML 文档（页面导航）- 网络优先，失败才回退缓存/离线页
+  // 否则部署新版后旧 HTML 会引用已被替换的 chunk，导致 ChunkLoadError
+  if (event.request.mode === 'navigate' || event.request.destination === 'document') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const responseClone = response.clone()
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone)
+          })
+          return response
+        })
+        .catch(() => {
+          return caches.match(event.request).then((cached) => {
+            return cached || caches.match(OFFLINE_URL)
+          })
+        })
+    )
+    return
+  }
+
+  // Next.js RSC 导航载荷（?_rsc=）- 直连网络不缓存，旧载荷同样会引用失效 chunk
+  if (event.request.url.includes('_rsc=')) {
+    return
+  }
 
   // API 请求 - 网络优先
   if (event.request.url.includes('/api/')) {

@@ -99,9 +99,22 @@ export default function RootLayout({
                   if (${process.env.NODE_ENV === 'production'}) {
                     // 生产环境：注册 SW
                     navigator.serviceWorker.register('/sw.js')
+                      .then(function(reg) {
+                        // 每次加载主动检查 SW 更新，避免部署后长时间用旧版
+                        reg.update();
+                      })
                       .catch(function(error) {
                         console.error('[PWA] SW 注册失败:', error);
                       });
+                    // 新 SW 激活接管后刷新页面，确保 HTML 与 chunk 版本一致（防 ChunkLoadError）
+                    // 仅在“已有旧 SW 控制”时刷新，避免首次安装也触发重载
+                    var hadController = !!navigator.serviceWorker.controller;
+                    var reloaded = false;
+                    navigator.serviceWorker.addEventListener('controllerchange', function() {
+                      if (!hadController || reloaded) return;
+                      reloaded = true;
+                      window.location.reload();
+                    });
                   } else {
                     // 开发环境：注销所有 SW，清除缓存
                     navigator.serviceWorker.getRegistrations().then(function(registrations) {
