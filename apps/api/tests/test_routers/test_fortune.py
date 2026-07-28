@@ -296,15 +296,20 @@ class TestReportsEndpoints:
 
     @pytest.mark.asyncio
     async def test_generate_annual_report(self, async_client, auth_headers, test_app, mock_user):
-        """生成年度报告"""
+        """生成年度报告：提交异步任务，返回 202 + task_id"""
         bazi = {"day_master": "火", "pillars": {}, "suggested_elements": [], "avoid_elements": []}
         test_app.dependency_overrides[get_current_user] = lambda: mock_user
         try:
             with patch("apps.api.routers.fortune.get_user_bazi", return_value=bazi):
-                with patch("apps.api.services.fortune_report_service.fortune_report_service") as mock_svc:
-                    mock_svc.generate_annual_report.return_value = {"id": 1, "year": 2026, "status": "paid"}
+                with patch("apps.api.services.task_service.create_task", return_value="uuid-123") as mock_create:
                     response = await async_client.post("/api/v1/fortune/reports/annual?year=2026", headers=auth_headers)
-            assert response.status_code == 200
+            assert response.status_code == 202
+            data = response.json()
+            assert data["task_id"] == "uuid-123"
+            assert data["status"] == "pending"
+            mock_create.assert_called_once()
+            assert mock_create.call_args.kwargs["task_type"] == "annual_report"
+            assert mock_create.call_args.kwargs["payload"] == {"year": 2026}
         finally:
             test_app.dependency_overrides.clear()
 """

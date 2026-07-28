@@ -494,25 +494,29 @@ async def get_daily_ritual(user: dict = Depends(get_current_user)):
 
 # ========== 运势报告 API（个人备案版：免费） ==========
 
-@router.post("/reports/annual")
+@router.post("/reports/annual", status_code=202)
 async def generate_annual_report(
     year: int = Query(None, description="报告年份，默认当前年"),
     user: dict = Depends(get_current_user),
 ):
-    """生成年度运势详批报告（个人备案版：免费）"""
+    """提交年度运势详批报告生成任务（异步，通过 GET /tasks/{task_id} 查询结果）"""
     user_id = user.get("id")
     if not user_id:
         raise HTTPException(status_code=401, detail="用户未登录")
 
     target_year = year or date.today().year
 
-    # 获取用户八字
-    user_bazi = get_user_bazi(user_id)
+    # 校验用户已有八字信息（尽早失败，避免任务入队后才报错）
+    get_user_bazi(user_id)
 
-    from apps.api.services.fortune_report_service import fortune_report_service
-    report = fortune_report_service.generate_annual_report(user_id, user_bazi, target_year)
+    from apps.api.services import task_service
+    task_id = task_service.create_task(
+        user_id=user_id,
+        task_type="annual_report",
+        payload={"year": target_year},
+    )
 
-    return report
+    return {"task_id": task_id, "status": "pending"}
 
 
 @router.get("/reports")

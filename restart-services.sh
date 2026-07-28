@@ -39,6 +39,14 @@ if [ -n "$PID_8000" ]; then
     sleep 1
 fi
 
+# 停止任务 worker
+PID_WORKER=$(pgrep -f "apps.worker.main" 2>/dev/null || true)
+if [ -n "$PID_WORKER" ]; then
+    echo "  停止任务 worker (PID: $PID_WORKER)..."
+    kill $PID_WORKER 2>/dev/null || true
+    sleep 1
+fi
+
 echo -e "${GREEN}  ✓ 现有服务已停止${NC}"
 echo ""
 
@@ -109,6 +117,15 @@ for i in {1..60}; do
     echo "  等待后端就绪... ($i/60)"
     sleep 2
 done
+echo ""
+
+# ============================================
+# 3.5 启动任务 worker
+# ============================================
+echo "📍 步骤 3.5: 启动任务 worker..."
+cd "$PROJECT_DIR"
+nohup python3 -m apps.worker.main > "$PROJECT_DIR/logs/worker.log" 2>&1 &
+echo -e "${GREEN}  ✓ 任务 worker 已启动 (日志: logs/worker.log)${NC}"
 echo ""
 
 # ============================================

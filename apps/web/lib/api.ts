@@ -1343,6 +1343,28 @@ export async function checkSmartReminders(weatherInfo?: any): Promise<any> {
 // 付费运势报告 API
 // ============================================
 
+export async function getTask(taskId: string): Promise<any> {
+  const response = await fetch(`${getAPIBase()}/api/v1/tasks/${taskId}`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('查询任务状态失败')
+  return response.json()
+}
+
+const TASK_POLL_INTERVAL_MS = 2000
+const TASK_POLL_TIMEOUT_MS = 120000
+
+async function pollTaskResult(taskId: string): Promise<any> {
+  const deadline = Date.now() + TASK_POLL_TIMEOUT_MS
+  while (Date.now() < deadline) {
+    await new Promise(resolve => setTimeout(resolve, TASK_POLL_INTERVAL_MS))
+    const task = await getTask(taskId)
+    if (task.status === 'done') return task.result
+    if (task.status === 'failed') throw new Error(task.error || '任务执行失败')
+  }
+  throw new Error('任务处理超时，请稍后在报告列表中查看')
+}
+
 export async function generateAnnualReport(year?: number): Promise<any> {
   const params = year ? `?year=${year}` : ''
   const response = await fetch(`${getAPIBase()}/api/v1/fortune/reports/annual${params}`, {
@@ -1353,7 +1375,8 @@ export async function generateAnnualReport(year?: number): Promise<any> {
     const err = await response.json().catch(() => ({ detail: '生成报告失败' }))
     throw new Error(err.detail || '生成报告失败')
   }
-  return response.json()
+  const { task_id } = await response.json()
+  return pollTaskResult(task_id)
 }
 
 export async function getFortuneReports(): Promise<any[]> {

@@ -26,5 +26,15 @@ else
     echo "  ℹ 后端服务未运行"
 fi
 
+# 停止任务 worker
+PID_WORKER=$(pgrep -f "apps.worker.main" 2>/dev/null)
+if [ -n "$PID_WORKER" ]; then
+    echo "  停止任务 worker (PID: $PID_WORKER)..."
+    kill $PID_WORKER 2>/dev/null
+    echo "  ✓ worker 已停止"
+else
+    echo "  ℹ 任务 worker 未运行"
+fi
+
 echo ""
 echo "✅ 所有服务已停止"
