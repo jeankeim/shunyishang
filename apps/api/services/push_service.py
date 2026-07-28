@@ -39,13 +39,13 @@ class PushService:
         from apps.api.core.cache import cache as redis_cache
         from datetime import date
         suppress_key = f"push_type_suppress:{user_id}:{push_type}"
-        if redis_cache.get(suppress_key):
+        if redis_cache.get_sync(suppress_key):
             logger.info(f"[Push] 行为抑制跳过: user={user_id}, type={push_type}")
             return 0
 
         # 限流检查：每用户每日最多 3 条推送
         rate_key = f"push_rate:{user_id}:{date.today()}"
-        count_str = redis_cache.get(rate_key)
+        count_str = redis_cache.get_sync(rate_key)
         count = int(count_str) if count_str else 0
         if count >= 3:
             logger.info(f"[Push] 限流跳过: user={user_id}, 今日已发{count}条")
@@ -69,7 +69,7 @@ class PushService:
                 conn.commit()
 
         # 更新限流计数
-        redis_cache.set(rate_key, str(count + 1), ex=86400)
+        redis_cache.set_sync(rate_key, str(count + 1), ttl=86400)
 
         logger.info(f"[Push] 发送推送: user={user_id}, type={push_type}, title={title}")
         return row["id"] if row else 0
