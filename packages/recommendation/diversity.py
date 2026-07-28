@@ -572,38 +572,39 @@ def _ensure_scene_style_guarantee(
             if style_preference else 99
         )
 
-        # 找一件可换出的：不得体 + 非覆盖关键 + 不降低个人风格保障
-        swap_idx = None
+        # 从尾部依次尝试可换出项：不得体 + 非覆盖关键 + 不降低个人风格保障
+        # （某个换出项找不到替换时继续试下一个——场景合格候选可能集中在特定品类）
+        # 覆盖关键物品（唯一外套/鞋履等）允许同品类替换：不破坏覆盖
+        swapped = False
         for i in range(len(items) - 1, -1, -1):
             it = items[i]
             if _appropriate(it):
                 continue
-            if _is_coverage_critical(it, items):
-                continue
             if (style_preference and it.get("style") == style_preference
                     and style_match_count <= 2):
                 continue
-            swap_idx = i
+
+            old = items[i]
+            old_cat = old.get("category", "")
+            replacement = _find_scene_style_candidate(
+                all_scored, preferred_styles, used_ids, old_cat, target_elements, items,
+                same_category_only=_is_coverage_critical(old, items),
+            )
+            if not replacement:
+                continue
+
+            items[i] = replacement
+            used_ids.discard(str(old.get("id", old.get("item_code", ""))))
+            used_ids.add(str(replacement.get("id", replacement.get("item_code", ""))))
+            logger.debug(
+                f"[场景风格保障] {old.get('name')}({old.get('style')}) "
+                f"→ {replacement.get('name')}({replacement.get('style')})"
+            )
+            swapped = True
             break
 
-        if swap_idx is None:
+        if not swapped:
             return
-
-        old = items[swap_idx]
-        old_cat = old.get("category", "")
-        replacement = _find_scene_style_candidate(
-            all_scored, preferred_styles, used_ids, old_cat, target_elements, items,
-        )
-        if not replacement:
-            return
-
-        items[swap_idx] = replacement
-        used_ids.discard(str(old.get("id", old.get("item_code", ""))))
-        used_ids.add(str(replacement.get("id", replacement.get("item_code", ""))))
-        logger.debug(
-            f"[场景风格保障] {old.get('name')}({old.get('style')}) "
-            f"→ {replacement.get('name')}({replacement.get('style')})"
-        )
 
 
 def _find_scene_style_candidate(
@@ -613,6 +614,7 @@ def _find_scene_style_candidate(
     prefer_category: str,
     target_elements: List[str],
     items: List[Dict],
+    same_category_only: bool = False,
 ) -> Dict | None:
     """
     从已排序候选中找场景适宜风格的物品（温度安全）
@@ -620,6 +622,7 @@ def _find_scene_style_candidate(
     优先级：同品类+风格+五行匹配 > 同品类+风格 > 任意品类+风格+五行 > 任意品类+风格
     优先同品类以保持品类覆盖；优先五行匹配以保护八字得分。
     跨品类回退时遵守 CATEGORY_LIMITS，避免引入品类过度集中。
+    same_category_only=True 时只做同品类替换（覆盖关键物品换出时保持覆盖）。
     """
     te = target_elements or []
 
@@ -632,7 +635,7 @@ def _find_scene_style_candidate(
     def _within_limit(cat: str) -> bool:
         return cat_counts.get(cat, 0) < CATEGORY_LIMITS.get(cat, DEFAULT_CATEGORY_LIMIT)
 
-    def _pick(same_cat: bool, need_element: bool) -> Dict | None:
+    def _pick(same_cat: bool, need_element: bool, min_ts: float) -> Dict | None:
         for c in all_scored:
             cid = str(c.get("id", c.get("item_code", "")))
             if cid in used_ids:
@@ -646,21 +649,26 @@ def _find_scene_style_candidate(
                 continue
             if c.get("style") not in preferred_styles:
                 continue
-            if (c.get("temp_score") or 0) < TEMP_SAFETY_THRESHOLD:
+            if (c.get("temp_score") or 0) < min_ts:
                 continue
             if need_element and c.get("primary_element") not in te:
                 continue
             return c
         return None
 
-    if prefer_category:
-        return (
-            (_pick(True, True) if te else None)
-            or _pick(True, False)
-            or (_pick(False, True) if te else None)
-            or _pick(False, False)
-        )
-    return (_pick(False, True) if te else None) or _pick(False, False)
+    def _pick_chain(min_ts: float) -> Dict | None:
+        if prefer_category:
+            same_cat = (_pick(True, True, min_ts) if te else None) or _pick(True, False, min_ts)
+            if same_cat or same_category_only:
+                return same_cat
+            return (_pick(False, True, min_ts) if te else None) or _pick(False, False, min_ts)
+        if same_category_only:
+            return None
+        return (_pick(False, True, min_ts) if te else None) or _pick(False, False, min_ts)
+
+    # 温度安全阈值内优先；找不到则放宽阈值兜底
+    # （all_scored 已过温度硬过滤，剩余候选不存在危险厚度错配，只是温度适配分偏低）
+    return _pick_chain(TEMP_SAFETY_THRESHOLD) or _pick_chain(0.0)
 
 
 def _ensure_wuxing_top1(
