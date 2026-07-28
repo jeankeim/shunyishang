@@ -29,6 +29,28 @@ def is_extreme_temp(temperature) -> bool:
         return False
     return temperature <= EXTREME_COLD_TEMP or temperature >= EXTREME_HOT_TEMP
 
+
+def get_effective_temperature(weather_info) -> float:
+    """
+    取有效温度：max(瞬时温度, 当日最高温)
+
+    推荐结果覆盖全天穿着（如通勤），早晨请求时的瞬时低温不能代表午间峰值，
+    高温侧必须按当日最高温判断；低温侧由瞬时温度（通常接近当日低点）已覆盖。
+    无 temperature_max 时退化为瞬时温度，行为与历史一致。
+
+    Returns:
+        有效温度，无可用温度时返回 None
+    """
+    if not weather_info:
+        return None
+    candidates = [
+        t for t in (weather_info.get("temperature"), weather_info.get("temperature_max"))
+        if t is not None
+    ]
+    if not candidates:
+        return None
+    return max(candidates)
+
 # ============================================================
 # 推荐五行数量上限
 # ============================================================

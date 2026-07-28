@@ -18,6 +18,7 @@ class BaziInput(BaseModel):
 class WeatherInfo(BaseModel):
     """天气信息输入"""
     temperature: Optional[int] = Field(None, ge=-40, le=50, description="当前温度（摄氏度）")
+    temperature_max: Optional[int] = Field(None, ge=-40, le=55, description="当日最高温（摄氏度）")
     weather_desc: Optional[str] = Field(None, max_length=50, description="天气描述：晴/多云/雨/雪/霾等")
     humidity: Optional[int] = Field(None, ge=0, le=100, description="湿度百分比")
     wind_level: Optional[int] = Field(None, ge=0, le=12, description="风力等级")

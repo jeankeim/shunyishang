@@ -365,6 +365,169 @@ class TestTemperatureHardFilter:
 
 
 # ============================================================
+# 4.5 有效温度与季节硬排除测试（杭州青金石蓝西装 bad case 修复）
+# ============================================================
+
+class TestEffectiveTemperature:
+    """有效温度 max(瞬时, 当日最高) 测试"""
+
+    def test_effective_temp_takes_max(self):
+        """有温差时取当日最高温"""
+        from packages.recommendation.config import get_effective_temperature
+
+        assert get_effective_temperature({"temperature": 29, "temperature_max": 37}) == 37
+
+    def test_effective_temp_fallback_to_instant(self):
+        """无 temperature_max 时退化为瞬时温度（向后兼容）"""
+        from packages.recommendation.config import get_effective_temperature
+
+        assert get_effective_temperature({"temperature": 29}) == 29
+        assert get_effective_temperature({"temperature": 29, "temperature_max": None}) == 29
+
+    def test_effective_temp_none(self):
+        """无任何温度时返回 None"""
+        from packages.recommendation.config import get_effective_temperature
+
+        assert get_effective_temperature(None) is None
+        assert get_effective_temperature({}) is None
+
+    def test_hard_filter_uses_daily_max(self):
+        """瞬时29°C+当日最高37°C 应排除适用上限25°C的西装（bad case 复现）"""
+        from packages.recommendation.filters import apply_temperature_hard_filter
+
+        items = [
+            {"name": "青金石蓝西装", "thickness_level": "适中",
+             "temperature_range": {"最低": 10, "最高": 25}, "temp_score": 0.4},
+            {"name": "冰丝T恤", "thickness_level": "轻薄",
+             "temperature_range": {"最低": 26, "最高": 40}, "temp_score": 0.9},
+        ]
+        weather = {"temperature": 29, "temperature_max": 37}
+        filtered = apply_temperature_hard_filter(items, weather)
+
+        names = [i["name"] for i in filtered]
+        assert "青金石蓝西装" not in names, "有效温度37°C > 25+8，西装应被排除"
+        assert "冰丝T恤" in names
+
+    def test_hard_filter_backward_compatible(self):
+        """仅瞬时29°C（无最高温）时行为与历史一致，西装不被 range 排除"""
+        from packages.recommendation.filters import apply_temperature_hard_filter
+
+        items = [
+            {"name": "青金石蓝西装", "thickness_level": "适中",
+             "temperature_range": {"最低": 10, "最高": 25}, "temp_score": 0.4},
+        ]
+        weather = {"temperature": 29}
+        filtered = apply_temperature_hard_filter(items, weather)
+
+        assert [i["name"] for i in filtered] == ["青金石蓝西装"], "29°C < 25+8，不应排除"
+
+
+class TestSeasonHardExclusion:
+    """季节硬排除测试（高温盛夏排除不含夏季的衣物）"""
+
+    def test_hot_summer_excludes_non_summer_items(self, monkeypatch):
+        """高温+当季夏：排除仅适用春秋的衣物"""
+        import packages.recommendation.filters as filters_mod
+
+        monkeypatch.setattr(filters_mod, "get_current_season", lambda: "夏")
+
+        items = [
+            {"name": "春秋西装", "thickness_level": "适中",
+             "applicable_seasons": ["春", "秋"], "temp_score": 0.4},
+            {"name": "夏季衬衫", "thickness_level": "轻薄",
+             "applicable_seasons": ["夏"], "temp_score": 0.9},
+        ]
+        weather = {"temperature": 29, "temperature_max": 37}
+        filtered = filters_mod.apply_temperature_hard_filter(items, weather)
+
+        names = [i["name"] for i in filtered]
+        assert "春秋西装" not in names
+        assert "夏季衬衫" in names
+
+    def test_season_json_string_format(self, monkeypatch):
+        """applicable_seasons 为 JSON 字符串时同样生效"""
+        import packages.recommendation.filters as filters_mod
+
+        monkeypatch.setattr(filters_mod, "get_current_season", lambda: "夏")
+
+        items = [
+            {"name": "春秋西装", "thickness_level": "适中",
+             "applicable_seasons": '["春", "秋"]', "temp_score": 0.4},
+            {"name": "夏季衬衫", "thickness_level": "轻薄",
+             "applicable_seasons": '["夏"]', "temp_score": 0.9},
+        ]
+        weather = {"temperature": 30}
+        filtered = filters_mod.apply_temperature_hard_filter(items, weather)
+
+        names = [i["name"] for i in filtered]
+        assert "春秋西装" not in names
+        assert "夏季衬衫" in names
+
+    def test_mild_temp_no_season_exclusion(self, monkeypatch):
+        """温和温度下不触发季节硬排除"""
+        import packages.recommendation.filters as filters_mod
+
+        monkeypatch.setattr(filters_mod, "get_current_season", lambda: "夏")
+
+        items = [
+            {"name": "春秋西装", "thickness_level": "适中",
+             "applicable_seasons": ["春", "秋"], "temp_score": 0.6},
+        ]
+        weather = {"temperature": 24}
+        filtered = filters_mod.apply_temperature_hard_filter(items, weather)
+
+        assert [i["name"] for i in filtered] == ["春秋西装"]
+
+    def test_cold_winter_excludes_non_winter_items(self, monkeypatch):
+        """严寒+当季冬：排除不含冬季的衣物"""
+        import packages.recommendation.filters as filters_mod
+
+        monkeypatch.setattr(filters_mod, "get_current_season", lambda: "冬")
+
+        items = [
+            {"name": "夏季长裤", "thickness_level": "适中",
+             "applicable_seasons": ["夏"], "temp_score": 0.2},
+            {"name": "羽绒服", "thickness_level": "厚重",
+             "applicable_seasons": ["冬"], "temp_score": 0.9},
+        ]
+        weather = {"temperature": 2}
+        filtered = filters_mod.apply_temperature_hard_filter(items, weather)
+
+        names = [i["name"] for i in filtered]
+        assert "夏季长裤" not in names
+        assert "羽绒服" in names
+
+
+class TestEffectiveTempScoring:
+    """评分与评估链路使用有效温度"""
+
+    def test_temp_score_uses_daily_max(self):
+        """有温差时 calculate_temp_score 按峰值打分，厚衣物得分更低"""
+        from packages.recommendation.scoring import calculate_temp_score
+
+        item = {"name": "西装", "thickness_level": "适中",
+                "temperature_range": {"最低": 10, "最高": 25}}
+        score_mild = calculate_temp_score(item, {"temperature": 29})
+        score_gap = calculate_temp_score(item, {"temperature": 29, "temperature_max": 37})
+
+        assert score_gap < score_mild, "峰值37°C下西装温度分应低于瞬时29°C"
+
+    def test_evaluator_checks_use_effective_temp(self):
+        """评估器常识检查也按有效温度判违规（避免评估盲区复现）"""
+        from apps.api.tests.evaluation.evaluator import score_common_sense
+
+        items = [{
+            "name": "青金石蓝西装", "thickness_level": "适中",
+            "temperature_range": {"最低": 10, "最高": 25},
+            "applicable_seasons": ["夏"], "functionality": ["透气"],
+        }]
+        weather = {"temperature": 29, "temperature_max": 37}
+        result = score_common_sense(items, weather, season="夏")
+
+        assert result.details["violations"], "有效温度37°C下西装应被判为温度超限违规"
+
+
+# ============================================================
 # 5. 场景识别测试（规则提取）
 # ============================================================
 

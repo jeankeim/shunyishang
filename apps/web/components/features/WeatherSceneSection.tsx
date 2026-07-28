@@ -93,6 +93,7 @@ const COMMON_CITIES = ['北京', '上海', '广州', '深圳', '杭州', '成都
 interface WeatherData {
   city: string
   temperature: number
+  temperature_max?: number
   weather: string
   humidity: number
   wind: string

@@ -23,6 +23,7 @@ from packages.recommendation.config import (
     EXTREME_COLD_TEMP, MILD_COLD_TEMP,
     SKIN_TONE_COLOR_FIT, BODY_TYPE_FIT, STYLE_KEYWORDS,
     CATEGORY_LIMITS, TEMP_SAFETY_THRESHOLD,
+    get_effective_temperature,
 )
 
 
@@ -321,7 +322,8 @@ def score_reasonableness(
     # 温度适配 (8分)
     temp_score = 8.0
     if weather_info:
-        temp = weather_info.get("temperature")
+        # 有效温度 max(瞬时, 当日最高)，与生产过滤/评分口径一致
+        temp = get_effective_temperature(weather_info)
         if temp is not None:
             inappropriate_count = 0
             for item in items:
@@ -484,7 +486,8 @@ def score_common_sense(
     temp_sense_score = 7.0
     violations = []
     if weather_info:
-        temp = weather_info.get("temperature")
+        # 有效温度 max(瞬时, 当日最高)，避免早晨低温掩盖午间高温
+        temp = get_effective_temperature(weather_info)
         if temp is not None:
             for item in items:
                 thickness = item.get("thickness_level", "")
@@ -511,7 +514,9 @@ def score_common_sense(
     func_sense_score = 4.0
     # 检查极端温度下是否有功能性衣物
     if weather_info:
-        temp = weather_info.get("temperature", 20)
+        temp = get_effective_temperature(weather_info)
+        if temp is None:
+            temp = 20
         if temp >= EXTREME_HOT_TEMP:
             # 高温应有透气/速干
             has_func = any(

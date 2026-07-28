@@ -5,6 +5,7 @@
 所有过滤函数均为纯函数或返回 SQL 片段。
 """
 
+import json
 import logging
 from typing import Dict, List, Optional
 
@@ -12,8 +13,9 @@ from packages.recommendation.config import (
     EXTREME_HOT_TEMP, HOT_TEMP, MILD_HOT_TEMP,
     EXTREME_COLD_TEMP, MILD_COLD_TEMP,
     TEMP_SAFETY_THRESHOLD,
+    get_effective_temperature,
 )
-from packages.recommendation.scoring import infer_item_thickness
+from packages.recommendation.scoring import infer_item_thickness, get_current_season
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +24,19 @@ logger = logging.getLogger(__name__)
 # 温度硬过滤
 # ============================================================
 
+def _parse_item_seasons(item: Dict) -> List[str]:
+    """解析物品适用季节，兼容 list 和 JSON 字符串两种存储格式"""
+    seasons = item.get("applicable_seasons")
+    if isinstance(seasons, str):
+        try:
+            seasons = json.loads(seasons)
+        except (ValueError, TypeError):
+            return []
+    if isinstance(seasons, list):
+        return [str(s) for s in seasons]
+    return []
+
+
 def apply_temperature_hard_filter(
     scored_items: List[Dict],
     weather_info: Optional[Dict],
@@ -29,7 +44,8 @@ def apply_temperature_hard_filter(
     """
     极端温度下排除不合适厚度的衣物
 
-    分层级过滤，阈值统一自 config 常量。
+    分层级过滤，阈值统一自 config 常量，温度取有效温度 max(瞬时, 当日最高)。
+    高温/严寒时叠加季节硬排除（如盛夏排除不含夏季的衣物）。
     当所有候选都被排除时，回退保留温度适配分最高的一批（避免返回空）。
 
     Args:
@@ -42,13 +58,22 @@ def apply_temperature_hard_filter(
     if not weather_info:
         return scored_items
 
-    temp = weather_info.get("temperature")
+    temp = get_effective_temperature(weather_info)
     if temp is None:
         return scored_items
 
+    current_season = get_current_season()
     temp_filtered = []
     for item in scored_items:
         thickness = infer_item_thickness(item)
+
+        # 季节硬排除：高温盛夏排除不含夏季的衣物，严寒隆冬排除不含冬季的衣物
+        seasons = _parse_item_seasons(item)
+        if seasons:
+            if temp >= HOT_TEMP and current_season == "夏" and "夏" not in seasons:
+                continue
+            if temp <= EXTREME_COLD_TEMP and current_season == "冬" and "冬" not in seasons:
+                continue
 
         # temperature_range 硬排除
         temp_range = item.get("temperature_range")
@@ -121,7 +146,7 @@ def apply_temperature_safety_check(
     if not weather_info:
         return top_items
 
-    temp = weather_info.get("temperature")
+    temp = get_effective_temperature(weather_info)
     if temp is None:
         return top_items
 
@@ -194,7 +219,7 @@ def build_weather_filter(weather_info: Optional[Dict]) -> str:
         return ""
 
     conditions = []
-    temperature = weather_info.get("temperature")
+    temperature = get_effective_temperature(weather_info)
 
     if temperature is not None:
         if temperature <= EXTREME_COLD_TEMP:

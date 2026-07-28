@@ -104,10 +104,10 @@ def score_and_rank_items(
 
     is_extreme_temp = False
     if weather_info:
-        temp_val = weather_info.get("temperature")
-        if temp_val is not None:
-            from packages.recommendation.config import EXTREME_COLD_TEMP, EXTREME_HOT_TEMP
-            is_extreme_temp = temp_val <= EXTREME_COLD_TEMP or temp_val >= EXTREME_HOT_TEMP
+        from packages.recommendation import config as rec_config
+        # 有效温度 max(瞬时, 当日最高)，与硬过滤/评分口径一致
+        effective_temp = rec_config.get_effective_temperature(weather_info)
+        is_extreme_temp = rec_config.is_extreme_temp(effective_temp)
 
     weights = compute_recommend_weights(
         has_bazi=bool(bazi_result),

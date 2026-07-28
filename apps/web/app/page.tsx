@@ -139,6 +139,7 @@ export default function Home() {
     setWeatherElement(weather.element)
     setWeatherInfo({  // 保存完整天气信息
       temperature: weather.temperature,
+      temperature_max: weather.temperature_max,
       weather_desc: weather.weather,
       humidity: weather.humidity,
       wind_level: parseInt(weather.wind?.replace('级', '') || '0'),

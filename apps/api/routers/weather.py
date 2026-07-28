@@ -20,6 +20,7 @@ class WeatherResponse(BaseModel):
     """天气响应"""
     city: str
     temperature: int  # 温度
+    temperature_max: Optional[int] = None  # 当日最高温（推荐链路用于有效温度判断）
     weather: str      # 天气描述
     humidity: int     # 湿度
     wind: str         # 风向风力
@@ -262,20 +263,21 @@ async def get_weather(
     
     if use_mock_data:
         mock_data = {
-            "北京": ("晴", 22, 45, "南风2级"),
-            "上海": ("多云", 25, 60, "东南风3级"),
-            "广州": ("小雨", 28, 80, "南风2级"),
-            "深圳": ("雷阵雨", 30, 85, "西南风3级"),
-            "杭州": ("阴", 24, 70, "东风2级"),
-            "成都": ("多云", 23, 65, "北风1级"),
+            "北京": ("晴", 22, 28, 45, "南风2级"),
+            "上海": ("多云", 25, 30, 60, "东南风3级"),
+            "广州": ("小雨", 28, 33, 80, "南风2级"),
+            "深圳": ("雷阵雨", 30, 34, 85, "西南风3级"),
+            "杭州": ("阴", 24, 29, 70, "东风2级"),
+            "成都": ("多云", 23, 27, 65, "北风1级"),
         }
         
-        weather, temp, humidity, wind = mock_data.get(city, ("晴", 22, 50, "微风"))
+        weather, temp, temp_max, humidity, wind = mock_data.get(city, ("晴", 22, 27, 50, "微风"))
         element, reason = get_element_by_weather(weather, temp)
         
         result = WeatherResponse(
             city=city,
             temperature=temp,
+            temperature_max=temp_max,
             weather=weather,
             humidity=humidity,
             wind=wind,
@@ -324,11 +326,25 @@ async def get_weather(
             humidity = int(now["humidity"])
             wind = f"{now['windDir']}{now['windScale']}级"
             
+            # 补查当日最高温（实时接口不含，取 3 天预报首日 tempMax），失败不阻断主流程
+            temp_max = None
+            try:
+                forecast_url = f"https://{api_host}/v7/weather/3d"
+                forecast_response = await client.get(
+                    forecast_url, params=weather_params, headers=headers
+                )
+                forecast_data = forecast_response.json()
+                if forecast_data.get("code") == "200" and forecast_data.get("daily"):
+                    temp_max = int(forecast_data["daily"][0]["tempMax"])
+            except Exception as fe:
+                logger.warning(f"[API] 获取当日最高温失败: {fe}")
+            
             element, reason = get_element_by_weather(weather_desc, temp)
             
             result = WeatherResponse(
                 city=city,
                 temperature=temp,
+                temperature_max=temp_max,
                 weather=weather_desc,
                 humidity=humidity,
                 wind=wind,
@@ -348,20 +364,21 @@ async def get_weather(
     # API调用失败，返回模拟数据
     logger.info(f"[Mock] 使用模拟天气数据: {city}")
     mock_data = {
-        "北京": ("晴", 22, 45, "南风2级"),
-        "上海": ("多云", 25, 60, "东南风3级"),
-        "广州": ("小雨", 28, 80, "南风2级"),
-        "深圳": ("雷阵雨", 30, 85, "西南风3级"),
-        "杭州": ("阴", 24, 70, "东风2级"),
-        "成都": ("多云", 23, 65, "北风1级"),
+        "北京": ("晴", 22, 28, 45, "南风2级"),
+        "上海": ("多云", 25, 30, 60, "东南风3级"),
+        "广州": ("小雨", 28, 33, 80, "南风2级"),
+        "深圳": ("雷阵雨", 30, 34, 85, "西南风3级"),
+        "杭州": ("阴", 24, 29, 70, "东风2级"),
+        "成都": ("多云", 23, 27, 65, "北风1级"),
     }
     
-    weather, temp, humidity, wind = mock_data.get(city, ("晴", 22, 50, "微风"))
+    weather, temp, temp_max, humidity, wind = mock_data.get(city, ("晴", 22, 27, 50, "微风"))
     element, reason = get_element_by_weather(weather, temp)
     
     result = WeatherResponse(
         city=city,
         temperature=temp,
+        temperature_max=temp_max,
         weather=weather,
         humidity=humidity,
         wind=wind,

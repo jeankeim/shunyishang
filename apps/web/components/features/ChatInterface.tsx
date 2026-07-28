@@ -14,6 +14,7 @@ interface ChatInterfaceProps {
   weatherElement?: string
   weatherInfo?: {  // 新增：完整天气信息
     temperature?: number
+    temperature_max?: number
     weather_desc?: string
     humidity?: number
     wind_level?: number

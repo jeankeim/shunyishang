@@ -124,10 +124,11 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
             # 换一批：不同批次返回不同结果
             str(request.batch_index),
         ]
-        # 天气详情（温度/描述/湿度/风力）会改变温度过滤与评分，必须纳入缓存键
+        # 天气详情（温度/最高温/描述/湿度/风力）会改变温度过滤与评分，必须纳入缓存键
         if request.weather:
             cache_key_parts.extend([
                 str(request.weather.temperature) if request.weather.temperature is not None else "",
+                str(request.weather.temperature_max) if request.weather.temperature_max is not None else "",
                 request.weather.weather_desc or "",
                 str(request.weather.humidity) if request.weather.humidity is not None else "",
                 str(request.weather.wind_level) if request.weather.wind_level is not None else "",
@@ -192,6 +193,7 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
         if request.weather:
             weather_info = {
                 "temperature": request.weather.temperature,
+                "temperature_max": request.weather.temperature_max,
                 "weather_desc": request.weather.weather_desc,
                 "humidity": request.weather.humidity,
                 "wind_level": request.weather.wind_level,

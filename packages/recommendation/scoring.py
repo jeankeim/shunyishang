@@ -12,6 +12,7 @@ from typing import Dict, List, Optional
 from packages.recommendation.config import (
     EXTREME_HOT_TEMP, HOT_TEMP, MILD_HOT_TEMP,
     EXTREME_COLD_TEMP, MILD_COLD_TEMP,
+    get_effective_temperature,
     WUXING_PRIMARY_SCORE, WUXING_SECONDARY_SCORE,
     WUXING_BOOST_PRIMARY, WUXING_BOOST_SECONDARY, WUXING_BOOST_MIN_CAP,
     ORNAMENT_BONUS, ORNAMENT_CATEGORIES,
@@ -168,11 +169,12 @@ def calculate_temp_score(item: Dict, weather_info: Optional[Dict]) -> float:
 
     同时考虑 thickness_level 和 temperature_range（物品适用温度范围）。
     6档温度分层与 config 中的阈值常量完全对齐。
+    温度取有效温度 max(瞬时, 当日最高)，避免早晨低温掩盖午间高温。
     """
     if not weather_info:
         return 0.5
 
-    temp = weather_info.get("temperature")
+    temp = get_effective_temperature(weather_info)
     if temp is None:
         return 0.5
 

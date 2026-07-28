@@ -324,17 +324,20 @@ SCENES = [None, "商务", "面试", "约会", "运动", "居家", "婚礼", "派
 
 # 天气条件
 WEATHER_CONDITIONS = [
-    # (温度, 天气描述, 季节)
-    (35, "炎热", "夏"),      # 极端高温
-    (32, "闷热", "夏"),      # 高温
-    (28, "晴天", "夏"),      # 中高温
-    (22, "多云", "春"),      # 舒适
-    (15, "晴天", "秋"),      # 微凉
-    (8, "大风", "秋"),       # 低温
-    (3, "寒冷", "冬"),       # 极端低温
-    (-5, "雪天", "冬"),      # 严寒
-    (25, "雨天", "夏"),      # 温暖雨天
-    (12, "阴天", "春"),      # 春季阴天
+    # (瞬时温度, 当日最高温, 天气描述, 季节)
+    (35, 38, "炎热", "夏"),      # 极端高温
+    (32, 36, "闷热", "夏"),      # 高温
+    (28, 31, "晴天", "夏"),      # 中高温
+    (22, 26, "多云", "春"),      # 舒适
+    (15, 19, "晴天", "秋"),      # 微凉
+    (8, 12, "大风", "秋"),       # 低温
+    (3, 7, "寒冷", "冬"),        # 极端低温
+    (-5, -1, "雪天", "冬"),      # 严寒
+    (25, 29, "雨天", "夏"),      # 温暖雨天
+    (12, 17, "阴天", "春"),      # 春季阴天
+    # 温差灰区用例：瞬时温度温和但当日峰值高温（杭州 bad case 复现）
+    (29, 37, "晴天", "夏"),      # 早晨温和午间酷热
+    (26, 34, "多云", "夏"),      # 瞬时中高温峰值极热
 ]
 
 
@@ -368,13 +371,13 @@ def generate_test_cases(users: List[VirtualUser], cases_per_user: int = 15) -> L
         simple_count = int(cases_per_user * 0.3)
         for _ in range(simple_count):
             case_counter += 1
-            temp, weather_desc, season = random.choice(WEATHER_CONDITIONS)
+            temp, temp_max, weather_desc, season = random.choice(WEATHER_CONDITIONS)
             
             tc = TestCase(
                 case_id=f"TC{case_counter:05d}",
                 user=user,
                 scene=None,
-                weather_info={"temperature": temp, "weather_desc": weather_desc},
+                weather_info={"temperature": temp, "temperature_max": temp_max, "weather_desc": weather_desc},
                 season=season,
                 complexity="simple",
                 description=f"简单场景：{season}季{temp}°C{weather_desc}",
@@ -389,13 +392,13 @@ def generate_test_cases(users: List[VirtualUser], cases_per_user: int = 15) -> L
         medium_count = int(cases_per_user * 0.4)
         for _ in range(medium_count):
             case_counter += 1
-            temp, weather_desc, season = random.choice(WEATHER_CONDITIONS)
+            temp, temp_max, weather_desc, season = random.choice(WEATHER_CONDITIONS)
             
             tc = TestCase(
                 case_id=f"TC{case_counter:05d}",
                 user=user,
                 scene=None,
-                weather_info={"temperature": temp, "weather_desc": weather_desc},
+                weather_info={"temperature": temp, "temperature_max": temp_max, "weather_desc": weather_desc},
                 season=season,
                 complexity="medium",
                 description=f"中等场景：{user.day_master}({user.strength})，{season}季{temp}°C",
@@ -411,14 +414,14 @@ def generate_test_cases(users: List[VirtualUser], cases_per_user: int = 15) -> L
         complex_count = cases_per_user - simple_count - medium_count
         for _ in range(complex_count):
             case_counter += 1
-            temp, weather_desc, season = random.choice(WEATHER_CONDITIONS)
+            temp, temp_max, weather_desc, season = random.choice(WEATHER_CONDITIONS)
             scene = random.choice([s for s in SCENES if s is not None])
             
             tc = TestCase(
                 case_id=f"TC{case_counter:05d}",
                 user=user,
                 scene=scene,
-                weather_info={"temperature": temp, "weather_desc": weather_desc},
+                weather_info={"temperature": temp, "temperature_max": temp_max, "weather_desc": weather_desc},
                 season=season,
                 complexity="complex",
                 description=f"复杂场景：{user.day_master}，{scene}，{temp}°C，{user.style_preference or '无风格'}",
