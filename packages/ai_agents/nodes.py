@@ -747,6 +747,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
         user_body_type=user_body_type,
         top_k=top_k,
         batch_index=batch_index,
+        retrieval_mode=retrieval_mode,
     )
     scored_items = engine_result["scored_items"]
     top_items = engine_result["top_items"]

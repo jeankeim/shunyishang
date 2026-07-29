@@ -61,6 +61,7 @@ def score_and_rank_items(
     user_body_type: Optional[str] = None,
     top_k: int = 5,
     batch_index: int = 0,
+    retrieval_mode: str = "public",
 ) -> Dict:
     """
     推荐引擎核心：评分 → 过滤 → 排序 → 多样性 → 温度安全
@@ -114,6 +115,7 @@ def score_and_rank_items(
         has_scene=bool(scene),
         has_prefs=has_prefs,
         is_extreme_temp=is_extreme_temp,
+        retrieval_mode=retrieval_mode,
     )
     scene_weight = weights["scene"]
     pref_weight = weights["pref"]

@@ -97,6 +97,9 @@ class AITaggingService:
             
             result = json.loads(response.choices[0].message.content)
             
+            # 风格词表归一化：与场景偏好词表/风格偏好词表保持一致
+            result["style"] = self._normalize_style(result.get("style"))
+            
             # suggested_name 兜底：AI 有时只识别属性却不给名称，
             # 用"颜色+分类"生成友好名称，避免前端出现"未命名衣物"
             if not (result.get("suggested_name") or "").strip():
@@ -224,7 +227,7 @@ class AITaggingService:
     "color_element": "颜色对应的五行",
     "material": "材质名称",
     "material_element": "材质对应的五行",
-    "style": "风格（正式/休闲/运动/商务/时尚/传统/禅意）",
+    "style": "风格（必须从以下词表中选一个：商务/知性/简约/优雅/甜美/性感/休闲/运动/街头/森系/文艺/国潮。西装正装→商务，基础百搭→简约或休闲，礼服→优雅，饰品文玩按气质选知性/文艺/简约）",
     "shape": "款式形状（长方/正方/圆形/三角/不规则）",
     "details": ["款式细节1", "款式细节2"],
     "energy_intensity": 0.8,
@@ -241,6 +244,48 @@ class AITaggingService:
         
         return prompt
     
+    # 统一风格词表（与 packages/recommendation/config.py:STYLE_KEYWORDS、
+    # packages/utils/scene_mapping.py:SCENE_PREFERRED_STYLES 对齐）
+    STYLE_VOCAB = {
+        "商务", "知性", "简约", "优雅", "甜美", "性感",
+        "休闲", "运动", "街头", "森系", "文艺", "国潮",
+    }
+    # 旧词表/常见越界值 → 统一词表映射
+    STYLE_ALIASES = {
+        "正式": "商务",
+        "职业": "商务",
+        "时尚": "街头",
+        "潮流": "街头",
+        "传统": "国潮",
+        "中式": "国潮",
+        "禅意": "文艺",
+        "复古": "文艺",
+        "极简": "简约",
+        "基础": "简约",
+        "日常": "休闲",
+        "户外": "运动",
+        "可爱": "甜美",
+        "自然": "森系",
+        "气质": "优雅",
+        "干练": "知性",
+    }
+
+    @classmethod
+    def _normalize_style(cls, style) -> Optional[str]:
+        """将 AI 返回的风格归一化到统一词表；无法归一时返回 None（不参与风格惩罚）"""
+        if not style or not isinstance(style, str):
+            return None
+        style = style.strip()
+        if style in cls.STYLE_VOCAB:
+            return style
+        if style in cls.STYLE_ALIASES:
+            return cls.STYLE_ALIASES[style]
+        # 模糊包含匹配（如"商务休闲"→取最先出现的词表词）
+        hits = [(style.find(v), v) for v in cls.STYLE_VOCAB if v in style]
+        if hits:
+            return min(hits)[1]
+        return None
+
     @staticmethod
     def _fallback_name(result: Dict) -> str:
         """AI 未返回 suggested_name 时，用"颜色+分类"兜底生成名称"""

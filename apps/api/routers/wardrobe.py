@@ -262,8 +262,9 @@ async def add_wardrobe_item(
                 primary_element, secondary_element, attributes_detail,
                 is_custom, embedding,
                 gender, applicable_weather, applicable_seasons,
-                temperature_range, functionality, thickness_level, energy_intensity
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                temperature_range, functionality, thickness_level, energy_intensity,
+                style
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id, user_id, item_code, name, category, image_url,
                       primary_element, secondary_element, attributes_detail,
                       is_custom, is_active, wear_count, last_worn_date,
@@ -279,6 +280,7 @@ async def add_wardrobe_item(
         functionality = request.functionality or (ai_result.get("functionality", []) if ai_result else [])
         thickness_level = request.thickness_level or (ai_result.get("thickness_level") if ai_result else None)
         energy_intensity = request.energy_intensity or (ai_result.get("energy_intensity") if ai_result else None)
+        style = ai_result.get("style") if ai_result else None
         
         # 构建 attributes_detail（与 items 表结构对齐）
         attributes_detail = {
@@ -326,6 +328,7 @@ async def add_wardrobe_item(
             json.dumps(functionality),
             thickness_level,
             request.energy_intensity,
+            style,
         ]
         
         with DatabasePool.get_connection() as conn:

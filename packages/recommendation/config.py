@@ -78,6 +78,10 @@ WEIGHT_PRESETS: Dict[Tuple[bool, bool, bool], Dict[str, float]] = {
 # 极端温度时，温度维度占比
 EXTREME_TEMP_RATIO = 0.25
 
+# 衣橱模式且有场景时，从 semantic 转移到 scene 的权重量
+# （衣橱候选池小、语义分同质化，加大场景差异化避免各场景推荐雷同）
+WARDROBE_SCENE_WEIGHT_SHIFT = 0.10
+
 # ============================================================
 # 五行评分参数
 # ============================================================
@@ -200,14 +204,17 @@ def compute_recommend_weights(
     has_scene: bool,
     has_prefs: bool,
     is_extreme_temp: bool = False,
+    retrieval_mode: str = "public",
 ) -> Dict[str, float]:
     """
     配置化计算推荐权重
 
     策略：
     1. 从预设表查基础权重
-    2. 极端温度时，温度维度占 EXTREME_TEMP_RATIO，其余按比例缩减
-    3. 用 semantic 吸收浮点误差，确保总和精确 = 1.0
+    2. 衣橱模式且有场景时，从 semantic 转移权重到 scene（衣橱候选少、
+       语义分区分度低，场景差异化是用户的核心感知）
+    3. 极端温度时，温度维度占 EXTREME_TEMP_RATIO，其余按比例缩减
+    4. 用 semantic 吸收浮点误差，确保总和精确 = 1.0
 
     Returns:
         各维度权重字典（总和=1.0）
@@ -216,6 +223,12 @@ def compute_recommend_weights(
         (has_bazi, has_scene, has_prefs),
         WEIGHT_PRESETS[(False, False, False)],
     ).copy()
+
+    if retrieval_mode == "wardrobe" and has_scene:
+        shift = min(WARDROBE_SCENE_WEIGHT_SHIFT, preset["semantic"] - 0.30)
+        if shift > 0:
+            preset["semantic"] = round(preset["semantic"] - shift, 4)
+            preset["scene"] = round(preset["scene"] + shift, 4)
 
     if is_extreme_temp:
         preset["temp"] = EXTREME_TEMP_RATIO

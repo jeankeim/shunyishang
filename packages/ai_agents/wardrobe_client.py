@@ -48,7 +48,7 @@ class WardrobeClient:
             SELECT id, name, category, primary_element, secondary_element,
                    attributes_detail, image_url, wear_count,
                    gender, applicable_weather, applicable_seasons,
-                   temperature_range, functionality, thickness_level
+                   temperature_range, functionality, thickness_level, style
             FROM user_wardrobe
             WHERE user_id = %s AND is_active = TRUE
             ORDER BY created_at DESC
@@ -77,6 +77,7 @@ class WardrobeClient:
                             "temperature_range": row[11],
                             "functionality": row[12],
                             "thickness_level": row[13],
+                            "style": row[14],
                         })
         except Exception as e:
             logger.error(f"获取用户衣橱失败: {e}")
@@ -152,6 +153,7 @@ class WardrobeClient:
                 id, name, category, primary_element, secondary_element,
                 attributes_detail, image_url, gender, applicable_weather, applicable_seasons,
                 temperature_range, functionality, thickness_level,
+                style,
                 1 - (embedding <=> %(query_vector)s::vector) AS semantic_score
             FROM user_wardrobe
             WHERE {where_clause}
@@ -181,7 +183,8 @@ class WardrobeClient:
                             "temperature_range": row[10],
                             "functionality": row[11],
                             "thickness_level": row[12],
-                            "semantic_score": float(row[13]) if row[13] else 0.5,
+                            "style": row[13],
+                            "semantic_score": float(row[14]) if row[14] else 0.5,
                             "source": "wardrobe",  # 标记来源
                             "source_label": "🏠 自有",
                         })

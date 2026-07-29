@@ -13,9 +13,9 @@ class TestGetWardrobeItems:
         """成功获取衣橱物品"""
         mock_rows = [
             (1, "红色T恤", "上装", "火", None, {}, "http://img.com/1.jpg", 0,
-             "中性", [], ["夏"], {"min": 20, "max": 35}, ["透气"], "轻薄"),
+             "中性", [], ["夏"], {"min": 20, "max": 35}, ["透气"], "轻薄", "休闲"),
             (2, "蓝色牛仔裤", "下装", "水", None, {}, "http://img.com/2.jpg", 5,
-             "男", ["晴"], ["春", "秋"], None, [], "适中"),
+             "男", ["晴"], ["春", "秋"], None, [], "适中", None),
         ]
         client = WardrobeClient()
         with patch("packages.ai_agents.wardrobe_client.DatabasePool") as mock_db:
@@ -95,7 +95,7 @@ class TestVectorSearchWardrobe:
         """成功向量搜索"""
         mock_rows = [
             (1, "红色T恤", "上装", "火", None, {}, "http://img.com/1.jpg",
-             "中性", ["晴"], ["夏"], {"min": 20, "max": 35}, ["透气"], "轻薄", 0.9),
+             "中性", ["晴"], ["夏"], {"min": 20, "max": 35}, ["透气"], "轻薄", "休闲", 0.9),
         ]
         client = WardrobeClient()
         with patch("packages.ai_agents.wardrobe_client.DatabasePool") as mock_db:
@@ -153,7 +153,7 @@ class TestVectorSearchWardrobe:
     def test_none_semantic_score(self):
         """semantic_score 为 None 时使用默认值 0.5"""
         mock_rows = [
-            (1, "T恤", "上装", "火", None, {}, "", "中性", [], [], None, [], None, None),
+            (1, "T恤", "上装", "火", None, {}, "", "中性", [], [], None, [], None, None, None),
         ]
         client = WardrobeClient()
         with patch("packages.ai_agents.wardrobe_client.DatabasePool") as mock_db:
