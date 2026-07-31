@@ -1,0 +1,62 @@
+# 后端 API Dockerfile（ECS 国内部署专用）
+# 与根目录 Dockerfile 逻辑一致，区别：apt/pip 换用阿里云镜像源加速国内构建
+# Zeabur 仍使用根目录 Dockerfile，两者互不影响
+
+FROM python:3.11-slim as builder
+
+WORKDIR /app
+
+# 换用阿里云 Debian 源
+RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources
+
+# 安装构建依赖
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装 Python 依赖到虚拟环境（阿里云 PyPI 镜像）
+COPY requirements.txt .
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN pip install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ -r requirements.txt
+
+# 运行阶段
+FROM python:3.11-slim as runtime
+
+RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources
+
+# 安装运行时依赖
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    fonts-noto-cjk \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# 创建非 root 用户（-m 建 home，避免 gunicorn control server 写 /home 报权限错）
+RUN groupadd -r appgroup && useradd -r -m -g appgroup appuser
+
+ENV HOME=/home/appuser
+
+WORKDIR /app
+
+# 从构建阶段复制虚拟环境
+COPY --from=builder /opt/venv /opt/venv
+
+ENV PATH="/opt/venv/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
+
+# 复制应用代码
+COPY --chown=appuser:appgroup . .
+
+RUN mkdir -p /app/data/uploads && chown -R appuser:appgroup /app/data
+
+USER appuser
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
+
+EXPOSE ${PORT:-8000}
+
+# ECS 2核可跑 2 个 worker（不再受 Zeabur 440MB 限制）
+CMD ["sh", "-c", "gunicorn apps.api.main:app -w ${GUNICORN_WORKERS:-2} -k uvicorn.workers.UvicornWorker -b 0.0.0.0:${PORT:-8000} --timeout 120 --access-logfile - --error-logfile -"]

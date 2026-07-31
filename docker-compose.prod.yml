@@ -1,0 +1,83 @@
+# 生产部署 compose（阿里云 ECS）
+# 数据库用 RDS（不在 compose 内），Redis 自建容器替代 Upstash
+# 用法（ECS /opt/shunyishang 目录下）:
+#   docker compose -f docker-compose.prod.yml up -d --build
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.ecs
+    image: shunyishang-api:latest
+    container_name: shunyishang-api
+    restart: unless-stopped
+    env_file: .env.ecs
+    environment:
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  worker:
+    image: shunyishang-api:latest
+    container_name: shunyishang-worker
+    restart: unless-stopped
+    env_file: .env.ecs
+    environment:
+      REDIS_URL: redis://redis:6379/0
+    command: python -m apps.worker.main
+    depends_on:
+      - api
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web.ecs
+      args:
+        # 备案后改为 https://正式域名 并重建（SSE/海报直连后端用）
+        NEXT_PUBLIC_API_URL: ${WEB_API_URL:-}
+        NEXT_PUBLIC_OSS_IMAGES_URL: https://shunyishang-image.oss-cn-hangzhou.aliyuncs.com
+        NEXT_PUBLIC_R2_PUBLIC_URL: https://pub-851399ad134d447ea68cd62dbadd90a4.r2.dev
+    image: shunyishang-web:latest
+    container_name: shunyishang-web
+    restart: unless-stopped
+    environment:
+      # SSR/rewrites 服务端代理走容器网络直连后端
+      NEXT_PUBLIC_API_URL: http://api:8000
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - api
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    image: redis:7-alpine
+    container_name: shunyishang-redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  redis_data:
