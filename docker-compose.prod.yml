@@ -33,6 +33,11 @@ services:
     environment:
       REDIS_URL: redis://redis:6379/0
     command: python -m apps.worker.main
+    healthcheck:
+      test: ["CMD-SHELL", "grep -q worker /proc/1/cmdline || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     depends_on:
       - api
     logging:
