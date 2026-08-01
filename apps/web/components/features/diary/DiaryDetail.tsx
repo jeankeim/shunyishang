@@ -55,9 +55,14 @@ export function DiaryDetail({ diary, onEdit, onDelete, onTriggerReview, onBack }
       if (diary.occasion) tags.push(diary.occasion)
       tags.push('穿搭日记')
 
+      // 优先用用户上传的照片，没有则用今日穿搭的衣物图片
+      const postImages = diary.image_urls?.length
+        ? diary.image_urls
+        : (diary.items || []).map((i: any) => i.image_url).filter(Boolean)
+
       const post = await createCommunityPost({
         content,
-        image_urls: diary.image_urls || [],
+        image_urls: postImages,
         tags,
         diary_id: diary.id,
       })
