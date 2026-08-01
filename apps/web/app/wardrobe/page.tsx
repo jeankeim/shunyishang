@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, lazy, Suspense } from 'react'
-import Image from 'next/image'
+// Image from 'next/image' 已移除：OSS 默认域名 Content-Disposition:attachment 导致 Image 组件服务端优化失败，改用原生 img
 import { motion, AnimatePresence } from 'framer-motion'
 import { useWardrobeStore } from '@/store/wardrobe'
 import { useUserStore } from '@/store/user'
@@ -380,15 +380,11 @@ export default function WardrobePage() {
                     {/* 图片区域 */}
                     <div className={`relative ${viewMode === 'flow' ? 'h-2/3' : 'h-3/4'} overflow-hidden`}>
                       {item.image_url ? (
-                        <Image
+                        <img
                           src={getImageUrl(item.image_url) || ''}
                           alt={item.name}
-                          fill
-                          sizes="(max-width: 768px) 50vw, 33vw"
-                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                          onError={() => {
-                            // next/image 不支持直接操作 DOM，用 CSS 隐藏父容器
-                          }}
+                          loading="lazy"
+                          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                         />
                       ) : (
                         <div 
