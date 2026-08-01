@@ -28,6 +28,7 @@ OLD_HEAD=$(git rev-parse HEAD)
 git reset --hard origin/main
 NEW_HEAD=$(git rev-parse HEAD)
 
+CHANGED=""
 if [ "$OLD_HEAD" = "$NEW_HEAD" ]; then
     echo "  ⏭  代码无更新，已是最新"
 else
