@@ -51,8 +51,8 @@ services:
       context: .
       dockerfile: Dockerfile.web.ecs
       args:
-        # 备案后改为 https://正式域名 并重建（SSE/海报直连后端用）
-        NEXT_PUBLIC_API_URL: ${WEB_API_URL:-}
+        # 构建时 rewrites 代理目标（容器网络内地址，备案后也不变）
+        NEXT_PUBLIC_API_URL: ${WEB_API_URL:-http://api:8000}
         NEXT_PUBLIC_OSS_IMAGES_URL: https://shunyishang-image.oss-cn-hangzhou.aliyuncs.com
         NEXT_PUBLIC_R2_PUBLIC_URL: https://pub-851399ad134d447ea68cd62dbadd90a4.r2.dev
     image: shunyishang-web:latest

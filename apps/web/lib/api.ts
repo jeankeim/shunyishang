@@ -17,12 +17,16 @@ const getAPIBase = () => {
   return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 }
 
-// SSE 流式请求专用：直接访问后端（绕过 Next.js rewrites，避免流式响应被缓冲/断开）
+// SSE 流式请求专用
+// - 静态导出模式：浏览器直连后端（无 Nginx/rewrites 可用）
+// - 非静态导出模式：浏览器走相对路径，由 Nginx 代理（已配 proxy_buffering off 支持 SSE）
 const getDirectAPIBase = () => {
   if (typeof window !== 'undefined') {
-    // 浏览器环境：优先使用环境变量中的后端地址（生产环境为 Zeabur HTTPS 域名）
-    // 仅在未配置时回退到本地开发地址
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    if (isStaticExport) {
+      return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    }
+    // 非静态导出：走 Nginx 反代（同源，无 CORS，SSE 由 Nginx proxy_buffering off 保障）
+    return ''
   }
   return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 }
