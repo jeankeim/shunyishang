@@ -541,6 +541,10 @@ def calculate_final_score(
     # 行为反馈加分
     final_score += behavior_score
 
+    # 总分封顶：加权基础分≤1.0，但叠加各类加分后可能超过1.0，
+    # 展示层会 *100 转为百分制，必须封顶保证不超过 100 分
+    final_score = max(0.0, min(1.0, final_score))
+
     return {
         "semantic_score": semantic_score,
         "wuxing_score": wuxing_score,

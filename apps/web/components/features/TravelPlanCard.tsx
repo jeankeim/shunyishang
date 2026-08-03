@@ -124,6 +124,10 @@ export function TravelPlanCard({ data }: TravelPlanCardProps) {
             {showWuxing ? '隐藏五行分析' : '查看五行分析'}
           </button>
         </div>
+        {/* 分数含义说明 */}
+        <p className="text-[11px] text-stone-400 mb-2">
+          分数为综合匹配度（满分100）= 五行喜用 + 场景适配 + 天气适配，越高越适合当天
+        </p>
 
         <div className="space-y-2">
           {data.daily_plans.map((plan, idx) => (
@@ -179,7 +183,10 @@ export function TravelPlanCard({ data }: TravelPlanCardProps) {
                             <p className="text-xs text-stone-500">{item.category} · {item.primary_element}</p>
                           </div>
                           {item.final_score !== undefined && (
-                            <span className="text-xs font-semibold text-amber-600">
+                            <span
+                              className="text-xs font-semibold text-amber-600 cursor-help"
+                              title={`综合匹配度 ${(item.final_score * 100).toFixed(0)} 分\n场景适配 ${((item.scene_score ?? 0) * 100).toFixed(0)} · 五行 ${((item.wuxing_score ?? 0) * 100).toFixed(0)} · 天气 ${((item.weather_score ?? 0) * 100).toFixed(0)}`}
+                            >
                               {(item.final_score * 100).toFixed(0)}分
                             </span>
                           )}

@@ -140,6 +140,21 @@ def plan_travel_outfits(
             item_last_used_day=item_last_used_day,
         )
 
+        # 兜底：若该天选不出物品（衣橱较小/复用限制过严），放宽复用约束重选，
+        # 保证每一天都有推荐，避免出现"0件"的空体验
+        if not day_items and items_pool:
+            day_items = _select_items_for_day(
+                items_pool=items_pool,
+                scene=scene,
+                sub_scene=sub_scene,
+                weather=weather,
+                target_elements=target_elements,
+                used_item_ids=set(),
+                max_per_day=4,
+                day_idx=day_idx,
+                item_last_used_day={},
+            )
+
         # 标记已使用（更新复用记录）
         for item in day_items:
             item_id = item.get("id", item.get("name", ""))
@@ -501,16 +516,16 @@ def _select_items_for_day(
 
 
 def _format_item_output(item: Dict, scored: Dict) -> Dict:
-    """格式化输出物品"""
+    """格式化输出物品（分数封顶 [0,1]，展示层 *100 不超 100 分）"""
     return {
         "id": item.get("id"),
         "name": item.get("name", ""),
         "category": item.get("category", ""),
         "primary_element": item.get("primary_element", ""),
-        "final_score": round(scored["score"], 3),
-        "scene_score": round(scored["scene_score"], 3),
-        "wuxing_score": round(scored["wuxing_score"], 3),
-        "weather_score": round(scored["weather_score"], 3),
+        "final_score": round(max(0.0, min(1.0, scored["score"])), 3),
+        "scene_score": round(max(0.0, min(1.0, scored["scene_score"])), 3),
+        "wuxing_score": round(max(0.0, min(1.0, scored["wuxing_score"])), 3),
+        "weather_score": round(max(0.0, min(1.0, scored["weather_score"])), 3),
     }
 
 
