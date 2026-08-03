@@ -237,16 +237,30 @@ def optimize_luggage(outfits_plan: List[Dict], capacity: str = "中") -> List[Di
         if _is_reusable(item)
     ]
 
-    # 如果超出限制，保留高分物品
+    # 如果超出限制，按天保留最低配额后再全局补分，避免某天被清空
     if len(all_items) > max_items:
-        # 优先保留百搭单品
-        kept = set()
+        kept: set = set()
+        days = len(outfits_plan) or 1
+        # 每天最低保留件数：保证容量内每天都有一定推荐（至少1件）
+        min_per_day = max(1, min(3, max_items // days))
+
+        # 第一轮：按天保留该天分数最高的 min_per_day 件，确保覆盖
+        for day_plan in outfits_plan:
+            day_items = sorted(
+                day_plan.get("items", []),
+                key=lambda x: x.get("final_score", x.get("wuxing_score", 0.5)),
+                reverse=True,
+            )
+            for item in day_items[:min_per_day]:
+                kept.add(item.get("id", item.get("name", "")))
+
+        # 优先保留百搭单品（若还有额度）
         for item in reusable_items:
-            kept.add(item.get("id", item.get("name", "")))
             if len(kept) >= max_items:
                 break
+            kept.add(item.get("id", item.get("name", "")))
 
-        # 如果还有余量，按分数补充
+        # 第二轮：余量按全局分数补充
         remaining = [item for item in all_items if item.get("id", item.get("name", "")) not in kept]
         remaining.sort(
             key=lambda x: x.get("wuxing_score", x.get("final_score", 0.5)),
@@ -467,11 +481,15 @@ def _select_items_for_day(
             fresh_bonus = FRESH_ITEM_BONUS
 
         # 综合评分 = 场景*0.4 + 五行*0.35 + 天气*0.25 - 复用惩罚 + 新品加分
-        total_score = scene_score * 0.4 + wuxing_score * 0.35 + weather_score * 0.25 - reuse_penalty + fresh_bonus
+        # 纯匹配度（不含选择调节项），天然 [0,1]，用于展示，保证区分度
+        base_match = scene_score * 0.4 + wuxing_score * 0.35 + weather_score * 0.25
+        # 排序分 = 纯匹配度 + 选择调节（新品加分/复用惩罚），仅用于挑选，不展示
+        total_score = base_match - reuse_penalty + fresh_bonus
 
         scored_items.append({
             "item": item,
             "score": total_score,
+            "match_score": base_match,
             "scene_score": scene_score,
             "wuxing_score": wuxing_score,
             "weather_score": weather_score,
@@ -516,13 +534,18 @@ def _select_items_for_day(
 
 
 def _format_item_output(item: Dict, scored: Dict) -> Dict:
-    """格式化输出物品（分数封顶 [0,1]，展示层 *100 不超 100 分）"""
+    """格式化输出物品
+
+    final_score 用纯匹配度 match_score（不含新品加分/复用惩罚等选择调节项），
+    天然 [0,1] 且有区分度，展示层 *100 不超 100 分。
+    """
+    match = scored.get("match_score", scored.get("score", 0.5))
     return {
         "id": item.get("id"),
         "name": item.get("name", ""),
         "category": item.get("category", ""),
         "primary_element": item.get("primary_element", ""),
-        "final_score": round(max(0.0, min(1.0, scored["score"])), 3),
+        "final_score": round(max(0.0, min(1.0, match)), 3),
         "scene_score": round(max(0.0, min(1.0, scored["scene_score"])), 3),
         "wuxing_score": round(max(0.0, min(1.0, scored["wuxing_score"])), 3),
         "weather_score": round(max(0.0, min(1.0, scored["weather_score"])), 3),
