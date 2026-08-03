@@ -45,6 +45,14 @@ def _row_to_fortune_response(row: dict) -> FortuneResponse:
     if isinstance(bazi_snap, str):
         bazi_snap = json.loads(bazi_snap)
 
+    huangli_data = data.get('huangli', {})
+    if isinstance(huangli_data, str):
+        huangli_data = json.loads(huangli_data)
+
+    ai_narrative_data = data.get('ai_narrative', {})
+    if isinstance(ai_narrative_data, str):
+        ai_narrative_data = json.loads(ai_narrative_data)
+
     return FortuneResponse(
         id=data['id'],
         user_id=data['user_id'],
@@ -55,6 +63,8 @@ def _row_to_fortune_response(row: dict) -> FortuneResponse:
         lucky_elements=LuckyElements(**lucky_data) if lucky_data else LuckyElements(),
         outfit_suggestion=data.get('outfit_suggestion'),
         bazi_snapshot=bazi_snap,
+        huangli=huangli_data,
+        ai_narrative=ai_narrative_data,
         created_at=data['created_at'],
     )
 
@@ -92,7 +102,7 @@ async def get_today_fortune(
         return cached
 
     # 计算并存储
-    result = _generate_and_store(user_id, today)
+    result = _generate_and_store(user_id, today, generate_ai=True)
 
     # 写入 Redis
     if settings.redis_enabled:
@@ -117,7 +127,7 @@ async def get_fortune(
     if cached:
         return cached
 
-    return _generate_and_store(user_id, date)
+    return _generate_and_store(user_id, date, generate_ai=True)
 
 
 @router.post("/generate", response_model=FortuneResponse)
@@ -127,7 +137,7 @@ async def generate_fortune(
     """手动生成/刷新生成今日运势"""
     user_id = _get_user_id(user)
     today = date.today()
-    result = _generate_and_store(user_id, today, force=True)
+    result = _generate_and_store(user_id, today, force=True, generate_ai=True)
 
     # 清除 Redis 缓存，确保后续 GET 请求拿到最新数据
     if settings.redis_enabled:
@@ -156,25 +166,28 @@ def _get_cached_fortune(user_id: int, target_date: date):
     return None
 
 
-def _generate_and_store(user_id: int, target_date: date, force: bool = False) -> FortuneResponse:
+def _generate_and_store(user_id: int, target_date: date, force: bool = False, generate_ai: bool = False) -> FortuneResponse:
     """计算运势并存储"""
     user_bazi = get_user_bazi(user_id)
 
-    result = calculate_daily_fortune(user_bazi, target_date)
+    result = calculate_daily_fortune(user_bazi, target_date, generate_ai=generate_ai)
 
     # 使用 UPSERT
     query = """
         INSERT INTO daily_fortune (
             user_id, fortune_date, scores, overall_score,
-            advice_text, lucky_elements, outfit_suggestion, bazi_snapshot
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            advice_text, lucky_elements, outfit_suggestion, bazi_snapshot,
+            huangli, ai_narrative
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (user_id, fortune_date) DO UPDATE SET
             scores = EXCLUDED.scores,
             overall_score = EXCLUDED.overall_score,
             advice_text = EXCLUDED.advice_text,
             lucky_elements = EXCLUDED.lucky_elements,
             outfit_suggestion = EXCLUDED.outfit_suggestion,
-            bazi_snapshot = EXCLUDED.bazi_snapshot
+            bazi_snapshot = EXCLUDED.bazi_snapshot,
+            huangli = EXCLUDED.huangli,
+            ai_narrative = EXCLUDED.ai_narrative
         RETURNING *
     """
 
@@ -187,6 +200,8 @@ def _generate_and_store(user_id: int, target_date: date, force: bool = False) ->
         json.dumps(result['lucky_elements']),
         result['outfit_suggestion'],
         json.dumps(result['bazi_snapshot']),
+        json.dumps(result.get('huangli', {})),
+        json.dumps(result.get('ai_narrative', {})),
     ]
 
     with DatabasePool.get_connection() as conn:
@@ -232,6 +247,10 @@ def _build_today_card(fortune: FortuneResponse) -> TodayCardResponse:
     day_master = bazi_snap.get("day_master", "土")
     avoid_colors = _AVOID_COLOR_MAP.get(day_master, [])
 
+    # 黄历摘要
+    huangli = fortune.huangli or {}
+    ai_narrative = fortune.ai_narrative or {}
+
     return TodayCardResponse(
         fortune_date=fortune.fortune_date,
         day_ganzhi=bazi_snap.get("target_day_ganzhi", ""),
@@ -244,6 +263,10 @@ def _build_today_card(fortune: FortuneResponse) -> TodayCardResponse:
         outfit_suggestion=fortune.outfit_suggestion or "",
         advice_text=fortune.advice_text or "",
         fortune_level=_get_fortune_level(fortune.overall_score),
+        huangli_yi=huangli.get("yi", [])[:4],
+        huangli_ji=huangli.get("ji", [])[:4],
+        chong_sha=huangli.get("chong_sha", ""),
+        ai_overview=ai_narrative.get("overview", ""),
     )
 
 

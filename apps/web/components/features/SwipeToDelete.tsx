@@ -10,11 +10,11 @@ interface SwipeToDeleteProps {
   threshold?: number // 触发删除的滑动距离（像素）
 }
 
-export const SwipeToDelete: React.FC<SwipeToDeleteProps> = ({
+export const SwipeToDelete = React.forwardRef<HTMLDivElement, SwipeToDeleteProps>(({
   children,
   onSwipe,
   threshold = 100,
-}) => {
+}, ref) => {
   const [dragX, setDragX] = useState(0)
   const [isDeleting, setIsDeleting] = useState(false)
   const constraintsRef = useRef<HTMLDivElement>(null)
@@ -51,7 +51,7 @@ export const SwipeToDelete: React.FC<SwipeToDeleteProps> = ({
   }, [])
 
   return (
-    <div className="relative overflow-hidden rounded-xl">
+    <div ref={ref} className="relative overflow-hidden rounded-xl">
       {/* 删除按钮背景 */}
       <motion.div
         className="absolute inset-0 bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-end pr-4 rounded-xl"
@@ -79,4 +79,6 @@ export const SwipeToDelete: React.FC<SwipeToDeleteProps> = ({
       </motion.div>
     </div>
   )
-}
+})
+
+SwipeToDelete.displayName = 'SwipeToDelete'

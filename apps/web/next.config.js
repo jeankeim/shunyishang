@@ -64,6 +64,11 @@ if (!IS_STATIC_EXPORT) {
     { source: '/health', destination: `${API_BASE}/health` },
     { source: '/uploads/:path*', destination: `${API_BASE}/uploads/:path*` },
   ]
+  // 增加代理超时，避免 AI 调用耗时较长时返回 500
+  nextConfig.experimental = {
+    ...nextConfig.experimental,
+    proxyTimeout: 120000, // 2 分钟
+  }
 }
 
 module.exports = nextConfig

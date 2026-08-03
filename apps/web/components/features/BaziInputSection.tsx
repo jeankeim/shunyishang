@@ -145,9 +145,13 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
   
   // 日期选项（根据年月动态计算）- 使用 useMemo 缓存
   const days = useMemo(() => {
+    if (calendarType === 'lunar') {
+      // 农历每月最多30天，固定显示30天选项
+      return Array.from({ length: 30 }, (_, i) => i + 1)
+    }
     const daysInMonth = new Date(date.year, date.month, 0).getDate()
     return Array.from({ length: daysInMonth }, (_, i) => i + 1)
-  }, [date.year, date.month])
+  }, [date.year, date.month, calendarType])
 
   // 农历转换 - 使用 useMemo 缓存，避免每次渲染重新计算
   const lunarDisplay = useMemo(() => {
@@ -253,8 +257,34 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
   }, [])
 
   const switchCalendarType = useCallback((type: 'solar' | 'lunar') => {
+    // 切换历法时自动转换日期值，避免同一数字被错误解读
+    if (type !== calendarType) {
+      if (type === 'lunar') {
+        // 公历 → 农历：将当前公历日期转为农历
+        const lunar = solarToLunar(date.year, date.month, date.day)
+        if (lunar) {
+          setDate(prev => ({
+            ...prev,
+            year: lunar.lunarYear,
+            month: Math.abs(lunar.lunarMonth),
+            day: lunar.lunarDay,
+          }))
+        }
+      } else {
+        // 农历 → 公历：将当前农历日期转为公历
+        const solar = lunarToSolar(date.year, date.month, date.day)
+        if (solar) {
+          setDate(prev => ({
+            ...prev,
+            year: solar.year,
+            month: solar.month,
+            day: solar.day,
+          }))
+        }
+      }
+    }
     setCalendarType(type)
-  }, [])
+  }, [calendarType, date.year, date.month, date.day])
 
   const switchGender = useCallback((g: '男' | '女') => {
     setGender(g)

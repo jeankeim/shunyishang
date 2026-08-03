@@ -357,6 +357,15 @@ async def quick_checkin(
         OutfitRecommendation(**outfit_rec_data) if outfit_rec_data else None
     )
 
+    # 获取连续打卡天数
+    streak_days = None
+    try:
+        from apps.api.services.gamification_service import gamification_service
+        profile = gamification_service.get_user_profile(user_id)
+        streak_days = profile.get("streak_days", 0)
+    except Exception as e:
+        logger.debug(f"[QuickCheckIn] 获取连续打卡天数失败: {e}")
+
     return QuickCheckInResponse(
         diary_id=diary.id,
         diary_date=today,
@@ -365,6 +374,7 @@ async def quick_checkin(
         created=True,
         fortune_match_score=fortune_match_score,
         outfit_recommendation=outfit_rec,
+        streak_days=streak_days,
     )
 
 

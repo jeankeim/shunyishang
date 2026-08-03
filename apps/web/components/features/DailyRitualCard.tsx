@@ -15,12 +15,12 @@ const COLOR_MAP: Record<string, string> = {
   '银色': '#9CAFB8', '金色': '#B89B5E', '米色': '#E8DFC4',
 }
 
-// 运势等级配置 - 五行色系统一
+// 运势等级配置 - 穿搭导向表述
 const LEVEL_CONFIG: Record<string, { label: string; gradient: string; emoji: string }> = {
-  great:  { label: '大吉', gradient: 'from-[#3DA35D] to-[#2D8A4D]', emoji: '🎉' },
-  good:   { label: '良好', gradient: 'from-[#4A90C4] to-[#3A80B4]', emoji: '✨' },
-  normal: { label: '平稳', gradient: 'from-[#B89B5E] to-[#A88B4E]', emoji: '☀️' },
-  weak:   { label: '偏弱', gradient: 'from-[#9CAFB8] to-[#8A9BA8]', emoji: '🌙' },
+  great:  { label: '宜搭配', gradient: 'from-[#3DA35D] to-[#2D8A4D]', emoji: '✨' },
+  good:   { label: '可搭配', gradient: 'from-[#4A90C4] to-[#3A80B4]', emoji: '👌' },
+  normal: { label: '随性搭', gradient: 'from-[#B89B5E] to-[#A88B4E]', emoji: '☀️' },
+  weak:   { label: '慎搭配', gradient: 'from-[#9CAFB8] to-[#8A9BA8]', emoji: '🌙' },
 }
 
 // ============================================================
@@ -281,6 +281,9 @@ export function DailyRitualCard({ onCheckIn, onNavigateToFortune, onNavigateToCu
           </div>
         </div>
 
+        {/* ── 7 日连续打卡迷你日历 ──────────────────────────── */}
+        <StreakMiniCalendar streakDays={diary.streak_days} checkedInToday={diary.checked_in_today} />
+
         {/* 第三行：穿搭建议（如果有） */}
         {fortune?.outfit_suggestion && (
           <div
@@ -327,6 +330,11 @@ export function DailyRitualCard({ onCheckIn, onNavigateToFortune, onNavigateToCu
             })}
           </div>
         )}
+
+        {/* 免责声明 */}
+        <p className="text-[10px] text-stone-400 text-center mt-3">
+          ⚠️ 文化参考 · 仅供娱乐
+        </p>
       </div>
     </motion.div>
   )
@@ -430,6 +438,60 @@ function DailyPickSection({ pick, onNavigate }: { pick: DailyPick | null; onNavi
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// 7 日连续打卡迷你日历子组件
+// ============================================================
+function StreakMiniCalendar({ streakDays, checkedInToday }: { streakDays: number; checkedInToday: boolean }) {
+  const weekdays = ['一', '二', '三', '四', '五', '六', '日']
+  const today = new Date()
+  const todayDayOfWeek = today.getDay() // 0=周日
+
+  // 生成过去 7 天的日期数组（最近 7 天）
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today)
+    d.setDate(today.getDate() - (6 - i))
+    return {
+      date: d,
+      dayLabel: weekdays[(d.getDay() + 6) % 7], // 转换周日=0 → 周一=0
+      isToday: i === 6,
+      // 简化的标记逻辑：最近 streakDays 天（含今天）标记为已打卡
+      isCheckedIn: i >= 6 - streakDays + 1 && (checkedInToday || i < 6),
+    }
+  })
+
+  // 里程碑提示
+  const milestone = streakDays >= 30 ? '🔥 30天达成！' : streakDays >= 7 ? '🌟 7天连续！' : streakDays >= 3 ? '💪 坚持3天' : null
+
+  return (
+    <div className="mb-2 bg-white/50 rounded-xl px-3 py-2 border border-stone-100">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[10px] text-stone-500">近7日打卡</span>
+        {milestone && (
+          <span className="text-[10px] font-medium text-amber-600">{milestone}</span>
+        )}
+      </div>
+      <div className="flex justify-between items-center">
+        {days.map((day, i) => (
+          <div key={i} className="flex flex-col items-center gap-0.5">
+            <span className="text-[10px] text-stone-400">{day.dayLabel}</span>
+            <div
+              className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] transition-all ${
+                day.isCheckedIn
+                  ? 'bg-gradient-to-br from-[var(--wuxing-wood)] to-[var(--wuxing-water)] text-white shadow-sm'
+                  : day.isToday
+                    ? 'bg-stone-100 border border-[var(--wuxing-wood)]/30 text-stone-400'
+                    : 'bg-stone-100 text-stone-300'
+              }`}
+            >
+              {day.isCheckedIn ? '✓' : '·'}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )

@@ -23,12 +23,12 @@ const COLOR_MAP: Record<string, string> = {
   '银色': '#C0C0C0', '金色': '#D4A574', '米色': '#F5E6D3',
 }
 
-// 运势等级配置
+// 运势等级配置 — 穿搭导向表述
 const LEVEL_CONFIG: Record<string, { label: string; gradient: string; textColor: string }> = {
-  great:  { label: '大吉', gradient: 'from-emerald-400 to-teal-500',   textColor: 'text-emerald-700' },
-  good:   { label: '良好', gradient: 'from-sky-400 to-blue-500',       textColor: 'text-sky-700' },
-  normal: { label: '平稳', gradient: 'from-amber-400 to-orange-400',   textColor: 'text-amber-700' },
-  weak:   { label: '偏弱', gradient: 'from-stone-400 to-stone-500',    textColor: 'text-stone-600' },
+  great:  { label: '宜搭配', gradient: 'from-emerald-400 to-teal-500',   textColor: 'text-emerald-700' },
+  good:   { label: '可搭配', gradient: 'from-sky-400 to-blue-500',       textColor: 'text-sky-700' },
+  normal: { label: '随性搭', gradient: 'from-amber-400 to-orange-400',   textColor: 'text-amber-700' },
+  weak:   { label: '慎搭配', gradient: 'from-stone-400 to-stone-500',    textColor: 'text-stone-600' },
 }
 
 interface TodayCardData {
@@ -43,6 +43,11 @@ interface TodayCardData {
   outfit_suggestion: string
   advice_text: string
   fortune_level: string
+  // v2 新增
+  huangli_yi?: string[]
+  huangli_ji?: string[]
+  chong_sha?: string
+  ai_overview?: string
 }
 
 interface TodayFortuneCardProps {
@@ -203,13 +208,48 @@ export function TodayFortuneCard({ onNavigateToFortune }: TodayFortuneCardProps)
 
         {/* 穿搭建议（单行） */}
         {card.outfit_suggestion && (
-          <div className="bg-gradient-to-r from-emerald-50/80 to-teal-50/60 rounded-lg px-3 py-2">
+          <div className="bg-gradient-to-r from-emerald-50/80 to-teal-50/60 rounded-lg px-3 py-2 mb-2">
             <p className="text-[11px] text-emerald-700 leading-relaxed line-clamp-2">
               <span className="font-medium">👔 </span>
               {card.outfit_suggestion}
             </p>
           </div>
         )}
+
+        {/* v2：AI 概述 + 黄历宜忌（紧凑版） */}
+        {card.ai_overview && (
+          <div className="bg-violet-50/50 rounded-lg px-3 py-2 mb-2">
+            <p className="text-[11px] text-stone-600 leading-relaxed line-clamp-2">
+              <span className="font-medium">🔮 </span>
+              {card.ai_overview}
+            </p>
+          </div>
+        )}
+
+        {(card.huangli_yi?.length || card.huangli_ji?.length || card.chong_sha) && (
+          <div className="flex items-center gap-2 text-[10px] flex-wrap">
+            {card.huangli_yi?.slice(0, 2).map((item, i) => (
+              <span key={`yi-${i}`} className="px-1.5 py-0.5 bg-emerald-50 rounded text-emerald-600">
+                宜{item}
+              </span>
+            ))}
+            {card.huangli_ji?.slice(0, 2).map((item, i) => (
+              <span key={`ji-${i}`} className="px-1.5 py-0.5 bg-red-50 rounded text-red-500">
+                忌{item}
+              </span>
+            ))}
+            {card.chong_sha && (
+              <span className="px-1.5 py-0.5 bg-amber-50 rounded text-amber-600">
+                {card.chong_sha}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* 免责声明 */}
+        <p className="text-[10px] text-stone-400 text-center mt-2">
+          ⚠️ 文化参考 · 仅供娱乐
+        </p>
       </div>
     </motion.div>
   )

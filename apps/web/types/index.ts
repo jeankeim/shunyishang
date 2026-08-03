@@ -160,7 +160,40 @@ export interface DailyFortune {
   lucky_elements: LuckyElements
   outfit_suggestion?: string
   bazi_snapshot?: Record<string, any>
+  huangli?: HuangLiData
+  ai_narrative?: AiNarrative
   created_at: string
+}
+
+// v2 新增
+
+export interface HuangLiData {
+  yi: string[]
+  ji: string[]
+  chong_sha: string
+  chong_zodiac: string
+  ji_shen: string[]
+  xiong_sha: string[]
+  solar_term: string | null
+  next_solar_term: string
+  days_to_next_term: number
+  hour_luck: HourLuck[]
+  today_level_name: string
+}
+
+export interface HourLuck {
+  hour: string
+  ganzhi: string
+  lucky: string
+}
+
+export interface AiNarrative {
+  overview: string
+  career_tip: string
+  love_tip: string
+  health_tip: string
+  lucky_action: string
+  avoid_action: string
 }
 
 // ========== 会员相关类型 ==========

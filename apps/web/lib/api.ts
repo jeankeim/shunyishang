@@ -1413,27 +1413,59 @@ export async function purchaseFortuneReport(reportId: number): Promise<any> {
 }
 
 // ============================================
-// 五行穿搭百科 API
+// 五行穿搭百科 + 周易文化知识库 API
 // ============================================
 
-/** 五行穿搭百科条目 */
+/** 五行穿搭/周易百科条目 */
 export interface WuxingTip {
   id: number
-  element: string        // 木/火/土/金/水
-  category: string       // 颜色搭配/材质推荐/适合场景/忌讳搭配/历史趣闻
+  element: string            // 木/火/土/金/水/通用
+  category: string           // 颜色搭配/材质推荐/周易基础/八卦入门/...
+  content_type: string       // wuxing/zhouyi
+  difficulty: string         // 入门/进阶/精通
   title: string
   content: string
   tags: string[]
+  source?: string            // 知识来源，如"《周易》"
+  sort_order: number
+  is_published: boolean
+  created_at?: string
+  updated_at?: string
+  date?: string              // 今日推荐携带的日期
+}
+
+/** 获取百科分类列表 */
+export async function getWuxingCategories(): Promise<{ categories: { content_type: string; category: string; difficulty: string }[] }> {
+  try {
+    const response = await fetch(`${getAPIBase()}/api/v1/content/wuxing-tips/categories`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) return { categories: [] }
+    return response.json()
+  } catch {
+    return { categories: [] }
+  }
 }
 
 /**
- * 获取今日五行穿搭百科（按日期自动匹配）
- * @param date 可选日期字符串，如 "2026-07-16"；不传则返回当天
+ * 获取每日一学（今日五行/周易百科，按日期自动匹配）
+ * @param content_type 可选内容类型筛选: wuxing/zhouyi
+ * @param difficulty 可选难度筛选: 入门/进阶/精通
  */
-export async function getWuxingTip(date?: string): Promise<WuxingTip | null> {
+export async function getWuxingTip(params?: {
+  date?: string
+  element?: string
+  content_type?: string
+  difficulty?: string
+}): Promise<WuxingTip | null> {
   try {
-    const params = date ? `?date=${date}` : ''
-    const response = await fetch(`${getAPIBase()}/api/v1/content/wuxing-tips${params}`, {
+    const searchParams = new URLSearchParams()
+    if (params?.date) searchParams.set('date', params.date)
+    if (params?.element) searchParams.set('element', params.element)
+    if (params?.content_type) searchParams.set('content_type', params.content_type)
+    if (params?.difficulty) searchParams.set('difficulty', params.difficulty)
+    const qs = searchParams.toString()
+    const response = await fetch(`${getAPIBase()}/api/v1/content/wuxing-tips${qs ? '?' + qs : ''}`, {
       headers: getAuthHeaders(),
     })
     if (!response.ok) {
@@ -1448,20 +1480,32 @@ export async function getWuxingTip(date?: string): Promise<WuxingTip | null> {
 }
 
 /**
- * 获取全部五行穿搭百科
- * @param element 可选五行筛选，如 "木"；不传则返回全部
+ * 获取全部百科知识
+ * @param params 多维度筛选参数
  */
-export async function getAllWuxingTips(element?: string): Promise<WuxingTip[]> {
+export async function getAllWuxingTips(params?: {
+  element?: string
+  content_type?: string
+  category?: string
+  difficulty?: string
+}): Promise<WuxingTip[]> {
   try {
-    const params = element ? `?element=${element}` : ''
-    const response = await fetch(`${getAPIBase()}/api/v1/content/wuxing-tips/all${params}`, {
+    const searchParams = new URLSearchParams()
+    if (params?.element) searchParams.set('element', params.element)
+    if (params?.content_type) searchParams.set('content_type', params.content_type)
+    if (params?.category) searchParams.set('category', params.category)
+    if (params?.difficulty) searchParams.set('difficulty', params.difficulty)
+    const qs = searchParams.toString()
+    const response = await fetch(`${getAPIBase()}/api/v1/content/wuxing-tips/all${qs ? '?' + qs : ''}`, {
       headers: getAuthHeaders(),
     })
     if (!response.ok) {
       console.error('[getAllWuxingTips] 请求失败:', response.status)
       return []
     }
-    return response.json()
+    const data = await response.json()
+    // 后端返回 { tips: [...], total: N }
+    return data.tips || []
   } catch (error) {
     console.error('[getAllWuxingTips] 异常:', error)
     return []
@@ -1638,6 +1682,8 @@ export interface QuickCheckInResponse {
   }
   /** 穿搭与运势的匹配度评分 */
   fortune_match_score?: number
+  /** 连续打卡天数 */
+  streak_days?: number
 }
 
 // ============================================

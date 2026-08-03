@@ -135,6 +135,7 @@ class QuickCheckInResponse(BaseModel):
     created: bool = Field(True, description="是否新创建")
     fortune_match_score: int = Field(70, ge=0, le=100, description="运势匹配度 0-100")
     outfit_recommendation: Optional[OutfitRecommendation] = Field(None, description="基于运势的衣橱单品推荐")
+    streak_days: Optional[int] = Field(None, description="连续打卡天数")
 
 
 # ============================================
@@ -159,7 +160,7 @@ class LuckyElements(BaseModel):
 
 
 class FortuneResponse(BaseModel):
-    """运势响应"""
+    """运势响应（v2 增强版）"""
     id: int
     user_id: int
     fortune_date: date
@@ -169,13 +170,15 @@ class FortuneResponse(BaseModel):
     lucky_elements: LuckyElements
     outfit_suggestion: Optional[str] = None
     bazi_snapshot: Dict[str, Any] = Field(default_factory=dict)
+    huangli: Dict[str, Any] = Field(default_factory=dict, description="黄历数据")
+    ai_narrative: Dict[str, Any] = Field(default_factory=dict, description="AI个性化叙事")
     created_at: datetime
 
     model_config = {"from_attributes": True}
 
 
 class TodayCardResponse(BaseModel):
-    """首页今日运势卡片（轻量版）"""
+    """首页今日运势卡片（轻量版 v2）"""
     fortune_date: date = Field(..., description="日期")
     day_ganzhi: str = Field("", description="今日干支")
     day_element: str = Field("", description="今日五行")
@@ -187,3 +190,8 @@ class TodayCardResponse(BaseModel):
     outfit_suggestion: str = Field("", description="穿搭建议")
     advice_text: str = Field("", description="运势建议")
     fortune_level: str = Field("", description="运势等级: great/good/normal/weak")
+    # v2 新增
+    huangli_yi: List[str] = Field(default_factory=list, description="今日宜")
+    huangli_ji: List[str] = Field(default_factory=list, description="今日忌")
+    chong_sha: str = Field("", description="冲煞")
+    ai_overview: str = Field("", description="AI叙事-概述")

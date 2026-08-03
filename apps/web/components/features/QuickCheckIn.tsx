@@ -51,6 +51,7 @@ interface CheckInResult {
   created: boolean
   fortuneMatchScore?: number
   outfitRecommendation?: OutfitRecommendation | null
+  streakDays?: number
 }
 
 interface QuickCheckInProps {
@@ -116,6 +117,7 @@ export function QuickCheckIn({ isOpen, onClose, onSuccess, weatherInfo }: QuickC
         created: res.created,
         fortuneMatchScore: res.fortune_match_score,
         outfitRecommendation: res.outfit_recommendation,
+        streakDays: res.streak_days,
       })
 
       if (res.created) {
@@ -146,11 +148,11 @@ export function QuickCheckIn({ isOpen, onClose, onSuccess, weatherInfo }: QuickC
     return '#9CA3AF'
   }
 
-  /** 匹配度分数标签 */
+  /** 匹配度分数标签 — 穿搭导向表述 */
   function scoreLabel(score: number): string {
-    if (score >= 80) return '大吉'
-    if (score >= 60) return '平稳'
-    return '偏弱'
+    if (score >= 80) return '宜搭配'
+    if (score >= 60) return '可搭配'
+    return '随性搭'
   }
 
   return (
@@ -211,6 +213,30 @@ export function QuickCheckIn({ isOpen, onClose, onSuccess, weatherInfo }: QuickC
                   <p className="text-sm text-stone-500 mb-4">
                     {result.created ? '已记录今日穿搭日记' : '今天已经打过卡啦'}
                   </p>
+
+                  {/* ── 连续打卡庆祝 ──────────────────────────── */}
+                  {result.created && result.streakDays !== undefined && result.streakDays >= 3 && (
+                    <motion.div
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: 0.1, type: 'spring', stiffness: 400 }}
+                      className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-3 mb-4 border border-amber-200/60"
+                    >
+                      <p className="text-2xl mb-1">
+                        {result.streakDays >= 30 ? '🔥' : result.streakDays >= 7 ? '⭐' : '💪'}
+                      </p>
+                      <p className="text-sm font-semibold text-amber-700">
+                        {result.streakDays >= 30
+                          ? `连续 ${result.streakDays} 天！你是穿搭修炼大师！`
+                          : result.streakDays >= 7
+                            ? `连续 ${result.streakDays} 天打卡，太棒了！`
+                            : `已连续 ${result.streakDays} 天，继续加油！`}
+                      </p>
+                      {result.streakDays > 0 && result.streakDays % 7 === 0 && (
+                        <p className="text-xs text-amber-600 mt-1">🎁 连续 {result.streakDays} 天奖励积分已发放</p>
+                      )}
+                    </motion.div>
+                  )}
 
                   {/* 运势匹配度分数 */}
                   {result.created && result.fortuneMatchScore !== undefined && (

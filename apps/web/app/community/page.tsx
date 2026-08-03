@@ -17,6 +17,7 @@ import { toast } from '@/components/ui'
 // 五行筛选标签
 const ELEMENT_TABS = [
   { id: '', label: '全部', emoji: '✨' },
+  { id: 'featured', label: '精选', emoji: '⭐' },
   { id: '金', label: '金', emoji: '🪙' },
   { id: '木', label: '木', emoji: '🌱' },
   { id: '水', label: '水', emoji: '💧' },
@@ -81,13 +82,18 @@ export default function CommunityPage() {
     if (!isAuthenticated) return
     setLoading(true)
     try {
-      const data = await getCommunityPosts(p, 20, element || undefined)
-      if (p === 1) {
-        setPosts(data.posts || [])
-      } else {
-        setPosts(prev => [...prev, ...(data.posts || [])])
+      const data = await getCommunityPosts(p, 20, element === 'featured' ? undefined : (element || undefined))
+      let filteredPosts = data.posts || []
+      // 精选筛选：只显示 is_featured 的帖子
+      if (element === 'featured') {
+        filteredPosts = filteredPosts.filter((post: Post) => post.is_featured)
       }
-      setTotal(data.total || 0)
+      if (p === 1) {
+        setPosts(filteredPosts)
+      } else {
+        setPosts(prev => [...prev, ...filteredPosts])
+      }
+      setTotal(element === 'featured' ? filteredPosts.length : (data.total || 0))
       setPage(p)
     } catch (e) {
       console.error('获取帖子失败:', e)
@@ -435,6 +441,8 @@ function PostCard({
 }) {
   const { user } = useUserStore()
   const isOwner = user?.id === post.user_id
+  const [likeAnimating, setLikeAnimating] = useState(false)
+  const [showShareToast, setShowShareToast] = useState(false)
 
   const elementColors: Record<string, string> = {
     '金': 'from-gray-200 to-yellow-200',
@@ -444,13 +452,75 @@ function PostCard({
     '土': 'from-amber-200 to-yellow-300',
   }
 
+  const handleLike = () => {
+    if (!post.is_liked) {
+      setLikeAnimating(true)
+      setTimeout(() => setLikeAnimating(false), 600)
+    }
+    onLike()
+  }
+
+  const handleShare = async () => {
+    const shareText = `${post.author_name || '用户'} 的穿搭分享：${post.content.slice(0, 50)}${post.content.length > 50 ? '...' : ''}`
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: '穿搭分享', text: shareText })
+      } else {
+        await navigator.clipboard.writeText(shareText)
+        setShowShareToast(true)
+        setTimeout(() => setShowShareToast(false), 2000)
+      }
+    } catch {
+      // 用户取消分享
+    }
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index * 0.05, 0.3), duration: 0.3 }}
-      className="bg-white rounded-2xl border border-stone-200/60 shadow-sm overflow-hidden hover:shadow-md transition-shadow"
+      className="bg-white rounded-2xl border border-stone-200/60 shadow-sm overflow-hidden hover:shadow-md transition-shadow relative"
     >
+      {/* 点赞动画 - 爱心飘出效果 */}
+      <AnimatePresence>
+        {likeAnimating && (
+          <>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <motion.span
+                key={i}
+                initial={{ opacity: 1, scale: 0.5, y: 0, x: 0 }}
+                animate={{
+                  opacity: 0,
+                  scale: 1.5,
+                  y: -40 - Math.random() * 30,
+                  x: (i - 2) * 15 + Math.random() * 10,
+                }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.6, ease: 'easeOut' }}
+                className="absolute top-1/2 left-1/2 text-red-400 text-lg pointer-events-none z-10"
+              >
+                {i % 2 === 0 ? '❤️' : '💕'}
+              </motion.span>
+            ))}
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* 分享提示 */}
+      <AnimatePresence>
+        {showShareToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="absolute top-3 left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 bg-stone-800 text-white text-xs rounded-full shadow-lg"
+          >
+            已复制到剪贴板
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* 作者信息 */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
         <div className="flex items-center gap-2">
@@ -518,15 +588,22 @@ function PostCard({
       {/* 互动栏 - 触摸目标 ≥ 44px */}
       <div className="flex items-center gap-1 px-4 pb-3 pt-1 border-t border-stone-100">
         <button
-          onClick={onLike}
+          onClick={handleLike}
           aria-label={post.is_liked ? '取消点赞' : '点赞'}
           className={`flex items-center gap-1.5 min-w-[44px] min-h-[44px] justify-center rounded-xl text-sm transition-all touch-manipulation active:scale-95 ${
             post.is_liked ? 'text-red-500' : 'text-stone-400 hover:text-red-400'
           }`}
         >
-          <svg className="w-5 h-5" fill={post.is_liked ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
+          <motion.svg
+            className="w-5 h-5"
+            fill={post.is_liked ? 'currentColor' : 'none'}
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            animate={post.is_liked ? { scale: [1, 1.3, 1] } : {}}
+            transition={{ duration: 0.3 }}
+          >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-          </svg>
+          </motion.svg>
           <span>{post.like_count > 0 ? post.like_count : ''}</span>
         </button>
 
@@ -539,6 +616,17 @@ function PostCard({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
           <span>{post.comment_count > 0 ? post.comment_count : ''}</span>
+        </button>
+
+        {/* 分享按钮 */}
+        <button
+          onClick={handleShare}
+          aria-label="分享"
+          className="flex items-center gap-1.5 min-w-[44px] min-h-[44px] justify-center rounded-xl text-sm text-stone-400 hover:text-emerald-500 transition-all touch-manipulation active:scale-95"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+          </svg>
         </button>
 
         <span className="text-xs text-stone-300 ml-auto">{post.view_count} 浏览</span>

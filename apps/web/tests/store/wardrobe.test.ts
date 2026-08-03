@@ -216,7 +216,7 @@ describe('useWardrobeStore', () => {
 
       await useWardrobeStore.getState().fetchTaggingPreview('绿色T恤')
 
-      expect(previewTagging).toHaveBeenCalledWith('绿色T恤')
+      expect(previewTagging).toHaveBeenCalledWith('绿色T恤', undefined)
       const state = useWardrobeStore.getState()
       expect(state.taggingPreview).toEqual(mockResult)
       expect(state.isTaggingLoading).toBe(false)

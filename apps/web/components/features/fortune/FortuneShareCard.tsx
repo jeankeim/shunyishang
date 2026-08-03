@@ -58,10 +58,10 @@ export function FortuneShareCard({ fortune, username }: FortuneShareCardProps) {
   const weekday = `星期${weekdays[today.getDay()]}`
 
   const levelConfig: Record<string, { label: string; color: string }> = {
-    great: { label: '大吉', color: '#10B981' },
-    good: { label: '良好', color: '#3B82F6' },
-    normal: { label: '平稳', color: '#F59E0B' },
-    weak: { label: '偏弱', color: '#78716C' },
+    great: { label: '宜搭配', color: '#10B981' },
+    good: { label: '可搭配', color: '#3B82F6' },
+    normal: { label: '随性搭', color: '#F59E0B' },
+    weak: { label: '慎搭配', color: '#78716C' },
   }
   const level = levelConfig[fortune.fortune_level || 'normal'] || levelConfig.normal
 
@@ -238,6 +238,11 @@ export function FortuneShareCard({ fortune, username }: FortuneShareCardProps) {
               </div>
               <p className="text-[9px] text-stone-400">扫码查看你的运势</p>
             </div>
+
+            {/* 免责水印 */}
+            <p className="text-center text-[8px] text-stone-400 mt-2 opacity-60">
+              文化参考 · 仅供娱乐
+            </p>
           </div>
         </div>
       </div>

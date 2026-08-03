@@ -29,6 +29,7 @@ const CommunityPage = lazy(() => import('./community/page'))
 const CultivationPage = lazy(() => import('./cultivation/page'))
 // 运势 + 命理 合并为综合页面
 const DestinyFortuneHub = lazy(() => import('@/components/features/DestinyFortuneHub').then(m => ({ default: m.DestinyFortuneHub })))
+const WuxingClassroomPage = lazy(() => import('./wuxing-classroom/page'))
 const AuthModal = lazy(() => import('@/components/features/AuthModal').then(m => ({ default: m.AuthModal })))
 
 // 统一的页面加载骨架屏
@@ -43,6 +44,89 @@ function PageLoadingFallback() {
   )
 }
 
+// ============================================================
+// 快捷推荐栏 — 一键推荐入口
+// ============================================================
+function QuickRecommendBar({
+  weatherElement,
+  weatherInfo,
+  userCity,
+  onFocusChat,
+}: {
+  weatherElement: string
+  weatherInfo: any
+  userCity: string
+  onFocusChat: () => void
+}) {
+  const quickRecs = [
+    {
+      icon: '✨',
+      label: '今日运势推荐',
+      desc: weatherInfo
+        ? `${weatherInfo.temperature || '--'}°C ${weatherInfo.weather_desc || ''}`
+        : '基于五行幸运色推荐',
+      query: '根据今日运势和五行喜忌，推荐今日穿搭',
+      gradient: 'from-amber-50 to-orange-50 border-amber-200/60',
+    },
+    {
+      icon: '🌤️',
+      label: '天气适配穿搭',
+      desc: userCity ? `${userCity} · 实时天气` : '根据天气智能搭配',
+      query: `今天${userCity || ''}天气${weatherInfo?.weather_desc || ''}，推荐适合的穿搭`,
+      gradient: 'from-blue-50 to-cyan-50 border-blue-200/60',
+    },
+    {
+      icon: '🎯',
+      label: '场景智能推荐',
+      desc: '面试·约会·通勤·旅行',
+      query: '',
+      gradient: 'from-emerald-50 to-teal-50 border-emerald-200/60',
+    },
+  ]
+
+  const handleQuickRec = (query: string) => {
+    onFocusChat()
+    // 将推荐查询写入聊天输入框
+    const chatInput = document.querySelector('textarea[placeholder*="穿搭"]') as HTMLTextAreaElement | null
+    if (chatInput && query) {
+      // 使用原生方法设置值并触发 input 事件（React 需要）
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLTextAreaElement.prototype, 'value'
+      )?.set
+      if (nativeInputValueSetter) {
+        nativeInputValueSetter.call(chatInput, query)
+        chatInput.dispatchEvent(new Event('input', { bubbles: true }))
+      }
+    }
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.15 }}
+      className="mb-4"
+    >
+      <p className="text-xs text-stone-500 mb-2 font-medium">💡 快捷推荐</p>
+      <div className="grid grid-cols-3 gap-2">
+        {quickRecs.map((rec, i) => (
+          <motion.button
+            key={i}
+            whileHover={{ scale: 1.02, y: -1 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => handleQuickRec(rec.query)}
+            className={`flex flex-col items-center gap-1 p-3 rounded-xl bg-gradient-to-br ${rec.gradient} border text-left transition-all hover:shadow-sm`}
+          >
+            <span className="text-lg">{rec.icon}</span>
+            <span className="text-xs font-semibold text-stone-700">{rec.label}</span>
+            <span className="text-[10px] text-stone-500 text-center leading-tight">{rec.desc}</span>
+          </motion.button>
+        ))}
+      </div>
+    </motion.div>
+  )
+}
+
 export default function Home() {
   const { radarData, setUserBazi } = useChatStore()
   const { user, isAuthenticated, isLoading: isAuthLoading } = useUserStore()
@@ -52,7 +136,7 @@ export default function Home() {
     const [weatherElement, setWeatherElement] = useState('')
   const [weatherInfo, setWeatherInfo] = useState<any>(null)  // 新增：保存完整天气信息
   const [userCity, setUserCity] = useState<string>('')  // 用户当前城市
-  const [activeTab, setActiveTab] = useState<'chat' | 'wardrobe' | 'tryon' | 'profile' | 'diary' | 'fortune' | 'destiny' | 'community' | 'cultivation'>('chat')
+  const [activeTab, setActiveTab] = useState<'chat' | 'wardrobe' | 'tryon' | 'profile' | 'diary' | 'fortune' | 'destiny' | 'community' | 'cultivation' | 'wuxing-classroom'>('chat')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [showCheckIn, setShowCheckIn] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
@@ -237,7 +321,7 @@ export default function Home() {
             五行穿搭
           </h1>
           <p className="text-sm text-[var(--brand-body)] font-light tracking-wide mt-2">
-            {hasBazi ? '您的专属五行推荐' : '天人合一 · 五行相生'}
+            {hasBazi ? '您的专属五行穿搭推荐' : '基于传统文化的每日穿搭灵感'}
           </p>
         </motion.div>
 
@@ -386,7 +470,23 @@ export default function Home() {
           <div className="flex items-center px-6">
                         {/* Tab 按钮组 */}
             <div className="flex gap-2 py-3">
-              {/* 1. 推荐 */}
+              {/* 1. 运势 — 日活主角，放在最显眼的位置 */}
+              <button
+                onClick={() => {
+                  setActiveTab('fortune')
+                  window.location.hash = '#fortune'
+                }}
+                aria-label="切换到运势页面"
+                className={`relative flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
+                  activeTab === 'fortune' || activeTab === 'destiny'
+                    ? 'bg-[var(--brand-surface)] text-[var(--brand-heading)] shadow-sm'
+                    : 'text-stone-600 hover:bg-[var(--brand-surface)] hover:text-[var(--brand-heading)]'
+                }`}
+              >
+                <Compass className="w-5 h-5" />
+                <span className="hidden sm:inline">运势</span>
+              </button>
+              {/* 2. 推荐 */}
               <button
                 onClick={() => {
                   setActiveTab('chat')
@@ -470,7 +570,7 @@ export default function Home() {
                 <Mountain className="w-5 h-5" />
                 <span className="hidden sm:inline">修炼</span>
               </button>
-              {/* 6. 更多 — 下拉(运势/命理/试衣) - 支持 click + 键盘导航 */}
+              {/* 6. 更多 — 下拉(试衣等) - 支持 click + 键盘导航 */}
               <div className="relative">
                 <button
                   onClick={() => setShowMoreMenu(!showMoreMenu)}
@@ -479,7 +579,7 @@ export default function Home() {
                   aria-expanded={showMoreMenu}
                   aria-haspopup="menu"
                   className={`relative flex items-center gap-1.5 px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 touch-manipulation ${
-                    activeTab === 'fortune' || activeTab === 'destiny'
+                    showMoreMenu
                       ? 'bg-[var(--brand-surface)] text-[var(--brand-heading)] shadow-sm'
                       : 'text-stone-600 hover:bg-[var(--brand-surface)] hover:text-[var(--brand-heading)]'
                   }`}
@@ -500,27 +600,24 @@ export default function Home() {
                       onKeyDown={(e) => { if (e.key === 'Escape') setShowMoreMenu(false) }}
                       className="absolute top-full right-0 mt-1 w-64 bg-white rounded-xl shadow-lg border border-stone-200/60 py-1 z-50"
                     >
-                  {/* 运势 + 命理（已合并为综合页面） */}
+                  {/* 五行小课堂 */}
                   <button
                     role="menuitem"
                     onClick={() => {
-                      setActiveTab('fortune')
-                      window.location.hash = '#fortune'
+                      setActiveTab('wuxing-classroom' as any)
+                      window.location.hash = '#wuxing-classroom'
                       setShowMoreMenu(false)
                     }}
-                    className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-                      activeTab === 'fortune' || activeTab === 'destiny'
-                        ? 'text-[var(--brand-heading)] bg-[var(--brand-surface)]'
-                        : 'text-stone-600 hover:bg-stone-50'
-                    }`}
+                    className="w-full text-left px-4 py-2.5 hover:bg-[var(--brand-surface)] transition-colors"
                   >
-                    <Compass className="w-4 h-4" />
-                    <span>运势命理</span>
+                    <div className="flex items-center gap-2 text-sm font-medium text-stone-700">
+                      <span className="text-base">📖</span>
+                      <span>五行小课堂</span>
+                    </div>
+                    <p className="mt-0.5 text-[11px] leading-snug text-stone-500">
+                      了解五行生克，掌握穿搭智慧
+                    </p>
                   </button>
-
-                  {/* 分隔线 */}
-                  <div className="my-1 border-t border-stone-100" />
-
                   {/* 试衣 — 暂未上线，置于末尾并禁用 */}
                   <div
                     role="menuitem"
@@ -612,6 +709,23 @@ export default function Home() {
                 {/* 每日智能穿搭建议 — 已登录用户自动展示 */}
                 {isAuthenticated && !isAuthLoading && (
                   <DailyOutfitCard isAuthenticated={isAuthenticated} city={userCity} />
+                )}
+
+                {/* 快捷推荐入口 — 已登录用户一键推荐 */}
+                {isAuthenticated && !isAuthLoading && (
+                  <QuickRecommendBar
+                    weatherElement={weatherElement}
+                    weatherInfo={weatherInfo}
+                    userCity={userCity}
+                    onFocusChat={() => {
+                      // 滚动到聊天输入框
+                      const chatInput = document.querySelector('textarea[placeholder*="穿搭"]')
+                      if (chatInput) {
+                        chatInput.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                        setTimeout(() => (chatInput as HTMLTextAreaElement).focus(), 300)
+                      }
+                    }}
+                  />
                 )}
 
                 <ChatInterface 
@@ -706,6 +820,19 @@ export default function Home() {
               >
                 <Suspense fallback={<PageLoadingFallback />}>
                   <CultivationPage />
+                </Suspense>
+              </motion.div>
+            )}
+            {activeTab === 'wuxing-classroom' && (
+              <motion.div
+                key="wuxing-classroom"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+              >
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <WuxingClassroomPage />
                 </Suspense>
               </motion.div>
             )}

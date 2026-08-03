@@ -35,18 +35,18 @@ describe('MobileBottomNav', () => {
 
   it('should render 4 primary nav items', () => {
     render(<MobileBottomNav activeTab="chat" onTabChange={mockOnTabChange} />)
+    // 主导航：运势、推荐、衣橱、我的
+    expect(screen.getByText('运势')).toBeInTheDocument()
     expect(screen.getByText('推荐')).toBeInTheDocument()
     expect(screen.getByText('衣橱')).toBeInTheDocument()
-    expect(screen.getByText('广场')).toBeInTheDocument()
     expect(screen.getByText('我的')).toBeInTheDocument()
   })
 
   it('should not render secondary items initially', () => {
     render(<MobileBottomNav activeTab="chat" onTabChange={mockOnTabChange} />)
-    // 试衣、日记、运势、命理、修炼 are in the "更多" sheet, not visible initially
-    expect(screen.queryByText('试衣')).not.toBeInTheDocument()
+    // 日记、广场、修炼 在 "更多" 面板中，初始不可见
     expect(screen.queryByText('日记')).not.toBeInTheDocument()
-    expect(screen.queryByText('命理')).not.toBeInTheDocument()
+    expect(screen.queryByText('广场')).not.toBeInTheDocument()
     expect(screen.queryByText('修炼')).not.toBeInTheDocument()
   })
 
@@ -58,6 +58,8 @@ describe('MobileBottomNav', () => {
 
   it('should call onTabChange for community tab', () => {
     render(<MobileBottomNav activeTab="chat" onTabChange={mockOnTabChange} />)
+    // 广场在 "更多" 面板中，需先点击 "更多" 展开
+    fireEvent.click(screen.getByText('更多'))
     fireEvent.click(screen.getByText('广场'))
     expect(mockOnTabChange).toHaveBeenCalledWith('community')
   })

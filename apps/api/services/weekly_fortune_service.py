@@ -190,7 +190,7 @@ class WeeklyFortuneService:
 
         for i in range(7):
             current_day = start_date + timedelta(days=i)
-            fortune = calculate_daily_fortune(user_bazi, current_day)
+            fortune = calculate_daily_fortune(user_bazi, current_day, generate_ai=False)
 
             overall = fortune.get("overall_score", 65)
             lucky = fortune.get("lucky_elements", {})

@@ -11,19 +11,19 @@ interface MobileBottomNavProps {
   onTabChange: (tab: TabId) => void
 }
 
-// 主导航（4个）：推荐 | 衣橱 | 广场 | 我的
+// 主导航（4个）：运势 | 推荐 | 衣橱 | 我的
+// 运势是日活主角，是相对所有衣橱竞品的降维打击
 const PRIMARY_ITEMS = [
+  { id: 'fortune' as const, Icon: Compass, label: '运势' },
   { id: 'chat' as const, Icon: Sparkles, label: '推荐' },
   { id: 'wardrobe' as const, Icon: Shirt, label: '衣橱' },
-  { id: 'community' as const, Icon: Users, label: '广场' },
   { id: 'profile' as const, Icon: User, label: '我的' },
 ]
 
-// 次级功能（通过"更多"展开）：日记 | 运势命理 | 修炼
-// 注：运势与命理已合并为综合页（id: 'fortune'）
+// 次级功能（通过"更多"展开）：日记 | 广场 | 修炼
 const SECONDARY_ITEMS = [
   { id: 'diary' as const, Icon: BookOpen, label: '日记' },
-  { id: 'fortune' as const, Icon: Compass, label: '运势命理' },
+  { id: 'community' as const, Icon: Users, label: '广场' },
   { id: 'cultivation' as const, Icon: Mountain, label: '修炼' },
 ]
 
