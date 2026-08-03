@@ -59,9 +59,9 @@ describe('Header', () => {
     }
   })
 
-  it('should render logo text "顺衣尚"', () => {
+  it('should render logo text "我的个人穿搭"', () => {
     render(<Header />)
-    expect(screen.getByText('顺衣尚')).toBeInTheDocument()
+    expect(screen.getAllByText('我的个人穿搭').length).toBeGreaterThan(0)
   })
 
   it('should render menu button', () => {

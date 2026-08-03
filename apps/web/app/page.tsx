@@ -429,7 +429,7 @@ export default function Home() {
         <div className="md:hidden flex items-center justify-between px-4 h-12 bg-white/90 backdrop-blur-xl border-b border-stone-200/60 flex-shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-lg">🌿</span>
-            <span className="font-semibold text-sm bg-gradient-to-r from-[var(--wuxing-wood)] to-[var(--wuxing-water)] bg-clip-text text-transparent font-serif">顺衣尚</span>
+            <span className="font-semibold text-sm bg-gradient-to-r from-[var(--wuxing-wood)] to-[var(--wuxing-water)] bg-clip-text text-transparent font-serif">我的个人穿搭</span>
           </div>
           <div className="flex items-center gap-2">
             {/* 登录后显示用户名 */}

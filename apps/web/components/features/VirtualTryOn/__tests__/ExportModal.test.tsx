@@ -13,7 +13,7 @@ const defaultProps = {
   onClose: vi.fn(),
   canvasDataUrl: 'data:image/png;base64,testdata',
   title: '我的虚拟试衣',
-  wuxingText: '五行穿搭 · 顺衣尚',
+  wuxingText: '五行穿搭 · 我的个人穿搭',
 };
 
 beforeEach(() => {

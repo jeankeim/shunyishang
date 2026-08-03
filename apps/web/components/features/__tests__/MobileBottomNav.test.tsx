@@ -21,6 +21,7 @@ vi.mock('lucide-react', () => ({
   Compass: () => <span data-testid="compass-icon" />,
   CircleDot: () => <span data-testid="circledot-icon" />,
   Mountain: () => <span data-testid="mountain-icon" />,
+  GraduationCap: () => <span data-testid="graduation-icon" />,
   MoreHorizontal: () => <span data-testid="more-icon" />,
   Menu: () => <span data-testid="menu-icon" />,
   X: () => <span data-testid="x-icon" />,

@@ -47,7 +47,7 @@ export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#3DA35D]/20 to-[#4A90C4]/20 flex items-center justify-center shadow-sm">
             <Leaf className="w-5 h-5 text-[#3DA35D]" />
           </div>
-          <h1 className="font-semibold text-[var(--brand-heading)] bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] bg-clip-text text-transparent font-serif">顺衣尚</h1>
+          <h1 className="font-semibold text-[var(--brand-heading)] bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] bg-clip-text text-transparent font-serif">我的个人穿搭</h1>
         </div>
       </header>
     )
@@ -68,12 +68,12 @@ export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
           >
             <Menu className="h-5 w-5 text-[var(--brand-body)]" />
           </motion.button>
-          {/* 顺衣尚 Logo */}
+          {/* 我的个人穿搭 Logo */}
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#3DA35D]/20 to-[#4A90C4]/20 flex items-center justify-center shadow-sm">
               <Leaf className="w-5 h-5 text-[#3DA35D]" />
             </div>
-            <h1 className="font-semibold text-[var(--brand-heading)] text-lg bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] bg-clip-text text-transparent font-serif tracking-tight">顺衣尚</h1>
+            <h1 className="font-semibold text-[var(--brand-heading)] text-lg bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] bg-clip-text text-transparent font-serif tracking-tight">我的个人穿搭</h1>
           </div>
         </div>
 

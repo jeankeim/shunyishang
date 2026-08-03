@@ -24,7 +24,7 @@ describe('usePoster', () => {
 
     expect(result.current.title).toBe('今日五行穿搭推荐')
     expect(result.current.quote).toBe('')
-    expect(result.current.signature).toBe('顺衣尚')
+    expect(result.current.signature).toBe('我的个人穿搭')
     expect(result.current.isGenerating).toBe(false)
     expect(result.current.error).toBeNull()
     expect(result.current.items).toEqual([])

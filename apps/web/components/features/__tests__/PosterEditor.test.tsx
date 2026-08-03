@@ -124,6 +124,6 @@ describe('PosterEditor', () => {
     )
     expect(screen.getByPlaceholderText('例如：今日五行穿搭推荐')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('例如：火生土，今日事业运旺')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('例如：顺衣尚')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('例如：我的个人穿搭')).toBeInTheDocument()
   })
 })

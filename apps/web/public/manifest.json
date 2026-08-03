@@ -1,7 +1,7 @@
 {
-  "name": "顺衣尚 - 五行穿搭推荐",
-  "short_name": "顺衣尚",
-  "description": "基于八字命理的AI穿搭推荐系统",
+  "name": "我的个人穿搭 - 五行穿搭灵感",
+  "short_name": "我的个人穿搭",
+  "description": "基于传统五行美学的个人穿搭灵感推荐，仅供娱乐参考",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F8FAF9",

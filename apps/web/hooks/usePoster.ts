@@ -22,7 +22,7 @@ interface UsePosterOptions {
 export function usePoster(options: UsePosterOptions = {}) {
   const [title, setTitle] = useState(options.initialTitle || '今日五行穿搭推荐');
   const [quote, setQuote] = useState(options.initialQuote || '');
-  const [signature, setSignature] = useState(options.initialSignature || '顺衣尚');
+  const [signature, setSignature] = useState(options.initialSignature || '我的个人穿搭');
   const [selectedTemplate, setSelectedTemplate] = useState(DEFAULT_TEMPLATE.id);
   const [selectedTheme, setSelectedTheme] = useState<ColorTheme>(DEFAULT_THEME);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -109,7 +109,7 @@ export function usePoster(options: UsePosterOptions = {}) {
   const reset = useCallback(() => {
     setTitle(options.initialTitle || '今日五行穿搭推荐');
     setQuote(options.initialQuote || '');
-    setSignature(options.initialSignature || '顺衣尚');
+    setSignature(options.initialSignature || '我的个人穿搭');
     setSelectedTemplate(DEFAULT_TEMPLATE.id);
     setSelectedTheme(DEFAULT_THEME);
     setError(null);

@@ -169,8 +169,8 @@ const PROMPT_LIBRARY = [
   '要去参加前男友的婚礼，想要穿得漂亮得体但不刻意，有什么建议',
   '要去参加孩子的家长会，想要得体又不失时尚的穿搭',
   '明天要去相亲，对方是文艺青年，想要有气质又有品味的穿搭',
-  '我的八字日主是甲木，喜用神是火和土，今天想穿得旺运又有气质',
-  '我八字缺金缺水，喜用神是金，想要增强财运和事业运的穿搭',
+  '我的八字日主是甲木，喜用神是火和土，今天想穿得五行相合又有气质',
+  '我八字缺金缺水，喜用神是金，想要白色系为主、利落有型的穿搭',
   '周末要带娃去游乐园，想要方便活动又好看的妈妈装',
   '周末要去参加马拉松，想要专业运动装备又好看的搭配',
   '要去参加慈善晚宴，想要高雅大方又符合场合的穿搭',
@@ -643,7 +643,7 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: 
             <div className="w-20 h-20 rounded-2xl bg-[var(--brand-surface)] flex items-center justify-center mb-4 shadow-sm">
               <span className="text-4xl">🌿</span>
             </div>
-            <h2 className="text-xl font-semibold mb-2 text-[var(--brand-heading)]">五行智能衣橱</h2>
+            <h2 className="text-xl font-semibold mb-2 text-[var(--brand-heading)]">我的个人穿搭</h2>
             <p className="text-sm mb-4 text-[var(--brand-subtle)]">输入你的穿搭需求，获取五行推荐</p>
             
             {/* 未登录提示 */}

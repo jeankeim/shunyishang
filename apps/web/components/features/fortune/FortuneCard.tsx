@@ -182,10 +182,10 @@ export function FortuneCard({ fortune, onRegenerate }: FortuneCardProps) {
         </div>
       )}
 
-      {/* ── 十二时辰吉凶 ──────────────────────────── */}
+      {/* ── 十二时辰气场参考 ──────────────────────────── */}
       {huangli?.hour_luck && huangli.hour_luck.length > 0 && (
         <div>
-          <p className="text-xs text-stone-500 mb-2">⏰ 十二时辰吉凶</p>
+          <p className="text-xs text-stone-500 mb-2">⏰ 十二时辰气场参考</p>
           <div className="grid grid-cols-6 gap-1">
             {huangli.hour_luck.map((h, i) => (
               <div
@@ -199,7 +199,7 @@ export function FortuneCard({ fortune, onRegenerate }: FortuneCardProps) {
                 }`}
               >
                 <p className="font-medium">{h.hour.split('(')[0]}</p>
-                <p className="opacity-70">{h.lucky}</p>
+                <p className="opacity-70">{h.lucky === '吉' ? '宜' : h.lucky === '凶' ? '慎' : h.lucky}</p>
               </div>
             ))}
           </div>

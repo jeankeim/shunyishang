@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: '隐私政策 - 顺衣尚',
-  description: '顺衣尚个人信息保护与隐私政策',
+  title: '隐私政策 - 我的个人穿搭',
+  description: '我的个人穿搭个人信息保护与隐私政策',
 }
 
 /**
@@ -14,7 +14,7 @@ export default function PrivacyPage() {
     <div className="min-h-screen bg-[var(--brand-surface,#faf9f6)]">
       <div className="max-w-3xl mx-auto px-5 py-10">
         <h1 className="text-2xl font-bold text-[var(--brand-heading,#2c2a26)] mb-2">
-          顺衣尚隐私政策
+          我的个人穿搭隐私政策
         </h1>
         <p className="text-sm text-[var(--brand-subtle,#8a857c)] mb-8">
           更新日期：2026年7月25日　|　生效日期：2026年7月25日
@@ -23,7 +23,7 @@ export default function PrivacyPage() {
         <div className="space-y-8 text-sm leading-relaxed text-[var(--brand-body,#4a463f)]">
           <section>
             <p>
-              顺衣尚（以下简称"我们"或"本产品"）深知个人信息对您的重要性，我们依据《中华人民共和国个人信息保护法》（PIPL）、《中华人民共和国网络安全法》等法律法规制定本政策，并恪守以下原则：权责一致、目的明确、选择同意、最小必要、确保安全、主体参与、公开透明。请您在注册和使用本产品前仔细阅读本政策。
+              我的个人穿搭（以下简称"我们"或"本产品"）深知个人信息对您的重要性，我们依据《中华人民共和国个人信息保护法》（PIPL）、《中华人民共和国网络安全法》等法律法规制定本政策，并恪守以下原则：权责一致、目的明确、选择同意、最小必要、确保安全、主体参与、公开透明。请您在注册和使用本产品前仔细阅读本政策。
             </p>
           </section>
 
