@@ -204,6 +204,8 @@ export default function Home() {
         setActiveTab('community')
       } else if (window.location.hash === '#cultivation') {
         setActiveTab('cultivation')
+      } else if (window.location.hash === '#wuxing-classroom') {
+        setActiveTab('wuxing-classroom')
       } else {
         setActiveTab('chat')
       }

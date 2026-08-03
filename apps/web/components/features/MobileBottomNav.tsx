@@ -2,9 +2,9 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, Shirt, Users, User, Menu, Scan, BookOpen, Compass, Mountain } from 'lucide-react'
+import { Sparkles, Shirt, Users, User, Menu, Scan, BookOpen, Compass, Mountain, GraduationCap } from 'lucide-react'
 
-type TabId = 'chat' | 'wardrobe' | 'tryon' | 'profile' | 'diary' | 'fortune' | 'destiny' | 'community' | 'cultivation'
+type TabId = 'chat' | 'wardrobe' | 'tryon' | 'profile' | 'diary' | 'fortune' | 'destiny' | 'community' | 'cultivation' | 'wuxing-classroom'
 
 interface MobileBottomNavProps {
   activeTab: TabId
@@ -20,15 +20,16 @@ const PRIMARY_ITEMS = [
   { id: 'profile' as const, Icon: User, label: '我的' },
 ]
 
-// 次级功能（通过"更多"展开）：日记 | 广场 | 修炼
+// 次级功能（通过"更多"展开）：日记 | 广场 | 修炼 | 课堂
 const SECONDARY_ITEMS = [
   { id: 'diary' as const, Icon: BookOpen, label: '日记' },
   { id: 'community' as const, Icon: Users, label: '广场' },
   { id: 'cultivation' as const, Icon: Mountain, label: '修炼' },
+  { id: 'wuxing-classroom' as const, Icon: GraduationCap, label: '课堂' },
 ]
 
 // 高亮判断需覆盖合并前的 destiny
-const SECONDARY_IDS: TabId[] = ['diary', 'fortune', 'destiny', 'cultivation']
+const SECONDARY_IDS: TabId[] = ['diary', 'fortune', 'destiny', 'cultivation', 'wuxing-classroom']
 
 export function MobileBottomNav({ activeTab, onTabChange }: MobileBottomNavProps) {
   const [showMore, setShowMore] = useState(false)
