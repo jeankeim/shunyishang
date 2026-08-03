@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { getDailyRitual, getWuxingTip, getDailyPick } from '@/lib/api'
+import { getDailyRitual } from '@/lib/api'
 import { useUserStore } from '@/store/user'
-import type { WuxingTip, DailyPick } from '@/lib/api'
 
 // 颜色名称到色值 - 映射到五行色系，避免高饱和Tailwind标准色
 const COLOR_MAP: Record<string, string> = {
@@ -115,10 +114,8 @@ export function DailyRitualCard({ onCheckIn, onNavigateToFortune, onNavigateToCu
   const [data, setData] = useState<DailyRitualData | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // 新增：节气、五行百科、每日精选（异步加载，不阻塞渲染）
+  // 新增：节气提示（异步加载，不阻塞渲染）
   const [solarTerm] = useState(() => findUpcomingSolarTerm())
-  const [wuxingTip, setWuxingTip] = useState<WuxingTip | null>(null)
-  const [dailyPick, setDailyPick] = useState<DailyPick | null>(null)
 
   useEffect(() => {
     // 仅在认证验证完成且已登录时获取数据
@@ -127,25 +124,6 @@ export function DailyRitualCard({ onCheckIn, onNavigateToFortune, onNavigateToCu
     } else if (!isAuthenticated && !isAuthLoading) {
       setLoading(false)
     }
-  }, [isAuthenticated, isAuthLoading])
-
-  // 五行百科 + 每日精选：延迟异步加载（不阻塞 SSR，不阻塞主卡片渲染）
-  useEffect(() => {
-    if (!isAuthenticated || isAuthLoading) return
-
-    // 五行穿搭百科（无需登录也可显示，但统一在已登录时加载）
-    getWuxingTip()
-      .then(res => {
-        if (res?.title) setWuxingTip(res)
-      })
-      .catch(() => {}) // 静默失败
-
-    // 每日精选（需要衣橱数据，未登录/无衣橱时返回 item=null）
-    getDailyPick()
-      .then(res => {
-        if (res?.item) setDailyPick(res)
-      })
-      .catch(() => {}) // 静默失败，未登录直接不显示
   }, [isAuthenticated, isAuthLoading])
 
   async function fetchRitual() {
@@ -297,12 +275,6 @@ export function DailyRitualCard({ onCheckIn, onNavigateToFortune, onNavigateToCu
           </div>
         )}
 
-        {/* ── 五行穿搭小知识（异步加载） ──────────────────────────── */}
-        <WuxingTipSection tip={wuxingTip} />
-
-        {/* ── 每日精选入口卡片（异步加载） ─────────────────────────── */}
-        <DailyPickSection pick={dailyPick} onNavigate={onNavigateToWardrobe} />
-
         {/* 底部：五维度迷你分数条 */}
         {fortune?.scores && (
           <div className="flex gap-1.5">
@@ -337,109 +309,6 @@ export function DailyRitualCard({ onCheckIn, onNavigateToFortune, onNavigateToCu
         </p>
       </div>
     </motion.div>
-  )
-}
-
-// ============================================================
-// 五行穿搭小知识子组件
-// ============================================================
-function WuxingTipSection({ tip }: { tip: WuxingTip | null }) {
-  // 未加载完成或加载失败时不渲染
-  if (!tip || !tip.title) return null
-
-  // 内容摘要：截取前 80 字符
-  const summary = tip.content && tip.content.length > 80
-    ? tip.content.slice(0, 80) + '…'
-    : tip.content || ''
-
-  // 五行元素对应图标
-  const elementEmoji: Record<string, string> = {
-    '木': '🌿', '火': '🔥', '土': '🌍', '金': '✨', '水': '💧',
-  }
-
-  return (
-    <div className="mb-2 bg-[var(--brand-surface)]/50 rounded-xl px-3 py-2.5 border border-[var(--brand-border)]/60">
-      <div className="flex items-start gap-2">
-        <span className="text-sm flex-shrink-0 mt-0.5">
-          {elementEmoji[tip.element] || '📖'}
-        </span>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <span className="text-[10px] px-1.5 py-0 rounded-full bg-[var(--wuxing-wood)]/15 text-[var(--wuxing-wood)] font-medium">
-              {tip.category || '穿搭百科'}
-            </span>
-            {tip.element && (
-              <span className="text-[10px] text-[var(--brand-subtle)]">· {tip.element}行</span>
-            )}
-          </div>
-          <p className="text-xs font-medium text-stone-700 leading-snug mb-0.5 truncate">
-            {tip.title}
-          </p>
-          {summary && (
-            <p className="text-[11px] text-stone-500 leading-relaxed line-clamp-2">
-              {summary}
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ============================================================
-// 每日精选入口卡片子组件
-// ============================================================
-function DailyPickSection({ pick, onNavigate }: { pick: DailyPick | null; onNavigate?: () => void }) {
-  if (!pick || !pick.item) return null
-
-  const { item, reason } = pick
-
-  return (
-    <div
-      className="mb-2 bg-white/70 rounded-xl px-3 py-2.5 border border-stone-100 cursor-pointer hover:bg-white/90 hover:shadow-sm transition-all group"
-      onClick={onNavigate}
-    >
-      <div className="flex items-center gap-2.5">
-        {/* 单品图片（如有） */}
-        {item.image_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={item.image_url}
-            alt={item.name}
-            className="w-10 h-10 rounded-lg object-cover flex-shrink-0 border border-stone-100"
-            onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-          />
-        ) : (
-          <div className="w-10 h-10 rounded-lg bg-[var(--brand-surface)] flex items-center justify-center flex-shrink-0 border border-[var(--brand-border)]">
-            <span className="text-base">👕</span>
-          </div>
-        )}
-
-        {/* 名称 + 推荐理由 */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <span className="text-xs font-semibold text-stone-700 truncate">
-              {item.name}
-            </span>
-            {item.primary_element && (
-              <span className="text-[10px] px-1 py-0 rounded-full bg-[var(--wuxing-earth)]/15 text-[var(--wuxing-earth)] flex-shrink-0">
-                {item.primary_element}
-              </span>
-            )}
-          </div>
-          <p className="text-[11px] text-stone-500 leading-relaxed truncate">
-            {reason}
-          </p>
-        </div>
-
-        {/* 箭头指示 */}
-        <div className="flex-shrink-0 text-stone-300 group-hover:text-stone-500 transition-colors">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </div>
-      </div>
-    </div>
   )
 }
 

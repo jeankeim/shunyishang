@@ -30,6 +30,9 @@ export function DailyOutfitCard({ isAuthenticated, city }: DailyOutfitCardProps)
   const [refreshing, setRefreshing] = useState(false)
   const [selectedItem, setSelectedItem] = useState<DailyOutfitItem | null>(null)
   const [error, setError] = useState(false)
+  const [isPaused, setIsPaused] = useState(false) // 鼠标悬停时暂停自动轮换
+
+  const MAX_BATCH = 5 // 增加到 5 批，更多变化
 
   const fetchOutfit = useCallback(async (batch = 0) => {
     if (!isAuthenticated) return
@@ -57,11 +60,20 @@ export function DailyOutfitCard({ isAuthenticated, city }: DailyOutfitCardProps)
   }, [isAuthenticated, fetchOutfit])
 
   function handleRefresh() {
-    const next = (batchIndex + 1) % 3
+    const next = (batchIndex + 1) % MAX_BATCH
     setBatchIndex(next)
     setRefreshing(true)
     fetchOutfit(next)
   }
+
+  // 自动轮换：每 30 秒切换一批（用户悬停时暂停）
+  useEffect(() => {
+    if (!isAuthenticated || refreshing || isPaused) return
+    const timer = setInterval(() => {
+      handleRefresh()
+    }, 30000) // 30 秒
+    return () => clearInterval(timer)
+  }, [isAuthenticated, batchIndex, refreshing, isPaused])
 
   if (!isAuthenticated) return null
 
@@ -101,6 +113,8 @@ export function DailyOutfitCard({ isAuthenticated, city }: DailyOutfitCardProps)
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
         className="bg-white rounded-2xl shadow-sm border border-[var(--brand-border)]/40 overflow-hidden mb-4"
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
       >
         {/* 标题栏 */}
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
