@@ -87,6 +87,43 @@ export default function CultivationPage() {
     }
   }
 
+  const today = new Date().toISOString().split('T')[0]
+  const alreadyCheckedIn = !!profile && profile.last_checkin_date === today
+
+  // 计算下一个里程碑（必须在提前 return 之前，保证 hooks 调用顺序稳定）
+  const nextMilestone = useMemo(() => {
+    if (!profile) return null
+    return STREAK_MILESTONES.find(m => m.days > profile.streak_days) || null
+  }, [profile])
+
+  // 计算最近一个未解锁成就
+  const nextAchievement = useMemo(() => {
+    if (!profile) return null
+    const locked = profile.all_achievements.filter(a => !a.is_unlocked)
+    if (locked.length === 0) return null
+    // 按 requirement_value 升序排列，找到最近的一个
+    locked.sort((a, b) => a.requirement_value - b.requirement_value)
+    return locked[0]
+  }, [profile])
+
+  // 过去7天日历数据
+  const weekDays = useMemo(() => {
+    const weekdays = ['一', '二', '三', '四', '五', '六', '日']
+    const now = new Date()
+    const streak = profile?.streak_days ?? 0
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(now)
+      d.setDate(now.getDate() - (6 - i))
+      const dayIndex = (d.getDay() + 6) % 7
+      return {
+        date: d,
+        dayLabel: weekdays[dayIndex],
+        isToday: i === 6,
+        isCheckedIn: i >= 6 - streak + 1 && (alreadyCheckedIn || i < 6),
+      }
+    })
+  }, [profile, alreadyCheckedIn])
+
   if (!isAuthenticated) {
     return (
       <div className="max-w-lg mx-auto text-center py-16">
@@ -104,40 +141,6 @@ export default function CultivationPage() {
       </div>
     )
   }
-
-  const today = new Date().toISOString().split('T')[0]
-  const alreadyCheckedIn = profile.last_checkin_date === today
-
-  // 计算下一个里程碑
-  const nextMilestone = useMemo(() => {
-    return STREAK_MILESTONES.find(m => m.days > profile.streak_days) || null
-  }, [profile.streak_days])
-
-  // 计算最近一个未解锁成就的进度
-  const nextAchievement = useMemo(() => {
-    const locked = profile.all_achievements.filter(a => !a.is_unlocked)
-    if (locked.length === 0) return null
-    // 按 requirement_value 升序排列，找到最近的一个
-    locked.sort((a, b) => a.requirement_value - b.requirement_value)
-    return locked[0]
-  }, [profile.all_achievements])
-
-  // 过去7天日历数据
-  const weekDays = useMemo(() => {
-    const weekdays = ['一', '二', '三', '四', '五', '六', '日']
-    const today = new Date()
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(today)
-      d.setDate(today.getDate() - (6 - i))
-      const dayIndex = (d.getDay() + 6) % 7
-      return {
-        date: d,
-        dayLabel: weekdays[dayIndex],
-        isToday: i === 6,
-        isCheckedIn: i >= 6 - profile.streak_days + 1 && (alreadyCheckedIn || i < 6),
-      }
-    })
-  }, [profile.streak_days, alreadyCheckedIn])
 
   return (
     <div className="max-w-4xl mx-auto pb-8">
@@ -352,17 +355,9 @@ export default function CultivationPage() {
                 <span className="text-sm font-medium text-stone-700">{nextAchievement.name}</span>
                 <span className="text-xs text-amber-600">+{nextAchievement.points_reward} 积分</span>
               </div>
-              <p className="text-xs text-stone-500 mb-2">{nextAchievement.description}</p>
-              <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(100, Math.floor(Math.random() * 40 + 10))}%` }}
-                  transition={{ duration: 0.8, ease: 'easeOut' }}
-                  className="h-full bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full"
-                />
-              </div>
-              <p className="text-[10px] text-stone-400 mt-1">
-                需要 {nextAchievement.requirement_value} 次 · 继续加油！
+              <p className="text-xs text-stone-500">
+                {nextAchievement.description}
+                <span className="text-stone-400"> · 需要 {nextAchievement.requirement_value} 次，继续加油！</span>
               </p>
             </div>
           </div>
