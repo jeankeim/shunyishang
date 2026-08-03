@@ -140,6 +140,19 @@ class FortuneReportService:
             "created_at": str(row["created_at"]),
         }
 
+    def count_reports_for_year(self, user_id: int, year: int) -> int:
+        """统计用户某年度已生成的年度报告数量（用于限频）"""
+        with DatabasePool.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT COUNT(*) FROM paid_reports
+                    WHERE user_id = %s AND report_year = %s AND report_type = 'annual_fortune'
+                    """,
+                    [user_id, year],
+                )
+                return cur.fetchone()[0]
+
     def list_reports(self, user_id: int) -> List[Dict[str, Any]]:
         """获取用户的报告列表"""
         with DatabasePool.get_connection() as conn:

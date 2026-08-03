@@ -517,6 +517,10 @@ async def get_daily_ritual(user: dict = Depends(get_current_user)):
 
 # ========== 运势报告 API（个人备案版：免费） ==========
 
+# 年度报告每年最多生成次数（防止重复消耗 AI 调用）
+ANNUAL_REPORT_YEARLY_LIMIT = 3
+
+
 @router.post("/reports/annual", status_code=202)
 async def generate_annual_report(
     year: int = Query(None, description="报告年份，默认当前年"),
@@ -531,6 +535,15 @@ async def generate_annual_report(
 
     # 校验用户已有八字信息（尽早失败，避免任务入队后才报错）
     get_user_bazi(user_id)
+
+    # 限频：每用户每年最多生成 ANNUAL_REPORT_YEARLY_LIMIT 次
+    from apps.api.services.fortune_report_service import fortune_report_service
+    existing = fortune_report_service.count_reports_for_year(user_id, target_year)
+    if existing >= ANNUAL_REPORT_YEARLY_LIMIT:
+        raise HTTPException(
+            status_code=429,
+            detail=f"{target_year}年年度报告最多生成 {ANNUAL_REPORT_YEARLY_LIMIT} 次，您已达上限，可直接查看已生成的报告",
+        )
 
     from apps.api.services import task_service
     task_id = task_service.create_task(

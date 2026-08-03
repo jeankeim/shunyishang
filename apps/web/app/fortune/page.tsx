@@ -176,6 +176,13 @@ export default function FortunePage() {
   const [reportView, setReportView] = useState<any>(null)
   const [savedReports, setSavedReports] = useState<any[]>([])
 
+  // 年度报告每年限频（与后端 ANNUAL_REPORT_YEARLY_LIMIT 保持一致）
+  const ANNUAL_LIMIT = 3
+  const currentYear = new Date().getFullYear()
+  const annualCountThisYear = savedReports.filter(
+    r => r.report_type === 'annual_fortune' && r.report_year === currentYear
+  ).length
+
   useEffect(() => {
     if (isAuthenticated) {
       fetchTodayFortune()
@@ -206,6 +213,8 @@ export default function FortunePage() {
       setSavedReports(reports || [])
     } catch (e: any) {
       alert(e.message || '生成报告失败')
+      // 达上限时也刷新列表，保证计数同步
+      getFortuneReports().then(rs => setSavedReports(rs || [])).catch(() => {})
     } finally {
       setGeneratingReport(false)
     }
@@ -395,11 +404,18 @@ export default function FortunePage() {
           </div>
           <button
             onClick={handleGenerateReport}
-            disabled={generatingReport}
+            disabled={generatingReport || annualCountThisYear >= ANNUAL_LIMIT}
             className="mystic-btn w-full py-3 text-sm disabled:opacity-50"
           >
-            {generatingReport ? 'AI 正在生成报告...' : '生成年度运势报告'}
+            {generatingReport
+              ? 'AI 正在生成报告...'
+              : annualCountThisYear >= ANNUAL_LIMIT
+                ? `本年度已生成 ${annualCountThisYear}/${ANNUAL_LIMIT} 次，已达上限`
+                : `生成年度运势报告（本年 ${annualCountThisYear}/${ANNUAL_LIMIT}）`}
           </button>
+          {annualCountThisYear >= ANNUAL_LIMIT && (
+            <p className="mystic-subtle text-[11px] mt-2 text-center">每年最多生成 {ANNUAL_LIMIT} 次，您可在下方查看已生成的报告</p>
+          )}
 
           {/* 新生成的报告 */}
           {annualReport && (
