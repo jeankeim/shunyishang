@@ -78,7 +78,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
 
   useEffect(() => {
     const API_BASE = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
-    fetch(`${API_BASE}/api/v1/weather/cities`)
+    fetch(`${API_BASE}/api/v1/weather/weather/cities`)
       .then(res => res.ok ? res.json() : null)
       .then(data => { if (data?.cities?.length) setCities(data.cities) })
       .catch(() => {})

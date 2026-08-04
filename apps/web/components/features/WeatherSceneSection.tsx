@@ -139,7 +139,7 @@ export function WeatherSceneSection({
     const timer = setTimeout(async () => {
       try {
         const API_BASE = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
-        const res = await fetch(`${API_BASE}/api/v1/weather/city-search?q=${encodeURIComponent(q)}`)
+        const res = await fetch(`${API_BASE}/api/v1/weather/weather/city-search?q=${encodeURIComponent(q)}`)
         if (res.ok) {
           const data = await res.json()
           setCityMatches(data.matches || [])
@@ -342,7 +342,7 @@ export function WeatherSceneSection({
       // 方案1：后端坐标反查（和风城市搜索 API，覆盖全国市县，无需前端配 Key）
       try {
         const API_BASE = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
-        const res = await fetch(`${API_BASE}/api/v1/weather/reverse-geocode?lat=${lat}&lng=${lng}`)
+        const res = await fetch(`${API_BASE}/api/v1/weather/weather/reverse-geocode?lat=${lat}&lng=${lng}`)
         if (res.ok) {
           const data = await res.json()
           if (data.city) return data.city
