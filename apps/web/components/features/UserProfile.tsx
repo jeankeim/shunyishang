@@ -42,32 +42,9 @@ interface UserProfileProps {
   onClose?: () => void
 }
 
-// 常用城市列表（与后端 CITY_ID_MAP 同步，100+城市）
-const COMMON_CITIES = [
-  // 直辖市
-  '北京', '上海', '天津', '重庆',
-  // 省会/首府
-  '哈尔滨', '长春', '沈阳', '呼和浩特', '石家庄', '太原',
-  '济南', '郑州', '西安', '兰州', '银川', '西宁', '乌鲁木齐',
-  '合肥', '南京', '杭州', '福州', '南昌', '武汉', '长沙',
-  '广州', '南宁', '海口', '成都', '贵阳', '昆明', '拉萨', '台北',
-  // 计划单列市/经济特区
-  '深圳', '厦门', '宁波', '青岛', '大连',
-  // 其他主要城市
-  '苏州', '无锡', '常州', '佛山', '东莞', '珠海',
-  '温州', '嘉兴', '绍兴', '金华', '台州',
-  '泉州', '烟台', '潍坊', '威海', '日照',
-  '洛阳', '开封', '宜昌', '襄阳', '株洲', '岳阳',
-  '桂林', '柳州', '三亚', '绵阳', '德阳', '遵义',
-  '大理', '丽江', '唐山', '保定', '廊坊', '秦皇岛', '邯郸',
-  '吉林', '延吉', '鞍山', '锦州', '营口',
-  '泰安', '临沂', '淄博', '徐州', '连云港', '盐城', '南通', '扬州', '镇江', '泰州',
-  '漳州', '龙岩', '莆田', '九江', '赣州', '上饶',
-  '蚌埠', '芜湖', '黄山', '安庆', '马鞍山',
-  '许昌', '新乡', '南阳', '信阳', '焦作',
-  '湘潭', '衡阳', '常德', '韶关', '惠州', '汕头', '湛江', '江门', '肇庆', '梅州', '潮州',
-  '百色', '梧州', '北海',
-]
+// 城市列表：优先从后端 /weather/cities 动态拉取（120+ 城市，单一数据源），
+// 拉取失败时使用本地小列表兜底
+const FALLBACK_CITIES = ['北京', '上海', '广州', '深圳', '杭州', '成都']
 
 export function UserProfile({ onClose }: UserProfileProps) {
   const { user, isAuthenticated, updateProfile, fetchUserInfo, logout } = useUserStore()
@@ -96,6 +73,16 @@ export function UserProfile({ onClose }: UserProfileProps) {
   })
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [showCityDropdown, setShowCityDropdown] = useState(false)
+  // 城市列表：优先从后端 /weather/cities 动态拉取（与后端单一数据源一致）
+  const [cities, setCities] = useState<string[]>(FALLBACK_CITIES)
+
+  useEffect(() => {
+    const API_BASE = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
+    fetch(`${API_BASE}/api/v1/weather/cities`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (data?.cities?.length) setCities(data.cities) })
+      .catch(() => {})
+  }, [])
   // PIPL 敏感信息处理同意（修改出生信息时必须勾选）
   const [sensitiveConsent, setSensitiveConsent] = useState(false)
 
@@ -356,7 +343,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
     setShowCityDropdown(false)
   }
 
-  const filteredCities = COMMON_CITIES.filter(city => 
+  const filteredCities = cities.filter(city =>
     city.toLowerCase().includes(formData.preferred_city?.toLowerCase() || '')
   )
 

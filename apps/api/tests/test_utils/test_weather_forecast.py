@@ -514,8 +514,27 @@ class TestGetDestinationWeatherApiException:
         assert len(result) == 3  # 应回退到兜底数据
 
     def test_unknown_city_with_api_key(self):
-        """有API Key但城市不在CITY_ID_MAP中"""
+        """有API Key但城市解析失败时回退兜底数据"""
         with patch("packages.utils.weather_forecast.settings") as mock_settings:
             mock_settings.weather_api_key = "fake_key"
-            result = get_destination_weather("未知城市", 2)
+            with patch("packages.utils.weather_forecast.resolve_city_id_sync", return_value=None):
+                result = get_destination_weather("未知城市", 2)
         assert len(result) == 2  # 使用兜底数据
+
+    def test_dynamic_resolved_city_fetches_real_forecast(self):
+        """非预置城市动态解析成功后可获取真实预报（解除原 24 城限制）"""
+        mock_weather = [{
+            "date": "2026-08-02",
+            "temperature_max": 33,
+            "temperature_min": 26,
+            "weather_desc": "多云",
+            "humidity": 70,
+            "wind_level": 2,
+        }]
+        with patch("packages.utils.weather_forecast.settings") as mock_settings:
+            mock_settings.weather_api_key = "fake_key"
+            with patch("packages.utils.weather_forecast.resolve_city_id_sync", return_value="101190404"):
+                with patch("packages.utils.weather_forecast._fetch_weather_from_api", return_value=mock_weather):
+                    result = get_destination_weather("昆山", 1)
+        assert len(result) == 1
+        assert result[0]["temperature_max"] == 33

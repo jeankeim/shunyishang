@@ -87,8 +87,8 @@ const WEATHER_ICONS: Record<string, React.ComponentType<{ className?: string }>>
   '风': Wind,
 }
 
-// 常用城市列表
-const COMMON_CITIES = ['北京', '上海', '广州', '深圳', '杭州', '成都']
+// 城市选择：改为可搜索输入框，数据源为后端 /weather/city-search
+// （内置 120+ 城市 + 和风城市搜索 API，覆盖全国市县）
 
 interface WeatherData {
   city: string
@@ -119,6 +119,38 @@ export function WeatherSceneSection({
   const [locating, setLocating] = useState(false)
   const [locationError, setLocationError] = useState<string | null>(null)
   const [locationHistory, setLocationHistory] = useState<LocationRecord[]>([])
+  // 城市搜索（全国城市覆盖）
+  const [cityQuery, setCityQuery] = useState('北京')
+  const [cityMatches, setCityMatches] = useState<string[]>([])
+  const [showCityDropdown, setShowCityDropdown] = useState(false)
+
+  // 城市确定后同步输入框显示
+  useEffect(() => {
+    setCityQuery(city)
+  }, [city])
+
+  // 城市搜索防抖：输入 300ms 后调后端搜索接口
+  useEffect(() => {
+    const q = cityQuery.trim()
+    if (!q || q === city) {
+      setCityMatches([])
+      return
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const API_BASE = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
+        const res = await fetch(`${API_BASE}/api/v1/weather/city-search?q=${encodeURIComponent(q)}`)
+        if (res.ok) {
+          const data = await res.json()
+          setCityMatches(data.matches || [])
+          setShowCityDropdown(true)
+        }
+      } catch (e) {
+        console.debug('[WeatherScene] 城市搜索失败:', e)
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [cityQuery, city])
     
   // 定位记录类型
   interface LocationRecord {
@@ -307,18 +339,30 @@ export function WeatherSceneSection({
         throw new Error('当前位置不在中国境内');
       }
 
-      // 方案1：使用高德地图API（如果有配置）
+      // 方案1：后端坐标反查（和风城市搜索 API，覆盖全国市县，无需前端配 Key）
+      try {
+        const API_BASE = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
+        const res = await fetch(`${API_BASE}/api/v1/weather/reverse-geocode?lat=${lat}&lng=${lng}`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data.city) return data.city
+        }
+      } catch (e) {
+        console.debug('后端坐标反查失败，尝试备用方案:', e)
+      }
+
+      // 方案2：使用高德地图API（如果有配置）
       const amapApiKey = process.env.NEXT_PUBLIC_AMAP_API_KEY;
       if (amapApiKey) {
         const city = await reverseGeocodeWithAmap(lat, lng, amapApiKey);
         if (city) return city;
       }
 
-      // 方案2：使用本地算法（备用方案）
+      // 方案3：使用本地算法（备用方案）
       const cityByCoords = getCityByCoords(lat, lng);
       if (cityByCoords) return cityByCoords;
 
-      // 方案3：计算最近的城市
+      // 方案4：计算最近的城市
       const nearestCity = await findNearestCity(lat, lng);
       return nearestCity;
 
@@ -552,19 +596,43 @@ export function WeatherSceneSection({
               )}
               <span className="hidden sm:inline">{locating ? '定位中' : '定位'}</span>
             </motion.button>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 relative">
               <MapPin className="h-3 w-3 text-[var(--brand-subtle)]" />
-              <select
-                value={city}
-                onChange={(e) => {
-                  handleManualCitySelect(e.target.value)
+              <input
+                value={cityQuery}
+                onChange={(e) => setCityQuery(e.target.value)}
+                onFocus={() => { if (cityMatches.length > 0) setShowCityDropdown(true) }}
+                onBlur={() => setTimeout(() => setShowCityDropdown(false), 150)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const q = cityQuery.trim()
+                    if (q) {
+                      handleManualCitySelect(q)
+                      setShowCityDropdown(false)
+                    }
+                  }
                 }}
-                className="text-xs bg-transparent border-none outline-none text-[var(--brand-subtle)] cursor-pointer"
-              >
-                {COMMON_CITIES.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
+                placeholder="搜索城市"
+                title="输入城市名搜索（支持全国市县）"
+                className="text-xs w-20 bg-transparent border-none outline-none text-[var(--brand-subtle)]"
+              />
+              {showCityDropdown && cityMatches.length > 0 && (
+                <div className="absolute top-full right-0 mt-1 w-32 max-h-48 overflow-y-auto bg-white dark:bg-[var(--brand-surface)] rounded-lg border border-[var(--brand-border)] shadow-lg z-20">
+                  {cityMatches.map((m) => (
+                    <button
+                      key={m}
+                      onMouseDown={(e) => {
+                        e.preventDefault()
+                        handleManualCitySelect(m)
+                        setShowCityDropdown(false)
+                      }}
+                      className="w-full text-left px-3 py-1.5 text-xs text-[var(--brand-body)] hover:bg-[var(--brand-surface-active)]"
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
