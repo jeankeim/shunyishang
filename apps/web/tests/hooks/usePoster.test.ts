@@ -8,8 +8,13 @@ vi.mock('@/lib/poster-api', () => ({
 }))
 
 vi.mock('@/lib/poster-templates', () => ({
-  DEFAULT_TEMPLATE: { id: 'simple', name: 'Simple' },
-  DEFAULT_THEME: { name: 'Fire', colors: {} },
+  DEFAULT_TEMPLATE: { id: 'guofeng', name: 'Guofeng' },
+  DEFAULT_THEME: { name: 'Fire', key: 'fire', colors: {} },
+  WUXING_THEMES: {
+    fire: { name: 'Fire', key: 'fire', colors: {} },
+    wood: { name: 'Wood', key: 'wood', colors: {} },
+  },
+  ELEMENT_THEME_MAP: { '木': 'wood', '火': 'fire' },
 }))
 
 import { generateAndDownloadPoster, sharePosterWithBase64 } from '@/lib/poster-api'
@@ -196,5 +201,20 @@ describe('usePoster', () => {
     const { result } = renderHook(() => usePoster())
     expect(result.current.posterRef).toBeDefined()
     expect(result.current.posterRef.current).toBeNull()
+  })
+
+  it('should auto-match theme by first xiyong element', () => {
+    const { result } = renderHook(() => usePoster({
+      xiyongElements: ['木', '水'],
+    }))
+    // 喜用首元素为木 → 自动选中 wood 主题
+    expect(result.current.selectedTheme.key).toBe('wood')
+  })
+
+  it('should fall back to default theme for unknown element', () => {
+    const { result } = renderHook(() => usePoster({
+      xiyongElements: [],
+    }))
+    expect(result.current.selectedTheme.key).toBe('fire')
   })
 })

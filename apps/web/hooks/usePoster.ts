@@ -1,12 +1,14 @@
 import { useState, useCallback, useRef } from 'react';
 import { generateAndDownloadPoster, sharePosterWithBase64, PosterGenerateParams } from '@/lib/poster-api';
-import { DEFAULT_TEMPLATE, DEFAULT_THEME, PosterTemplate, ColorTheme } from '@/lib/poster-templates';
+import { DEFAULT_TEMPLATE, DEFAULT_THEME, WUXING_THEMES, ELEMENT_THEME_MAP, ColorTheme } from '@/lib/poster-templates';
 
 interface PosterItem {
   name: string;
   image_url?: string;
   primary_element?: string;
   color?: string;
+  category?: string;
+  reason?: string;
 }
 
 interface UsePosterOptions {
@@ -24,7 +26,11 @@ export function usePoster(options: UsePosterOptions = {}) {
   const [quote, setQuote] = useState(options.initialQuote || '');
   const [signature, setSignature] = useState(options.initialSignature || '我的个人穿搭');
   const [selectedTemplate, setSelectedTemplate] = useState(DEFAULT_TEMPLATE.id);
-  const [selectedTheme, setSelectedTheme] = useState<ColorTheme>(DEFAULT_THEME);
+  // 按喜用神首元素自动匹配主题色，让每套穿搭有独特视觉套系
+  const autoThemeKey = ELEMENT_THEME_MAP[options.xiyongElements?.[0] || ''];
+  const [selectedTheme, setSelectedTheme] = useState<ColorTheme>(
+    (autoThemeKey && WUXING_THEMES[autoThemeKey]) || DEFAULT_THEME
+  );
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -43,13 +49,15 @@ export function usePoster(options: UsePosterOptions = {}) {
       
       // 构建请求参数
       const params: PosterGenerateParams = {
-        layout: selectedTemplate as 'simple' | 'wuxing' | 'card',
+        layout: selectedTemplate as 'simple' | 'wuxing' | 'card' | 'guofeng',
         title,
         items: items.map(item => ({
           name: item.name,
           image_url: item.image_url,
           primary_element: item.primary_element,
           color: item.color,
+          category: item.category,
+          reason: item.reason,
         })),
         xiyong_elements: xiyongElements,
         theme: selectedTheme.key, // fire/wood/earth/metal/water
@@ -78,13 +86,15 @@ export function usePoster(options: UsePosterOptions = {}) {
       
       // 构建请求参数
       const params: PosterGenerateParams = {
-        layout: selectedTemplate as 'simple' | 'wuxing' | 'card',
+        layout: selectedTemplate as 'simple' | 'wuxing' | 'card' | 'guofeng',
         title,
         items: items.map(item => ({
           name: item.name,
           image_url: item.image_url,
           primary_element: item.primary_element,
           color: item.color,
+          category: item.category,
+          reason: item.reason,
         })),
         xiyong_elements: xiyongElements,
         theme: selectedTheme.key, // fire/wood/earth/metal/water
@@ -111,9 +121,10 @@ export function usePoster(options: UsePosterOptions = {}) {
     setQuote(options.initialQuote || '');
     setSignature(options.initialSignature || '我的个人穿搭');
     setSelectedTemplate(DEFAULT_TEMPLATE.id);
-    setSelectedTheme(DEFAULT_THEME);
+    const resetThemeKey = ELEMENT_THEME_MAP[options.xiyongElements?.[0] || ''];
+    setSelectedTheme((resetThemeKey && WUXING_THEMES[resetThemeKey]) || DEFAULT_THEME);
     setError(null);
-  }, [options.initialTitle, options.initialQuote, options.initialSignature]);
+  }, [options.initialTitle, options.initialQuote, options.initialSignature, options.xiyongElements]);
 
   return {
     // 状态

@@ -4,7 +4,7 @@ export interface PosterTemplate {
   id: string;
   name: string;
   thumbnail: string;
-  layout: 'simple' | 'wuxing' | 'card';
+  layout: 'simple' | 'wuxing' | 'card' | 'guofeng';
   style: {
     background: string;
     primaryColor: string;
@@ -77,6 +77,19 @@ export const WUXING_THEMES: Record<string, ColorTheme> = {
 // 海报模板列表
 export const POSTER_TEMPLATES: PosterTemplate[] = [
   {
+    id: 'guofeng',
+    name: '宋锦国风',
+    thumbnail: '/poster/templates/guofeng.png',
+    layout: 'guofeng',
+    style: {
+      background: '#F6F3E9',
+      primaryColor: '#2B2B2B',
+      secondaryColor: '#7A7468',
+      fontFamily: '"Noto Serif SC", "Source Han Serif SC", "STSong", serif',
+      accentColor: '#A63D2F',
+    },
+  },
+  {
     id: 'simple',
     name: '简约风格',
     thumbnail: '/poster/templates/simple.png',
@@ -120,3 +133,12 @@ export const DEFAULT_TEMPLATE = POSTER_TEMPLATES[0];
 
 // 默认配色主题
 export const DEFAULT_THEME = WUXING_THEMES.fire;
+
+// 五行元素 → 主题 key 映射（用于按喜用神自动匹配主题色）
+export const ELEMENT_THEME_MAP: Record<string, string> = {
+  '木': 'wood',
+  '火': 'fire',
+  '土': 'earth',
+  '金': 'metal',
+  '水': 'water',
+};

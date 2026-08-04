@@ -214,6 +214,8 @@ export function ChatMessageItem({
                 image_url: item.image_url,
                 primary_element: item.primary_element,
                 color: item.color,
+                category: item.category,
+                reason: item.reason,
               }))}
               xiyongElements={message.metadata?.targetElements || []}
               scene={message.metadata?.scene || ''}

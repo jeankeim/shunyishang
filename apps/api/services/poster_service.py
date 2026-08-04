@@ -1,6 +1,6 @@
 """
 海报生成服务 - 使用 Pillow 在服务端生成高质量海报
-支持三种模板：简约风格、五行国潮、社交卡片
+支持四种模板：简约风格、五行国潮、社交卡片、宋锦国风
 """
 
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
@@ -55,6 +55,31 @@ WUXING_THEMES = {
         'background': '#E3F2FD',
     },
 }
+
+# ============================================================
+# 宋锦国风模板专用配色（新中式降饱和五色体系）
+# ============================================================
+GUOFENG_THEMES = {
+    'wood':  {'primary': '#4E8560', 'ink_dark': '#33593F', 'ink_light': '#DCE8DC', 'paper': '#F6F3E9'},
+    'fire':  {'primary': '#A85D57', 'ink_dark': '#6E3A35', 'ink_light': '#F0DFD8', 'paper': '#F8F1E8'},
+    'earth': {'primary': '#9C8654', 'ink_dark': '#6B5A36', 'ink_light': '#EDE3CD', 'paper': '#F8F3E6'},
+    'metal': {'primary': '#8FA3AB', 'ink_dark': '#5C6E76', 'ink_light': '#E4EAEC', 'paper': '#F7F5EF'},
+    'water': {'primary': '#4F7D9E', 'ink_dark': '#33536B', 'ink_light': '#D9E4EC', 'paper': '#F5F3EA'},
+}
+
+SEAL_RED = '#A63D2F'      # 印章朱红
+INK = '#2B2B2B'           # 墨色
+ANTIQUE_GOLD = '#B08D57'  # 古铜金
+INK_GRAY = '#7A7468'      # 纸灰
+
+# 五行传统色（用于五行相生环带）
+ELEMENT_TRADITIONAL_COLORS = {
+    '木': '#4E8560', '火': '#A85D57', '土': '#9C8654',
+    '金': '#8FA3AB', '水': '#3F6C8E',
+}
+
+# 主件品类优先级（决定搭配主视觉）
+MAIN_CATEGORY_PRIORITY = ['外套', '连衣裙', '裙装', '上装']
 
 
 def get_font(size: int, weight: str = 'normal') -> ImageFont.FreeTypeFont:
@@ -168,6 +193,92 @@ def create_gradient_background(width: int, height: int, color1: str, color2: str
         draw.line([(0, y), (width, y)], fill=(r, g, b))
     
     return img
+
+
+def get_serif_font(size: int) -> ImageFont.FreeTypeFont:
+    """获取宋体/衬线字体（国风模板专用，找不到时回退黑体）"""
+    serif_paths = [
+        '/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc',
+        '/usr/share/fonts/truetype/noto/NotoSerifCJK-Regular.ttc',
+        '/System/Library/Fonts/Supplemental/Songti.ttc',
+        '/System/Library/Fonts/STHeiti Light.ttc',
+        'C:/Windows/Fonts/simsun.ttc',
+    ]
+    for font_path in serif_paths:
+        if os.path.exists(font_path):
+            try:
+                return ImageFont.truetype(font_path, size)
+            except Exception:
+                continue
+    # 回退到系统字体查找链（黑体）
+    return get_font(size)
+
+
+def hex_to_rgb(color: str) -> tuple:
+    """'#RRGGBB' -> (r, g, b)"""
+    return tuple(int(color[i:i + 2], 16) for i in (1, 3, 5))
+
+
+def wrap_text(draw: ImageDraw.ImageDraw, text: str, font, max_width: int) -> List[str]:
+    """按像素宽度对文本折行（逐字符，适配中文）"""
+    lines: List[str] = []
+    line = ''
+    for ch in text:
+        if draw.textlength(line + ch, font=font) <= max_width:
+            line += ch
+        else:
+            if line:
+                lines.append(line)
+            line = ch
+    if line:
+        lines.append(line)
+    return lines
+
+
+def draw_meander(draw: ImageDraw.ImageDraw, x0: int, y0: int, width: int,
+                 unit: int = 30, color=ANTIQUE_GOLD, line_width: int = 3):
+    """绘制回纹装饰带（矩形回旋纹，逐单元重复）"""
+    h = int(unit * 0.72)
+    x = x0
+    while x + unit <= x0 + width:
+        pts = [
+            (x, y0 + h), (x, y0), (x + unit, y0), (x + unit, y0 + h),
+            (x + unit * 0.32, y0 + h), (x + unit * 0.32, y0 + h * 0.42),
+            (x + unit * 0.68, y0 + h * 0.42), (x + unit * 0.68, y0 + h * 0.74),
+        ]
+        draw.line(pts, fill=color, width=line_width, joint='curve')
+        x += unit
+
+
+def draw_seal(draw: ImageDraw.ImageDraw, x: int, y: int, size: int,
+              text: str, font=None, fill: str = SEAL_RED):
+    """绘制印章（圆角方块 + 白色衬线字）"""
+    draw.rounded_rectangle([x, y, x + size, y + size], radius=size // 10, fill=fill)
+    seal_font = font or get_serif_font(int(size * 0.5))
+    draw.text((x + size // 2, y + size // 2), text, fill='#FFFFFF',
+              font=seal_font, anchor='mm')
+
+
+def get_lunar_date_str() -> str:
+    """获取农历日期（如「丙午年六月二十」），失败返回空串"""
+    try:
+        import cnlunar
+        lunar = cnlunar.Lunar(datetime.now(), godType='8char')
+        # year8Char 为干支纪年；lunarMonthCn 含「大/小」月标记需剔除
+        month = lunar.lunarMonthCn.replace('大', '').replace('小', '')
+        return f"{lunar.year8Char}年{month}{lunar.lunarDayCn}"
+    except Exception as e:
+        logger.warning(f"[Poster] 农历解析失败: {e}")
+        return ''
+
+
+def pick_main_item_index(items: List[Dict]) -> int:
+    """按品类优先级选出搭配主件（外套/连衣裙/裙装/上装 优先）"""
+    for cat in MAIN_CATEGORY_PRIORITY:
+        for i, item in enumerate(items):
+            if (item.get('category') or '') == cat:
+                return i
+    return 0
 
 
 def generate_simple_poster(
@@ -666,6 +777,230 @@ def generate_card_poster(
     return img
 
 
+def generate_guofeng_poster(
+    title: str,
+    items: List[Dict],
+    xiyong_elements: List[str],
+    theme_name: str = 'fire',
+    quote: str = '',
+    signature: str = '顺衣尚',
+    scene: str = '',
+    username: str = '',
+) -> Image.Image:
+    """
+    生成「宋锦国风」海报：宣纸底 + 水墨晕染 + 印章/回纹/衬线字，
+    完整展示整套搭配（主件大视觉 + 分类单品清单 + 五行相生环带）
+    """
+    theme = GUOFENG_THEMES.get(theme_name, GUOFENG_THEMES['fire'])
+    primary = hex_to_rgb(theme['primary'])
+    ink_dark = hex_to_rgb(theme['ink_dark'])
+
+    # ---- 背景：宣纸色 + 水墨晕染 ----
+    img = Image.new('RGB', (POSTER_WIDTH, POSTER_HEIGHT), theme['paper'])
+    overlay = Image.new('RGBA', (POSTER_WIDTH, POSTER_HEIGHT), (0, 0, 0, 0))
+    od = ImageDraw.Draw(overlay)
+    od.ellipse([-200, -260, 620, 320], fill=(*ink_dark, 55))
+    od.ellipse([700, -200, 1400, 260], fill=(*primary, 45))
+    od.ellipse([-300, 1650, 500, 2200], fill=(*primary, 28))
+    od.ellipse([760, 1700, 1400, 2250], fill=(*ink_dark, 28))
+    overlay = overlay.filter(ImageFilter.GaussianBlur(90))
+    img = Image.alpha_composite(img.convert('RGBA'), overlay).convert('RGB')
+    draw = ImageDraw.Draw(img)
+
+    # ---- 顶部回纹装饰带 ----
+    draw_meander(draw, 90, 44, POSTER_WIDTH - 180, unit=30, color=ANTIQUE_GOLD, line_width=2)
+
+    # ---- 左上印章（喜用神首字）----
+    seal_char = xiyong_elements[0] if xiyong_elements else '衣'
+    draw_seal(draw, 90, 96, 104, seal_char, font=get_serif_font(52))
+
+    # ---- 右侧竖排农历日期 ----
+    lunar = get_lunar_date_str()
+    if lunar:
+        v_font = get_serif_font(26)
+        for i, ch in enumerate(lunar):
+            draw.text((POSTER_WIDTH - 118, 104 + i * 36), ch, fill=INK_GRAY, font=v_font, anchor='mm')
+
+    # ---- 主标题（衬线大字）----
+    title_font = get_serif_font(76)
+    draw.text((POSTER_WIDTH // 2, 300), title, fill=INK, font=title_font, anchor='mm')
+
+    # ---- 装饰分隔（两侧细线 + 中央菱形）----
+    deco_y = 378
+    draw.line([(240, deco_y), (470, deco_y)], fill=ANTIQUE_GOLD, width=2)
+    draw.line([(610, deco_y), (840, deco_y)], fill=ANTIQUE_GOLD, width=2)
+    draw.polygon([(540, deco_y - 10), (550, deco_y), (540, deco_y + 10), (530, deco_y)], fill=theme['primary'])
+
+    # ---- 副标题 ----
+    sub_font = get_serif_font(32)
+    draw.text((POSTER_WIDTH // 2, 430), '五行相生 · 顺势而衣', fill=theme['primary'], font=sub_font, anchor='mm')
+
+    # ---- 搭配哲理引言（物品较多时省略以保完整展示）----
+    visible_items = items[:6]
+    y = 486
+    if quote and len(visible_items) <= 4:
+        quote_font = get_serif_font(28)
+        quote_lines = wrap_text(draw, quote, quote_font, POSTER_WIDTH - 300)[:2]
+        # 两侧古铜金竖线
+        draw.line([(130, y + 4), (130, y + len(quote_lines) * 44 + 8)], fill=ANTIQUE_GOLD, width=3)
+        draw.line([(POSTER_WIDTH - 130, y + 4), (POSTER_WIDTH - 130, y + len(quote_lines) * 44 + 8)], fill=ANTIQUE_GOLD, width=3)
+        for i, line in enumerate(quote_lines):
+            draw.text((POSTER_WIDTH // 2, y + 20 + i * 44), line, fill='#4A4438', font=quote_font, anchor='mm')
+        y += len(quote_lines) * 44 + 40
+
+    # ---- 衣单区标题 ----
+    section_font = get_serif_font(28)
+    section_text = f'· {username} 的今日衣单 ·' if username else '· 今日衣单 ·'
+    draw.text((POSTER_WIDTH // 2, y + 14), section_text, fill=ANTIQUE_GOLD, font=section_font, anchor='mm')
+    y += 50
+
+    # ---- 主件大视觉 + 右侧信息 ----
+    if visible_items:
+        main_idx = pick_main_item_index(visible_items)
+        hero = visible_items[main_idx]
+        rest = [it for i, it in enumerate(visible_items) if i != main_idx]
+        hero_size = 360 if len(visible_items) >= 5 else 400
+        hero_x, hero_y = 90, y
+
+        if hero.get('image_url'):
+            hero_img = download_image(hero['image_url'])
+            if hero_img:
+                # 保比例居中裁剪为正方形
+                w, h = hero_img.size
+                side = min(w, h)
+                hero_img = hero_img.crop(((w - side) // 2, (h - side) // 2, (w + side) // 2, (h + side) // 2))
+                hero_img = hero_img.resize((hero_size - 16, hero_size - 16), Image.Resampling.LANCZOS)
+                img.paste(hero_img, (hero_x + 8, hero_y + 8), hero_img)
+                draw = ImageDraw.Draw(img)
+        # 双重边框：外层古铜金 + 内层主题色
+        draw.rounded_rectangle([hero_x, hero_y, hero_x + hero_size, hero_y + hero_size],
+                               radius=16, outline=ANTIQUE_GOLD, width=3)
+        draw.rounded_rectangle([hero_x + 10, hero_y + 10, hero_x + hero_size - 10, hero_y + hero_size - 10],
+                               radius=10, outline=theme['primary'], width=1)
+
+        # 右侧信息列
+        info_x = hero_x + hero_size + 48
+        info_w = POSTER_WIDTH - 90 - info_x
+        info_y = hero_y + 16
+
+        name_font = get_serif_font(36)
+        name_lines = wrap_text(draw, hero.get('name', ''), name_font, info_w)[:2]
+        for i, line in enumerate(name_lines):
+            draw.text((info_x, info_y + i * 48), line, fill=INK, font=name_font, anchor='lm')
+        info_y += len(name_lines) * 48 + 16
+
+        # 五行小印章 + 品类标签
+        if hero.get('primary_element'):
+            draw_seal(draw, info_x, info_y - 20, 44, hero['primary_element'], font=get_serif_font(24))
+        cat = hero.get('category')
+        if cat:
+            cat_font = get_serif_font(24)
+            cat_x = info_x + (58 if hero.get('primary_element') else 0)
+            cat_w = int(draw.textlength(cat, font=cat_font)) + 36
+            draw.rounded_rectangle([cat_x, info_y - 18, cat_x + cat_w, info_y + 26],
+                                   radius=6, outline=ANTIQUE_GOLD, width=2)
+            draw.text((cat_x + cat_w // 2, info_y + 4), cat, fill=INK_GRAY, font=cat_font, anchor='mm')
+        info_y += 60
+
+        # 推荐理由
+        if hero.get('reason'):
+            reason_font = get_serif_font(24)
+            reason_lines = wrap_text(draw, hero['reason'], reason_font, info_w)[:3]
+            for i, line in enumerate(reason_lines):
+                draw.text((info_x, info_y + i * 38), line, fill=INK_GRAY, font=reason_font, anchor='lm')
+        y += hero_size + 34
+
+        # ---- 其余单品清单（全量展示，最多 5 件）----
+        row_font_name = get_serif_font(28)
+        row_font_sub = get_serif_font(21)
+        for sub in rest[:5]:
+            # 卡片底
+            draw.rounded_rectangle([90, y, POSTER_WIDTH - 90, y + 112],
+                                   radius=14, fill='#FFFDF6', outline=(176, 141, 87, 120), width=2)
+            # 图片
+            if sub.get('image_url'):
+                sub_img = download_image(sub['image_url'])
+                if sub_img:
+                    w, h = sub_img.size
+                    side = min(w, h)
+                    sub_img = sub_img.crop(((w - side) // 2, (h - side) // 2, (w + side) // 2, (h + side) // 2))
+                    sub_img = sub_img.resize((92, 92), Image.Resampling.LANCZOS)
+                    img.paste(sub_img, (112, y + 10), sub_img)
+                    draw = ImageDraw.Draw(img)
+
+            # 名称（单行省略）
+            name = sub.get('name', '')
+            while name and draw.textlength(name, font=row_font_name) > 430:
+                name = name[:-1]
+            if name != sub.get('name', ''):
+                name += '…'
+            draw.text((228, y + 34), name, fill=INK, font=row_font_name, anchor='lm')
+
+            # 副信息：品类 · 推荐理由节选
+            sub_parts = []
+            if sub.get('category'):
+                sub_parts.append(sub['category'])
+            if sub.get('reason'):
+                sub_parts.append(sub['reason'][:16])
+            if sub_parts:
+                draw.text((228, y + 78), ' · '.join(sub_parts), fill=INK_GRAY, font=row_font_sub, anchor='lm')
+
+            # 右侧五行小印章
+            if sub.get('primary_element'):
+                draw_seal(draw, POSTER_WIDTH - 160, y + 36, 40, sub['primary_element'], font=get_serif_font(22))
+            y += 124
+
+    # ---- 五行相生环带 ----
+    band_y = min(y + 20, 1540)
+    band_caption_font = get_serif_font(24)
+    draw.text((POSTER_WIDTH // 2, band_y), '五行相生 · 生生不息', fill=ANTIQUE_GOLD, font=band_caption_font, anchor='mm')
+
+    element_order = ['木', '火', '土', '金', '水']
+    active_elements = set(xiyong_elements)
+    for it in visible_items:
+        if it.get('primary_element'):
+            active_elements.add(it['primary_element'])
+
+    cy = band_y + 70
+    centers_x = [180, 360, 540, 720, 900]
+    r = 38
+    elem_font = get_serif_font(32)
+    tiny_font = get_serif_font(18)
+    for i, elem in enumerate(element_order):
+        cx = centers_x[i]
+        if i < len(element_order) - 1:
+            # 相生连线 + 「生」字
+            draw.line([(cx + r + 8, cy), (centers_x[i + 1] - r - 8, cy)], fill='#B5AEA0', width=2)
+            draw.text(((cx + centers_x[i + 1]) // 2, cy - 22), '生', fill='#B5AEA0', font=tiny_font, anchor='mm')
+        if elem in active_elements:
+            draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=ELEMENT_TRADITIONAL_COLORS[elem])
+            draw.text((cx, cy), elem, fill='#FFFFFF', font=elem_font, anchor='mm')
+        else:
+            draw.ellipse([cx - r, cy - r, cx + r, cy + r], outline='#C9C2B4', width=2)
+            draw.text((cx, cy), elem, fill='#B5AEA0', font=elem_font, anchor='mm')
+
+    # ---- 底部品牌区 ----
+    draw_meander(draw, 120, 1712, POSTER_WIDTH - 240, unit=26, color=ANTIQUE_GOLD, line_width=2)
+
+    # 品牌印章 + 名称（左），日期（右）
+    draw_seal(draw, 100, 1762, 52, '顺', font=get_serif_font(28))
+    brand_font = get_serif_font(30)
+    draw.text((168, 1788), '顺衣尚 · 五行穿搭', fill=INK, font=brand_font, anchor='lm')
+    date_font = get_serif_font(22)
+    date_str = datetime.now().strftime('%Y-%m-%d')
+    if lunar:
+        date_str += f' · {lunar}'
+    draw.text((POSTER_WIDTH - 100, 1788), date_str, fill=INK_GRAY, font=date_font, anchor='rm')
+
+    slogan_font = get_serif_font(24)
+    draw.text((POSTER_WIDTH // 2, 1848), '传统智慧 · 现代穿搭', fill=INK_GRAY, font=slogan_font, anchor='mm')
+    guide_font = get_serif_font(22)
+    draw.text((POSTER_WIDTH // 2, 1888), '扫码登录 shunyishang.com 领取专属五行穿搭',
+              fill=INK_GRAY, font=guide_font, anchor='mm')
+
+    return img
+
+
 def generate_poster(
     layout: str = 'simple',
     title: str = '今日五行穿搭推荐',
@@ -708,6 +1043,17 @@ def generate_poster(
                 quote=quote,
                 signature=signature,
                 scene=scene,
+            )
+        elif layout == 'guofeng':
+            img = generate_guofeng_poster(
+                title=title,
+                items=items,
+                xiyong_elements=xiyong_elements,
+                theme_name=theme,
+                quote=quote,
+                signature=signature,
+                scene=scene,
+                username=username,
             )
         elif layout == 'wuxing':
             img = generate_wuxing_poster(

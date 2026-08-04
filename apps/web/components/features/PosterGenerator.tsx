@@ -16,6 +16,8 @@ interface PosterGeneratorProps {
     image_url?: string;
     primary_element?: string;
     color?: string;
+    category?: string;
+    reason?: string;
   }>;
   xiyongElements?: string[];
   scene?: string;
@@ -147,7 +149,7 @@ export const PosterGenerator: React.FC<PosterGeneratorProps> = ({
                       >
                         <div ref={poster.posterRef} className="w-full h-full">
                           <PosterTemplate
-                            layout={poster.selectedTemplate as 'simple' | 'wuxing' | 'card'}
+                            layout={poster.selectedTemplate as 'simple' | 'wuxing' | 'card' | 'guofeng'}
                             title={poster.title}
                             items={poster.items}
                             xiyongElements={poster.xiyongElements}
@@ -331,7 +333,7 @@ export const PosterGenerator: React.FC<PosterGeneratorProps> = ({
               >
                 <div ref={poster.posterRef} className="w-full h-full">
                   <PosterTemplate
-                    layout={poster.selectedTemplate as 'simple' | 'wuxing' | 'card'}
+                    layout={poster.selectedTemplate as 'simple' | 'wuxing' | 'card' | 'guofeng'}
                     title={poster.title}
                     items={poster.items}
                     xiyongElements={poster.xiyongElements}

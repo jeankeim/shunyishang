@@ -19,6 +19,15 @@ from apps.api.services.poster_service import (
     POSTER_WIDTH,
     POSTER_HEIGHT,
 )
+from apps.api.services.poster_service import (
+    generate_guofeng_poster,
+    get_serif_font,
+    hex_to_rgb,
+    wrap_text,
+    pick_main_item_index,
+    get_lunar_date_str,
+    GUOFENG_THEMES,
+)
 
 
 class TestGetFont:
@@ -376,3 +385,206 @@ class TestGeneratePoster:
             scene="商务",
         )
         assert isinstance(result, bytes)
+
+
+# ============================================================
+# 宋锦国风模板测试
+# ============================================================
+
+class TestGuofengHelpers:
+    """国风模板辅助函数"""
+
+    def test_get_serif_font(self):
+        font = get_serif_font(32)
+        assert font is not None
+
+    def test_hex_to_rgb(self):
+        assert hex_to_rgb('#4E8560') == (78, 133, 96)
+        assert hex_to_rgb('#FFFFFF') == (255, 255, 255)
+
+    def test_wrap_text_short(self):
+        """短文本不折行"""
+        img = Image.new('RGB', (100, 50))
+        draw = Image.new('RGB', (1, 1))  # 仅用于占位
+        from PIL import ImageDraw
+        draw = ImageDraw.Draw(img)
+        lines = wrap_text(draw, '短文本', get_serif_font(20), 500)
+        assert lines == ['短文本']
+
+    def test_wrap_text_long(self):
+        """长文本折多行"""
+        from PIL import ImageDraw
+        img = Image.new('RGB', (100, 50))
+        draw = ImageDraw.Draw(img)
+        lines = wrap_text(draw, '甲乙丙丁戊己庚辛壬癸', get_serif_font(20), 60)
+        assert len(lines) > 1
+        assert ''.join(lines) == '甲乙丙丁戊己庚辛壬癸'
+
+    def test_pick_main_item_priority(self):
+        """主件按品类优先级选择：外套 > 上装"""
+        items = [
+            {'name': '戒指', 'category': '配饰'},
+            {'name': '衬衫', 'category': '上装'},
+            {'name': '防晒衣', 'category': '外套'},
+        ]
+        assert pick_main_item_index(items) == 2
+
+    def test_pick_main_item_no_priority_category(self):
+        """无优先品类时取首件"""
+        items = [
+            {'name': '戒指', 'category': '配饰'},
+            {'name': '帆布鞋', 'category': '鞋履'},
+        ]
+        assert pick_main_item_index(items) == 0
+
+    def test_pick_main_item_empty_category(self):
+        """category 缺失不报错"""
+        items = [{'name': '无品类'}, {'name': '上装', 'category': '上装'}]
+        assert pick_main_item_index(items) == 1
+
+    def test_lunar_date_str(self):
+        """农历返回干支纪年格式或空串"""
+        result = get_lunar_date_str()
+        assert isinstance(result, str)
+        if result:  # cnlunar 可用时验证格式
+            assert '年' in result
+            assert '大' not in result and '小' not in result
+
+
+class TestGuofengPoster:
+    """宋锦国风海报生成"""
+
+    def _sample_items(self, n=5):
+        categories = ['上装', '鞋履', '外套', '配饰', '下装', '连衣裙']
+        elements = ['木', '水', '火', '土', '金', '水']
+        return [
+            {
+                'name': f'测试物品{i + 1}',
+                'primary_element': elements[i % len(elements)],
+                'category': categories[i % len(categories)],
+                'color': '青色',
+                'reason': f'推荐理由{i + 1}，五行相生，运势亨通',
+            }
+            for i in range(n)
+        ]
+
+    def test_basic_generates_png(self):
+        img = generate_guofeng_poster(
+            title='今日五行穿搭推荐',
+            items=self._sample_items(),
+            xiyong_elements=['木', '水'],
+            theme_name='wood',
+            quote='木气生发，水养其根。',
+            username='测试用户',
+        )
+        assert img.size == (POSTER_WIDTH, POSTER_HEIGHT)
+
+    def test_dispatch_via_generate_poster(self):
+        """layout='guofeng' 正确分发"""
+        result = generate_poster(
+            layout='guofeng',
+            title='国风测试',
+            items=self._sample_items(),
+            xiyong_elements=['火'],
+            theme='fire',
+            quote='火助运势',
+            username='用户',
+        )
+        assert isinstance(result, bytes)
+        # 验证为合法 PNG
+        parsed = Image.open(BytesIO(result))
+        assert parsed.format == 'PNG'
+
+    def test_all_themes(self):
+        """五种国风主题均可生成"""
+        for theme in GUOFENG_THEMES:
+            img = generate_guofeng_poster(
+                title='主题测试',
+                items=self._sample_items(3),
+                xiyong_elements=['木'],
+                theme_name=theme,
+            )
+            assert img.size == (POSTER_WIDTH, POSTER_HEIGHT)
+
+    def test_unknown_theme_fallback(self):
+        img = generate_guofeng_poster(
+            title='未知主题',
+            items=self._sample_items(2),
+            xiyong_elements=[],
+            theme_name='unknown_theme',
+        )
+        assert img.size == (POSTER_WIDTH, POSTER_HEIGHT)
+
+    def test_no_items(self):
+        """无物品也能生成（仅标题+五行环带+页脚）"""
+        img = generate_guofeng_poster(
+            title='空衣单',
+            items=[],
+            xiyong_elements=[],
+        )
+        assert img.size == (POSTER_WIDTH, POSTER_HEIGHT)
+
+    def test_many_items_capped_at_six(self):
+        """超过 6 件只展示前 6 件不报错"""
+        img = generate_guofeng_poster(
+            title='多物品',
+            items=self._sample_items(10),
+            xiyong_elements=['金'],
+            theme_name='metal',
+        )
+        assert img.size == (POSTER_WIDTH, POSTER_HEIGHT)
+
+    def test_single_item(self):
+        """单件物品（仅主件无清单）"""
+        img = generate_guofeng_poster(
+            title='单品',
+            items=self._sample_items(1),
+            xiyong_elements=['水'],
+            theme_name='water',
+        )
+        assert img.size == (POSTER_WIDTH, POSTER_HEIGHT)
+
+    def test_quote_hidden_for_many_items(self):
+        """物品 >=5 件时引言不展示（保完整搭配），仍正常生成"""
+        img = generate_guofeng_poster(
+            title='多物品带引言',
+            items=self._sample_items(5),
+            xiyong_elements=['木'],
+            quote='这段引言不应渲染',
+        )
+        assert img.size == (POSTER_WIDTH, POSTER_HEIGHT)
+
+    def test_with_image_download_mocked(self):
+        """图片下载成功时合成到海报"""
+        fake_img = Image.new('RGBA', (200, 200), (255, 0, 0, 255))
+        with patch('apps.api.services.poster_service.download_image', return_value=fake_img):
+            img = generate_guofeng_poster(
+                title='带图',
+                items=[{'name': '红衣', 'image_url': 'http://x.com/a.png',
+                        'primary_element': '火', 'category': '上装', 'reason': '火旺'}],
+                xiyong_elements=['火'],
+                theme_name='fire',
+            )
+        assert img.size == (POSTER_WIDTH, POSTER_HEIGHT)
+
+    def test_image_download_fail_graceful(self):
+        """图片下载失败不阻断生成"""
+        with patch('apps.api.services.poster_service.download_image', return_value=None):
+            img = generate_guofeng_poster(
+                title='图失败',
+                items=[{'name': '衣物', 'image_url': 'http://x.com/404.png',
+                        'primary_element': '木', 'category': '配饰'}],
+                xiyong_elements=['木'],
+            )
+        assert img.size == (POSTER_WIDTH, POSTER_HEIGHT)
+
+    def test_lunar_failure_graceful(self):
+        """农历解析失败不影响生成"""
+        with patch('apps.api.services.poster_service.get_lunar_date_str', return_value=''):
+            img = generate_guofeng_poster(
+                title='无农历',
+                items=self._sample_items(2),
+                xiyong_elements=['土'],
+                theme_name='earth',
+            )
+        assert img.size == (POSTER_WIDTH, POSTER_HEIGHT)

@@ -4,6 +4,7 @@ import {
   POSTER_TEMPLATES,
   DEFAULT_TEMPLATE,
   DEFAULT_THEME,
+  ELEMENT_THEME_MAP,
   PosterTemplate,
   ColorTheme,
 } from '@/lib/poster-templates'
@@ -52,8 +53,15 @@ describe('lib/poster-templates', () => {
   })
 
   describe('POSTER_TEMPLATES', () => {
-    it('should have 3 templates', () => {
-      expect(POSTER_TEMPLATES).toHaveLength(3)
+    it('should have 4 templates', () => {
+      expect(POSTER_TEMPLATES).toHaveLength(4)
+    })
+
+    it('should have guofeng template', () => {
+      const guofeng = POSTER_TEMPLATES.find(t => t.id === 'guofeng')
+      expect(guofeng).toBeDefined()
+      expect(guofeng?.name).toBe('宋锦国风')
+      expect(guofeng?.layout).toBe('guofeng')
     })
 
     it('should have simple template', () => {
@@ -93,9 +101,19 @@ describe('lib/poster-templates', () => {
   })
 
   describe('DEFAULT_TEMPLATE', () => {
-    it('should be the first template (simple)', () => {
-      expect(DEFAULT_TEMPLATE.id).toBe('simple')
+    it('should be the first template (guofeng)', () => {
+      expect(DEFAULT_TEMPLATE.id).toBe('guofeng')
       expect(DEFAULT_TEMPLATE).toEqual(POSTER_TEMPLATES[0])
+    })
+  })
+
+  describe('ELEMENT_THEME_MAP', () => {
+    it('should map five elements to theme keys', () => {
+      expect(ELEMENT_THEME_MAP['木']).toBe('wood')
+      expect(ELEMENT_THEME_MAP['火']).toBe('fire')
+      expect(ELEMENT_THEME_MAP['土']).toBe('earth')
+      expect(ELEMENT_THEME_MAP['金']).toBe('metal')
+      expect(ELEMENT_THEME_MAP['水']).toBe('water')
     })
   })
 

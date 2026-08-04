@@ -23,13 +23,15 @@ const getPosterAPIBase = () => {
 const API_BASE = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
 
 export interface PosterGenerateParams {
-  layout: 'simple' | 'wuxing' | 'card';
+  layout: 'simple' | 'wuxing' | 'card' | 'guofeng';
   title: string;
   items: Array<{
     name: string;
     image_url?: string;
     primary_element?: string;
     color?: string;
+    category?: string;
+    reason?: string;
   }>;
   xiyong_elements: string[];
   theme: string;

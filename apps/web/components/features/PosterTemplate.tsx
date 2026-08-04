@@ -1,6 +1,6 @@
 import React from 'react';
 import { POSTER_TEMPLATES, ColorTheme } from '@/lib/poster-templates';
-import { Sparkles, Stars, Smartphone } from 'lucide-react';
+import { Sparkles, Stars, Smartphone, Landmark } from 'lucide-react';
 import { getImageUrl } from '@/lib/image';
 
 interface PosterTemplateItem {
@@ -8,10 +8,12 @@ interface PosterTemplateItem {
   image_url?: string;
   primary_element?: string;
   color?: string;
+  category?: string;
+  reason?: string;
 }
 
 interface PosterTemplateProps {
-  layout: 'simple' | 'wuxing' | 'card';
+  layout: 'simple' | 'wuxing' | 'card' | 'guofeng';
   title: string;
   items: PosterTemplateItem[];
   xiyongElements?: string[];
@@ -636,6 +638,169 @@ const CardTemplate: React.FC<PosterTemplateProps> = ({
 };
 
 // 主模板组件
+// 宋锦国风模板 - 宣纸水墨 · 印章回纹 · 整套搭配展示
+const GUOFENG_ELEMENT_COLORS: Record<string, string> = {
+  '木': '#4E8560', '火': '#A85D57', '土': '#9C8654', '金': '#8FA3AB', '水': '#3F6C8E',
+};
+const GUOFENG_MAIN_PRIORITY = ['外套', '连衣裙', '裙装', '上装'];
+
+const GuofengTemplate: React.FC<PosterTemplateProps> = ({
+  title,
+  items,
+  xiyongElements = [],
+  quote,
+  theme,
+  username,
+}) => {
+  const PAPER = '#F6F3E9', INK = '#2B2B2B', GRAY = '#7A7468', GOLD = '#B08D57', SEAL = '#A63D2F';
+  const visible = items.slice(0, 6);
+  let mainIdx = 0;
+  for (const cat of GUOFENG_MAIN_PRIORITY) {
+    const i = visible.findIndex(it => it.category === cat);
+    if (i >= 0) { mainIdx = i; break; }
+  }
+  const hero = visible[mainIdx];
+  const rest = visible.filter((_, i) => i !== mainIdx);
+  const activeElements = new Set([...xiyongElements, ...visible.map(it => it.primary_element).filter(Boolean) as string[]]);
+  const accent = GUOFENG_ELEMENT_COLORS[xiyongElements[0]] || theme.primary;
+
+  return (
+    <div
+      className="w-full h-full flex flex-col relative overflow-hidden"
+      style={{ background: PAPER, color: INK, fontFamily: '"Noto Serif SC", "Source Han Serif SC", "STSong", serif' }}
+    >
+      {/* 水墨晕染装饰 */}
+      <div className="absolute -top-20 -left-24 w-72 h-72 rounded-full opacity-20 blur-3xl pointer-events-none" style={{ background: accent }} />
+      <div className="absolute -top-16 -right-20 w-60 h-60 rounded-full opacity-15 blur-3xl pointer-events-none" style={{ background: accent }} />
+      <div className="absolute -bottom-24 -left-20 w-64 h-64 rounded-full opacity-10 blur-3xl pointer-events-none" style={{ background: accent }} />
+
+      {/* 顶部回纹装饰带 */}
+      <div className="relative z-10 mx-8 mt-4 h-4" style={{
+        backgroundImage: `repeating-linear-gradient(90deg, ${GOLD} 0px, ${GOLD} 2px, transparent 2px, transparent 6px)`,
+        borderTop: `2px solid ${GOLD}`, borderBottom: `1px solid ${GOLD}55`, opacity: 0.7,
+      }} />
+
+      <div className="relative z-10 flex-1 px-8 py-4 flex flex-col">
+        {/* 印章 + 标题 */}
+        <div className="relative text-center mb-3">
+          <div className="absolute left-0 top-0 w-12 h-12 rounded flex items-center justify-center text-white text-2xl font-bold shadow"
+               style={{ background: SEAL }}>
+            {xiyongElements[0] || '衣'}
+          </div>
+          <h1 className="text-3xl font-bold tracking-widest pt-2" style={{ color: INK }}>{title}</h1>
+          <div className="mt-2 flex items-center justify-center gap-3">
+            <div className="h-px w-24" style={{ background: GOLD }} />
+            <div className="w-2 h-2 rotate-45" style={{ background: accent }} />
+            <div className="h-px w-24" style={{ background: GOLD }} />
+          </div>
+          <p className="mt-2 text-sm tracking-[0.3em]" style={{ color: accent }}>五行相生 · 顺势而衣</p>
+          <p className="mt-1 text-xs tracking-widest" style={{ color: GOLD }}>
+            {username ? `· ${username} 的今日衣单 ·` : '· 今日衣单 ·'}
+          </p>
+        </div>
+
+        {/* 搭配哲理引言 */}
+        {quote && visible.length <= 4 && (
+          <div className="mb-3 px-4 py-2 text-center text-xs leading-relaxed"
+               style={{ color: '#4A4438', borderLeft: `2px solid ${GOLD}`, borderRight: `2px solid ${GOLD}` }}>
+            {quote.length > 60 ? quote.slice(0, 60) + '…' : quote}
+          </div>
+        )}
+
+        {/* 主件大视觉 */}
+        {hero && (
+          <div className="flex gap-4 mb-3">
+            <div className="flex-shrink-0 w-32 h-32 p-1 rounded-lg" style={{ border: `2px solid ${GOLD}` }}>
+              <div className="w-full h-full rounded overflow-hidden" style={{ border: `1px solid ${accent}` }}>
+                {hero.image_url ? (
+                  <img src={getImageUrl(hero.image_url)} alt={hero.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-2xl" style={{ background: '#EFEAD9' }}>衣</div>
+                )}
+              </div>
+            </div>
+            <div className="flex-1 min-w-0 py-1">
+              <h3 className="text-base font-bold leading-snug line-clamp-2" style={{ color: INK }}>{hero.name}</h3>
+              <div className="flex items-center gap-2 mt-1.5">
+                {hero.primary_element && (
+                  <span className="w-6 h-6 rounded-sm flex items-center justify-center text-white text-xs" style={{ background: SEAL }}>
+                    {hero.primary_element}
+                  </span>
+                )}
+                {hero.category && (
+                  <span className="px-2 py-0.5 rounded text-xs" style={{ border: `1px solid ${GOLD}`, color: GRAY }}>
+                    {hero.category}
+                  </span>
+                )}
+              </div>
+              {hero.reason && (
+                <p className="mt-1.5 text-xs leading-relaxed line-clamp-3" style={{ color: GRAY }}>{hero.reason}</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 其余单品清单 */}
+        <div className="space-y-2 flex-1">
+          {rest.slice(0, 5).map((item, idx) => (
+            <div key={idx} className="flex items-center gap-3 px-3 py-2 rounded-lg"
+                 style={{ background: '#FFFDF6', border: `1px solid ${GOLD}66` }}>
+              <div className="flex-shrink-0 w-12 h-12 rounded overflow-hidden">
+                {item.image_url ? (
+                  <img src={getImageUrl(item.image_url)} alt={item.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-sm" style={{ background: '#EFEAD9' }}>衣</div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold truncate" style={{ color: INK }}>{item.name}</p>
+                <p className="text-xs truncate mt-0.5" style={{ color: GRAY }}>
+                  {[item.category, item.reason].filter(Boolean).join(' · ')}
+                </p>
+              </div>
+              {item.primary_element && (
+                <span className="flex-shrink-0 w-6 h-6 rounded-sm flex items-center justify-center text-white text-xs" style={{ background: SEAL }}>
+                  {item.primary_element}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* 五行相生环带 */}
+        <div className="py-2 text-center">
+          <p className="text-xs mb-1.5 tracking-widest" style={{ color: GOLD }}>五行相生 · 生生不息</p>
+          <div className="flex items-center justify-center gap-1">
+            {['木', '火', '土', '金', '水'].map((el, i) => (
+              <React.Fragment key={el}>
+                {i > 0 && <span className="text-[10px] px-0.5" style={{ color: '#B5AEA0' }}>生</span>}
+                <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs text-white"
+                      style={activeElements.has(el)
+                        ? { background: GUOFENG_ELEMENT_COLORS[el] }
+                        : { border: '1px solid #C9C2B4', color: '#B5AEA0' }}>
+                  {el}
+                </span>
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+
+        {/* 底部品牌区 */}
+        <div className="pt-2" style={{ borderTop: `1px solid ${GOLD}55` }}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-sm flex items-center justify-center text-white text-xs" style={{ background: SEAL }}>顺</span>
+              <span className="text-sm font-bold" style={{ color: INK }}>顺衣尚 · 五行穿搭</span>
+            </div>
+            <span className="text-xs" style={{ color: GRAY }}>传统智慧 · 现代穿搭</span>
+          </div>
+          <p className="mt-1 text-center text-[10px]" style={{ color: GRAY }}>扫码登录 shunyishang.com 领取专属五行穿搭</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const PosterTemplate: React.FC<PosterTemplateProps> = (props) => {
   const { layout } = props;
 
@@ -646,6 +811,8 @@ export const PosterTemplate: React.FC<PosterTemplateProps> = (props) => {
       return <WuxingTemplate {...props} />;
     case 'card':
       return <CardTemplate {...props} />;
+    case 'guofeng':
+      return <GuofengTemplate {...props} />;
     default:
       return <SimpleTemplate {...props} />;
   }
@@ -657,6 +824,14 @@ export const PosterTemplateSelector: React.FC<{
   onSelect: (templateId: string) => void;
 }> = ({ selectedTemplate, onSelect }) => {
   const templates = [
+    {
+      id: 'guofeng',
+      name: '宋锦国风',
+      desc: '宣纸水墨，整套搭配，五行相生',
+      icon: Landmark,
+      gradient: 'from-emerald-50 to-amber-50',
+      border: 'border-emerald-300',
+    },
     { 
       id: 'simple', 
       name: '简约东方', 
