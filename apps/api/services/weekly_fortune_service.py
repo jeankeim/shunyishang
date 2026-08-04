@@ -28,6 +28,7 @@ from apps.api.services.fortune_engine import (
     _calculate_relation_score,
     _get_day_ganzhi,
 )
+from apps.api.core.time_utils import today_cn
 from apps.api.services.user_service import get_user_bazi
 
 logger = logging.getLogger(__name__)
@@ -40,7 +41,7 @@ def _get_week_range(ref_date: Optional[date] = None) -> tuple:
     Returns:
         (start_date, end_date)
     """
-    today = ref_date or date.today()
+    today = ref_date or today_cn()
     # ISO weekday: Monday=1, Sunday=7
     start = today - timedelta(days=today.isoweekday() - 1)
     end = start + timedelta(days=6)
@@ -177,7 +178,7 @@ class WeeklyFortuneService:
         day_master = user_bazi.get("day_master", "土")
         suggested_elements = user_bazi.get("suggested_elements", [])
 
-        now = date.today()
+        now = today_cn()
         iso_cal = now.isocalendar()
         week_number = iso_cal[1]
         year = iso_cal[0]
@@ -266,7 +267,7 @@ class WeeklyFortuneService:
 
     def _fallback_weekly_report(self) -> dict:
         """通用兜底周报（计算失败时使用）"""
-        now = date.today()
+        now = today_cn()
         iso_cal = now.isocalendar()
         start_date, end_date = _get_week_range(now)
 

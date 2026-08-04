@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status, Query
 from psycopg2.extras import RealDictCursor
 
 from apps.api.core.database import DatabasePool
+from apps.api.core.time_utils import today_cn, now_cn
 from apps.api.services.user_service import get_user_bazi
 from apps.api.core.config import settings
 from apps.api.core.security import decode_access_token
@@ -75,7 +76,7 @@ async def get_today_fortune(
 ):
     """获取今日运势"""
     user_id = _get_user_id(user)
-    today = date.today()
+    today = today_cn()
 
     # Redis 缓存层（优先于 DB 查询）
     cache_key = f"fortune_today:{user_id}:{today.isoformat()}"
@@ -136,7 +137,7 @@ async def generate_fortune(
 ):
     """手动生成/刷新生成今日运势"""
     user_id = _get_user_id(user)
-    today = date.today()
+    today = today_cn()
     result = _generate_and_store(user_id, today, force=True, generate_ai=True)
 
     # 清除 Redis 缓存，确保后续 GET 请求拿到最新数据
@@ -281,7 +282,7 @@ async def get_today_card(
     优先从 Redis 缓存读取（24h），缓存未命中则从 DB 获取或计算
     """
     user_id = _get_user_id(user)
-    today = date.today()
+    today = today_cn()
     cache_key = f"today_card:{user_id}:{today.isoformat()}"
 
     # 1. 尝试 Redis 缓存
@@ -354,7 +355,8 @@ async def get_weekly_fortune(request: Request):
     """
     user = await _get_optional_user(request)
 
-    now = datetime.now()
+    # 按北京时间计算 ISO 周，避免 UTC 容器在凌晨时段周次错位
+    now = now_cn()
     iso_cal = now.isocalendar()
     week_key = f"{iso_cal[0]}:{iso_cal[1]}"
     user_key = str(user["id"]) if user else "anonymous"
@@ -406,7 +408,7 @@ async def get_daily_ritual(user: dict = Depends(get_current_user)):
     - 修炼等级 + 积分 + 签到连续天数
     """
     user_id = _get_user_id(user)
-    today = date.today()
+    today = today_cn()
     date_str = today.isoformat()
 
     # Redis 整体缓存（1小时 TTL）
@@ -531,7 +533,7 @@ async def generate_annual_report(
     if not user_id:
         raise HTTPException(status_code=401, detail="用户未登录")
 
-    target_year = year or date.today().year
+    target_year = year or today_cn().year
 
     # 校验用户已有八字信息（尽早失败，避免任务入队后才报错）
     get_user_bazi(user_id)

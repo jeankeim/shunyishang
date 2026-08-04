@@ -301,8 +301,10 @@ class TestReportsEndpoints:
         test_app.dependency_overrides[get_current_user] = lambda: mock_user
         try:
             with patch("apps.api.routers.fortune.get_user_bazi", return_value=bazi):
-                with patch("apps.api.services.task_service.create_task", return_value="uuid-123") as mock_create:
-                    response = await async_client.post("/api/v1/fortune/reports/annual?year=2026", headers=auth_headers)
+                # mock 限频计数，避免真实 DB 中残留的历史报告记录触发 429
+                with patch("apps.api.services.fortune_report_service.fortune_report_service.count_reports_for_year", return_value=0):
+                    with patch("apps.api.services.task_service.create_task", return_value="uuid-123") as mock_create:
+                        response = await async_client.post("/api/v1/fortune/reports/annual?year=2026", headers=auth_headers)
             assert response.status_code == 202
             data = response.json()
             assert data["task_id"] == "uuid-123"

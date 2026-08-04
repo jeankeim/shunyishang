@@ -14,6 +14,8 @@ services:
     env_file: .env.ecs
     environment:
       REDIS_URL: redis://redis:6379/0
+      # 容器统一使用北京时间，避免 UTC 容器在凌晨时段日期错位（运势/日记/推荐等按自然日逻辑）
+      TZ: Asia/Shanghai
     ports:
       - "8000:8000"
     depends_on:
@@ -32,6 +34,8 @@ services:
     env_file: .env.ecs
     environment:
       REDIS_URL: redis://redis:6379/0
+      # 容器统一使用北京时间，避免 UTC 容器在凌晨时段日期错位（推送/定时任务按自然日逻辑）
+      TZ: Asia/Shanghai
     command: python -m apps.worker.main
     healthcheck:
       test: ["CMD-SHELL", "grep -q worker /proc/1/cmdline || exit 1"]
