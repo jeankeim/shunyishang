@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { useUserStore } from '@/store/user'
 import { getCultivationProfile, dailyCheckin } from '@/lib/api'
+import { todayLocal } from '@/lib/date'
 
 interface Achievement {
   id: number
@@ -87,7 +88,8 @@ export default function CultivationPage() {
     }
   }
 
-  const today = new Date().toISOString().split('T')[0]
+  // 用本地时区取“今天”（toISOString 按 UTC 计算，凌晨时段会误判未签到）
+  const today = todayLocal()
   const alreadyCheckedIn = !!profile && profile.last_checkin_date === today
 
   // 计算下一个里程碑（必须在提前 return 之前，保证 hooks 调用顺序稳定）

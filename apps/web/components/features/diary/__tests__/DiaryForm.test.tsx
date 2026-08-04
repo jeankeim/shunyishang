@@ -10,14 +10,15 @@ vi.mock('framer-motion', () => ({
       <button onClick={onClick} type={type} disabled={disabled} {...props}>{children}</button>
     ),
   },
+  AnimatePresence: ({ children }: any) => <>{children}</>,
 }))
 
 describe('DiaryForm', () => {
-  it('should render date input with today as default', () => {
+  it('should render date picker with today as default', () => {
     render(<DiaryForm onSubmit={vi.fn()} />)
-    const today = new Date().toISOString().split('T')[0]
-    const dateInput = screen.getByDisplayValue(today)
-    expect(dateInput).toBeInTheDocument()
+    const now = new Date()
+    const expected = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`
+    expect(screen.getByText(expected)).toBeInTheDocument()
   })
 
   it('should render all mood options', () => {
@@ -123,7 +124,7 @@ describe('DiaryForm', () => {
       rating: 3,
     }
     render(<DiaryForm initialData={initialData} onSubmit={vi.fn()} />)
-    expect(screen.getByDisplayValue('2026-01-10')).toBeInTheDocument()
+    expect(screen.getByText('2026年1月10日')).toBeInTheDocument()
     expect(screen.getByDisplayValue('测试备注')).toBeInTheDocument()
   })
 

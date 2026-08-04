@@ -3,8 +3,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { getAuthToken, previewTagging } from '@/lib/api'
+import { todayLocal } from '@/lib/date'
 import { useWardrobeStore } from '@/store/wardrobe'
 import { Camera, X, Loader2, Check, Sparkles } from 'lucide-react'
+import { DiaryDatePicker } from './DiaryDatePicker'
 
 const MOODS = [
   { value: 'happy', label: '开心', emoji: '😊' },
@@ -56,7 +58,8 @@ interface PendingItem {
 }
 
 export function DiaryForm({ initialData, onSubmit, onCancel, isEdit }: DiaryFormProps) {
-  const today = new Date().toISOString().split('T')[0]
+  // 用本地时区取“今天”（toISOString 按 UTC 计算，凌晨时段会拿到前一天）
+  const today = todayLocal()
   const [date, setDate] = useState(initialData?.diary_date || today)
   const [mood, setMood] = useState(initialData?.mood || '')
   const [occasion, setOccasion] = useState(initialData?.occasion || '')
@@ -336,17 +339,10 @@ export function DiaryForm({ initialData, onSubmit, onCancel, isEdit }: DiaryForm
   return (
     <>
     <form onSubmit={handleSubmit} className="space-y-5">
-      {/* 日期 */}
+      {/* 日期（日历弹窗选择，禁选未来） */}
       <div>
         <label className="block text-sm font-medium text-[var(--brand-body)] mb-1.5">日期</label>
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          max={today}
-                    className="w-full px-3 py-2.5 rounded-xl border border-stone-200 bg-white text-[var(--brand-heading)] text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:border-emerald-400 transition-all"
-          required
-        />
+        <DiaryDatePicker value={date} onChange={setDate} maxDate={today} />
       </div>
 
       {/* 心情 */}

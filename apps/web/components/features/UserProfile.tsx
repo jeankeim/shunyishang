@@ -8,6 +8,7 @@ import { Calendar, MapPin, User, Save, Loader2, X, Sparkles, LogOut, Compass, Su
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { getUserProfile, calculateBazi, updateUserBazi, deleteAccount } from '@/lib/api'
+import { formatLocalDate } from '@/lib/date'
 import { cn } from '@/lib/utils'
 import { PreferenceRadar } from './PreferenceRadar'
 import { SkinSettings } from './SkinSettings'
@@ -558,7 +559,8 @@ export function UserProfile({ onClose }: UserProfileProps) {
                     <DatePicker
                       selected={formData.birth_date ? new Date(formData.birth_date) : null}
                       onChange={(date: Date | null) => {
-                        handleChange('birth_date', date ? date.toISOString().split('T')[0] : '')
+                        // 用本地时区格式化（toISOString 按 UTC 计算，东八区会少一天）
+                        handleChange('birth_date', date ? formatLocalDate(date) : '')
                       }}
                       dateFormat="yyyy/MM/dd"
                                             placeholderText="请选择出生日期"

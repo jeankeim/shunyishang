@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import type { DiaryCalendarEntry } from '@/types'
+import { todayLocal } from '@/lib/date'
 
 const MOOD_EMOJI: Record<string, string> = {
   happy: '😊', neutral: '😐', sad: '😢', excited: '🤩', calm: '😌',
@@ -55,7 +56,7 @@ export function DiaryCalendar({ year, month, entries, onPrevMonth, onNextMonth, 
           const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
           const entry = entryMap.get(dateStr)
           const emoji = entry?.mood ? MOOD_EMOJI[entry.mood] : null
-          const isToday = dateStr === new Date().toISOString().split('T')[0]
+          const isToday = dateStr === todayLocal()
 
           return (
             <motion.button

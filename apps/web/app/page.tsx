@@ -146,19 +146,6 @@ export default function Home() {
   // 判断用户是否有八字（已登录且资料完整）
   const hasBazi = isAuthenticated && !isAuthLoading && user?.bazi
   
-  // 每日首次打开自动弹出打卡弹窗
-  useEffect(() => {
-    if (isAuthenticated && !isAuthLoading) {
-      const today = new Date().toDateString()
-      const lastCheckIn = localStorage.getItem('last_checkin_date')
-      if (lastCheckIn !== today) {
-        // 延迟 1.5s 弹出，避免打扰用户
-        const timer = setTimeout(() => setShowCheckIn(true), 1500)
-        return () => clearTimeout(timer)
-      }
-    }
-  }, [isAuthenticated, isAuthLoading])
-  
   // 智能提醒检查（天气变化 + 衣橱闲置）
   useEffect(() => {
     if (isAuthenticated && !isAuthLoading) {
@@ -861,17 +848,11 @@ export default function Home() {
         }}
       />
 
-      {/* 快捷打卡弹窗 */}
+      {/* 快捷打卡弹窗（仅手动触发：每日仪式卡片打卡按钮） */}
       <QuickCheckIn
         isOpen={showCheckIn}
-        onClose={() => {
-          setShowCheckIn(false)
-          localStorage.setItem('last_checkin_date', new Date().toDateString())
-        }}
-        onSuccess={(diaryId) => {
-          localStorage.setItem('last_checkin_date', new Date().toDateString())
-        }}
-                weatherInfo={weatherInfo}
+        onClose={() => setShowCheckIn(false)}
+        weatherInfo={weatherInfo}
       />
 
       {/* 登录弹窗 — 移动端未登录时点击头像触发 */}
