@@ -3,8 +3,9 @@
 提供天气查询和天气-五行映射功能
 """
 
+import time
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 import httpx
 import logging
@@ -333,3 +334,102 @@ async def reverse_geocode_city(
     if not city:
         raise HTTPException(status_code=404, detail="无法识别该坐标对应的城市")
     return {"city": city}
+
+
+# ============================================================
+# IP 定位兜底：HTTP 环境下浏览器 Geolocation 被禁用，
+# 改用请求 IP 归属地解析城市（无需用户授权）
+# ============================================================
+IP_CITY_CACHE: dict = {}  # ip -> (timestamp, city)
+IP_CITY_TTL = 3600  # 1 小时
+
+
+def _get_client_ip(request: Request) -> str:
+    """提取真实客户端 IP（Nginx 已转发 X-Forwarded-For / X-Real-IP）"""
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    real_ip = request.headers.get("X-Real-IP")
+    if real_ip:
+        return real_ip.strip()
+    return request.client.host if request.client else ""
+
+
+def _is_private_ip(ip: str) -> bool:
+    """判断是否为内网/回环地址（无法做归属地解析）"""
+    if not ip or ip == "localhost":
+        return True
+    parts = ip.split(".")
+    if len(parts) != 4:
+        return True  # IPv6 或非法格式，按内网处理
+    try:
+        first, second = int(parts[0]), int(parts[1])
+    except ValueError:
+        return True
+    return (
+        first == 10
+        or first == 127
+        or (first == 172 and 16 <= second <= 31)
+        or (first == 192 and second == 168)
+    )
+
+
+def _normalize_ip_city(city: str, region: str) -> Optional[str]:
+    """
+    归一化 ip-api 返回的城市名：去掉「市」后缀，
+    直辖市（city 为空或与 region 相同）取 region
+    """
+    name = (city or "").strip()
+    if not name or name == region:
+        name = (region or "").strip()
+    if not name:
+        return None
+    if name.endswith("市"):
+        name = name[:-1]
+    return name or None
+
+
+async def _resolve_city_by_ip(ip: str) -> Optional[str]:
+    """
+    调用 ip-api.com 免费接口解析 IP 归属城市（中文返回，内存缓存 1 小时）。
+    仅后端服务器间调用，免费层的 HTTP 限制不受影响。
+    """
+    cached = IP_CITY_CACHE.get(ip)
+    if cached and time.time() - cached[0] < IP_CITY_TTL:
+        return cached[1]
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(
+                f"http://ip-api.com/json/{ip}",
+                params={"lang": "zh-CN", "fields": "status,country,regionName,city"},
+            )
+            data = resp.json()
+        if data.get("status") != "success":
+            logger.warning(f"[IpCity] ip-api 解析失败: {ip} -> {data.get('message', 'unknown')}")
+            return None
+        city = _normalize_ip_city(data.get("city", ""), data.get("regionName", ""))
+        if city:
+            IP_CITY_CACHE[ip] = (time.time(), city)
+            logger.info(f"[IpCity] IP定位成功: {ip} -> {city}")
+        return city
+    except Exception as e:
+        logger.warning(f"[IpCity] IP归属地解析异常 ({ip}): {e}")
+        return None
+
+
+@router.get("/weather/ip-city", summary="IP定位城市（浏览器定位兜底）")
+async def get_city_by_ip(request: Request):
+    """
+    根据请求 IP 解析归属城市。
+
+    背景：浏览器 Geolocation API 仅在 HTTPS 安全上下文可用，
+    备案前站点为 HTTP，前端定位会被浏览器直接拒绝；
+    本接口作为无需授权的兜底定位，精度到城市级，满足天气查询需求。
+    """
+    ip = _get_client_ip(request)
+    if _is_private_ip(ip):
+        raise HTTPException(status_code=404, detail="内网地址无法定位")
+    city = await _resolve_city_by_ip(ip)
+    if not city:
+        raise HTTPException(status_code=404, detail="无法识别IP对应的城市")
+    return {"city": city, "ip": ip}

@@ -268,16 +268,19 @@ export function WeatherSceneSection({
     }
   }
 
-  // 错误处理函数
-  const handleLocationError = (error: GeolocationPositionError) => {
+  // 错误处理函数（定位失败时优先回退 IP 定位，其次默认城市）
+  const handleLocationError = async (error: GeolocationPositionError) => {
     switch (error.code) {
       case error.PERMISSION_DENIED:
+        // 权限被拒（常见于 HTTP 环境浏览器禁用定位）→ 尝试 IP 定位
+        if (await applyIpFallback('🌐 已按网络位置匹配城市：')) return
         showLocationError(
-          '位置权限被拒绝，请手动选择城市',
+          '位置权限被拒绝，请手动搜索城市',
           'PERMISSION_DENIED'
         )
         break
       case error.POSITION_UNAVAILABLE:
+        if (await applyIpFallback('🌐 已按网络位置匹配城市：')) return
         showLocationError(
           '无法获取位置信息（本地环境可能不支持定位），已使用默认城市：北京',
           'POSITION_UNAVAILABLE'
@@ -289,6 +292,7 @@ export function WeatherSceneSection({
         }, 2000)
         break
       case error.TIMEOUT:
+        if (await applyIpFallback('🌐 已按网络位置匹配城市：')) return
         showLocationError(
           '定位超时，已使用默认城市：北京',
           'TIMEOUT'
@@ -300,6 +304,7 @@ export function WeatherSceneSection({
         }, 2000)
         break
       default:
+        if (await applyIpFallback('🌐 已按网络位置匹配城市：')) return
         showLocationError(
           '定位失败，已使用默认城市：北京',
           'UNKNOWN_ERROR'
@@ -329,6 +334,35 @@ export function WeatherSceneSection({
     setCity(cityName)
     fetchWeather(cityName)
     setLocationError(null)
+  }
+
+  // IP 定位兜底：HTTP 环境下浏览器定位被禁用，后端按请求 IP 解析城市（无需授权）
+  const locateByIp = async (): Promise<string | null> => {
+    try {
+      const API_BASE = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
+      const res = await fetch(`${API_BASE}/api/v1/weather/weather/ip-city`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.city) return data.city
+      }
+    } catch (e) {
+      console.debug('[WeatherScene] IP定位失败:', e)
+    }
+    return null
+  }
+
+  // 应用 IP 定位结果；成功返回 true，失败返回 false 由调用方继续兜底
+  const applyIpFallback = async (successPrefix: string): Promise<boolean> => {
+    const ipCity = await locateByIp()
+    if (ipCity) {
+      setCity(ipCity)
+      fetchWeather(ipCity)
+      saveLocationHistory({ city: ipCity, timestamp: Date.now() })
+      setLocationError(`${successPrefix}${ipCity}`)
+      setTimeout(() => setLocationError(null), 3000)
+      return true
+    }
+    return false
   }
 
   // 逆地理编码 - 优先使用高德地图API，回退到本地算法
@@ -530,6 +564,19 @@ export function WeatherSceneSection({
         } catch (e) {
           console.debug('[WeatherScene] 初始定位失败，使用默认城市')
         }
+      }
+
+      // 3.5 浏览器定位失败 → IP 定位兜底（HTTP 环境无需授权即可识别城市）
+      try {
+        const ipCity = await locateByIp()
+        if (ipCity) {
+          setCity(ipCity)
+          fetchWeather(ipCity)
+          saveLocationHistory({ city: ipCity, timestamp: Date.now() })
+          return
+        }
+      } catch (e) {
+        console.debug('[WeatherScene] IP定位兜底失败，使用默认城市')
       }
 
       // 4. 最终回退
