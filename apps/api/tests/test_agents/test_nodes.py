@@ -963,3 +963,38 @@ class TestEmbeddingModel:
                 mock_s.dashscope_base_url = "https://dashscope.aliyuncs.com"
                 with pytest.raises(Exception, match="DashScope"):
                     _encode_text_with_dashscope("error test text unique")
+
+    def test_encode_text_with_dashscope_network_retry_success(self):
+        """网络异常（连接被对端关闭）后重试成功"""
+        import sys
+        import requests.exceptions
+        mock_dashscope = MagicMock()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.output = {"embeddings": [{"embedding": [0.2] * 1024}]}
+        # 第一次抛网络异常，第二次成功
+        mock_dashscope.TextEmbedding.call.side_effect = [
+            requests.exceptions.ConnectionError("('Connection aborted.', RemoteDisconnected())"),
+            mock_resp,
+        ]
+        with patch.dict(sys.modules, {"dashscope": mock_dashscope}):
+            with patch("packages.ai_agents.nodes.settings") as mock_s:
+                mock_s.dashscope_base_url = "https://dashscope-intl.aliyuncs.com"
+                with patch("packages.ai_agents.nodes.time.sleep"):
+                    result = _encode_text_with_dashscope("retry success text unique")
+        assert len(result) == 1024
+        assert mock_dashscope.TextEmbedding.call.call_count == 2
+
+    def test_encode_text_with_dashscope_network_retry_exhausted(self):
+        """网络异常重试耗尽后抛出异常"""
+        import sys
+        import requests.exceptions
+        mock_dashscope = MagicMock()
+        mock_dashscope.TextEmbedding.call.side_effect = requests.exceptions.ConnectionError("connection reset")
+        with patch.dict(sys.modules, {"dashscope": mock_dashscope}):
+            with patch("packages.ai_agents.nodes.settings") as mock_s:
+                mock_s.dashscope_base_url = "https://dashscope-intl.aliyuncs.com"
+                with patch("packages.ai_agents.nodes.time.sleep"):
+                    with pytest.raises(requests.exceptions.ConnectionError):
+                        _encode_text_with_dashscope("retry exhausted text unique")
+        assert mock_dashscope.TextEmbedding.call.call_count == 3

@@ -1104,10 +1104,13 @@ def _get_embedding_model():
 
 def _encode_text_with_dashscope(text: str) -> list:
     """
-    使用 DashScope API 生成文本向量（带 LRU 缓存）
+    使用 DashScope API 生成文本向量（带 LRU 缓存 + 网络异常重试）
     
     相同文本不会重复调用 API，直接返回缓存结果。
     缓存满时自动淘汰最早插入的条目。
+    
+    海外链路（intl 端点）偶发连接被对端关闭（RemoteDisconnected），
+    导致首次推荐失败、重试即恢复；这里对传输层异常做有限次重试。
     
     Args:
         text: 输入文本
@@ -1127,10 +1130,35 @@ def _encode_text_with_dashscope(text: str) -> list:
     if 'intl' in settings.dashscope_base_url:
         dashscope.base_http_api_url = 'https://dashscope-intl.aliyuncs.com/api/v1'
     
-    response = TextEmbedding.call(
-        model='text-embedding-v3',
-        input=text
+    # 传输层可重试异常（连接被重置/断开/超时），API 业务错误不重试
+    import http.client
+    import requests.exceptions
+    import urllib3.exceptions
+    network_errors = (
+        requests.exceptions.ConnectionError,
+        requests.exceptions.Timeout,
+        urllib3.exceptions.ProtocolError,
+        http.client.HTTPException,
+        ConnectionError,
+        TimeoutError,
     )
+    
+    max_attempts = 3
+    response = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            response = TextEmbedding.call(
+                model='text-embedding-v3',
+                input=text
+            )
+            break
+        except network_errors as e:
+            if attempt >= max_attempts:
+                logger.error(f"[Embedding] 网络异常重试 {max_attempts} 次后仍失败: {e}")
+                raise
+            wait = 1.0 * attempt
+            logger.warning(f"[Embedding] 网络异常（第 {attempt}/{max_attempts} 次），{wait}s 后重试: {e}")
+            time.sleep(wait)
     
     if response.status_code == 200:
         result = response.output['embeddings'][0]['embedding']

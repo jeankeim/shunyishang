@@ -24,7 +24,7 @@ if settings.dashscope_api_key:
 
 def _encode_text_with_dashscope(text: str) -> List[float]:
     """
-    使用 DashScope API 生成文本向量
+    使用 DashScope API 生成文本向量（带网络异常重试）
     
     Args:
         text: 输入文本
@@ -33,11 +33,37 @@ def _encode_text_with_dashscope(text: str) -> List[float]:
         embedding 向量 (1024 维)
     """
     from dashscope import TextEmbedding
+    import http.client
+    import time
+    import requests.exceptions
+    import urllib3.exceptions
     
-    response = TextEmbedding.call(
-        model='text-embedding-v3',
-        input=text
+    # 传输层可重试异常（海外 intl 端点偶发连接被对端关闭），API 业务错误不重试
+    network_errors = (
+        requests.exceptions.ConnectionError,
+        requests.exceptions.Timeout,
+        urllib3.exceptions.ProtocolError,
+        http.client.HTTPException,
+        ConnectionError,
+        TimeoutError,
     )
+    
+    max_attempts = 3
+    response = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            response = TextEmbedding.call(
+                model='text-embedding-v3',
+                input=text
+            )
+            break
+        except network_errors as e:
+            if attempt >= max_attempts:
+                logger.error(f"[Embedding] 网络异常重试 {max_attempts} 次后仍失败: {e}")
+                raise
+            wait = 1.0 * attempt
+            logger.warning(f"[Embedding] 网络异常（第 {attempt}/{max_attempts} 次），{wait}s 后重试: {e}")
+            time.sleep(wait)
     
     if response.status_code == 200:
         return response.output['embeddings'][0]['embedding']
