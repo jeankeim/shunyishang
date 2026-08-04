@@ -17,9 +17,8 @@ from apps.api.core.config import settings
 if settings.dashscope_api_key:
     dashscope.api_key = settings.dashscope_api_key
     os.environ['DASHSCOPE_API_KEY'] = settings.dashscope_api_key
-    # 设置国际端点（新加坡）
-    if 'intl' in settings.dashscope_base_url:
-        dashscope.base_http_api_url = 'https://dashscope-intl.aliyuncs.com/api/v1'
+    # 使用国内端点（ECS 同地域，避免跨境网络抖动）
+    dashscope.base_http_api_url = 'https://dashscope.aliyuncs.com/api/v1'
 
 
 def _encode_text_with_dashscope(text: str) -> List[float]:

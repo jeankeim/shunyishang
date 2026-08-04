@@ -945,7 +945,7 @@ class TestEmbeddingModel:
         mock_dashscope.TextEmbedding.call.return_value = mock_resp
         with patch.dict(sys.modules, {"dashscope": mock_dashscope}):
             with patch("packages.ai_agents.nodes.settings") as mock_s:
-                mock_s.dashscope_base_url = "https://dashscope-intl.aliyuncs.com"
+                mock_s.dashscope_base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
                 result = _encode_text_with_dashscope("test text")
         assert len(result) == 1024
 
@@ -979,7 +979,7 @@ class TestEmbeddingModel:
         ]
         with patch.dict(sys.modules, {"dashscope": mock_dashscope}):
             with patch("packages.ai_agents.nodes.settings") as mock_s:
-                mock_s.dashscope_base_url = "https://dashscope-intl.aliyuncs.com"
+                mock_s.dashscope_base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
                 with patch("packages.ai_agents.nodes.time.sleep"):
                     result = _encode_text_with_dashscope("retry success text unique")
         assert len(result) == 1024
@@ -993,7 +993,7 @@ class TestEmbeddingModel:
         mock_dashscope.TextEmbedding.call.side_effect = requests.exceptions.ConnectionError("connection reset")
         with patch.dict(sys.modules, {"dashscope": mock_dashscope}):
             with patch("packages.ai_agents.nodes.settings") as mock_s:
-                mock_s.dashscope_base_url = "https://dashscope-intl.aliyuncs.com"
+                mock_s.dashscope_base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
                 with patch("packages.ai_agents.nodes.time.sleep"):
                     with pytest.raises(requests.exceptions.ConnectionError):
                         _encode_text_with_dashscope("retry exhausted text unique")

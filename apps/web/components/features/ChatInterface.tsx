@@ -357,6 +357,8 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: 
       scene: scene || undefined,
       weather_element: weatherElement || undefined,
       weather: weatherInfo || undefined,
+      // 兜底城市：weather 缺失时后端据此取天气，保证温度过滤生效
+      city: userCity || undefined,
       bazi: effectiveBazi
         ? {
             birth_year: effectiveBazi.birthYear,
@@ -531,6 +533,8 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: 
       scene: scene || undefined,
       weather_element: weatherElement || undefined,
       weather: weatherInfo || undefined,
+      // 兜底城市：weather 缺失时后端据此取天气，保证温度过滤生效
+      city: userCity || undefined,
       bazi: effectiveBazi
         ? {
             birth_year: effectiveBazi.birthYear,

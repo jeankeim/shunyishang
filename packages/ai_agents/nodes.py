@@ -1126,9 +1126,8 @@ def _encode_text_with_dashscope(text: str) -> list:
     import dashscope
     from dashscope import TextEmbedding
     
-    # 确保使用国际端点
-    if 'intl' in settings.dashscope_base_url:
-        dashscope.base_http_api_url = 'https://dashscope-intl.aliyuncs.com/api/v1'
+    # 确保使用国内端点（ECS 同地域，避免跨境网络抖动）
+    dashscope.base_http_api_url = 'https://dashscope.aliyuncs.com/api/v1'
     
     # 传输层可重试异常（连接被重置/断开/超时），API 业务错误不重试
     import http.client

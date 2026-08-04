@@ -36,6 +36,9 @@ class RecommendRequest(BaseModel):
     # 用户性别（优先于bazi中的gender，用于性别过滤）
     gender: Optional[str] = Field(None, pattern="^(男|女)$", description="用户性别：男/女")
     
+    # 前端定位城市（weather 缺失时后端据此获取天气兜底，保证温度过滤生效）
+    city: Optional[str] = Field(None, max_length=50, description="前端定位城市（可选）")
+    
     # Task 3: 检索模式控制
     user_id: Optional[int] = Field(None, description="用户ID（衣橱模式必需）")
     retrieval_mode: str = Field(

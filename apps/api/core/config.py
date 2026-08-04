@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     
     # === 阿里百炼千问 LLM 配置 ===
     dashscope_api_key: str = ""
-    dashscope_base_url: str = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"  # 国际端点（境外服务器）
+    dashscope_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"  # 国内端点（ECS 同地域低延迟）
     qwen_model: str = "qwen-plus"  # 国内端点使用 qwen-plus（质量更高）
     qwen_vl_model: str = "qwen-vl-plus"  # 多模态视觉模型：拍照识别衣物五行属性
     

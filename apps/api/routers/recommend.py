@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from psycopg2.extras import RealDictCursor
 
-from apps.api.schemas.request import RecommendRequest
+from apps.api.schemas.request import RecommendRequest, WeatherInfo
 from apps.api.schemas.response import RecommendResponse
 from packages.ai_agents.graph import run_agent_stream
 from apps.api.core.config import settings
@@ -87,6 +87,41 @@ _NON_FASHION_HINTS = [
 ]
 
 
+# ============================================================
+# 天气兜底：前端未传 weather 时后端按城市获取，避免温度过滤被绕过
+# ============================================================
+_WEATHER_FALLBACK_CACHE: Dict[str, Any] = {}  # city -> (timestamp, weather_dict)
+_WEATHER_FALLBACK_TTL = 600  # 10 分钟
+
+
+def _get_fallback_weather(city: str) -> Optional[Dict[str, Any]]:
+    """
+    服务端兜底获取天气（内存缓存 10 分钟），返回 WeatherInfo 结构 dict。
+
+    背景：前端天气面板加载失败或时序竞态时 weather 会缺失，
+    导致温度硬过滤/SQL 厚度过滤全部被跳过（曾出现盛夏推荐羊毛西装）。
+    """
+    import time
+    cached = _WEATHER_FALLBACK_CACHE.get(city)
+    if cached and time.time() - cached[0] < _WEATHER_FALLBACK_TTL:
+        return cached[1]
+    try:
+        from apps.api.services.daily_outfit_service import _get_weather_sync
+        raw = _get_weather_sync(city)
+        weather = {
+            "temperature": raw.get("temperature"),
+            "temperature_max": raw.get("temperature_max"),
+            "weather_desc": raw.get("weather", "晴"),
+            "humidity": raw.get("humidity"),
+            "wind_level": None,
+        }
+        _WEATHER_FALLBACK_CACHE[city] = (time.time(), weather)
+        return weather
+    except Exception as e:
+        logger.warning(f"[WeatherFallback] 获取 {city} 兜底天气失败: {e}")
+        return None
+
+
 async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]:
     """
     SSE 流式生成器
@@ -105,6 +140,19 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
             yield f"data: {json.dumps({'type': 'hint', 'data': hint_text}, ensure_ascii=False)}\n\n".encode("utf-8")
             yield f"data: {json.dumps({'type': 'done', 'data': None}, ensure_ascii=False)}\n\n".encode("utf-8")
             return
+        
+        # 天气兜底：前端未传 weather 时（加载失败/时序竞态），服务端按城市兜底获取，
+        # 否则温度硬过滤会被整体绕过（bad case：盛夏推荐厚重羊毛西装）
+        if request.weather is None:
+            fallback_city = request.city or request.destination
+            if fallback_city:
+                fallback_weather = _get_fallback_weather(fallback_city)
+                if fallback_weather:
+                    request.weather = WeatherInfo(**fallback_weather)
+                    logger.info(
+                        f"[WeatherFallback] 使用后端兜底天气: {fallback_city} "
+                        f"{fallback_weather.get('temperature')}°C {fallback_weather.get('weather_desc')}"
+                    )
         
         # 生成缓存键（基于查询条件）
         # 注意：缓存键必须覆盖所有会影响推荐结果的输入，否则不同请求会命中错误缓存。
