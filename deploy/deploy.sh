@@ -77,6 +77,23 @@ if [ "$NEED_API" = false ] && [ "$NEED_WEB" = false ] && [ "$NEED_NGINX" = false
 fi
 echo ""
 
+# ---- Step 2.5: 磁盘/内存预检（防止构建打满磁盘或 OOM） ----
+DISK_PCT=$(df --output=pcent / 2>/dev/null | tail -1 | tr -d ' %' || df -k / | tail -1 | awk '{gsub("%","",$5); print $5}')
+if [ "$DISK_PCT" -ge 80 ] 2>/dev/null; then
+    echo "[2.5/4] ⚠️  磁盘占用已达 ${DISK_PCT}%，构建前先清理..."
+    bash deploy/cleanup.sh
+    echo ""
+fi
+
+if { [ "$NEED_WEB" = true ] || [ "$NEED_API" = true ]; } && command -v free >/dev/null 2>&1; then
+    SWAP_MB=$(free -m | awk '/^Swap:/{print $2}')
+    if [ "${SWAP_MB:-0}" -lt 1024 ] 2>/dev/null; then
+        echo "  ⚠️  2GiB 内存且 swap 不足，Next.js/字体子集化构建可能 OOM，建议先执行:"
+        echo "     sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile"
+        echo ""
+    fi
+fi
+
 # ---- Step 3: 执行重建 ----
 echo "[3/4] 执行重建..."
 
@@ -129,4 +146,12 @@ else
     echo "      docker logs shunyishang-api --tail 20"
     echo "      docker logs shunyishang-web --tail 20"
     echo "========================================="
+fi
+
+# ---- Step 5: 构建后清理（--build 会产生悬空镜像与构建缓存） ----
+DISK_PCT=$(df --output=pcent / 2>/dev/null | tail -1 | tr -d ' %' || df -k / | tail -1 | awk '{gsub("%","",$5); print $5}')
+if [ "$DISK_PCT" -ge 80 ] 2>/dev/null; then
+    echo ""
+    echo "[5/5] 磁盘占用 ${DISK_PCT}%，执行构建后清理..."
+    bash deploy/cleanup.sh
 fi
