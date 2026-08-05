@@ -1,5 +1,14 @@
 FROM node:20-alpine AS base
 
+# 海报字体子集化（Satori 出图需内嵌 CJK 衬线字体）
+FROM python:3.11-slim AS fonts
+WORKDIR /work
+RUN apt-get update && apt-get install -y --no-install-recommends fonts-noto-cjk \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir fonttools
+COPY scripts/extract_poster_font.py ./scripts/
+RUN python scripts/extract_poster_font.py
+
 # 安装依赖
 FROM base AS deps
 WORKDIR /app
@@ -11,6 +20,9 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY apps/web/ .
+# Satori 海报字体与质感资产（服务端出图使用）
+COPY --from=fonts /work/apps/web/public/fonts ./public/fonts
+COPY data/standards/poster_assets ./poster_assets
 RUN npm run build
 
 # 生产运行 - 使用完整 next start 模式（更稳定）
@@ -24,6 +36,7 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/next.config.js ./next.config.js
+COPY --from=builder /app/poster_assets ./poster_assets
 
 EXPOSE 3000
 

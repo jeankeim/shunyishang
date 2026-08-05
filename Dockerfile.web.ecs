@@ -1,5 +1,15 @@
 FROM node:20-alpine AS base
 
+# 海报字体子集化（Satori 出图需内嵌 CJK 衬线字体，全量 20MB → 子集 ~3MB）
+FROM python:3.11-slim AS fonts
+WORKDIR /work
+RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update && apt-get install -y --no-install-recommends fonts-noto-cjk \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ fonttools
+COPY scripts/extract_poster_font.py ./scripts/
+RUN python scripts/extract_poster_font.py
+
 # 安装依赖（国内 npmmirror 加速）
 FROM base AS deps
 WORKDIR /app
@@ -20,6 +30,9 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
     NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME
 COPY --from=deps /app/node_modules ./node_modules
 COPY apps/web/ .
+# Satori 海报字体与质感资产（服务端出图使用）
+COPY --from=fonts /work/apps/web/public/fonts ./public/fonts
+COPY data/standards/poster_assets ./poster_assets
 # 删除本地开发环境文件，避免覆盖 build-arg 注入的配置
 RUN rm -f .env.local .env.development.local .env.production.local
 RUN npm run build
@@ -35,6 +48,7 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/next.config.js ./next.config.js
+COPY --from=builder /app/poster_assets ./poster_assets
 
 EXPOSE 3000
 

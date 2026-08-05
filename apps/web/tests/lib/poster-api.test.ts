@@ -146,4 +146,51 @@ describe('lib/poster-api', () => {
       expect(URL.revokeObjectURL).toHaveBeenCalled()
     })
   })
+
+  describe('Satori 出图优先与回退（阶段2）', () => {
+    const guofengParams: PosterGenerateParams = { ...mockParams, layout: 'guofeng' }
+
+    it('guofeng 优先走 /api/poster/satori，成功时不再调用 Pillow', async () => {
+      const satoriData = { image: btoa('satori'), filename: 's.png', size: 10 }
+      mockFetch.mockReturnValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue(satoriData),
+      })
+
+      const result = await generatePosterBase64(guofengParams)
+
+      expect(result).toEqual(satoriData)
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+      expect(mockFetch).toHaveBeenCalledWith('/api/poster/satori', expect.anything())
+    })
+
+    it('Satori 失败时自动回退 Pillow 接口', async () => {
+      const pillowData = { image: btoa('pillow'), filename: 'p.png', size: 20 }
+      mockFetch
+        .mockReturnValueOnce({ ok: false, statusText: 'Service Unavailable' })
+        .mockReturnValueOnce({ ok: true, json: vi.fn().mockResolvedValue(pillowData) })
+
+      const result = await generatePosterBase64(guofengParams)
+
+      expect(result).toEqual(pillowData)
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+      expect(mockFetch).toHaveBeenLastCalledWith(
+        expect.stringContaining('/api/v1/poster/generate-base64'),
+        expect.anything()
+      )
+    })
+
+    it('非 guofeng 模板不调用 Satori 路由', async () => {
+      const pillowData = { image: btoa('pillow'), filename: 'p.png', size: 20 }
+      mockFetch.mockReturnValue({ ok: true, json: vi.fn().mockResolvedValue(pillowData) })
+
+      await generatePosterBase64(mockParams)
+
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/v1/poster/generate-base64'),
+        expect.anything()
+      )
+    })
+  })
 })

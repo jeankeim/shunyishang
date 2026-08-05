@@ -42,10 +42,47 @@ export interface PosterGenerateParams {
 }
 
 /**
- * 生成海报并下载（直接返回二进制流）
+ * Satori 同构出图（阶段2）：仅 guofeng 模板，失败返回 null 由调用方回退 Pillow
+ * 路由为 Next.js 本地 API Route（同源），无需跨域
+ */
+async function generatePosterBase64ViaSatori(
+  params: PosterGenerateParams
+): Promise<{ image: string; filename: string; size: number } | null> {
+  if (params.layout !== 'guofeng' || isStaticExport) return null;
+  try {
+    const response = await fetch('/api/poster/satori', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.image ? data : null;
+  } catch (error) {
+    console.warn('Satori 出图不可用，回退 Pillow:', error);
+    return null;
+  }
+}
+
+/**
+ * 生成海报并下载（guofeng 优先 Satori，其余/失败走后端 Pillow 二进制流）
  */
 export async function generateAndDownloadPoster(params: PosterGenerateParams): Promise<void> {
   try {
+    const satoriResult = await generatePosterBase64ViaSatori(params);
+    if (satoriResult) {
+      const blob = base64ToBlob(satoriResult.image);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = satoriResult.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      return;
+    }
+
     const response = await fetch(`${getPosterAPIBase()}/api/v1/poster/generate`, {
       method: 'POST',
       headers: {
@@ -85,6 +122,10 @@ export async function generatePosterBase64(params: PosterGenerateParams): Promis
   size: number;
 }> {
   try {
+    // guofeng 优先走 Satori 同构出图（CSS 高保真），失败自动回退 Pillow
+    const satoriResult = await generatePosterBase64ViaSatori(params);
+    if (satoriResult) return satoriResult;
+
     const response = await fetch(`${getPosterAPIBase()}/api/v1/poster/generate-base64`, {
       method: 'POST',
       headers: {

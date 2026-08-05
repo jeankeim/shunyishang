@@ -22,6 +22,9 @@ data/postgres/
 *.db
 *.sqlite3
 
+# Satori 海报字体（构建时由 scripts/extract_poster_font.py 生成）
+apps/web/public/fonts/poster-serif.*
+
 # IDE
 .idea/
 .vscode/

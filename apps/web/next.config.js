@@ -48,6 +48,11 @@ const nextConfig = {
     ? { unoptimized: true }  // 静态导出不支持图片优化
     : { remotePatterns },
 
+  // 原生模块（Satori 海报出图用）不进 webpack 打包，运行时 require
+  experimental: {
+    serverComponentsExternalPackages: ['@resvg/resvg-js'],
+  },
+
   // 生产环境自动移除 console.log（保留 error 和 warn）
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production' ? { exclude: ['error', 'warn'] } : false,

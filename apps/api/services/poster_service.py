@@ -3,7 +3,7 @@
 支持四种模板：简约风格、五行国潮、社交卡片、宋锦国风
 """
 
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageChops
 from typing import List, Dict, Optional
 from pathlib import Path
 import os
@@ -80,6 +80,49 @@ ELEMENT_TRADITIONAL_COLORS = {
 
 # 主件品类优先级（决定搭配主视觉）
 MAIN_CATEGORY_PRIORITY = ['外套', '连衣裙', '裙装', '上装']
+
+# 质感资产目录（scripts/generate_poster_assets.py 预烘焙，随仓库提交）
+POSTER_ASSET_DIR = Path(__file__).resolve().parents[3] / 'data' / 'standards' / 'poster_assets'
+
+_ASSET_CACHE: Dict[str, Optional[Image.Image]] = {}
+
+
+def load_poster_asset(name: str) -> Optional[Image.Image]:
+    """加载质感资产（带缓存），不存在时返回 None（渲染层自行降级）"""
+    if name in _ASSET_CACHE:
+        return _ASSET_CACHE[name]
+    path = POSTER_ASSET_DIR / name
+    img: Optional[Image.Image] = None
+    if path.exists():
+        try:
+            img = Image.open(path)
+            img.load()
+        except Exception as e:
+            logger.warning(f"[Poster] 质感资产加载失败 {name}: {e}")
+            img = None
+    _ASSET_CACHE[name] = img
+    return img
+
+
+def tint_ink_sheet(sheet: Image.Image, color_rgb: tuple) -> Image.Image:
+    """将白色水墨资产染成目标色（multiply），保留 alpha 形状"""
+    solid = Image.new('RGB', sheet.size, color_rgb)
+    tinted = ImageChops.multiply(solid, sheet.convert('RGB'))
+    tinted.putalpha(sheet.getchannel('A'))
+    return tinted
+
+
+def draw_soft_shadow(img: Image.Image, box, radius: int = 16,
+                     blur: int = 14, alpha: int = 46, dy: int = 10):
+    """在 RGBA 画布上为矩形区域叠加柔和投影（局部图层，避免全幅开销）"""
+    x0, y0, x1, y1 = box
+    pad = blur * 2
+    layer = Image.new('RGBA', (x1 - x0 + pad * 2, y1 - y0 + pad * 2), (0, 0, 0, 0))
+    ld = ImageDraw.Draw(layer)
+    ld.rounded_rectangle([pad, pad, pad + (x1 - x0), pad + (y1 - y0)],
+                         radius=radius, fill=(62, 52, 38, alpha))
+    layer = layer.filter(ImageFilter.GaussianBlur(blur))
+    img.alpha_composite(layer, (x0 - pad, y0 - pad + dy))
 
 
 def get_font(size: int, weight: str = 'normal') -> ImageFont.FreeTypeFont:
@@ -250,13 +293,20 @@ def draw_meander(draw: ImageDraw.ImageDraw, x0: int, y0: int, width: int,
         x += unit
 
 
-def draw_seal(draw: ImageDraw.ImageDraw, x: int, y: int, size: int,
+def draw_seal(img: Image.Image, x: int, y: int, size: int,
               text: str, font=None, fill: str = SEAL_RED):
-    """绘制印章（圆角方块 + 白色衬线字）"""
-    draw.rounded_rectangle([x, y, x + size, y + size], radius=size // 10, fill=fill)
+    """绘制印章（圆角方块 + 白色衬线字），叠加蚀刻蒙版做旧"""
+    layer = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+    ld = ImageDraw.Draw(layer)
+    ld.rounded_rectangle([0, 0, size, size], radius=size // 10, fill=fill)
     seal_font = font or get_serif_font(int(size * 0.5))
-    draw.text((x + size // 2, y + size // 2), text, fill='#FFFFFF',
-              font=seal_font, anchor='mm')
+    ld.text((size // 2, size // 2), text, fill='#FFFFFF',
+            font=seal_font, anchor='mm')
+    erosion = load_poster_asset('seal_erosion.png')
+    if erosion is not None:
+        mask = erosion.resize((size, size), Image.Resampling.LANCZOS)
+        layer.putalpha(ImageChops.multiply(layer.getchannel('A'), mask))
+    img.alpha_composite(layer, (x, y))
 
 
 def get_lunar_date_str() -> str:
@@ -795,16 +845,26 @@ def generate_guofeng_poster(
     primary = hex_to_rgb(theme['primary'])
     ink_dark = hex_to_rgb(theme['ink_dark'])
 
-    # ---- 背景：宣纸色 + 水墨晕染 ----
-    img = Image.new('RGB', (POSTER_WIDTH, POSTER_HEIGHT), theme['paper'])
-    overlay = Image.new('RGBA', (POSTER_WIDTH, POSTER_HEIGHT), (0, 0, 0, 0))
-    od = ImageDraw.Draw(overlay)
-    od.ellipse([-200, -260, 620, 320], fill=(*ink_dark, 55))
-    od.ellipse([700, -200, 1400, 260], fill=(*primary, 45))
-    od.ellipse([-300, 1650, 500, 2200], fill=(*primary, 28))
-    od.ellipse([760, 1700, 1400, 2250], fill=(*ink_dark, 28))
-    overlay = overlay.filter(ImageFilter.GaussianBlur(90))
-    img = Image.alpha_composite(img.convert('RGBA'), overlay).convert('RGB')
+    # ---- 背景：宣纸色 + 水墨晕染（预烘焙资产，缺失时降级为椭圆模糊）----
+    img = Image.new('RGBA', (POSTER_WIDTH, POSTER_HEIGHT), theme['paper'])
+    ink_a = load_poster_asset('ink_a.png')
+    ink_b = load_poster_asset('ink_b.png')
+    if ink_a is not None and ink_b is not None:
+        img = Image.alpha_composite(img, tint_ink_sheet(ink_a, ink_dark))
+        img = Image.alpha_composite(img, tint_ink_sheet(ink_b, primary))
+    else:
+        overlay = Image.new('RGBA', (POSTER_WIDTH, POSTER_HEIGHT), (0, 0, 0, 0))
+        od = ImageDraw.Draw(overlay)
+        od.ellipse([-200, -260, 620, 320], fill=(*ink_dark, 55))
+        od.ellipse([700, -200, 1400, 260], fill=(*primary, 45))
+        od.ellipse([-300, 1650, 500, 2200], fill=(*primary, 28))
+        od.ellipse([760, 1700, 1400, 2250], fill=(*ink_dark, 28))
+        overlay = overlay.filter(ImageFilter.GaussianBlur(90))
+        img = Image.alpha_composite(img, overlay)
+    # 宣纸纤维纹理
+    paper_tex = load_poster_asset('paper_texture.png')
+    if paper_tex is not None:
+        img = Image.alpha_composite(img, paper_tex)
     draw = ImageDraw.Draw(img)
 
     # ---- 顶部回纹装饰带 ----
@@ -812,7 +872,8 @@ def generate_guofeng_poster(
 
     # ---- 左上印章（喜用神首字）----
     seal_char = xiyong_elements[0] if xiyong_elements else '衣'
-    draw_seal(draw, 90, 96, 104, seal_char, font=get_serif_font(52))
+    draw_seal(img, 90, 96, 104, seal_char, font=get_serif_font(52))
+    draw = ImageDraw.Draw(img)
 
     # ---- 右侧竖排农历日期 ----
     lunar = get_lunar_date_str()
@@ -862,6 +923,11 @@ def generate_guofeng_poster(
         hero_size = 360 if len(visible_items) >= 5 else 400
         hero_x, hero_y = 90, y
 
+        # 主件卡柔和投影
+        draw_soft_shadow(img, [hero_x, hero_y, hero_x + hero_size, hero_y + hero_size],
+                         radius=16, blur=16, alpha=42)
+        draw = ImageDraw.Draw(img)
+
         if hero.get('image_url'):
             hero_img = download_image(hero['image_url'])
             if hero_img:
@@ -891,7 +957,8 @@ def generate_guofeng_poster(
 
         # 五行小印章 + 品类标签
         if hero.get('primary_element'):
-            draw_seal(draw, info_x, info_y - 20, 44, hero['primary_element'], font=get_serif_font(24))
+            draw_seal(img, info_x, info_y - 20, 44, hero['primary_element'], font=get_serif_font(24))
+            draw = ImageDraw.Draw(img)
         cat = hero.get('category')
         if cat:
             cat_font = get_serif_font(24)
@@ -914,7 +981,10 @@ def generate_guofeng_poster(
         row_font_name = get_serif_font(28)
         row_font_sub = get_serif_font(21)
         for sub in rest[:5]:
-            # 卡片底
+            # 卡片柔和投影 + 底
+            draw_soft_shadow(img, [90, y, POSTER_WIDTH - 90, y + 112],
+                             radius=14, blur=10, alpha=30, dy=6)
+            draw = ImageDraw.Draw(img)
             draw.rounded_rectangle([90, y, POSTER_WIDTH - 90, y + 112],
                                    radius=14, fill='#FFFDF6', outline=(176, 141, 87, 120), width=2)
             # 图片
@@ -947,7 +1017,8 @@ def generate_guofeng_poster(
 
             # 右侧五行小印章
             if sub.get('primary_element'):
-                draw_seal(draw, POSTER_WIDTH - 160, y + 36, 40, sub['primary_element'], font=get_serif_font(22))
+                draw_seal(img, POSTER_WIDTH - 160, y + 36, 40, sub['primary_element'], font=get_serif_font(22))
+                draw = ImageDraw.Draw(img)
             y += 124
 
     # ---- 五行相生环带 ----
@@ -983,7 +1054,8 @@ def generate_guofeng_poster(
     draw_meander(draw, 120, 1712, POSTER_WIDTH - 240, unit=26, color=ANTIQUE_GOLD, line_width=2)
 
     # 品牌印章 + 名称（左），日期（右）
-    draw_seal(draw, 100, 1762, 52, '顺', font=get_serif_font(28))
+    draw_seal(img, 100, 1762, 52, '顺', font=get_serif_font(28))
+    draw = ImageDraw.Draw(img)
     brand_font = get_serif_font(30)
     draw.text((168, 1788), '顺衣尚 · 五行穿搭', fill=INK, font=brand_font, anchor='lm')
     date_font = get_serif_font(22)
@@ -998,7 +1070,13 @@ def generate_guofeng_poster(
     draw.text((POSTER_WIDTH // 2, 1888), '扫码登录 shunyishang.com 领取专属五行穿搭',
               fill=INK_GRAY, font=guide_font, anchor='mm')
 
-    return img
+    # ---- 纸面颗粒（最顶层做旧）----
+    grain = load_poster_asset('grain.png')
+    if grain is not None:
+        grain_rgba = Image.merge('RGBA', (grain, grain, grain, Image.new('L', grain.size, 12)))
+        img = Image.alpha_composite(img, grain_rgba)
+
+    return img.convert('RGB')
 
 
 def generate_poster(

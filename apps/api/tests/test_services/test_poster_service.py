@@ -5,6 +5,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 from io import BytesIO
+from pathlib import Path
 from PIL import Image
 
 from apps.api.services.poster_service import (
@@ -27,6 +28,9 @@ from apps.api.services.poster_service import (
     pick_main_item_index,
     get_lunar_date_str,
     GUOFENG_THEMES,
+    load_poster_asset,
+    tint_ink_sheet,
+    draw_soft_shadow,
 )
 
 
@@ -587,4 +591,56 @@ class TestGuofengPoster:
                 xiyong_elements=['土'],
                 theme_name='earth',
             )
+        assert img.size == (POSTER_WIDTH, POSTER_HEIGHT)
+
+
+class TestPosterAssets:
+    """质感资产加载与叠加（阶段1）"""
+
+    def test_load_existing_asset(self):
+        """已提交的资产可加载"""
+        img = load_poster_asset('paper_texture.png')
+        assert img is not None
+        assert img.size == (POSTER_WIDTH, POSTER_HEIGHT)
+
+    def test_load_missing_asset_returns_none(self):
+        assert load_poster_asset('not_exist.png') is None
+
+    def test_load_asset_cached(self):
+        """二次调用命中缓存（同一对象）"""
+        a = load_poster_asset('ink_a.png')
+        b = load_poster_asset('ink_a.png')
+        assert a is b
+
+    def test_tint_ink_sheet(self):
+        """白色水墨染色后 RGB 不超目标色，alpha 保留"""
+        sheet = Image.new('RGBA', (10, 10), (255, 255, 255, 200))
+        tinted = tint_ink_sheet(sheet, (78, 133, 96))
+        assert tinted.mode == 'RGBA'
+        r, g, b, a = tinted.getpixel((5, 5))
+        assert (r, g, b) == (78, 133, 96)
+        assert a == 200
+
+    def test_draw_soft_shadow_changes_canvas(self):
+        """投影叠加后画布下方区域变暗"""
+        img = Image.new('RGBA', (200, 200), (246, 243, 233, 255))
+        before = img.getpixel((100, 120))
+        draw_soft_shadow(img, [50, 50, 150, 110], blur=8, alpha=60, dy=8)
+        after = img.getpixel((100, 120))
+        assert after[:3] < before[:3]
+
+    def test_generate_without_assets_graceful(self):
+        """资产目录缺失时降级为椭圆水墨，仍可生成"""
+        import apps.api.services.poster_service as svc
+        with patch.object(svc, 'POSTER_ASSET_DIR', Path('/tmp/__no_poster_assets__')):
+            svc._ASSET_CACHE.clear()
+            try:
+                img = generate_guofeng_poster(
+                    title='无资产降级',
+                    items=[{'name': '衣物', 'primary_element': '木', 'category': '上装'}],
+                    xiyong_elements=['木'],
+                    theme_name='wood',
+                )
+            finally:
+                svc._ASSET_CACHE.clear()
         assert img.size == (POSTER_WIDTH, POSTER_HEIGHT)
