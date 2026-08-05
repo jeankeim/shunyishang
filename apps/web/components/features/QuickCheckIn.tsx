@@ -211,7 +211,7 @@ export function QuickCheckIn({ isOpen, onClose, onSuccess, weatherInfo }: QuickC
                     {result.created ? '打卡成功！' : '今日已打卡'}
                   </h4>
                   <p className="text-sm text-stone-500 mb-4">
-                    {result.created ? '已记录今日穿搭日记' : '今天已经打过卡啦'}
+                    {result.created ? '已记录今日穿搭日记，并自动完成签到' : '今天已经打过卡啦'}
                   </p>
 
                   {/* ── 连续打卡庆祝 ──────────────────────────── */}

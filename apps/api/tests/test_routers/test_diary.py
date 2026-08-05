@@ -268,3 +268,35 @@ class TestQuickCheckin:
         # 该端点涉及 ai_tagging_service、fortune_engine 等多个异步服务
         # 集成测试覆盖更合适，这里验证未认证路径
         pass
+
+
+class TestAutoCheckinViaDiary:
+    """写日记 = 完成打卡：自动签到联动逻辑"""
+
+    def test_first_checkin_triggers_streak_and_achievements(self):
+        from apps.api.routers import diary as diary_router
+        with patch("apps.api.services.gamification_service.gamification_service") as mock_svc:
+            mock_svc.check_daily_streak.return_value = {
+                "streak_updated": True, "points_earned": 5, "streak_days": 2,
+            }
+            diary_router._auto_checkin_via_diary(1)
+            mock_svc.check_daily_streak.assert_called_once_with(1)
+            mock_svc.check_achievements.assert_called_once_with(1)
+
+    def test_repeat_checkin_idempotent(self):
+        """当天已签到：不重复触发成就检查"""
+        from apps.api.routers import diary as diary_router
+        with patch("apps.api.services.gamification_service.gamification_service") as mock_svc:
+            mock_svc.check_daily_streak.return_value = {
+                "streak_updated": False, "points_earned": 0, "streak_days": 2,
+            }
+            diary_router._auto_checkin_via_diary(1)
+            mock_svc.check_daily_streak.assert_called_once_with(1)
+            mock_svc.check_achievements.assert_not_called()
+
+    def test_checkin_failure_never_raises(self):
+        """签到失败不能影响日记创建主流程"""
+        from apps.api.routers import diary as diary_router
+        with patch("apps.api.services.gamification_service.gamification_service") as mock_svc:
+            mock_svc.check_daily_streak.side_effect = Exception("db down")
+            diary_router._auto_checkin_via_diary(1)  # 不应抛异常

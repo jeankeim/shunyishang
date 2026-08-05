@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from psycopg2.extras import RealDictCursor
 
 from apps.api.core.database import DatabasePool
+from apps.api.core.time_utils import today_cn
 from apps.api.services.user_service import get_user_bazi
 from apps.api.routers.auth import get_current_user
 from apps.api.schemas.diary import (
@@ -34,6 +35,33 @@ from apps.api.services.diary_feedback_service import diary_feedback_service
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/diary", tags=["diary"])
+
+
+def _auto_checkin_via_diary(user_id: int) -> None:
+    """
+    写日记 = 完成打卡：日记创建成功后自动完成当日签到
+
+    幂等（当天重复调用不会重复发积分），失败仅记日志，不影响日记主流程。
+    """
+    try:
+        from apps.api.services.gamification_service import gamification_service
+        result = gamification_service.check_daily_streak(user_id)
+        if result.get("streak_updated"):
+            # 首次签到成功：检查成就解锁 + 失效首页每日仪式缓存
+            gamification_service.check_achievements(user_id)
+            try:
+                from apps.api.core.config import settings as _settings
+                if _settings.redis_enabled:
+                    from apps.api.core.cache import cache as redis_cache
+                    redis_cache.delete_sync(f"daily_ritual:{user_id}:{today_cn().isoformat()}")
+            except Exception as e:
+                logger.debug(f"[Diary] daily_ritual 缓存失效失败: {e}")
+            logger.info(
+                f"[Diary] 用户{user_id} 写日记自动打卡成功: "
+                f"+{result.get('points_earned', 0)}积分, 连续{result.get('streak_days', 0)}天"
+            )
+    except Exception as e:
+        logger.warning(f"[Diary] 自动打卡失败（不影响日记创建）: {e}")
 
 # 颜色关键词 → 五行映射（用于从穿搭描述提取颜色匹配）
 _COLOR_KEYWORD_ELEMENT: dict = {
@@ -198,6 +226,9 @@ async def create_diary(
         except Exception as e:
             logger.warning(f"[Diary] 反馈回流失败: {e}")
 
+        # 写日记 = 完成打卡：自动完成当日签到
+        _auto_checkin_via_diary(user_id)
+
         return diary
     except Exception as e:
         if "unique" in str(e).lower() or "duplicate" in str(e).lower():
@@ -254,7 +285,7 @@ async def quick_checkin(
     3. 创建今日日记
     """
     user_id = _get_user_id(user)
-    today = date.today()
+    today = today_cn()
 
     # 1. AI 分析穿搭（如果有描述或图片）
     ai_tags = {}
@@ -280,6 +311,8 @@ async def quick_checkin(
         existing = diary_service.get_diaries(user_id, 1, 1, None, today, today)
         if existing and existing.diaries:
             existing_diary = existing.diaries[0]
+            # 今日日记已存在：仍确保完成当日打卡（幂等）
+            _auto_checkin_via_diary(user_id)
             return QuickCheckInResponse(
                 diary_id=existing_diary.id,
                 diary_date=today,
@@ -330,6 +363,7 @@ async def quick_checkin(
         if "unique" in str(e).lower() or "duplicate" in str(e).lower():
             existing = diary_service.get_diaries(user_id, 1, 1, None, today, today)
             if existing and existing.diaries:
+                _auto_checkin_via_diary(user_id)
                 return QuickCheckInResponse(
                     diary_id=existing.diaries[0].id,
                     diary_date=today,
@@ -342,6 +376,9 @@ async def quick_checkin(
 
     # 打卡成功，失效 daily-ritual 缓存
     _invalidate_daily_ritual_cache(user_id)
+
+    # 写日记 = 完成打卡：自动完成当日签到
+    _auto_checkin_via_diary(user_id)
 
     # 自动更新穿着物品的 wear_count 和 last_worn_date
     _auto_update_wear_count(user_id, description, ai_tags)

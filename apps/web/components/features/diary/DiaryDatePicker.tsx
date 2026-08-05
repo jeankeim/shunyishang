@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
 import { formatLocalDate, parseLocalDate, todayLocal } from '@/lib/date'
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
+const WEEKDAY_FULL = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
 interface DiaryDatePickerProps {
   value: string
@@ -73,10 +74,12 @@ export function DiaryDatePicker({ value, onChange, maxDate }: DiaryDatePickerPro
 
   const selected = value ? parseLocalDate(value) : null
   const todayStr = todayLocal()
+  const isValueToday = value === todayStr
 
-  const displayText = selected
+  const dateText = selected
     ? `${selected.getFullYear()}年${selected.getMonth() + 1}月${selected.getDate()}日`
     : '请选择日期'
+  const weekdayText = selected ? WEEKDAY_FULL[selected.getDay()] : ''
 
   return (
     <div ref={containerRef} className="relative">
@@ -85,25 +88,34 @@ export function DiaryDatePicker({ value, onChange, maxDate }: DiaryDatePickerPro
         type="button"
         data-testid="date-picker-trigger"
         onClick={() => (open ? setOpen(false) : openPicker())}
-        className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border border-stone-200 bg-white text-sm text-[var(--brand-heading)] focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:border-emerald-400 transition-all"
+        className="w-full flex items-center justify-between px-3.5 py-3 rounded-xl border border-stone-200 bg-stone-50/60 hover:bg-stone-50 hover:border-stone-300 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-emerald-200"
       >
-        <span className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-stone-400" />
-          {displayText}
+        <span className="flex items-center gap-3">
+          <span className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+            <CalendarDays className="w-[18px] h-[18px] text-emerald-600" />
+          </span>
+          <span className="flex flex-col items-start leading-tight">
+            <span className="font-medium text-[var(--brand-heading)]">{dateText}</span>
+            <span className="text-xs text-stone-400 mt-0.5">
+              {selected ? (isValueToday ? `${weekdayText} · 今天` : weekdayText) : '点击选择日期'}
+            </span>
+          </span>
         </span>
-        <span className="text-stone-300 text-xs">{open ? '收起' : '选择'}</span>
+        <ChevronDown
+          className={`w-4 h-4 text-stone-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+        />
       </button>
 
       {/* 日历弹窗 */}
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.15 }}
+            initial={{ opacity: 0, y: -8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.98 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
             data-testid="date-picker-panel"
-            className="absolute left-0 right-0 top-full mt-2 z-30 bg-white rounded-2xl shadow-lg border border-stone-100 p-4"
+            className="absolute left-0 right-0 top-full mt-2 z-30 bg-white rounded-2xl shadow-xl shadow-stone-300/40 border border-stone-100 p-4"
           >
             {/* 月份导航 */}
             <div className="flex items-center justify-between mb-3">
@@ -111,31 +123,33 @@ export function DiaryDatePicker({ value, onChange, maxDate }: DiaryDatePickerPro
                 type="button"
                 aria-label="上一月"
                 onClick={() => goToMonth(-1)}
-                className="p-1.5 rounded-lg hover:bg-stone-50 text-stone-500"
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-stone-100 active:bg-stone-200 text-stone-500 transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <span className="font-semibold text-sm text-stone-800">{viewYear}年{viewMonth}月</span>
+              <div className="text-center">
+                <span className="font-semibold text-sm text-stone-800">{viewYear}年{viewMonth}月</span>
+              </div>
               <button
                 type="button"
                 aria-label="下一月"
                 onClick={() => canGoNext && goToMonth(1)}
                 disabled={!canGoNext}
-                className="p-1.5 rounded-lg hover:bg-stone-50 text-stone-500 disabled:opacity-30 disabled:hover:bg-transparent"
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-stone-100 active:bg-stone-200 text-stone-500 transition-colors disabled:opacity-25 disabled:hover:bg-transparent"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
 
             {/* 星期头 */}
-            <div className="grid grid-cols-7 gap-1 mb-1">
+            <div className="grid grid-cols-7 mb-1">
               {WEEKDAYS.map((d) => (
-                <div key={d} className="text-center text-xs text-stone-400 py-1">{d}</div>
+                <div key={d} className="text-center text-[11px] font-medium text-stone-400 py-1.5">{d}</div>
               ))}
             </div>
 
             {/* 日期格子 */}
-            <div className="grid grid-cols-7 gap-1">
+            <div className="grid grid-cols-7 gap-y-1">
               {cells.map((day, i) => {
                 if (day === null) return <div key={`e-${i}`} />
                 const dateStr = formatLocalDate(new Date(viewYear, viewMonth - 1, day))
@@ -143,41 +157,48 @@ export function DiaryDatePicker({ value, onChange, maxDate }: DiaryDatePickerPro
                 const isSelected = selected !== null && dateStr === value
                 const isToday = dateStr === todayStr
                 return (
-                  <button
-                    key={dateStr}
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => {
-                      onChange(dateStr)
-                      setOpen(false)
-                    }}
-                    className={`aspect-square rounded-lg text-xs font-medium transition-colors ${
-                      isSelected
-                        ? 'bg-emerald-500 text-white'
-                        : disabled
-                          ? 'text-stone-200 cursor-not-allowed'
-                          : isToday
-                            ? 'bg-emerald-50 ring-1 ring-emerald-300 text-emerald-700 hover:bg-emerald-100'
-                            : 'text-stone-700 hover:bg-stone-50'
-                    }`}
-                  >
-                    {day}
-                  </button>
+                  <div key={dateStr} className="flex justify-center">
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => {
+                        onChange(dateStr)
+                        setOpen(false)
+                      }}
+                      className={`relative w-9 h-9 rounded-full text-[13px] transition-all duration-150 ${
+                        isSelected
+                          ? 'bg-emerald-500 text-white font-semibold shadow-md shadow-emerald-500/30 scale-105'
+                          : disabled
+                            ? 'text-stone-300 cursor-not-allowed'
+                            : isToday
+                              ? 'text-emerald-600 font-semibold bg-emerald-50 hover:bg-emerald-100'
+                              : 'text-stone-700 hover:bg-stone-100 active:bg-stone-200'
+                      }`}
+                    >
+                      {day}
+                      {/* 今天的小圆点标记（非选中态时） */}
+                      {isToday && !isSelected && (
+                        <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-emerald-500" />
+                      )}
+                    </button>
+                  </div>
                 )
               })}
             </div>
 
             {/* 快捷选今天 */}
-            <button
-              type="button"
-              onClick={() => {
-                onChange(max)
-                setOpen(false)
-              }}
-              className="mt-3 w-full py-2 rounded-lg text-xs text-emerald-600 bg-emerald-50 hover:bg-emerald-100 font-medium"
-            >
-              选择今天
-            </button>
+            <div className="mt-3 pt-3 border-t border-stone-100 flex justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  onChange(max)
+                  setOpen(false)
+                }}
+                className="px-5 py-1.5 rounded-full text-xs font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 transition-colors"
+              >
+                选择今天
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

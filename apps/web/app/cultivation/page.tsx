@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { useUserStore } from '@/store/user'
-import { getCultivationProfile, dailyCheckin } from '@/lib/api'
+import { getCultivationProfile } from '@/lib/api'
 import { todayLocal } from '@/lib/date'
 
 interface Achievement {
@@ -48,8 +48,6 @@ export default function CultivationPage() {
   const { isAuthenticated } = useUserStore()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(false)
-  const [checkingIn, setCheckingIn] = useState(false)
-  const [checkinResult, setCheckinResult] = useState<string | null>(null)
 
   useEffect(() => {
     if (isAuthenticated) fetchProfile()
@@ -64,27 +62,6 @@ export default function CultivationPage() {
       console.error('获取修炼档案失败:', e)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const handleCheckin = async () => {
-    if (checkingIn) return
-    setCheckingIn(true)
-    try {
-      const result = await dailyCheckin()
-      setCheckinResult(
-        result.points_earned > 0
-          ? `签到成功！+${result.points_earned} 积分，连续 ${result.streak_days} 天`
-          : result.message
-      )
-      if (result.new_achievements?.length > 0) {
-        setCheckinResult(prev => `${prev}\n🎉 解锁成就：${result.new_achievements.map((a: any) => a.name).join('、')}`)
-      }
-      fetchProfile()
-    } catch (e: any) {
-      setCheckinResult(e.message || '签到失败')
-    } finally {
-      setCheckingIn(false)
     }
   }
 
@@ -196,28 +173,19 @@ export default function CultivationPage() {
             </div>
           </div>
 
-          <button
-            onClick={handleCheckin}
-            disabled={alreadyCheckedIn || checkingIn}
-            className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+          {/* 打卡状态：写日记 = 完成打卡，无需手动签到 */}
+          <div
+            className={`px-4 py-2 rounded-xl text-xs font-medium leading-relaxed max-w-[180px] text-center ${
               alreadyCheckedIn
-                ? 'bg-stone-100 text-stone-400 cursor-not-allowed'
-                : 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5'
+                ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/60'
+                : 'bg-white/70 text-stone-500 border border-amber-200/60'
             }`}
           >
-            {alreadyCheckedIn ? '✓ 今日已签到' : checkingIn ? '签到中...' : '每日签到'}
-          </button>
+            {alreadyCheckedIn
+              ? '✓ 今日打卡已完成（写日记自动打卡）'
+              : '今天写一篇穿搭日记，即可自动完成打卡'}
+          </div>
         </div>
-
-        {checkinResult && (
-          <motion.p
-            initial={{ opacity: 0, y: -5 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-3 text-sm text-amber-700 bg-amber-100/60 px-3 py-2 rounded-lg whitespace-pre-line"
-          >
-            {checkinResult}
-          </motion.p>
-        )}
       </motion.div>
 
       {/* ── 连续打卡日历 + 里程碑 ──────────────────────────── */}
@@ -373,7 +341,7 @@ export default function CultivationPage() {
           {[
             { action: '发布穿搭日记', points: '+10' },
             { action: '获得社区点赞', points: '+2' },
-            { action: '每日签到', points: '+5' },
+            { action: '写日记自动打卡', points: '+5' },
             { action: '连续签到 7 天', points: '+20' },
             { action: '连续签到 30 天', points: '+50' },
           ].map((rule, i) => (
