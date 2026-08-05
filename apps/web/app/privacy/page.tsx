@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { IcpFooter } from '@/components/features/IcpFooter'
 
 export const metadata: Metadata = {
   title: '隐私政策 - 我的个人穿搭',
@@ -133,6 +134,8 @@ export default function PrivacyPage() {
             返回首页
           </a>
         </div>
+
+        <IcpFooter />
       </div>
     </div>
   )

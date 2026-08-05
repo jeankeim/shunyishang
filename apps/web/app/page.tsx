@@ -15,6 +15,7 @@ import { MobileBottomNav } from '@/components/features/MobileBottomNav'
 import { DailyRitualCard } from '@/components/features/DailyRitualCard'
 import { DailyOutfitCard } from '@/components/features/DailyOutfitCard'
 import { QuickCheckIn } from '@/components/features/QuickCheckIn'
+import { IcpFooter } from '@/components/features/IcpFooter'
 import { useChatStore } from '@/store/chat'
 import { useUserStore } from '@/store/user'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
@@ -826,6 +827,9 @@ export default function Home() {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* ICP 备案信息：滚动区底部展示，不被底部导航遮挡 */}
+          <IcpFooter />
         </motion.div>
       </div>
       
