@@ -201,6 +201,16 @@ export default function CommunityPage() {
     }
   }
 
+  // 广场功能临时关闭（个人备案合规改造，暂不提供UGC交互功能）
+  // 恢复时删除此占位，并同步恢复后端 community 路由与前端导航入口
+  return (
+    <div className="max-w-lg mx-auto text-center py-16">
+      <p className="text-5xl mb-4">🧶</p>
+      <h2 className="text-lg font-semibold text-[var(--brand-heading)] mb-2">穿搭广场整修中</h2>
+      <p className="text-sm text-stone-500">社区功能正在升级维护，暂不开放，敬请期待</p>
+    </div>
+  )
+
   if (!isAuthenticated) {
     return (
       <div className="max-w-lg mx-auto text-center py-16">

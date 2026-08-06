@@ -20,7 +20,7 @@ import { useChatStore } from '@/store/chat'
 import { useUserStore } from '@/store/user'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Users, BookOpen, Mountain, Compass, MoreHorizontal } from 'lucide-react'
+import { BookOpen, Mountain, Compass, MoreHorizontal } from 'lucide-react'
 import { SkeletonCard } from '@/components/ui'
 
 // 懒加载衣橱页面，减少首页初始加载时间
@@ -188,8 +188,6 @@ export default function Home() {
         setActiveTab('fortune')
       } else if (window.location.hash === '#destiny') {
         setActiveTab('destiny')
-      } else if (window.location.hash === '#community') {
-        setActiveTab('community')
       } else if (window.location.hash === '#cultivation') {
         setActiveTab('cultivation')
       } else if (window.location.hash === '#wuxing-classroom') {
@@ -512,8 +510,8 @@ export default function Home() {
                 </svg>
                 <span className="hidden sm:inline">衣橱</span>
               </button>
-              {/* 3. 广场 */}
-              <button
+              {/* 3. 广场 — 临时关闭（个人备案合规改造，暂不提供UGC交互功能），恢复时取消注释并恢复 Users 图标导入 */}
+              {/* <button
                 onClick={() => {
                   setActiveTab('community')
                   window.location.hash = '#community'
@@ -527,7 +525,7 @@ export default function Home() {
               >
                 <Users className="w-5 h-5" />
                 <span className="hidden sm:inline">广场</span>
-              </button>
+              </button> */}
               {/* 4. 日记 */}
               <button
                 onClick={() => {

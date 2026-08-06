@@ -57,12 +57,12 @@ describe('MobileBottomNav', () => {
     expect(mockOnTabChange).toHaveBeenCalledWith('wardrobe')
   })
 
-  it('should call onTabChange for community tab', () => {
+  it('should show community as disabled placeholder while feature is closed', () => {
     render(<MobileBottomNav activeTab="chat" onTabChange={mockOnTabChange} />)
-    // 广场在 "更多" 面板中，需先点击 "更多" 展开
+    // 广场临时关闭（个人备案合规改造）：展开"更多"仅显示"整修中"占位，点击不触发导航
     fireEvent.click(screen.getByText('更多'))
     fireEvent.click(screen.getByText('广场'))
-    expect(mockOnTabChange).toHaveBeenCalledWith('community')
+    expect(mockOnTabChange).not.toHaveBeenCalledWith('community')
   })
 
   it('should call onTabChange for profile tab', () => {

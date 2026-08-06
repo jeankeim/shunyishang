@@ -23,6 +23,9 @@ interface DiaryDetailProps {
   onBack?: () => void
 }
 
+// 广场功能临时关闭（个人备案合规改造），恢复时改为 true
+const COMMUNITY_ENABLED = false
+
 export function DiaryDetail({ diary, onEdit, onDelete, onTriggerReview, onBack }: DiaryDetailProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const [publishedPost, setPublishedPost] = useState<any>(null)
@@ -33,8 +36,9 @@ export function DiaryDetail({ diary, onEdit, onDelete, onTriggerReview, onBack }
   const dateStr = `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`
   const emoji = diary.mood ? MOOD_EMOJI[diary.mood] || '📝' : '📝'
 
-  // 检查日记是否已发布到广场
+    // 检查日记是否已发布到广场（广场关闭期间跳过）
   useEffect(() => {
+    if (!COMMUNITY_ENABLED) return
     getPostByDiary(diary.id)
       .then(setPublishedPost)
       .catch(() => setPublishedPost(null))
@@ -244,7 +248,8 @@ export function DiaryDetail({ diary, onEdit, onDelete, onTriggerReview, onBack }
         </div>
       )}
 
-      {/* 发布到广场 */}
+      {/* 发布到广场 — 广场关闭期间隐藏，恢复时将下方条件改回 true */}
+      {COMMUNITY_ENABLED && (
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
         {publishedPost ? (
           <div className="flex items-center justify-between">
@@ -271,8 +276,10 @@ export function DiaryDetail({ diary, onEdit, onDelete, onTriggerReview, onBack }
           </motion.button>
         )}
       </div>
+      )}
 
       {/* 发布确认弹窗 */}
+      {COMMUNITY_ENABLED && (
       <AnimatePresence>
         {showPublishConfirm && (
           <motion.div
@@ -312,6 +319,7 @@ export function DiaryDetail({ diary, onEdit, onDelete, onTriggerReview, onBack }
           </motion.div>
         )}
       </AnimatePresence>
+      )}
 
       {/* AI 点评 */}
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
@@ -357,6 +365,7 @@ export function DiaryDetail({ diary, onEdit, onDelete, onTriggerReview, onBack }
       </div>
 
       {/* 取消发布确认弹窗 */}
+      {COMMUNITY_ENABLED && (
       <ConfirmDialog
         isOpen={showUnpublishConfirm}
         onClose={() => setShowUnpublishConfirm(false)}
@@ -365,6 +374,7 @@ export function DiaryDetail({ diary, onEdit, onDelete, onTriggerReview, onBack }
         description="确认从广场取消发布？"
         confirmText="确认"
       />
+      )}
     </motion.div>
   )
 }

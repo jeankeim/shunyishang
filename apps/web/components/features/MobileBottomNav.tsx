@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, Shirt, Users, User, Menu, Scan, BookOpen, Compass, Mountain, GraduationCap } from 'lucide-react'
+import { Sparkles, Shirt, User, Menu, Scan, BookOpen, Compass, Mountain, GraduationCap } from 'lucide-react'
 
 type TabId = 'chat' | 'wardrobe' | 'tryon' | 'profile' | 'diary' | 'fortune' | 'destiny' | 'community' | 'cultivation' | 'wuxing-classroom'
 
@@ -20,10 +20,10 @@ const PRIMARY_ITEMS = [
   { id: 'profile' as const, Icon: User, label: '我的' },
 ]
 
-// 次级功能（通过"更多"展开）：日记 | 广场 | 修炼 | 课堂
+// 次级功能（通过"更多"展开）：日记 | 修炼 | 课堂
+// 广场临时关闭（个人备案合规改造），恢复时在 SECONDARY_ITEMS 中加回 { id: 'community', Icon: Users, label: '广场' } 并删除下方整修中占位
 const SECONDARY_ITEMS = [
   { id: 'diary' as const, Icon: BookOpen, label: '日记' },
-  { id: 'community' as const, Icon: Users, label: '广场' },
   { id: 'cultivation' as const, Icon: Mountain, label: '修炼' },
   { id: 'wuxing-classroom' as const, Icon: GraduationCap, label: '课堂' },
 ]
@@ -93,6 +93,15 @@ export function MobileBottomNav({ activeTab, onTabChange }: MobileBottomNavProps
                       </button>
                     )
                   })}
+                  {/* 广场 — 临时关闭（个人备案合规改造），恢复时删除此占位 */}
+                  <div
+                    aria-disabled="true"
+                    className="relative flex flex-col items-center gap-2 py-3 px-1 rounded-xl opacity-50 cursor-not-allowed select-none"
+                  >
+                    <span className="text-2xl leading-none">📜</span>
+                    <span className="text-xs font-medium text-stone-500">广场</span>
+                    <span className="absolute -top-0.5 right-0 px-1 py-px rounded-full text-[9px] font-medium bg-stone-100 text-stone-400">整修中</span>
+                  </div>
                   {/* 试衣 — 暂未上线，置于末尾并禁用 */}
                   <div
                     aria-disabled="true"
