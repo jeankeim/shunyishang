@@ -22,13 +22,13 @@ const notoSerifSC = Noto_Serif_SC({
 })
 
 export const metadata: Metadata = {
-  title: '我的个人穿搭 - 五行穿搭灵感',
+  title: '我的个人衣橱 - 五行穿搭灵感',
   description: '基于传统五行美学的个人穿搭灵感推荐，仅供娱乐参考',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: '我的个人穿搭',
+    title: '我的个人衣橱',
   },
 }
 
@@ -54,7 +54,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="我的个人穿搭" />
+        <meta name="apple-mobile-web-app-title" content="我的个人衣橱" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>

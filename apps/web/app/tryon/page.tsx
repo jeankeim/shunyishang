@@ -166,7 +166,7 @@ export default function TryOnPage() {
         onClose={() => setShowExportModal(false)}
         canvasDataUrl={canvasDataUrl}
         title="我的虚拟试衣"
-        wuxingText="五行穿搭 · 我的个人穿搭"
+        wuxingText="五行穿搭 · 我的个人衣橱"
       />
     </div>
   );

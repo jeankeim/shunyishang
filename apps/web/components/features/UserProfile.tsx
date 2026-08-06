@@ -381,7 +381,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
             </div>
 
             <h2 className="text-2xl font-bold bg-gradient-to-r from-[#3DA35D] to-[#4A90C4] bg-clip-text text-transparent font-serif tracking-tight">
-              我的个人穿搭
+              我的个人衣橱
             </h2>
             <p className="mt-1.5 text-sm text-[var(--brand-body)] tracking-wide">
               天人合一 · 五行穿搭 · 每日灵感

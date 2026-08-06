@@ -30,7 +30,7 @@ const baseProps = {
   xiyongElements: ['木', '火'],
   scene: '日常',
   quote: '火生土，今日事业运旺',
-  signature: '我的个人穿搭',
+  signature: '我的个人衣橱',
   theme: mockTheme,
   username: '测试用户',
 }
@@ -120,7 +120,7 @@ describe('PosterTemplate', () => {
 
     it('should render signature', () => {
       render(<PosterTemplate layout="card" {...baseProps} />)
-      expect(screen.getAllByText('我的个人穿搭').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('我的个人衣橱').length).toBeGreaterThan(0)
     })
   })
 

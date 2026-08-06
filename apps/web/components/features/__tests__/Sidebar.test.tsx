@@ -96,7 +96,7 @@ describe('Sidebar', () => {
 
   it('should render footer text', () => {
     render(<Sidebar collapsed={false} onToggle={vi.fn()} />)
-    expect(screen.getByText('我的个人穿搭')).toBeInTheDocument()
+    expect(screen.getByText('我的个人衣橱')).toBeInTheDocument()
   })
 
   it('should highlight current conversation', () => {

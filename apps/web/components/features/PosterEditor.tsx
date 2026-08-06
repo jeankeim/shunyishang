@@ -92,7 +92,7 @@ export const PosterEditor: React.FC<PosterEditorProps> = ({
             maxLength={30}
             className={`${inputBaseStyle} bg-white hover:border-gray-300 focus:border-amber-500 focus:shadow-md font-medium`}
             style={{ borderColor: '#E5E7EB' }}
-            placeholder="例如：我的个人穿搭"
+            placeholder="例如：我的个人衣橱"
           />
           <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-[var(--brand-subtle)]">
             {signature.length}/30

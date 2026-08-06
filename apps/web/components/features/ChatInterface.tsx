@@ -647,7 +647,7 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: 
             <div className="w-20 h-20 rounded-2xl bg-[var(--brand-surface)] flex items-center justify-center mb-4 shadow-sm">
               <span className="text-4xl">🌿</span>
             </div>
-            <h2 className="text-xl font-semibold mb-2 text-[var(--brand-heading)]">我的个人穿搭</h2>
+            <h2 className="text-xl font-semibold mb-2 text-[var(--brand-heading)]">我的个人衣橱</h2>
             <p className="text-sm mb-4 text-[var(--brand-subtle)]">输入你的穿搭需求，获取五行推荐</p>
             
             {/* 未登录提示 */}

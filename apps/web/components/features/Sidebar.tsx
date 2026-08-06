@@ -115,7 +115,7 @@ export function Sidebar({ className, collapsed = true, onToggle }: SidebarProps)
         <div className="p-4 border-t border-[var(--brand-border)]/50">
           <div className="flex items-center justify-center gap-2 text-sm text-[var(--brand-subtle)]">
             <Sparkles className="h-4 w-4 text-[var(--wuxing-wood)]" />
-            <span className="font-medium">我的个人穿搭</span>
+            <span className="font-medium">我的个人衣橱</span>
           </div>
         </div>
       </motion.div>

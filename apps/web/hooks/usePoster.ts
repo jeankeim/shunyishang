@@ -24,7 +24,7 @@ interface UsePosterOptions {
 export function usePoster(options: UsePosterOptions = {}) {
   const [title, setTitle] = useState(options.initialTitle || '今日五行穿搭推荐');
   const [quote, setQuote] = useState(options.initialQuote || '');
-  const [signature, setSignature] = useState(options.initialSignature || '我的个人穿搭');
+  const [signature, setSignature] = useState(options.initialSignature || '我的个人衣橱');
   const [selectedTemplate, setSelectedTemplate] = useState(DEFAULT_TEMPLATE.id);
   // 按喜用神首元素自动匹配主题色，让每套穿搭有独特视觉套系
   const autoThemeKey = ELEMENT_THEME_MAP[options.xiyongElements?.[0] || ''];
@@ -119,7 +119,7 @@ export function usePoster(options: UsePosterOptions = {}) {
   const reset = useCallback(() => {
     setTitle(options.initialTitle || '今日五行穿搭推荐');
     setQuote(options.initialQuote || '');
-    setSignature(options.initialSignature || '我的个人穿搭');
+    setSignature(options.initialSignature || '我的个人衣橱');
     setSelectedTemplate(DEFAULT_TEMPLATE.id);
     const resetThemeKey = ELEMENT_THEME_MAP[options.xiyongElements?.[0] || ''];
     setSelectedTheme((resetThemeKey && WUXING_THEMES[resetThemeKey]) || DEFAULT_THEME);

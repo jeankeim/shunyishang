@@ -84,7 +84,7 @@ export function FortuneShareCard({ fortune, username }: FortuneShareCardProps) {
   function handleDownload() {
     if (!imageUrl) return
     const link = document.createElement('a')
-    link.download = `我的个人穿搭-运势卡片-${today.toISOString().slice(0, 10)}.png`
+    link.download = `我的个人衣橱-运势卡片-${today.toISOString().slice(0, 10)}.png`
     link.href = imageUrl
     link.click()
   }
@@ -132,7 +132,7 @@ export function FortuneShareCard({ fortune, username }: FortuneShareCardProps) {
                 <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
                   <span className="text-white text-xs font-bold">顺</span>
                 </div>
-                <span className="text-xs text-stone-500 tracking-wide">我的个人穿搭 · 五行穿搭</span>
+                <span className="text-xs text-stone-500 tracking-wide">我的个人衣橱 · 五行穿搭</span>
               </div>
               <span className="text-[10px] text-stone-400">{dateStr}</span>
             </div>

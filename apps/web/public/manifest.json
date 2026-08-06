@@ -1,6 +1,6 @@
 {
-  "name": "我的个人穿搭 - 五行穿搭灵感",
-  "short_name": "我的个人穿搭",
+  "name": "我的个人衣橱 - 五行穿搭灵感",
+  "short_name": "我的个人衣橱",
   "description": "基于传统五行美学的个人穿搭灵感推荐，仅供娱乐参考",
   "start_url": "/",
   "display": "standalone",

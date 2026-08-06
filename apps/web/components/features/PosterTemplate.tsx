@@ -191,7 +191,7 @@ const SimpleTemplate: React.FC<PosterTemplateProps> = ({
             background: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})` 
           }} />
           <span className="text-xs font-semibold tracking-wider" style={{ color: '#6B7280' }}>
-            我的个人穿搭
+            我的个人衣橱
           </span>
         </div>
         <div className="text-right">
@@ -387,7 +387,7 @@ const WuxingTemplate: React.FC<PosterTemplateProps> = ({
             五行
           </div>
           <div>
-            <div className="text-xs font-semibold tracking-wider">我的个人穿搭</div>
+            <div className="text-xs font-semibold tracking-wider">我的个人衣橱</div>
             <div className="text-xs opacity-50">传统智慧 · 现代穿搭</div>
           </div>
         </div>
@@ -395,7 +395,7 @@ const WuxingTemplate: React.FC<PosterTemplateProps> = ({
           <div className="text-xs opacity-60 mb-1">
             生成时间：{new Date().toLocaleTimeString('zh-CN', { hour12: false })}
           </div>
-          <div className="text-sm font-semibold tracking-wider">—— 我的个人穿搭</div>
+          <div className="text-sm font-semibold tracking-wider">—— 我的个人衣橱</div>
         </div>
       </div>
 
@@ -617,7 +617,7 @@ const CardTemplate: React.FC<PosterTemplateProps> = ({
             background: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})` 
           }} />
           <span className="text-sm font-bold tracking-wider opacity-80">
-            我的个人穿搭
+            我的个人衣橱
           </span>
         </div>
         <div className="text-right">

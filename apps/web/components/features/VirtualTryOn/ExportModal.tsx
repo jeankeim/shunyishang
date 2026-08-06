@@ -102,7 +102,7 @@ export function ExportModal({
       ctx.font = '24px "Noto Sans SC", sans-serif';
       ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
       ctx.textAlign = 'right';
-      ctx.fillText('我的个人穿搭 · AI试衣', EXPORT_WIDTH - 40, EXPORT_HEIGHT - 30);
+      ctx.fillText('我的个人衣橱 · AI试衣', EXPORT_WIDTH - 40, EXPORT_HEIGHT - 30);
 
       const dataUrl = canvas.toDataURL('image/png');
       setExportUrl(dataUrl);
