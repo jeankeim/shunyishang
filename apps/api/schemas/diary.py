@@ -172,6 +172,7 @@ class FortuneResponse(BaseModel):
     bazi_snapshot: Dict[str, Any] = Field(default_factory=dict)
     huangli: Dict[str, Any] = Field(default_factory=dict, description="黄历数据")
     ai_narrative: Dict[str, Any] = Field(default_factory=dict, description="AI个性化叙事")
+    ai_pending: bool = Field(False, description="AI叙事是否仍在后台生成中（前端据此静默刷新）")
     created_at: datetime
 
     model_config = {"from_attributes": True}

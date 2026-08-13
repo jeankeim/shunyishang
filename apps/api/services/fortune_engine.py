@@ -198,8 +198,8 @@ def calculate_daily_fortune(
             logger.warning(f"[FortuneEngine] AI 叙事生成失败，使用降级方案: {e}")
             ai_narrative = _fallback_ai_narrative(scores, day_element, day_master, huangli)
     else:
-        # 不调用 AI 时，使用降级方案
-        ai_narrative = _fallback_ai_narrative(scores, day_element, day_master, huangli)
+        # 不调用 AI 时，先用降级方案秒级返回，并标记 _pending 供后台线程异步增强
+        ai_narrative = {**_fallback_ai_narrative(scores, day_element, day_master, huangli), "_pending": True}
 
     return {
         "scores": scores,
@@ -535,6 +535,7 @@ def _generate_ai_narrative(
         client = OpenAI(
             api_key=settings.dashscope_api_key,
             base_url=settings.dashscope_base_url,
+            timeout=20,  # 限制 LLM 调用耗时，避免后台增强线程长时间挂起
         )
         response = client.chat.completions.create(
             model=settings.qwen_model,

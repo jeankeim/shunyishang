@@ -4,6 +4,7 @@
 
 import json
 import logging
+import threading
 from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status, Query
@@ -16,7 +17,7 @@ from apps.api.core.config import settings
 from apps.api.core.security import decode_access_token
 from apps.api.routers.auth import get_current_user
 from apps.api.schemas.diary import FortuneResponse, FortuneScores, LuckyElements, TodayCardResponse
-from apps.api.services.fortune_engine import calculate_daily_fortune
+from apps.api.services.fortune_engine import calculate_daily_fortune, _generate_ai_narrative
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +54,9 @@ def _row_to_fortune_response(row: dict) -> FortuneResponse:
     ai_narrative_data = data.get('ai_narrative', {})
     if isinstance(ai_narrative_data, str):
         ai_narrative_data = json.loads(ai_narrative_data)
+    ai_pending = False
+    if isinstance(ai_narrative_data, dict):
+        ai_pending = bool(ai_narrative_data.pop('_pending', False))
 
     return FortuneResponse(
         id=data['id'],
@@ -66,6 +70,7 @@ def _row_to_fortune_response(row: dict) -> FortuneResponse:
         bazi_snapshot=bazi_snap,
         huangli=huangli_data,
         ai_narrative=ai_narrative_data,
+        ai_pending=ai_pending,
         created_at=data['created_at'],
     )
 
@@ -93,6 +98,10 @@ async def get_today_fortune(
     # DB 持久化缓存
     cached = _get_cached_fortune(user_id, today)
     if cached:
+        if cached.ai_pending:
+            # AI 叙事尚未增强完成：立即返回当前内容，后台继续生成
+            _kickoff_ai_enhancement(user_id, today)
+            return cached
         # 回写 Redis
         if settings.redis_enabled:
             try:
@@ -102,16 +111,9 @@ async def get_today_fortune(
                 logger.debug(f"[FortuneToday] Redis 写入失败: {e}")
         return cached
 
-    # 计算并存储
-    result = _generate_and_store(user_id, today, generate_ai=True)
-
-    # 写入 Redis
-    if settings.redis_enabled:
-        try:
-            from apps.api.core.cache import cache as redis_cache
-            redis_cache.set_sync(cache_key, result.model_dump(mode='json'), ttl=86400)
-        except Exception as e:
-            logger.debug(f"[FortuneToday] Redis 写入失败: {e}")
+    # 新一天首次访问：公式计算秒级返回（含降级叙事），AI 叙事后台异步增强
+    result = _generate_and_store(user_id, today, generate_ai=False)
+    _kickoff_ai_enhancement(user_id, today)
 
     return result
 
@@ -138,7 +140,9 @@ async def generate_fortune(
     """手动生成/刷新生成今日运势"""
     user_id = _get_user_id(user)
     today = today_cn()
-    result = _generate_and_store(user_id, today, force=True, generate_ai=True)
+    # 快速重算（公式+降级叙事）立即返回，AI 叙事交由后台线程增强
+    result = _generate_and_store(user_id, today, force=True, generate_ai=False)
+    _kickoff_ai_enhancement(user_id, today)
 
     # 清除 Redis 缓存，确保后续 GET 请求拿到最新数据
     if settings.redis_enabled:
@@ -212,6 +216,98 @@ def _generate_and_store(user_id: int, target_date: date, force: bool = False, ge
             conn.commit()
 
     return _row_to_fortune_response(row)
+
+
+# ============================================================
+# AI 叙事后台异步增强
+# 新一天首次请求先以公式+降级叙事秒级返回，LLM 叙事由后台线程生成后回写，
+# 前端凭 ai_pending 标记静默刷新拿取最终版。
+# ============================================================
+
+# 进程内防重入：同一 (user_id, date) 只允许一个增强线程在跑
+_AI_ENHANCE_INFLIGHT: set = set()
+
+
+def _kickoff_ai_enhancement(user_id: int, target_date: date) -> None:
+    """启动后台线程为指定日期运势生成 AI 叙事（已在跑则跳过）"""
+    inflight_key = (user_id, target_date.isoformat())
+    if inflight_key in _AI_ENHANCE_INFLIGHT:
+        return
+    _AI_ENHANCE_INFLIGHT.add(inflight_key)
+    threading.Thread(
+        target=_enhance_ai_narrative_worker,
+        args=(user_id, target_date),
+        daemon=True,
+    ).start()
+
+
+def _enhance_ai_narrative_worker(user_id: int, target_date: date) -> None:
+    """后台线程：调用 LLM 生成 AI 叙事并条件回写 DB，完成后失效相关 Redis 缓存"""
+    try:
+        with DatabasePool.get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    "SELECT scores, overall_score, huangli, ai_narrative FROM daily_fortune "
+                    "WHERE user_id = %s AND fortune_date = %s",
+                    [user_id, target_date],
+                )
+                row = cur.fetchone()
+        if not row:
+            return
+
+        ai_data = row["ai_narrative"] if isinstance(row["ai_narrative"], dict) else json.loads(row["ai_narrative"] or "{}")
+        if not ai_data.get("_pending"):
+            return  # 已被其他进程/请求增强完成
+
+        user_bazi = get_user_bazi(user_id)
+        scores = row["scores"] if isinstance(row["scores"], dict) else json.loads(row["scores"])
+        huangli = row["huangli"] if isinstance(row["huangli"], dict) else json.loads(row["huangli"] or "{}")
+
+        narrative = _generate_ai_narrative(
+            user_bazi=user_bazi,
+            target_date=target_date,
+            scores=scores,
+            overall=row["overall_score"],
+            huangli=huangli,
+        )
+
+        # 条件更新：仅当仍为 pending 时才覆盖，避免踩掉手动重新生成的新行
+        with DatabasePool.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """UPDATE daily_fortune SET ai_narrative = %s
+                       WHERE user_id = %s AND fortune_date = %s
+                         AND ai_narrative->>'_pending' = 'true'""",
+                    [json.dumps(narrative, ensure_ascii=False), user_id, target_date],
+                )
+                conn.commit()
+        logger.info(f"[FortuneToday] AI 叙事后台增强完成: user={user_id} date={target_date}")
+    except Exception as e:
+        # 增强失败：清除 pending 标记（保留降级叙事），避免前端无限重试
+        logger.warning(f"[FortuneToday] AI 叙事后台增强失败，清除 pending 标记: {e}")
+        try:
+            with DatabasePool.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """UPDATE daily_fortune SET ai_narrative = ai_narrative - '_pending'
+                           WHERE user_id = %s AND fortune_date = %s""",
+                        [user_id, target_date],
+                    )
+                    conn.commit()
+        except Exception as e2:
+            logger.debug(f"[FortuneToday] 清除 pending 标记失败: {e2}")
+    finally:
+        # 失效相关缓存，让后续请求拿到最终版叙事
+        if settings.redis_enabled:
+            try:
+                from apps.api.core.cache import cache as redis_cache
+                today_str = target_date.isoformat()
+                redis_cache.delete_sync(f"fortune_today:{user_id}:{today_str}")
+                redis_cache.delete_sync(f"today_card:{user_id}:{today_str}")
+                redis_cache.delete_sync(f"daily_ritual:{user_id}:{today_str}")
+            except Exception as e:
+                logger.debug(f"[FortuneToday] Redis 缓存失效失败: {e}")
+        _AI_ENHANCE_INFLIGHT.discard((user_id, target_date.isoformat()))
 
 
 # ============================================================
@@ -300,6 +396,9 @@ async def get_today_card(
     fortune = _get_cached_fortune(user_id, today)
     if not fortune:
         fortune = _generate_and_store(user_id, today)
+        _kickoff_ai_enhancement(user_id, today)
+    elif fortune.ai_pending:
+        _kickoff_ai_enhancement(user_id, today)
 
     card = _build_today_card(fortune)
 
@@ -436,6 +535,9 @@ async def get_daily_ritual(user: dict = Depends(get_current_user)):
             fortune = _get_cached_fortune(user_id, today)
             if not fortune:
                 fortune = _generate_and_store(user_id, today)
+                _kickoff_ai_enhancement(user_id, today)
+            elif fortune.ai_pending:
+                _kickoff_ai_enhancement(user_id, today)
             card = _build_today_card(fortune)
             result["fortune"] = card.model_dump(mode="json")
     except Exception as e:

@@ -162,6 +162,7 @@ export interface DailyFortune {
   bazi_snapshot?: Record<string, any>
   huangli?: HuangLiData
   ai_narrative?: AiNarrative
+  ai_pending?: boolean
   created_at: string
 }
 

@@ -251,8 +251,16 @@ export default function FortunePage() {
   }
 
   if (isLoading && !todayFortune) {
+    // 仅首屏无数据时：保留周报卡片即时渲染，运势区域用骨架屏占位（避免整页白等）
     return (
       <div className="max-w-4xl mx-auto space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-stone-800">每日运势</h1>
+            <p className="text-xs text-stone-500 mt-0.5">基于八字五行分析今日运势</p>
+          </div>
+        </div>
+        <WeeklyFortuneCard />
         <SkeletonCard lines={2} />
         <SkeletonCard lines={3} showImage={false} />
         <SkeletonCard lines={2} showImage={false} />
