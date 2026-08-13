@@ -6,6 +6,23 @@
 --   * _get_item_attributes 查询缺失列报错
 -- 本迁移全部使用 IF NOT EXISTS / 防御性去重，可安全重复执行（幂等）。
 
+-- 0. 极早期遗留的旧版 user_preferences（user_id varchar + preferred_* JSONB 结构）
+-- 与现行代码完全不兼容且无任何引用，重命名为备份表后重建新结构
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'user_preferences' AND column_name = 'preferred_elements'
+    ) AND NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'user_preferences' AND column_name = 'pref_type'
+    ) THEN
+        ALTER TABLE user_preferences RENAME TO user_preferences_legacy_bak;
+        RAISE NOTICE '旧版 user_preferences 已备份为 user_preferences_legacy_bak';
+    END IF;
+END $$;
+
+
 -- 1. 确保 user_preferences 表存在（含 UNIQUE 约束）
 CREATE TABLE IF NOT EXISTS user_preferences (
     id SERIAL PRIMARY KEY,
