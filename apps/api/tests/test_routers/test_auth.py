@@ -30,26 +30,58 @@ def mock_user():
 
 
 class TestRegister:
-    """测试期间注册已关闭，所有请求返回 503"""
+    """注册已放开，合法请求直接返回 token"""
 
     @pytest.mark.asyncio
-    async def test_register_disabled(self, async_client, mock_db_pool):
-        """注册接口已关闭"""
+    async def test_register_success(self, async_client, mock_db_pool):
+        """注册成功：查重通过，INSERT 返回新用户"""
+        mock_cursor = mock_db_pool["cursor"]
+        # fetchone 依次返回：手机号查重（未占用）、INSERT RETURNING id
+        mock_cursor.fetchone.side_effect = [None, (2,)]
+
         response = await async_client.post(
             "/api/v1/auth/register",
-            json={"phone": "13800138000", "password": "123456", "nickname": "测试"},
+            json={"phone": "13800138000", "password": "123456", "nickname": "测试",
+                  "privacy_consent": True},
         )
-        assert response.status_code == 503
-        assert "暂不开放注册" in response.json()["detail"]
+        assert response.status_code == 200
+        data = response.json()
+        assert "access_token" in data
+        assert data["user"]["id"] == 2
+        assert data["user"]["phone"] == "13800138000"
 
     @pytest.mark.asyncio
-    async def test_register_disabled_no_phone(self, async_client, mock_db_pool):
-        """无手机号也返回503"""
+    async def test_register_without_consent(self, async_client, mock_db_pool):
+        """PIPL：未同意隐私政策时拒绝注册"""
         response = await async_client.post(
             "/api/v1/auth/register",
-            json={"password": "123456"},
+            json={"phone": "13800138000", "password": "123456"},
         )
-        assert response.status_code == 503
+        assert response.status_code == 400
+        assert "隐私政策" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_register_no_contact(self, async_client, mock_db_pool):
+        """手机号和邮箱都未提供"""
+        response = await async_client.post(
+            "/api/v1/auth/register",
+            json={"password": "123456", "privacy_consent": True},
+        )
+        assert response.status_code == 400
+        assert "手机号或邮箱" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_register_phone_exists(self, async_client, mock_db_pool):
+        """手机号已注册"""
+        mock_cursor = mock_db_pool["cursor"]
+        mock_cursor.fetchone.return_value = (1,)
+
+        response = await async_client.post(
+            "/api/v1/auth/register",
+            json={"phone": "13800138000", "password": "123456", "privacy_consent": True},
+        )
+        assert response.status_code == 400
+        assert "手机号已注册" in response.json()["detail"]
 
     @pytest.mark.asyncio
     async def test_register_short_password(self, async_client, mock_db_pool):
