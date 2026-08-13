@@ -764,10 +764,11 @@ def _get_item_attributes(item_id, item_code, item_source) -> dict:
         with DatabasePool.get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 if item_source == 'wardrobe' and item_id:
+                    # 衣橱物品存在 user_wardrobe 表（items 表没有 id 列）
                     cur.execute(
                         """SELECT name, category, primary_element, attributes_detail,
                                   color, style, material, thickness_level
-                           FROM items WHERE id = %s""",
+                           FROM user_wardrobe WHERE id = %s""",
                         [item_id]
                     )
                 elif item_code:
