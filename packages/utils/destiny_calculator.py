@@ -10,6 +10,7 @@
 """
 
 import logging
+import zlib
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
@@ -396,6 +397,123 @@ def _get_element_relation_desc(elem_a: str, elem_b: str) -> str:
 
 
 # ============================================================
+# 流年与原局地支互动（冲/合/刑/害/会）
+# 同一日主不同四柱的用户，因流年与原局互动不同而得到不同评分
+# ============================================================
+
+# 六冲
+DIZHI_LIU_CHONG: Dict[str, str] = {
+    "子": "午", "午": "子", "丑": "未", "未": "丑", "寅": "申", "申": "寅",
+    "卯": "酉", "酉": "卯", "辰": "戌", "戌": "辰", "巳": "亥", "亥": "巳",
+}
+# 六合
+DIZHI_LIU_HE: Dict[str, str] = {
+    "子": "丑", "丑": "子", "寅": "亥", "亥": "寅", "卯": "戌", "戌": "卯",
+    "辰": "酉", "酉": "辰", "巳": "申", "申": "巳", "午": "未", "未": "午",
+}
+# 六害
+DIZHI_HAI: Dict[str, str] = {
+    "子": "未", "未": "子", "丑": "午", "午": "丑", "寅": "巳", "巳": "寅",
+    "卯": "辰", "辰": "卯", "申": "亥", "亥": "申", "酉": "戌", "戌": "酉",
+}
+# 三刑组（寅巳申 / 丑戌未 / 子卯）与自刑
+XING_GROUPS: List[set] = [{"寅", "巳", "申"}, {"丑", "戌", "未"}, {"子", "卯"}]
+SELF_XING: set = {"辰", "午", "酉", "亥"}
+# 三合局
+SAN_HE_GROUPS: List[set] = [
+    {"申", "子", "辰"}, {"寅", "午", "戌"}, {"巳", "酉", "丑"}, {"亥", "卯", "未"},
+]
+
+# 宫位→影响维度（传统宫位理论：月柱事业宫、日支夫妻宫、时柱子女/表达宫）
+_PILLAR_DIMENSIONS: Dict[str, List[str]] = {
+    "year": ["health"],
+    "month": ["career"],
+    "day": ["love", "health"],
+    "hour": ["study"],
+}
+_RELATION_DELTA: Dict[str, int] = {"冲": -8, "刑": -5, "害": -5, "合": 6, "会": 5}
+_RELATION_WORD: Dict[str, str] = {"冲": "相冲", "合": "相合", "刑": "相刑", "害": "相害", "会": "三会"}
+
+
+def _branch_relation(a: str, b: str) -> Optional[str]:
+    """判断两地支关系，优先级：冲 > 合 > 刑 > 害 > 三会"""
+    if not a or not b:
+        return None
+    if DIZHI_LIU_CHONG.get(a) == b:
+        return "冲"
+    if DIZHI_LIU_HE.get(a) == b:
+        return "合"
+    if a == b and a in SELF_XING:
+        return "刑"
+    for g in XING_GROUPS:
+        if a in g and b in g and a != b:
+            return "刑"
+    if DIZHI_HAI.get(a) == b:
+        return "害"
+    for g in SAN_HE_GROUPS:
+        if a in g and b in g and a != b:
+            return "会"
+    return None
+
+
+def _chart_interactions(
+    bazi_result: Dict[str, Any],
+    year_stem: str,
+    year_branch: str,
+    gender: Optional[str],
+) -> tuple:
+    """
+    流年与原局互动：地支冲合刑害按宫位影响维度，天干十神映射维度加成
+
+    Returns:
+        (dim_delta, notes) — 各维度加减分、互动说明文案
+    """
+    pillars = bazi_result.get("pillars") or {}
+    dim_delta: Dict[str, int] = {}
+    notes: List[str] = []
+
+    pillar_names = {"year": "年支", "month": "月支", "day": "日支", "hour": "时支"}
+    for key, gz in pillars.items():
+        if not isinstance(gz, str) or len(gz) < 2:
+            continue
+        rel = _branch_relation(year_branch, gz[1])
+        if not rel:
+            continue
+        delta = _RELATION_DELTA[rel]
+        for dim in _PILLAR_DIMENSIONS.get(key, []):
+            dim_delta[dim] = dim_delta.get(dim, 0) + delta
+        notes.append(f"流年{year_branch}与{pillar_names.get(key, key)}{_RELATION_WORD[rel]}")
+
+    # 流年天干十神主事（性别感知：男以财星为妻星，女以官星为夫星）
+    day_gz = pillars.get("day")
+    if isinstance(day_gz, str) and day_gz:
+        try:
+            from packages.utils.ten_gods import calculate_ten_gods
+            ten_god = calculate_ten_gods(day_gz[0], year_stem)["ten_god"]
+        except Exception:  # noqa: BLE001
+            ten_god = None
+        is_female = gender == "女"
+        ten_god_dim: Dict[str, Dict[str, int]] = {
+            "正财": {"wealth": 6, **({"love": 4} if not is_female else {})},
+            "偏财": {"wealth": 5, **({"love": 3} if not is_female else {})},
+            "正官": {"career": 6, **({"love": 4} if is_female else {})},
+            "七杀": {"career": 5, **({"love": 3} if is_female else {})},
+            "正印": {"study": 6, "health": 3},
+            "偏印": {"study": 5, "health": 2},
+            "食神": {"study": 4, "wealth": 3},
+            "伤官": {"study": 3, "love": 3},
+            "比肩": {"health": 3},
+            "劫财": {"health": 3, "wealth": -3},
+        }
+        if ten_god:
+            for dim, d in ten_god_dim.get(ten_god, {}).items():
+                dim_delta[dim] = dim_delta.get(dim, 0) + d
+            notes.append(f"流年天干{ten_god}主事")
+
+    return dim_delta, notes
+
+
+# ============================================================
 # 年度运势分析
 # ============================================================
 
@@ -429,9 +547,19 @@ def analyze_year_fortune(
     taishui_element = DIZHI_WUXING.get(year_branch, "土")
 
     # 五维度评分计算
+    # 流年与原局互动（地支冲合刑害按宫位 + 流年天干十神），使不同四柱的用户结果差异化
+    dim_delta, notes = _chart_interactions(
+        bazi_result, annual["heavenly_stem"], annual["earthly_branch"],
+        bazi_result.get("gender"),
+    )
+    if notes:
+        annual["advice"] += " 命局互动：" + "，".join(notes) + "。"
+
     scores = _calculate_year_scores(
         day_master, year_element, taishui_element,
-        suggested_elements, avoid_elements, year
+        suggested_elements, avoid_elements, year,
+        dim_delta=dim_delta,
+        seed_str="".join(str(v) for v in (bazi_result.get("pillars") or {}).values()),
     )
 
     overall_score = int(sum(scores.values()) / len(scores))
@@ -482,6 +610,8 @@ def _calculate_year_scores(
     suggested_elements: List[str],
     avoid_elements: List[str],
     year: int,
+    dim_delta: Optional[Dict[str, int]] = None,
+    seed_str: str = "",
 ) -> Dict[str, int]:
     """计算年度五维度评分"""
     import random
@@ -500,7 +630,8 @@ def _calculate_year_scores(
     taishui_relation = _get_element_relation_coef(taishui_element, day_master)
 
     base_score = 65
-    seed_val = hash(f"{day_master}_{year}")
+    # 稳定哈希：内置 hash() 对字符串按进程随机化，多 worker 下同一用户结果会漂移
+    seed_val = zlib.crc32(f"{day_master}_{seed_str}_{year}".encode("utf-8"))
     rng = random.Random(seed_val)
 
     scores: Dict[str, int] = {}
@@ -522,6 +653,10 @@ def _calculate_year_scores(
             raw -= 6
         if taishui_element in avoid_elements:
             raw -= 4
+
+        # 流年与原局互动加减分（冲合刑害按宫位 + 十神主事）
+        if dim_delta:
+            raw += dim_delta.get(dim, 0)
 
         # 小幅随机波动
         raw += rng.randint(-4, 4)
