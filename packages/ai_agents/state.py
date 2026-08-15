@@ -40,6 +40,7 @@ class AgentState(TypedDict):
     annual_luck: Optional[Dict]         # 流年运势（当年）
     major_luck: Optional[Dict]          # 当前大运
     intent_result: Optional[Dict]       # 意图推断结果
+    explicit_intent: Optional[Dict]     # 用户显式五行修正意图（缺X/补X/忌X，最高优先级）
     target_elements: List[str]          # 最终推荐五行（合并后）
     xiyong_elements: List[str]          # 八字喜用神（纯八字，不含场景）
     added_elements: List[str]           # 场景/天气额外添加的五行
@@ -148,6 +149,7 @@ def create_initial_state(
         annual_luck=None,
         major_luck=None,
         intent_result=None,
+        explicit_intent=None,
         target_elements=[],
         xiyong_elements=[],
         added_elements=[],

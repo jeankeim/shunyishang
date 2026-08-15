@@ -4,6 +4,7 @@ WuXing AI Stylist - 工具函数模块
 from packages.utils.bazi_calculator import (
     calculate_bazi,
     infer_elements_from_text,
+    extract_explicit_element_intent,
     merge_recommendations,
 )
 from packages.utils.scene_mapper import (
@@ -15,6 +16,7 @@ from packages.utils.scene_mapper import (
 __all__ = [
     "calculate_bazi",
     "infer_elements_from_text",
+    "extract_explicit_element_intent",
     "merge_recommendations",
     "extract_scene_from_text",
     "get_scene_elements",

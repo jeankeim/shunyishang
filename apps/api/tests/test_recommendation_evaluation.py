@@ -973,6 +973,7 @@ class TestEngineIntegration:
             items=items,
             target_elements=["木"],
             top_k=2,
+            user_gender="女",  # 含裙装（女性专属品类），需透传性别避免防御性默认过滤
         )
 
         assert len(result["scored_items"]) == 3
@@ -1072,11 +1073,127 @@ class TestGenderFilter:
         assert "中性" in sql
 
     def test_unknown_gender_filter(self):
-        """未知性别默认过滤"""
+        """未知性别默认过滤：仅保留中性/未标注，不得泄漏男/女专属物品"""
         from packages.recommendation.filters import build_gender_filter
 
         sql = build_gender_filter(None)
         assert "中性" in sql
+        assert "男" not in sql  # 防御性默认：性别缺失时不再包含男款
+        assert "女" not in sql
+
+
+# ============================================================
+# 14.5 性别推断与硬过滤测试（评分层安全网）
+# ============================================================
+
+class TestInferItemGender:
+    """物品真实性别推断（交叉校验标注）"""
+
+    def test_db_gender_takes_priority(self):
+        """DB gender 字段（男/女）优先级最高"""
+        from packages.recommendation.filters import infer_item_gender
+
+        assert infer_item_gender({"gender": "男", "name": "女士衬衫"}) == "男"
+        assert infer_item_gender({"gender": "女", "name": "普通外套"}) == "女"
+
+    def test_name_keyword_inference(self):
+        """标注中性但名称含性别关键词时可推断"""
+        from packages.recommendation.filters import infer_item_gender
+
+        assert infer_item_gender({"gender": "中性", "name": "男士商务皮鞋"}) == "男"
+        assert infer_item_gender({"gender": "中性", "name": "女款真丝衬衫"}) == "女"
+
+    def test_category_common_sense(self):
+        """品类常识：裙装为女性专属"""
+        from packages.recommendation.filters import infer_item_gender
+
+        assert infer_item_gender({"gender": "中性", "name": "碎花连衣裙", "category": "裙装"}) == "女"
+
+    def test_unisex_returns_none(self):
+        """无法判定的中性物品返回 None"""
+        from packages.recommendation.filters import infer_item_gender
+
+        assert infer_item_gender({"gender": "中性", "name": "黑色简约乐福鞋", "category": "鞋履"}) is None
+        assert infer_item_gender({"name": "白色T恤"}) is None
+
+
+class TestApplyGenderHardFilter:
+    """评分层性别硬过滤"""
+
+    def _make_items(self):
+        return [
+            {"name": "男款乐福鞋", "gender": "男"},
+            {"name": "女士真丝衬衫", "gender": "中性"},  # 名称可推断为女款
+            {"name": "中性帆布鞋", "gender": "中性"},
+            {"name": "未标注外套", "gender": None},
+        ]
+
+    def test_female_user_excludes_male_items(self):
+        """核心 bad case：女性用户不收到男款物品（含标注中性但名称为男款的情况）"""
+        from packages.recommendation.filters import apply_gender_hard_filter
+
+        items = self._make_items()
+        items.append({"name": "男士商务皮鞋", "gender": "中性"})  # 模拟 ITEM_437 类脏数据
+        kept = apply_gender_hard_filter(items, "女")
+        names = [i["name"] for i in kept]
+        assert "男款乐福鞋" not in names
+        assert "男士商务皮鞋" not in names  # 名称推断拦截标注错误
+        assert "女士真丝衬衫" in names
+        assert "中性帆布鞋" in names
+
+    def test_male_user_excludes_female_items(self):
+        """男性用户不收到女款物品"""
+        from packages.recommendation.filters import apply_gender_hard_filter
+
+        kept = apply_gender_hard_filter(self._make_items(), "男")
+        names = [i["name"] for i in kept]
+        assert "女士真丝衬衫" not in names
+        assert "男款乐福鞋" in names
+
+    def test_unknown_gender_keeps_only_unisex(self):
+        """用户性别未知：仅保留中性/不可判定物品（防御性默认）"""
+        from packages.recommendation.filters import apply_gender_hard_filter
+
+        kept = apply_gender_hard_filter(self._make_items(), None)
+        names = [i["name"] for i in kept]
+        assert "男款乐福鞋" not in names
+        assert "女士真丝衬衫" not in names
+        assert "中性帆布鞋" in names
+        assert "未标注外套" in names
+
+    def test_empty_items(self):
+        """空列表防御"""
+        from packages.recommendation.filters import apply_gender_hard_filter
+
+        assert apply_gender_hard_filter([], "女") == []
+
+
+class TestEngineGenderIntegration:
+    """引擎层性别硬过滤集成测试"""
+
+    def test_engine_filters_male_items_for_female_user(self):
+        """score_and_rank_items 传入 user_gender 后，性别错配物品不进入结果"""
+        from packages.recommendation.engine import score_and_rank_items
+
+        items = [
+            {"item_code": "A1", "name": "男款乐福鞋", "gender": "男", "category": "鞋履",
+             "primary_element": "水", "color": "黑色", "semantic_score": 0.95},
+            {"item_code": "A2", "name": "女士平底鞋", "gender": "女", "category": "鞋履",
+             "primary_element": "水", "color": "黑色", "semantic_score": 0.9},
+            {"item_code": "A3", "name": "中性帆布鞋", "gender": "中性", "category": "鞋履",
+             "primary_element": "水", "color": "黑色", "semantic_score": 0.8},
+        ]
+        result = score_and_rank_items(
+            items=items,
+            target_elements=["水"],
+            user_gender="女",
+            top_k=5,
+        )
+        top_names = [i["name"] for i in result["top_items"]]
+        scored_names = [i["name"] for i in result["scored_items"]]
+        assert "男款乐福鞋" not in top_names
+        assert "男款乐福鞋" not in scored_names  # 硬过滤在排序前执行
+        assert "女士平底鞋" in top_names
 
 
 # ============================================================
@@ -1147,6 +1264,7 @@ class TestEvaluationScoreThreshold:
                 user_skin_tone=user.skin_tone,
                 user_style_preference=user.style_preference,
                 user_body_type=user.body_type,
+                user_gender=user.gender,
                 top_k=5, batch_index=0,
             )
             rec_items = result.get("top_items", [])

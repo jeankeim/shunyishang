@@ -302,6 +302,65 @@ def infer_elements_from_text(text: str) -> IntentResult:
     )
 
 
+# ============================================================
+# 显式五行修正意图检测（用户实时意图，最高优先级）
+# ============================================================
+
+# 显式「补/加」指令模板：用户主动要求加强某五行
+# 注意：模板必须足够特异，避免日常词汇误命中（如「重要」含「要」）
+EXPLICIT_ADD_PATTERNS: List[str] = [
+    "缺{e}", "补{e}", "旺{e}", "想要{e}", "需要{e}", "要穿{e}", "想穿{e}",
+    "多穿{e}", "来点{e}", "多点{e}", "{e}弱", "{e}太弱",
+]
+
+# 显式「避/忌」指令模板：用户主动要求回避某五行
+EXPLICIT_AVOID_PATTERNS: List[str] = [
+    "忌{e}", "不要{e}", "别穿{e}", "少穿{e}", "不想穿{e}", "避开{e}",
+    "{e}太多", "{e}太旺",
+]
+
+
+def extract_explicit_element_intent(text: str) -> Dict[str, List[str]]:
+    """
+    检测用户 query 中的显式五行修正指令（实时意图）
+
+    与 infer_elements_from_text 的隐式推断（场景/气质关键词）不同，
+    这里只识别用户主动说出的「补X / 缺X / 不要X」等明确指令，
+    例如「五行缺金」「想补金」「不要水」。
+    结果供 merge_recommendations 作为最高优先级五行目标，
+    可覆盖八字喜用神预设（用户实时意图 > 预设条件）。
+
+    Args:
+        text: 用户输入文本
+
+    Returns:
+        {"add": [用户显式要补的五行],
+         "avoid": [用户显式要避的五行],
+         "matched": [命中指令描述]}
+    """
+    result: Dict[str, List[str]] = {"add": [], "avoid": [], "matched": []}
+    if not text:
+        return result
+
+    for element in WUXING_LIST:
+        # 同一五行同时出现补/避指令时，以避为准（否定意图更明确）
+        avoid_hit = next(
+            (p for p in EXPLICIT_AVOID_PATTERNS if p.format(e=element) in text), None
+        )
+        if avoid_hit:
+            result["avoid"].append(element)
+            result["matched"].append(f"{avoid_hit.format(e=element)}→避{element}")
+            continue
+        add_hit = next(
+            (p for p in EXPLICIT_ADD_PATTERNS if p.format(e=element) in text), None
+        )
+        if add_hit:
+            result["add"].append(element)
+            result["matched"].append(f"{add_hit.format(e=element)}→补{element}")
+
+    return result
+
+
 # 五行相生关系：A生B
 GENERATING_CYCLE: Dict[str, str] = {
     "金": "水",  # 金生水
@@ -322,23 +381,33 @@ def merge_recommendations(
     bazi_result: Optional[BaziResult],
     intent_result: Optional[IntentResult],
     scene_result: Optional[Dict],
-    weather_element: Optional[str] = None
+    weather_element: Optional[str] = None,
+    explicit_intent: Optional[Dict[str, List[str]]] = None,
 ) -> Tuple[List[str], List[str]]:
     """
     合并多层推荐结果
-    
-    优先级：八字喜用神 > 天气 > 场景 > 意图
-    
-    当场景/天气五行与忌神冲突时，检查相生关系：
-    - 若该五行生某个喜用神 → 加入 boost_elements（评分加分但不进 target）
-    - 若无相生关系 → 跳过
-    
+
+    优先级（高→低）：
+    1. 用户显式五行指令（缺X/补X/忌X 等实时意图，可覆盖八字预设）
+    2. 八字喜用神（预设）
+    3. 天气五行
+    4. 场景五行
+    5. 隐式关键词意图
+
+    冲突策略：
+    - 显式「补X」：X 置于 target 最前，即使 X 为忌神也提升（用户意图优先）
+    - 显式「避X」：X 从喜用神中剔除并全局阻断（不进 target / boost）
+    - 场景/天气/隐式意图五行与忌神冲突时，检查相生关系：
+      - 若该五行生某个喜用神 → 加入 boost_elements（评分加分但不进 target）
+      - 若无相生关系 → 跳过
+
     Args:
         bazi_result: 八字计算结果
         intent_result: 意图推断结果
         scene_result: 场景映射结果
         weather_element: 天气对应的五行
-    
+        explicit_intent: 显式五行修正意图（extract_explicit_element_intent 输出）
+
     Returns:
         Tuple[List[str], List[str]]: (target_elements, boost_elements)
             - target_elements: 最终推荐五行列表（去重，最多3个）
@@ -346,10 +415,13 @@ def merge_recommendations(
     """
     elements = []
     boost_elements = []
-    
-    xiyong_elements = bazi_result["suggested_elements"] if bazi_result else []
-    avoid_elements = bazi_result.get("avoid_elements", []) if bazi_result else []
-    
+
+    xiyong_elements = list(bazi_result["suggested_elements"]) if bazi_result else []
+    avoid_elements = list(bazi_result.get("avoid_elements", [])) if bazi_result else []
+
+    explicit_add = (explicit_intent or {}).get("add", [])
+    explicit_avoid = (explicit_intent or {}).get("avoid", [])
+
     # P3-58 防御：数据异常时喜用神与忌神可能出现交集（同一元素既在 suggested 又在 avoid）。
     # 此时以喜用神为准（推荐优先级更高），从忌神列表中剔除冲突元素，避免后续相生判断自相矛盾。
     if xiyong_elements and avoid_elements:
@@ -357,25 +429,48 @@ def merge_recommendations(
         if conflict:
             logger.warning(f"[merge_recommendations] P3-58 触发: 喜忌神交集 {conflict}，以喜用神为准，从忌神列表剔除")
             avoid_elements = [e for e in avoid_elements if e not in set(xiyong_elements)]
-    
-    # 1. 八字喜用神（最高优先级）
-    if bazi_result:
-        elements.extend(xiyong_elements)
-    
-    # 2. 天气五行（次优先级，不与喜用神冲突）
+
+    # 0. 用户显式「避X」：实时意图覆盖预设，从喜用神剔除并并入全局忌神
+    if explicit_avoid:
+        xiyong_elements = [e for e in xiyong_elements if e not in explicit_avoid]
+        avoid_elements = list(dict.fromkeys(avoid_elements + explicit_avoid))
+        logger.info(
+            f"[merge_recommendations] 用户显式避 {explicit_avoid}，"
+            f"剔除后喜用神={xiyong_elements}"
+        )
+
+    # 1. 用户显式「补X」（最高优先级，可覆盖忌神）
+    for elem in explicit_add:
+        if elem not in elements:
+            elements.append(elem)
+            if elem in avoid_elements:
+                logger.warning(
+                    f"[merge_recommendations] 用户显式意图覆盖忌神: {elem} 提升进 target_elements"
+                )
+
+    # 2. 八字喜用神（预设，次优先级）
+    for elem in xiyong_elements:
+        if elem not in elements:
+            elements.append(elem)
+
+    # 3. 天气五行（不与喜用神冲突）
     if weather_element and weather_element not in elements:
-        if weather_element in avoid_elements:
+        if weather_element in explicit_avoid:
+            logger.info(f"[merge_recommendations] 天气五行 {weather_element} 被用户显式回避，跳过")
+        elif weather_element in avoid_elements:
             # 忌神但可能相生喜用神
             if _check_generates_xiyong(weather_element, xiyong_elements):
                 boost_elements.append(weather_element)
                 logger.info(f"[五行相生] 天气五行 {weather_element} 虽为忌神，但生 {GENERATING_CYCLE[weather_element]}（喜用神），加入加分列表")
         else:
             elements.append(weather_element)
-    
-    # 3. 场景五行（不与喜用神/天气冲突时叠加）
+
+    # 4. 场景五行（不与喜用神/天气冲突时叠加）
     if scene_result:
         for elem in scene_result.get("primary", []):
             if elem not in elements:
+                if elem in explicit_avoid:
+                    continue
                 if elem in avoid_elements:
                     # 忌神但可能相生喜用神
                     if _check_generates_xiyong(elem, xiyong_elements):
@@ -384,11 +479,13 @@ def merge_recommendations(
                             logger.info(f"[五行相生] 场景五行 {elem} 虽为忌神，但生 {GENERATING_CYCLE[elem]}（喜用神），加入加分列表")
                     continue
                 elements.append(elem)
-    
-    # 4. 意图推断（补充，需检查忌神）
+
+    # 5. 意图推断（补充，需检查忌神与显式回避）
     if intent_result and intent_result["method"] == "rule":
         for elem in intent_result["elements"]:
             if elem not in elements:
+                if elem in explicit_avoid:
+                    continue
                 if elem in avoid_elements:
                     # 忌神元素：检查是否相生喜用神，若是则加入 boost，否则跳过
                     if _check_generates_xiyong(elem, xiyong_elements):
@@ -397,9 +494,9 @@ def merge_recommendations(
                             logger.info(f"[五行相生] 意图五行 {elem} 虽为忌神，但生 {GENERATING_CYCLE[elem]}（喜用神），加入加分列表")
                     continue
                 elements.append(elem)
-    
+
     # 去重，最多3个
     target = list(dict.fromkeys(elements))[:3]
     boost = list(dict.fromkeys(boost_elements))
-    
+
     return target, boost

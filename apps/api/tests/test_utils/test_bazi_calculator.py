@@ -13,6 +13,7 @@ from packages.utils.bazi_calculator import (
     find_lacking_element,
     infer_xiyong,
     infer_elements_from_text,
+    extract_explicit_element_intent,
     merge_recommendations,
 )
 from packages.utils.wuxing_rules import (
@@ -503,3 +504,124 @@ class TestMergeRecommendations:
         }
         result, boost = merge_recommendations(None, intent, None)
         assert "土" in result
+
+
+# ============================================================
+# 显式五行意图检测测试（extract_explicit_element_intent）
+# ============================================================
+
+class TestExtractExplicitElementIntent:
+    """用户显式五行修正指令检测"""
+
+    def test_detect_lacking_element(self):
+        """检测「五行缺金」"""
+        result = extract_explicit_element_intent("我五行缺金，今天穿什么")
+        assert "金" in result["add"]
+        assert result["avoid"] == []
+
+    def test_detect_bu_element(self):
+        """检测「想补木」"""
+        result = extract_explicit_element_intent("想补木，推荐一套搭配")
+        assert "木" in result["add"]
+
+    def test_detect_avoid_element(self):
+        """检测「不要水」"""
+        result = extract_explicit_element_intent("不要水，其他都行")
+        assert "水" in result["avoid"]
+        assert result["add"] == []
+
+    def test_avoid_wins_over_add(self):
+        """同一五行补/避同时出现时以避为准"""
+        result = extract_explicit_element_intent("缺金但不要金")
+        assert "金" in result["avoid"]
+        assert "金" not in result["add"]
+
+    def test_no_explicit_intent(self):
+        """普通穿搭提问不产生显式意图"""
+        result = extract_explicit_element_intent("明天面试穿什么好")
+        assert result["add"] == []
+        assert result["avoid"] == []
+
+    def test_empty_text(self):
+        """空文本防御"""
+        result = extract_explicit_element_intent("")
+        assert result == {"add": [], "avoid": [], "matched": []}
+
+
+# ============================================================
+# 显式意图优先级测试（用户实时意图 > 八字预设）
+# ============================================================
+
+class TestExplicitIntentPriority:
+    """显式五行指令覆盖八字喜用神/忌神预设"""
+
+    def test_explicit_add_overrides_unfavorable_element(self):
+        """核心 bad case：喜用神水木 + 忌神金，用户说“五行缺金”时金必须进 target"""
+        bazi = {
+            "suggested_elements": ["水", "木"],
+            "avoid_elements": ["金"],
+        }
+        explicit = extract_explicit_element_intent("五行缺金")
+        result, boost = merge_recommendations(bazi, None, None, explicit_intent=explicit)
+        assert "金" in result  # 显式意图覆盖忌神
+        assert result[0] == "金"  # 显式补的五行置于最前
+
+    def test_explicit_add_takes_precedence_over_bazi(self):
+        """显式补X置于 target 最前（优先级高于八字喜用神）"""
+        bazi = {
+            "suggested_elements": ["木", "水"],
+            "avoid_elements": [],
+        }
+        explicit = {"add": ["土"], "avoid": [], "matched": []}
+        result, boost = merge_recommendations(bazi, None, None, explicit_intent=explicit)
+        assert result[0] == "土"
+        assert "木" in result and "水" in result
+
+    def test_explicit_avoid_removes_from_xiyong(self):
+        """显式避X：从喜用神剔除并全局阻断"""
+        bazi = {
+            "suggested_elements": ["水", "木"],
+            "avoid_elements": [],
+        }
+        explicit = {"add": [], "avoid": ["木"], "matched": []}
+        result, boost = merge_recommendations(bazi, None, None, explicit_intent=explicit)
+        assert "木" not in result
+        assert "水" in result
+        assert "木" not in boost
+
+    def test_explicit_avoid_blocks_scene_and_intent(self):
+        """显式避X同时阻断场景/隐式意图中的该五行"""
+        bazi = {
+            "suggested_elements": ["水"],
+            "avoid_elements": [],
+        }
+        scene = {"primary": ["火", "土"]}
+        intent = {"elements": ["火"], "method": "rule"}
+        explicit = {"add": [], "avoid": ["火"], "matched": []}
+        result, boost = merge_recommendations(bazi, intent, scene, explicit_intent=explicit)
+        assert "火" not in result
+        assert "火" not in boost  # 不进 boost（显式回避比忌神更强）
+
+    def test_explicit_avoid_blocks_weather(self):
+        """显式避X阻断天气五行"""
+        bazi = {
+            "suggested_elements": ["木"],
+            "avoid_elements": [],
+        }
+        explicit = {"add": [], "avoid": ["水"], "matched": []}
+        result, boost = merge_recommendations(
+            bazi, None, None, weather_element="水", explicit_intent=explicit
+        )
+        assert "水" not in result
+
+    def test_no_explicit_intent_keeps_legacy_priority(self):
+        """无显式意图时回归旧优先级（八字 > 天气 > 场景 > 隐式意图），忌神不进 target"""
+        bazi = {
+            "suggested_elements": ["水", "木"],
+            "avoid_elements": ["金"],
+        }
+        intent = {"elements": ["金"], "method": "rule"}
+        result, boost = merge_recommendations(bazi, intent, None)
+        assert "金" not in result  # 忌神不进 target
+        assert "金" in boost  # 金生水，降级为 boost
+        assert result == ["水", "木"]

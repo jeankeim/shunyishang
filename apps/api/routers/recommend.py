@@ -122,6 +122,28 @@ def _get_fallback_weather(city: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+def _get_user_gender_fallback(user_id: Optional[int]) -> Optional[str]:
+    """
+    服务端性别兜底：前端未透传 gender 且八字信息中也没有时，从 users 表查询。
+
+    背景：性别未透传时性别过滤会退化为默认策略，曾导致女性用户被推荐男款物品。
+    仅接受 users 表中合法的“男”/“女”取值，其他值一律不兜底（交给下游防御性默认过滤）。
+    """
+    if not user_id:
+        return None
+    try:
+        with DatabasePool.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT gender FROM users WHERE id = %s", (user_id,))
+                row = cur.fetchone()
+                if row and row[0] in ("男", "女"):
+                    logger.info(f"[GenderFallback] 从 users 表兜底获取用户性别: user_id={user_id}, gender={row[0]}")
+                    return row[0]
+    except Exception as e:
+        logger.warning(f"[GenderFallback] 查询用户性别失败: user_id={user_id}, {e}")
+    return None
+
+
 async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]:
     """
     SSE 流式生成器
@@ -154,6 +176,22 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
                         f"{fallback_weather.get('temperature')}°C {fallback_weather.get('weather_desc')}"
                     )
         
+        # 准备输入参数（上移到缓存键之前：性别解析结果必须纳入缓存键）
+        bazi_input = None
+        if request.bazi:
+            bazi_input = {
+                "birth_year": request.bazi.birth_year,
+                "birth_month": request.bazi.birth_month,
+                "birth_day": request.bazi.birth_day,
+                "birth_hour": request.bazi.birth_hour,
+                "gender": request.bazi.gender,
+            }
+
+        # 性别解析：request.gender > bazi.gender > users 表服务端兜底
+        user_gender = request.gender or (bazi_input.get("gender") if bazi_input else None)
+        if not user_gender:
+            user_gender = _get_user_gender_fallback(request.user_id)
+
         # 生成缓存键（基于查询条件）
         # 注意：缓存键必须覆盖所有会影响推荐结果的输入，否则不同请求会命中错误缓存。
         cache_key_parts = [
@@ -163,8 +201,8 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
             str(request.user_id),
             request.retrieval_mode or "public",
             str(request.top_k),
-            # 性别影响性别过滤，必须纳入缓存键
-            request.gender or "",
+            # 性别影响性别过滤，必须纳入缓存键（用解析后的 user_gender，与推荐链路实际使用值一致）
+            user_gender or "",
             # 旅行/出差参数直接改变多天行程规划结果
             str(request.travel_days) if request.travel_days is not None else "",
             request.destination or "",
@@ -225,17 +263,6 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
         
         logger.info(f"[Cache] 推荐缓存未命中，开始计算: {cache_key}")
         
-        # 准备输入参数
-        bazi_input = None
-        if request.bazi:
-            bazi_input = {
-                "birth_year": request.bazi.birth_year,
-                "birth_month": request.bazi.birth_month,
-                "birth_day": request.bazi.birth_day,
-                "birth_hour": request.bazi.birth_hour,
-                "gender": request.bazi.gender,
-            }
-        
         # 准备天气信息
         weather_info = None
         if request.weather:
@@ -253,9 +280,6 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
         collected_travel_plan = None  # P2-98：收集旅行规划事件
         collected_reason = []
         is_fallback = False  # 衣橱→公共库软降级：不应把降级结果缓存到 wardrobe 键下
-        
-        # 优先使用 request.gender，其次从 bazi_input 中获取
-        user_gender = request.gender or (bazi_input.get("gender") if bazi_input else None)
         
         for event in run_agent_stream(
             user_input=request.query,

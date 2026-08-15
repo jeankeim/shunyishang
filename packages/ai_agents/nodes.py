@@ -23,6 +23,7 @@ from packages.ai_agents.wardrobe_client import wardrobe_client
 from packages.utils.bazi_calculator import (
     calculate_bazi,
     infer_elements_from_text,
+    extract_explicit_element_intent,
     merge_recommendations,
 )
 from packages.utils.destiny_calculator import (
@@ -39,6 +40,7 @@ from packages.recommendation.engine import score_and_rank_items
 from packages.recommendation.filters import (
     build_weather_filter as _build_weather_filter,
     build_scene_filter as _build_scene_filter,
+    build_gender_filter as _build_gender_filter,
 )
 
 logger = logging.getLogger(__name__)
@@ -275,7 +277,12 @@ def analyze_intent_node(state: AgentState) -> Dict:
     
     # 2. 意图推断
     intent_result = infer_elements_from_text(user_input)
-    
+
+    # 2.1 显式五行修正意图（用户实时意图，最高优先级，可覆盖八字预设）
+    explicit_intent = extract_explicit_element_intent(user_input)
+    if explicit_intent["add"] or explicit_intent["avoid"]:
+        logger.info(f"[Agent] 检测到用户显式五行意图: {explicit_intent}")
+
     # 3. Task 03: 提取场曷（多维度识别）
     scene_data = extract_scene_multidimensional(user_input)
     scene = state.get("scene") or scene_data.get("main_scene")
@@ -284,13 +291,14 @@ def analyze_intent_node(state: AgentState) -> Dict:
     
     scene_result = get_scene_elements(scene) if scene else None
     
-    # 4. 合并推荐五行（八字 + 场景 + 意图 + 天气）
+    # 4. 合并推荐五行（显式意图 + 八字 + 场景 + 意图 + 天气）
     weather_element = state.get("weather_element")
     target_elements, boost_elements = merge_recommendations(
         bazi_result=bazi_result,
         intent_result=intent_result,
         scene_result=scene_result,
-        weather_element=weather_element
+        weather_element=weather_element,
+        explicit_intent=explicit_intent,
     )
 
     # P3-56 防御：八字已计算但 suggested_elements 为空时，target 可能全空，
@@ -308,11 +316,11 @@ def analyze_intent_node(state: AgentState) -> Dict:
         
     # 4.1 区分喜用神与场景/天气添加的五行
     xiyong_elements = bazi_result["suggested_elements"] if bazi_result else []
-        
-    # 计算场景/天气额外添加的五行
+
+    # 计算场景/天气额外添加的五行（显式意图属于用户实时意图，不计入场景加成）
     added_elements = []
     for elem in target_elements:
-        if elem not in xiyong_elements:
+        if elem not in xiyong_elements and elem not in explicit_intent["add"]:
             added_elements.append(elem)
     
     # 4.2 流年运势增强：将流年幸运元素加入推荐五行（优先级低于喜用神）
@@ -357,6 +365,7 @@ def analyze_intent_node(state: AgentState) -> Dict:
         "annual_luck": annual_luck_data,
         "major_luck": major_luck_data,
         "intent_result": intent_result,
+        "explicit_intent": explicit_intent,
         "target_elements": target_elements,
         "xiyong_elements": xiyong_elements,
         "added_elements": added_elements,
@@ -745,6 +754,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
         user_skin_tone=user_skin_tone,
         user_style_preference=user_style_preference,
         user_body_type=user_body_type,
+        user_gender=user_gender,
         top_k=top_k,
         batch_index=batch_index,
         retrieval_mode=retrieval_mode,
@@ -1203,14 +1213,8 @@ def _vector_search(
     try:
         with DatabasePool.get_connection() as conn:
             with conn.cursor() as cur:
-                # 性别过滤逻辑（优化：无性别时默认排除女性专属物品）
-                if user_gender == "男":
-                    gender_filter = "AND (gender = '中性' OR gender = '男')"
-                elif user_gender == "女":
-                    gender_filter = "AND (gender = '中性' OR gender = '女')"
-                else:
-                    # 未指定性别时，排除女性专属物品（gender='女'），保留中性+男性
-                    gender_filter = "AND (gender = '中性' OR gender = '男' OR gender IS NULL)"
+                # 性别过滤逻辑（统一由 filters.build_gender_filter 生成，单一事实源）
+                gender_filter = _build_gender_filter(user_gender)
                 
                 # 天气过滤逻辑
                 weather_filter = _build_weather_filter(weather_info)
@@ -1296,13 +1300,8 @@ def _search_accent_items(
     try:
         with DatabasePool.get_connection() as conn:
             with conn.cursor() as cur:
-                # 性别过滤
-                if user_gender == "男":
-                    gender_filter = "AND (gender = '中性' OR gender = '男')"
-                elif user_gender == "女":
-                    gender_filter = "AND (gender = '中性' OR gender = '女')"
-                else:
-                    gender_filter = "AND (gender = '中性' OR gender = '男' OR gender IS NULL)"
+                # 性别过滤（统一由 filters.build_gender_filter 生成，单一事实源）
+                gender_filter = _build_gender_filter(user_gender)
 
                 # 五行匹配排序：主五行命中 > 次五行命中 > 其他
                 # 品类轮换：饰品优先（产品核心差异化）
@@ -1591,6 +1590,15 @@ def generate_advice_node(state: AgentState) -> Dict:
         added_instruction = f'接着说"结合【场景/天气】，再加入【{added_elements_str}】元素..."'
     else:
         added_instruction = '不要提及"再加入"或场景加成元素'
+
+    # 显式意图指令：用户显式要求补某五行时，理由必须优先回应（最高优先级）
+    explicit_add = (state.get("explicit_intent") or {}).get("add", [])
+    if explicit_add:
+        added_instruction += (
+            f' 特别说明：用户明确要求补【{"、".join(explicit_add)}】元素，'
+            f'这是最高优先级需求，推荐理由开头必须直接回应该需求，'
+            f'并将其作为主推荐元素，不得降级为辅助加分或忽略。'
+        )
     
     # 构建"辅助加分"指令（boost_elements：忌神但生喜用神，不可作为正面推荐）
     boost_elements_str = "、".join(boost_elements) if boost_elements else ""
@@ -1755,6 +1763,15 @@ def generate_advice_stream(state: AgentState) -> Generator[str, None, None]:
         added_instruction = f'接着说"结合【场景/天气】，再加入【{added_elements_str}】元素..."'
     else:
         added_instruction = '不要提及"再加入"或场景加成元素'
+
+    # 显式意图指令：用户显式要求补某五行时，理由必须优先回应（最高优先级）
+    explicit_add = (state.get("explicit_intent") or {}).get("add", [])
+    if explicit_add:
+        added_instruction += (
+            f' 特别说明：用户明确要求补【{"、".join(explicit_add)}】元素，'
+            f'这是最高优先级需求，推荐理由开头必须直接回应该需求，'
+            f'并将其作为主推荐元素，不得降级为辅助加分或忽略。'
+        )
     
     # 构建"辅助加分"指令（boost_elements：忌神但生喜用神，不可作为正面推荐）
     boost_elements_str = "、".join(boost_elements) if boost_elements else ""

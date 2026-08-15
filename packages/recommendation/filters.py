@@ -199,13 +199,97 @@ def apply_temperature_safety_check(
 # ============================================================
 
 def build_gender_filter(user_gender: Optional[str]) -> str:
-    """构建性别过滤SQL条件"""
+    """构建性别过滤SQL条件
+
+    防御性默认：用户性别未知时仅返回中性/未标注物品，
+    避免男/女专属物品在性别缺失时默认泄漏（历史 bad case：
+    性别未透传时女性用户收到男款鞋）。
+    """
     if user_gender == "男":
         return "AND (gender = '中性' OR gender = '男')"
     elif user_gender == "女":
         return "AND (gender = '中性' OR gender = '女')"
     else:
-        return "AND (gender = '中性' OR gender = '男' OR gender IS NULL)"
+        return "AND (gender = '中性' OR gender IS NULL)"
+
+
+# 名称性别关键词（用于交叉校验标注错误的物品）
+_MALE_NAME_KEYWORDS = ("男士", "男款", "男装", "男生")
+_FEMALE_NAME_KEYWORDS = ("女士", "女款", "女装", "女生")
+# 品类性别常识（裙装为女性专属品类）
+_FEMALE_ONLY_CATEGORIES = {"裙装"}
+
+
+def infer_item_gender(item: Dict) -> Optional[str]:
+    """
+    推断物品真实性别（交叉校验性别标注）
+
+    优先级：DB gender 字段（男/女）> 名称关键词（男士/女士等）> 品类常识（裙装→女）。
+    用于捕获「标注中性但实为男/女款」的脏数据（bad case：黑色简约乐福鞋
+    标注中性但款式图为男款）。
+
+    Returns:
+        "男" / "女" / None（无法判定，视为中性）
+    """
+    gender = item.get("gender")
+    if gender in ("男", "女"):
+        return gender
+    name = item.get("name") or ""
+    if any(k in name for k in _MALE_NAME_KEYWORDS):
+        return "男"
+    if any(k in name for k in _FEMALE_NAME_KEYWORDS):
+        return "女"
+    if item.get("category") in _FEMALE_ONLY_CATEGORIES:
+        return "女"
+    return None
+
+
+def apply_gender_hard_filter(
+    scored_items: List[Dict],
+    user_gender: Optional[str],
+) -> List[Dict]:
+    """
+    评分层性别硬过滤（全检索链路安全网）
+
+    检索层 SQL 过滤依赖 DB gender 标注，对标注错误/缺失的物品无效；
+    本函数在评分后二次校验（DB 字段 + 名称推断 + 品类常识），
+    确保性别错配物品不进入最终结果。
+
+    规则：
+    - 用户性别已知：排除推断性别与用户性别相反的物品
+    - 用户性别未知：排除所有可推断出专属性的物品，仅保留中性/不可判定
+
+    Args:
+        scored_items: 已评分物品列表
+        user_gender: 用户性别（男/女/None）
+
+    Returns:
+        过滤后的物品列表
+    """
+    if not scored_items:
+        return scored_items
+
+    kept = []
+    removed_names = []
+    for item in scored_items:
+        item_gender = infer_item_gender(item)
+        if user_gender in ("男", "女"):
+            if item_gender is not None and item_gender != user_gender:
+                removed_names.append(item.get("name") or item.get("item_code"))
+                continue
+        else:
+            # 用户性别未知：仅保留中性/不可判定物品
+            if item_gender is not None:
+                removed_names.append(item.get("name") or item.get("item_code"))
+                continue
+        kept.append(item)
+
+    if removed_names:
+        logger.warning(
+            f"[性别硬过滤] user_gender={user_gender}，"
+            f"排除{len(removed_names)}件性别错配物品: {removed_names[:5]}"
+        )
+    return kept
 
 
 def build_weather_filter(weather_info: Optional[Dict]) -> str:

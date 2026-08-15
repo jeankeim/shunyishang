@@ -22,6 +22,7 @@ from packages.recommendation.scoring import (
     infer_item_thickness,
 )
 from packages.recommendation.filters import (
+    apply_gender_hard_filter,
     apply_temperature_hard_filter,
     apply_temperature_safety_check,
     filter_by_scene_score,
@@ -59,6 +60,7 @@ def score_and_rank_items(
     user_skin_tone: Optional[str] = None,
     user_style_preference: Optional[str] = None,
     user_body_type: Optional[str] = None,
+    user_gender: Optional[str] = None,
     top_k: int = 5,
     batch_index: int = 0,
     retrieval_mode: str = "public",
@@ -82,6 +84,7 @@ def score_and_rank_items(
         user_skin_tone: 肤色
         user_style_preference: 风格偏好
         user_body_type: 体型
+        user_gender: 用户性别（男/女），用于评分后性别硬过滤安全网
         top_k: 返回数量
         batch_index: 批次索引（换一批）
 
@@ -163,6 +166,9 @@ def score_and_rank_items(
 
     # ========== 5. 温度硬过滤 ==========
     scored_items = apply_temperature_hard_filter(scored_items, weather_info)
+
+    # ========== 5.5 性别硬过滤（安全网：拦截检索层漏过的性别错配物品） ==========
+    scored_items = apply_gender_hard_filter(scored_items, user_gender)
 
     # ========== 6. 排序（确定性：分数 + 规范key，保证批次选择可复现） ==========
     scored_items.sort(key=lambda x: (x["final_score"], _canonical_item_key(x)), reverse=True)
