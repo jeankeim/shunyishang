@@ -5,7 +5,8 @@ import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { useUserStore } from '@/store/user'
 import { Calendar, MapPin, User, Save, Loader2, X, Sparkles, LogOut, Compass, Sun } from 'lucide-react'
-import DatePicker from 'react-datepicker'
+import DatePicker, { registerLocale } from 'react-datepicker'
+import { zhCN } from 'date-fns/locale'
 import 'react-datepicker/dist/react-datepicker.css'
 import { getUserProfile, calculateBazi, updateUserBazi, deleteAccount } from '@/lib/api'
 import { formatLocalDate } from '@/lib/date'
@@ -13,6 +14,9 @@ import { cn } from '@/lib/utils'
 import { PreferenceRadar } from './PreferenceRadar'
 import { SkinSettings } from './SkinSettings'
 import { AuthModal } from './AuthModal'
+
+// 日历纯中文化：月份/星期/头部均显示中文（2026年8月 / 日 一 二 ...）
+registerLocale('zh-CN', zhCN)
 
 interface UserProfileData {
   nickname: string | null
@@ -590,6 +594,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
                         handleChange('birth_date', date ? formatLocalDate(date) : '')
                       }}
                       dateFormat="yyyy/MM/dd"
+                      locale="zh-CN"
                                             placeholderText="请选择出生日期"
                       // 年/月下拉选择：出生年份久远，逐月翻页不可用
                       showMonthDropdown
