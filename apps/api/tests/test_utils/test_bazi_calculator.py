@@ -72,14 +72,13 @@ class TestCalculateBazi:
         result = calculate_bazi(1990, 5, 15, 10, "男")
         assert result["dominant_element"] in result["five_elements_count"]
 
-    def test_suggested_elements_from_rules(self):
-        """喜用神来自规则表"""
+    def test_suggested_elements_three_branch_consistency(self):
+        """喜用神由从格/旺衰三分支逻辑计算，喜忌不相交且带推理说明"""
         result = calculate_bazi(1990, 5, 15, 10, "男")
-        key = (result["day_master"], result["month_element"])
-        if key in XIYONG_RULES:
-            expected_suggested, expected_avoid, _ = XIYONG_RULES[key]
-            assert result["suggested_elements"] == expected_suggested
-            assert result["avoid_elements"] == expected_avoid
+        assert result["suggested_elements"]
+        assert result["avoid_elements"]
+        assert not set(result["suggested_elements"]) & set(result["avoid_elements"])
+        assert result["reasoning"]
 
     def test_birth_at_midnight(self):
         """子时出生"""
@@ -298,6 +297,59 @@ class TestInferXiyong:
         # 月令克日元: WUXING_KE.get("火")="金" → month_element="金" → branch 2
         suggested, avoid, reasoning = infer_xiyong("火", "金")
         assert "偏弱" in reasoning
+
+
+class TestXiyongPatternBranches:
+    """三分支喜用神判定：从强 / 从弱 / 正格旺衰"""
+
+    def test_normal_strong_fire_chart(self):
+        """截图 bad case：丙午/丙申/丁巳/丙午 满盘火旺，正格身强喜金水"""
+        chars = ["丙", "午", "丙", "申", "丁", "巳", "丙", "午"]
+        suggested, avoid, reasoning = infer_xiyong("火", "金", eight_chars=chars, day_gan="丁")
+        assert suggested == ["水", "金"]
+        assert avoid == ["木", "火"]
+        assert "身强" in reasoning
+
+    def test_normal_weak_wood_chart(self):
+        """乙丑/庚辰/乙未/癸未：身弱喜水木、忌金土"""
+        chars = ["乙", "丑", "庚", "辰", "乙", "未", "癸", "未"]
+        suggested, avoid, reasoning = infer_xiyong("木", "土", eight_chars=chars, day_gan="乙")
+        assert suggested == ["水", "木"]
+        assert avoid == ["金", "土"]
+        assert "身弱" in reasoning
+
+    def test_cong_strong_flaming(self):
+        """丙午/甲午/丙午/甲午：从强格喜木火、忌水金"""
+        chars = ["丙", "午", "甲", "午", "丙", "午", "甲", "午"]
+        suggested, avoid, reasoning = infer_xiyong("火", "火", eight_chars=chars, day_gan="丙")
+        assert suggested == ["木", "火"]
+        assert avoid == ["水", "金"]
+        assert "从强" in reasoning
+
+    def test_cong_weak_cong_wealth_in_command(self):
+        """辛酉/戊申/丁酉/庚子：阴日主从财格喜金土、忌木火"""
+        chars = ["辛", "酉", "戊", "申", "丁", "酉", "庚", "子"]
+        suggested, avoid, reasoning = infer_xiyong("火", "金", eight_chars=chars, day_gan="丁")
+        assert suggested == ["金", "土"]
+        assert avoid == ["木", "火"]
+        assert "从财" in reasoning
+
+    def test_cong_weak_yin_follows_shi_not_in_command(self):
+        """辛酉/庚子/丁酉/辛丑：财势不当令，阴从势仍入从格"""
+        chars = ["辛", "酉", "庚", "子", "丁", "酉", "辛", "丑"]
+        suggested, avoid, reasoning = infer_xiyong("火", "水", eight_chars=chars, day_gan="丁")
+        assert suggested == ["金", "土"]
+        assert "从财" in reasoning
+        assert "阴从势" in reasoning
+
+    def test_yang_day_master_not_cong_when_not_in_command(self):
+        """乙卯/乙亥/庚卯/丁亥：木财独旺但不当令，阳从气不从势不入从格"""
+        chars = ["乙", "卯", "乙", "亥", "庚", "卯", "丁", "亥"]
+        suggested, avoid, reasoning = infer_xiyong("金", "水", eight_chars=chars, day_gan="庚")
+        assert suggested == ["土", "金"]  # 正格身弱：喜印比
+        assert avoid == ["火", "木"]
+        assert "身弱" in reasoning
+        assert "从气不从势" in reasoning
 
 
 # ============================================================

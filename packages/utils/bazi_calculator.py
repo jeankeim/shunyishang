@@ -4,7 +4,6 @@
 """
 
 from typing import Dict, List, Optional, Tuple, TypedDict
-from collections import Counter
 import logging
 
 import cnlunar
@@ -13,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 from packages.utils.wuxing_rules import (
     TIANGAN_WUXING,
+    TIANGAN_YINYANG,
     DIZHI_WUXING,
     DIZHI_CANGAN,
     MONTH_SEASON_WUXING,
@@ -20,6 +20,10 @@ from packages.utils.wuxing_rules import (
     KEYWORD_ELEMENT_MAP,
     SCENE_ELEMENT_MAP,
     WUXING_LIST,
+    WUXING_SHENG,
+    WUXING_KE,
+    WUXING_BEI_SHENG,
+    WUXING_BEI_KE,
 )
 
 
@@ -97,9 +101,9 @@ def calculate_bazi(
     # 确定月令五行（月支的五行）
     month_element = DIZHI_WUXING.get(month_gz[1], "土")
     
-    # 查找喜用神
+    # 查找喜用神（传入完整八字，启用从格/旺衰三分支判定）
     suggested_elements, avoid_elements, reasoning = infer_xiyong(
-        day_master, month_element
+        day_master, month_element, eight_chars=eight_chars, day_gan=day_gz[0]
     )
     
     # 找出最旺和缺失的五行
@@ -125,6 +129,23 @@ def calculate_bazi(
     )
 
 
+def _weighted_element_scores(eight_chars: List[str]) -> Dict[str, float]:
+    """
+    计算八字五行加权得分（不做取整）
+
+    天干权重1；地支按藏干计（主气1、中气0.5、余气0.3），
+    供 count_five_elements 展示与喜用神旺衰/从格判定共用。
+    """
+    scores = {w: 0.0 for w in WUXING_LIST}
+    for char in eight_chars:
+        if char in TIANGAN_WUXING:
+            scores[TIANGAN_WUXING[char]] += 1.0
+        elif char in DIZHI_WUXING:
+            for i, cangan in enumerate(DIZHI_CANGAN.get(char, [])):
+                scores[TIANGAN_WUXING.get(cangan, "土")] += (1.0, 0.5, 0.3)[min(i, 2)]
+    return scores
+
+
 def count_five_elements(eight_chars: List[str]) -> Dict[str, int]:
     """
     统计八字中五行的分布
@@ -135,27 +156,9 @@ def count_five_elements(eight_chars: List[str]) -> Dict[str, int]:
     Returns:
         Dict[str, int]: 五行统计 {金: x, 木: x, 水: x, 火: x, 土: x}
     """
-    count = Counter()
-    
-    for char in eight_chars:
-        # 判断是天干还是地支
-        if char in TIANGAN_WUXING:
-            count[TIANGAN_WUXING[char]] += 1
-        elif char in DIZHI_WUXING:
-            # 地支用藏干计算（主气权重1，中气权重0.5，余气权重0.3）
-            cangans = DIZHI_CANGAN.get(char, [])
-            for i, cangan in enumerate(cangans):
-                wuxing = TIANGAN_WUXING.get(cangan, "土")
-                if i == 0:  # 主气
-                    count[wuxing] += 1
-                elif i == 1:  # 中气
-                    count[wuxing] += 0.5
-                else:  # 余气
-                    count[wuxing] += 0.3
-    
+    scores = _weighted_element_scores(eight_chars)
     # 确保所有五行都有值（使用 round 避免 int 截断导致小数权重丢失）
-    result = {w: round(count.get(w, 0)) for w in WUXING_LIST}
-    return result
+    return {w: round(scores[w]) for w in WUXING_LIST}
 
 
 def find_lacking_element(five_elements_count: Dict[str, int]) -> Optional[str]:
@@ -176,30 +179,62 @@ def find_lacking_element(five_elements_count: Dict[str, int]) -> Optional[str]:
     return None
 
 
+# ============================================================
+# 喜用神三分支判定阈值（从格 / 正格旺衰）
+# ============================================================
+CONG_STRONG_SAME_RATIO = 0.75   # 从强：同党（印+比劫）加权占比阈值
+CONG_STRONG_OPPOSE_MAX = 0.5    # 从强：财官杀加权上限（财官必须无气）
+CONG_WEAK_DOM_RATIO = 0.5       # 从弱：异党主导势力加权占比阈值
+CONG_WEAK_YIN_ROOT_MAX = 0.3    # 阴日主允许余气弱根（阴从势，从宽）
+CONG_WEAK_YANG_ROOT_MAX = 0.0   # 阳日主须完全无根（阳从气，从严）
+BALANCED_GAP = 1.0              # 同异党差值在此范围内视为中和，参考月令规则表
+
+
+def _ten_role_elements(day_master: str) -> Dict[str, str]:
+    """返回日元视角下各十神势力的五行归属"""
+    return {
+        "比劫": day_master,                            # 同我
+        "印": WUXING_BEI_SHENG.get(day_master, "土"),   # 生我
+        "食伤": WUXING_SHENG.get(day_master, "火"),     # 我生
+        "财": WUXING_KE.get(day_master, "木"),          # 我克
+        "官杀": WUXING_BEI_KE.get(day_master, "金"),    # 克我
+    }
+
+
 def infer_xiyong(
     day_master: str,
-    month_element: str
+    month_element: str,
+    eight_chars: Optional[List[str]] = None,
+    day_gan: Optional[str] = None,
 ) -> tuple[List[str], List[str], str]:
     """
-    推断喜用神（增强版）
-    
-    优先使用规则表，无匹配时按五行旺衰原则推断
-    
+    推断喜用神（三分支增强版）
+
+    提供 eight_chars 时按「从强 → 从弱 → 正格旺衰」顺序做全局判定，
+    reasoning 中给出格局名称、加权得分与流派说明（阳从气/阴从势）；
+    未提供时保留旧版 (日元, 月令) 二维逻辑，向后兼容。
+
     Args:
         day_master: 日元五行
         month_element: 月令五行
-        
+        eight_chars: 完整八字（8字列表，可选）
+        day_gan: 日柱天干（用于阴阳流派判定，可选）
+
     Returns:
         tuple: (喜用神列表, 忌神列表, 推理说明)
     """
+    if not eight_chars:
+        return _infer_xiyong_legacy(day_master, month_element)
+    return _infer_xiyong_by_chart(day_master, month_element, eight_chars, day_gan)
+
+
+def _infer_xiyong_legacy(day_master: str, month_element: str) -> tuple[List[str], List[str], str]:
+    """旧版二维逻辑：规则表优先，无匹配按月令旺衰默认推断"""
     key = (day_master, month_element)
     
     # 优先使用规则表（已完整覆盖25种组合）
     if key in XIYONG_RULES:
         return XIYONG_RULES[key]
-    
-    # 增强的默认逻辑：考虑五行旺衰
-    from packages.utils.wuxing_rules import WUXING_KE, WUXING_SHENG, WUXING_BEI_SHENG, WUXING_BEI_KE
     
     reasoning = f"日元{day_master}，生于{month_element}月，按五行平衡原则推断。"
     
@@ -241,6 +276,120 @@ def infer_xiyong(
         avoid = [WUXING_KE.get(day_master, "木")]
         reasoning += "按中和原则推断。"
     
+    return suggested, avoid, reasoning
+
+
+def _infer_xiyong_by_chart(
+    day_master: str,
+    month_element: str,
+    eight_chars: List[str],
+    day_gan: Optional[str],
+) -> tuple[List[str], List[str], str]:
+    """全局三分支判定：从强 → 从弱 → 正格旺衰"""
+    scores = _weighted_element_scores(eight_chars)
+    roles = _ten_role_elements(day_master)
+
+    same_party = scores[roles["比劫"]] + scores[roles["印"]]
+    diff_party = scores[roles["财"]] + scores[roles["官杀"]] + scores[roles["食伤"]]
+    total = same_party + diff_party
+
+    # 根气与透干帮扶：从弱判定的核心证据
+    root_score = 0.0
+    for branch in eight_chars[1::2]:
+        for i, cangan in enumerate(DIZHI_CANGAN.get(branch, [])):
+            if TIANGAN_WUXING.get(cangan, "土") in (roles["比劫"], roles["印"]):
+                root_score += (1.0, 0.5, 0.3)[min(i, 2)]
+    stems = eight_chars[0::2]
+    stem_support = sum(
+        1 for idx, gan in enumerate(stems)
+        if idx != 2 and TIANGAN_WUXING.get(gan, "土") in (roles["比劫"], roles["印"])
+    )
+
+    # —— 分支1：从强（专旺，同党独旺、财官无气且当令）——
+    oppose = scores[roles["财"]] + scores[roles["官杀"]]
+    if (
+        total > 0
+        and same_party / total >= CONG_STRONG_SAME_RATIO
+        and oppose <= CONG_STRONG_OPPOSE_MAX
+        and month_element in (roles["比劫"], roles["印"])
+    ):
+        suggested = [roles["印"], roles["比劫"]]
+        avoid = [roles["官杀"], roles["财"]]
+        reasoning = (
+            f"同党(印+比劫)加权{same_party:.1f}/{total:.1f}独旺，财官杀仅{oppose:.1f}且不当令，"
+            f"判为从强格：顺其旺势，喜{'、'.join(suggested)}（食伤泄秀亦宜），忌{'、'.join(avoid)}逆势。"
+        )
+        return suggested, avoid, reasoning
+
+    # —— 分支2：从弱（从财/从杀/从儿）——
+    dominant_role = max(["财", "官杀", "食伤"], key=lambda r: scores[roles[r]])
+    dominant_elem = roles[dominant_role]
+    dominant_score = scores[dominant_elem]
+    yinyang = TIANGAN_YINYANG.get(day_gan or "", "阴")
+    root_max = CONG_WEAK_YIN_ROOT_MAX if yinyang == "阴" else CONG_WEAK_YANG_ROOT_MAX
+    in_command = month_element == dominant_elem
+    cong_weak_base = (
+        root_score <= root_max
+        and stem_support == 0
+        and total > 0
+        and dominant_score / total >= CONG_WEAK_DOM_RATIO
+    )
+    # 阳从气不从势：异党独旺但所从之势不当令，阳日主不入从格
+    yang_blocked = cong_weak_base and yinyang == "阳" and not in_command
+    if cong_weak_base and (yinyang == "阴" or in_command):
+        if dominant_role == "食伤":
+            suggested, avoid = [dominant_elem, roles["财"]], [roles["印"]]
+            ge_name = "从儿"
+        elif dominant_role == "官杀":
+            suggested, avoid = [dominant_elem, roles["财"]], [roles["印"], roles["比劫"]]
+            ge_name = "从杀"
+        else:
+            suggested, avoid = [dominant_elem, roles["食伤"]], [roles["印"], roles["比劫"]]
+            ge_name = "从财"
+        school_note = ""
+        if yinyang == "阴" and not in_command:
+            school_note = "阴从势：阴日主气柔，所从之势虽不当令仍入从格。"
+        elif yinyang == "阳":
+            school_note = "阳从气：阳日主所从之势当令，方入从格。"
+        reasoning = (
+            f"日元无根(根气{root_score:.1f})、天干无生扶，{dominant_role}{dominant_elem}"
+            f"加权{dominant_score:.1f}/{total:.1f}主导，判为{ge_name}格：顺{dominant_role}势，"
+            f"喜{'、'.join(suggested)}，忌{'、'.join(avoid)}破格。{school_note}"
+        )
+        return suggested, avoid, reasoning
+
+    # —— 分支3：正格旺衰（月令当令方加权+1）——
+    month_same = month_element in (roles["比劫"], roles["印"])
+    same_adj = same_party + (1.0 if month_same else 0.0)
+    diff_adj = diff_party + (0.0 if month_same else 1.0)
+
+    if abs(same_adj - diff_adj) <= BALANCED_GAP:
+        suggested, avoid, legacy_reasoning = _infer_xiyong_legacy(day_master, month_element)
+        reasoning = (
+            f"同党{same_adj:.1f} vs 异党{diff_adj:.1f}，旺衰中和，参考月令规则表：{legacy_reasoning}"
+        )
+        return suggested, avoid, reasoning
+
+    if same_adj > diff_adj:
+        suggested = [roles["官杀"], roles["财"]]
+        avoid = [roles["印"], roles["比劫"]]
+        reasoning = (
+            f"同党(印+比劫){same_adj:.1f} vs 异党(财官食伤){diff_adj:.1f}，日元身强，"
+            f"喜{suggested[0]}克、{suggested[1]}耗（食伤泄秀为辅），忌{avoid[0]}、{avoid[1]}生扶。"
+        )
+    else:
+        suggested = [roles["印"], roles["比劫"]]
+        avoid = [roles["官杀"], roles["财"]]
+        reasoning = (
+            f"同党(印+比劫){same_adj:.1f} vs 异党(财官食伤){diff_adj:.1f}，日元身弱，"
+            f"喜{suggested[0]}生、{suggested[1]}助，忌{avoid[0]}、{avoid[1]}。"
+        )
+
+    if yang_blocked:
+        reasoning += (
+            f"注：异党{dominant_elem}虽独旺，但阳日主「从气不从势」，"
+            f"所从之势不当令，不入从格，按正格论。"
+        )
     return suggested, avoid, reasoning
 
 
