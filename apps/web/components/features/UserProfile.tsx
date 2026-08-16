@@ -47,6 +47,26 @@ interface UserProfileProps {
 // 拉取失败时使用本地小列表兜底
 const FALLBACK_CITIES = ['北京', '上海', '广州', '深圳', '杭州', '成都']
 
+// 出生日期可选范围（模块级常量，避免每次渲染重建 Date 对象）
+const MIN_BIRTH_DATE = new Date(1900, 0, 1)
+const MAX_BIRTH_DATE = new Date()
+
+// 时辰快捷选择：取各时辰中点时刻（子时取 00:00 晚子，避免跨日歧义）
+const SHICHEN_OPTIONS = [
+  { label: '子时 (23:00-00:59)', value: '00:00' },
+  { label: '丑时 (01:00-02:59)', value: '02:00' },
+  { label: '寅时 (03:00-04:59)', value: '04:00' },
+  { label: '卯时 (05:00-06:59)', value: '06:00' },
+  { label: '辰时 (07:00-08:59)', value: '08:00' },
+  { label: '巳时 (09:00-10:59)', value: '10:00' },
+  { label: '午时 (11:00-12:59)', value: '12:00' },
+  { label: '未时 (13:00-14:59)', value: '14:00' },
+  { label: '申时 (15:00-16:59)', value: '16:00' },
+  { label: '酉时 (17:00-18:59)', value: '18:00' },
+  { label: '戌时 (19:00-20:59)', value: '20:00' },
+  { label: '亥时 (21:00-22:59)', value: '22:00' },
+]
+
 export function UserProfile({ onClose }: UserProfileProps) {
   const { user, isAuthenticated, updateProfile, fetchUserInfo, logout } = useUserStore()
   const [loading, setLoading] = useState(false)
@@ -571,6 +591,14 @@ export function UserProfile({ onClose }: UserProfileProps) {
                       }}
                       dateFormat="yyyy/MM/dd"
                                             placeholderText="请选择出生日期"
+                      // 年/月下拉选择：出生年份久远，逐月翻页不可用
+                      showMonthDropdown
+                      showYearDropdown
+                      dropdownMode="select"
+                      scrollableYearDropdown
+                      yearDropdownItemNumber={100}
+                      minDate={MIN_BIRTH_DATE}
+                      maxDate={MAX_BIRTH_DATE}
                       className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[var(--brand-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--wuxing-wood)] focus:border-transparent transition-all hover:border-[var(--wuxing-wood)]/40"
                       calendarClassName="bg-white rounded-lg shadow-lg"
                     />
@@ -589,6 +617,18 @@ export function UserProfile({ onClose }: UserProfileProps) {
                                         onChange={(e) => handleChange('birth_time', e.target.value)}
                     className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] focus:outline-none focus:ring-2 focus:ring-[var(--wuxing-wood)] focus:border-transparent transition-all hover:border-[var(--wuxing-wood)]/40"
                   />
+                  {/* 时辰快捷选择：八字场景下用户多只记得时辰，选中后填充对应中点时刻 */}
+                  <select
+                    aria-label="时辰快捷选择"
+                    value={SHICHEN_OPTIONS.find(o => o.value === formData.birth_time)?.value ?? ''}
+                    onChange={(e) => { if (e.target.value) handleChange('birth_time', e.target.value) }}
+                    className="w-full mt-2 px-3 py-2 text-xs rounded-lg border border-[var(--brand-border)] bg-[var(--brand-surface)]/40 text-[var(--brand-body)] focus:outline-none focus:ring-2 focus:ring-[var(--wuxing-wood)] transition-all"
+                  >
+                    <option value="">不确定具体几点？按时辰快捷选择</option>
+                    {SHICHEN_OPTIONS.map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
