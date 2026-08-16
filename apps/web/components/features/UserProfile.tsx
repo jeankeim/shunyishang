@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { useUserStore } from '@/store/user'
@@ -348,6 +348,13 @@ export function UserProfile({ onClose }: UserProfileProps) {
     city.toLowerCase().includes(formData.preferred_city?.toLowerCase() || '')
   )
 
+  // 稳定化 Date 引用：react-datepicker 的 componentDidUpdate 按引用比较 selected，
+  // 若每次渲染都 new Date() 会触发 setPreSelection→setState 无限循环（React #185）
+  const selectedBirthDate = useMemo(
+    () => (formData.birth_date ? new Date(formData.birth_date) : null),
+    [formData.birth_date]
+  )
+
   if (!isAuthenticated || !user) {
     const valueProps = [
       { Icon: Compass, color: 'var(--wuxing-wood)', title: '八字五行 · 命理定制', desc: '精准解析你的五行喜忌' },
@@ -557,7 +564,7 @@ export function UserProfile({ onClose }: UserProfileProps) {
                   </label>
                   <div className="relative">
                     <DatePicker
-                      selected={formData.birth_date ? new Date(formData.birth_date) : null}
+                      selected={selectedBirthDate}
                       onChange={(date: Date | null) => {
                         // 用本地时区格式化（toISOString 按 UTC 计算，东八区会少一天）
                         handleChange('birth_date', date ? formatLocalDate(date) : '')
