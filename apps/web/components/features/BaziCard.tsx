@@ -46,6 +46,8 @@ export function BaziCard({ onEdit }: BaziCardProps) {
   // 从 bazi.suggested_elements 或 user.xiyong_elements 获取喜用神
   const xiyong = bazi.suggested_elements || user.xiyong_elements || []
   const avoidElements = bazi.avoid_elements || []
+  // 喜用神推理说明（三分支判定：格局名+加权得分+流派注解）
+  const reasoning = bazi.reasoning || ''
   
   // 解析八字四柱 - 后端返回格式: pillars: {year: "甲子", month: "乙丑", ...}
   const pillarsData = bazi.pillars || {}
@@ -137,6 +139,11 @@ export function BaziCard({ onEdit }: BaziCardProps) {
               )
             })}
           </div>
+          {reasoning && (
+            <p className="text-xs text-[var(--brand-subtle)] mt-2 leading-relaxed">
+              {reasoning}
+            </p>
+          )}
           <p className="text-xs text-[var(--brand-subtle)] mt-2 flex items-center gap-1">
             <span className="w-1 h-1 bg-[#B89B5E] rounded-full"></span>
             后续推荐将以此为依据
