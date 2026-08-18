@@ -1943,6 +1943,10 @@ export async function getAdminStatus(): Promise<AdminMeResponse> {
   const response = await fetch(`${getAPIBase()}/api/v1/admin/me`, {
     headers: getAuthHeaders(),
   })
+  if (response.status === 403) {
+    // 已登录但不在管理员白名单
+    return { is_admin: false, nickname: '' }
+  }
   if (!response.ok) {
     throw new Error(response.status === 401 ? '未登录' : '查询管理员身份失败')
   }
