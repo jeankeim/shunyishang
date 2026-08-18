@@ -1870,3 +1870,115 @@ export async function getIdleItems(): Promise<IdleItemsResponse | null> {
     return null
   }
 }
+
+// ============================================================
+// 后台管理模块（仅管理员白名单可访问）
+// ============================================================
+
+/** 管理员身份 */
+export interface AdminMeResponse {
+  is_admin: boolean
+  nickname: string
+}
+
+/** 看板单日指标 */
+export interface DashboardDayMetrics {
+  date: string
+  dau: number
+  new_users: number
+  recommend_count: number
+  api_requests: number
+  diary_count: number
+  fortune_count: number
+  like_count: number
+  dislike_count: number
+  wardrobe_added: number
+}
+
+/** 运营看板响应 */
+export interface AdminDashboardResponse {
+  days: number
+  today: DashboardDayMetrics
+  totals: {
+    total_users: number
+    total_wardrobe_items: number
+    total_seed_items: number
+    recommend_total: number
+    api_total: number
+  }
+  trend: DashboardDayMetrics[]
+}
+
+/** 阿里云账单按产品汇总 */
+export interface BillProductSummary {
+  product_code: string
+  product_name: string
+  pretax_amount: number
+  payment_amount: number
+  deducted_by_coupons: number
+  percentage: number
+}
+
+/** 阿里云账单响应 */
+export interface AdminBillsResponse {
+  configured: boolean
+  range: { start: string; end: string; days: number }
+  total_pretax: number
+  total_payment: number
+  by_product: BillProductSummary[]
+  daily: { date: string; pretax_amount: number; payment_amount: number }[]
+  last_sync_at: string | null
+}
+
+/** 账单同步结果 */
+export interface BillSyncResponse {
+  synced_days: number
+  synced_rows: number
+  errors: string[]
+  synced_at: string
+}
+
+/** 查询当前用户是否为管理员（未登录时抛错） */
+export async function getAdminStatus(): Promise<AdminMeResponse> {
+  const response = await fetch(`${getAPIBase()}/api/v1/admin/me`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) {
+    throw new Error(response.status === 401 ? '未登录' : '查询管理员身份失败')
+  }
+  return response.json()
+}
+
+/** 获取运营数据看板 */
+export async function getAdminDashboard(days = 30): Promise<AdminDashboardResponse> {
+  const response = await fetch(`${getAPIBase()}/api/v1/admin/dashboard?days=${days}`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) {
+    throw new Error(await extractErrorMessage(response, '获取看板数据失败'))
+  }
+  return response.json()
+}
+
+/** 获取阿里云费用账单汇总 */
+export async function getAdminBills(days = 31): Promise<AdminBillsResponse> {
+  const response = await fetch(`${getAPIBase()}/api/v1/admin/bills?days=${days}`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) {
+    throw new Error(await extractErrorMessage(response, '获取账单数据失败'))
+  }
+  return response.json()
+}
+
+/** 手动同步阿里云账单 */
+export async function syncAdminBills(days = 3): Promise<BillSyncResponse> {
+  const response = await fetch(`${getAPIBase()}/api/v1/admin/bills/sync?days=${days}`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) {
+    throw new Error(await extractErrorMessage(response, '账单同步失败'))
+  }
+  return response.json()
+}

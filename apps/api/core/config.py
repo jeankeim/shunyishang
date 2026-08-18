@@ -92,6 +92,13 @@ class Settings(BaseSettings):
     weather_api_key: str = ""  # 和风天气API Key
     amap_api_key: str = ""     # 高德地图API Key
     
+    # === 后台管理模块配置 ===
+    # 管理员白名单：users.user_code 逗号分隔（环境变量 ADMIN_USER_CODES）
+    admin_user_codes: str = ""
+    # 阿里云账单查询 AK（建议 RAM 子账号，仅授予 AliyunBSSReadOnlyAccess）
+    aliyun_billing_access_key_id: str = ""
+    aliyun_billing_access_key_secret: str = ""
+
     # === 应用配置 ===
     app_env: str = "development"
     app_debug: bool = True
@@ -101,6 +108,18 @@ class Settings(BaseSettings):
     # === CORS 配置 ===
     cors_origins: str = ""
     
+    @property
+    def admin_user_codes_list(self) -> List[str]:
+        """解析管理员白名单为列表（去空白、去空项）"""
+        if not self.admin_user_codes:
+            return []
+        return [c.strip() for c in self.admin_user_codes.split(",") if c.strip()]
+
+    @property
+    def billing_configured(self) -> bool:
+        """阿里云账单 AK 是否已配置"""
+        return bool(self.aliyun_billing_access_key_id and self.aliyun_billing_access_key_secret)
+
     @property
     def cors_origins_list(self) -> List[str]:
         """解析 CORS origins 为列表（生产环境安全验证）"""

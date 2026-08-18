@@ -4,6 +4,7 @@
 """
 
 import json
+import time
 import asyncio
 import hashlib
 import logging
@@ -22,6 +23,7 @@ from apps.api.core.cache import cache
 from apps.api.core.database import DatabasePool
 from apps.api.routers.auth import get_current_user
 from apps.api.core.quota import llm_daily_quota
+from apps.api.services.admin_stats_service import log_recommend
 from apps.api.services.user_service import get_user_bazi
 from apps.api.services.fortune_engine import calculate_daily_fortune
 from packages.utils.wuxing_rules import ELEMENT_COLOR_MAP
@@ -154,6 +156,7 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
     3. token: 逐字推荐理由
     4. done: 结束标记
     """
+    _sse_start_ts = time.time()
     try:
         # ========== 非穿搭意图检测 ==========
         if not _is_fashion_intent(request.query or ""):
@@ -259,6 +262,11 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
             
             # 结束标记
             yield f"data: {json.dumps({'type': 'done', 'data': None}, ensure_ascii=False)}\n\n".encode("utf-8")
+            # 推荐次数埋点（后台管理-运营看板数据源）
+            log_recommend(
+                request.user_id, request.scene, request.query, "cache",
+                len(cached_result.get("items") or []), 0,
+            )
             return
         
         logger.info(f"[Cache] 推荐缓存未命中，开始计算: {cache_key}")
@@ -316,6 +324,13 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
             # 如果是结束标记，跳出
             if event.get("type") == "done":
                 break
+        
+        # 推荐次数埋点（后台管理-运营看板数据源）
+        log_recommend(
+            request.user_id, request.scene, request.query, "agent",
+            len(collected_items) if isinstance(collected_items, list) else 0,
+            int((time.time() - _sse_start_ts) * 1000),
+        )
         
         # 缓存完整结果（如果收集到了）
         # 软降级（衣橱→公共库）的结果不写缓存，避免后续相同衣橱请求命中
@@ -472,6 +487,8 @@ async def get_daily_pick(
     """每日精选推荐 - 基于用户八字和当日运势从衣橱推荐1件单品"""
     user_id = current_user["id"]
     today = date.today()
+    # 推荐次数埋点（后台管理-运营看板数据源）
+    log_recommend(user_id, None, "daily-pick", "daily_pick", 1)
 
     # ── 1. 检查 Redis 缓存 ──────────────────────────────────────────────────
     cache_key = f"daily_pick:{user_id}:{today.isoformat()}"

@@ -49,9 +49,10 @@ from apps.api.core.config import settings
 from apps.api.core.database import DatabasePool, check_db_health
 from apps.api.core.cache import cache
 from apps.api.core.rate_limit import check_rate_limit, get_client_ip
+from apps.api.core.api_stats import api_stats
 from apps.api.core.logging_config import init_logging, get_logger
 from apps.api.schemas.response import HealthResponse
-from apps.api.routers import recommend, bazi, weather, auth, wardrobe, poster, diary, fortune, membership, travel, destiny, community, cultivation, content, tasks
+from apps.api.routers import recommend, bazi, weather, auth, wardrobe, poster, diary, fortune, membership, travel, destiny, community, cultivation, content, tasks, admin
 from apps.api.routers.push import router as push_router, payment_router
 
 # 初始化日志系统
@@ -117,13 +118,24 @@ async def lifespan(app: FastAPI):
     # 启动推送调度器
     from apps.api.services.push_scheduler import push_scheduler
     await push_scheduler.start()
-    
+
+    # 启动接口调用量采集器（后台管理-运营看板）
+    await api_stats.start()
+
+    # 启动后台管理每日调度器（看板聚合 + 阿里云账单同步）
+    from apps.api.services.admin_scheduler import admin_scheduler
+    await admin_scheduler.start()
+
     logger.info("应用启动完成")
     
     yield
     
     # 停止推送调度器
     await push_scheduler.stop()
+
+    # 停止后台管理调度器与采集器（关闭前兜底 flush 计数）
+    await admin_scheduler.stop()
+    await api_stats.stop()
     
     # 关闭时清理连接池
     DatabasePool.close_pool()
@@ -161,6 +173,14 @@ async def log_requests(request: Request, call_next):
     response = await call_next(request)
     duration = time.time() - start
     logger.debug(f"{request.method} {request.url.path} → {response.status_code} ({duration:.3f}s)")
+    return response
+
+
+# 接口调用量采集中间件（仅内存计数，零 DB 开销，后台定时落库）
+@app.middleware("http")
+async def collect_api_stats(request: Request, call_next):
+    response = await call_next(request)
+    api_stats.record(request.url.path, response.status_code)
     return response
 
 
@@ -207,6 +227,8 @@ app.include_router(destiny.router, prefix="/api/v1", tags=["destiny"])
 app.include_router(cultivation.router, prefix="/api/v1", tags=["cultivation"])
 app.include_router(content.router, prefix="/api/v1", tags=["content"])
 app.include_router(tasks.router, prefix="/api/v1", tags=["tasks"])
+# 后台管理（仅管理员白名单可访问，对 C 端不可见）
+app.include_router(admin.router, prefix="/api/v1/admin", tags=["admin"])
 
 # 挂载静态文件服务（图片上传）
 UPLOAD_DIR = Path(__file__).parent.parent.parent / "data" / "uploads"
