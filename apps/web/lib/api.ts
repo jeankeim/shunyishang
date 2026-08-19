@@ -756,6 +756,181 @@ export async function previewTagging(description: string, image_url?: string): P
   return response.json()
 }
 
+// ========== 衣橱批量上传接口 ==========
+
+/** 批量识别单件输入 */
+export interface BatchRecognizeRequestItem {
+  index: number
+  image_url: string
+}
+
+/** 批量识别单件结果（第一阶段：基础属性） */
+export interface BatchRecognizeResult {
+  index: number
+  image_url: string
+  suggested_name: string
+  description: string
+  category?: string
+  gender?: string
+  applicable_seasons: string[]
+  functionality: string[]
+  color: string
+  material: string
+  style?: string
+  confidence: number
+  needs_manual_review: boolean
+  error?: string
+}
+
+/** 五行深度分析单件输入（含用户编辑后的值） */
+export interface BatchWuxingRequestItem {
+  index: number
+  name?: string
+  category?: string
+  color?: string
+  material?: string
+  style?: string
+}
+
+/** 五行深度分析单件结果（第二阶段：规则引擎 + 喜用神比对） */
+export interface BatchWuxingResult {
+  index: number
+  primary_element: string
+  secondary_element?: string
+  color_element?: string
+  material_element?: string
+  style_element?: string
+  xiyong_match?: string
+  xiyong_advice?: string
+}
+
+/** 批量入库单件（最终确认后的完整信息） */
+export interface BatchAddItemRequest {
+  name: string
+  description?: string
+  category?: string
+  image_url?: string
+  primary_element?: string
+  secondary_element?: string
+  color?: string
+  color_element?: string
+  material?: string
+  material_element?: string
+  style?: string
+  shape?: string
+  details?: string[]
+  season?: string[]
+  tags?: string[]
+  confidence?: number
+  xiyong_match?: string
+  xiyong_advice?: string
+  gender?: string
+  applicable_weather?: string[]
+  applicable_seasons?: string[]
+  temperature_range?: { min: number; max: number }
+  functionality?: string[]
+  thickness_level?: string
+  energy_intensity?: number
+}
+
+/** 批量入库响应（部分成功语义） */
+export interface BatchAddResponse {
+  created: WardrobeItem[]
+  failed: { index: number; reason: string }[]
+}
+
+/**
+ * 上传单张衣物图片到对象存储（批量上传时前端并行调用）
+ */
+export async function uploadWardrobeImage(file: File): Promise<string> {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/upload-image`, {
+    method: 'POST',
+    headers: { ...getAuthHeaders() },
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null)
+    throw new Error(error?.detail || '图片上传失败')
+  }
+
+  const data = await response.json()
+  return data.image_url
+}
+
+/**
+ * 批量识别衣物图片（第一阶段：VL 大模型基础属性识别）
+ */
+export async function batchRecognizeItems(
+  items: BatchRecognizeRequestItem[]
+): Promise<BatchRecognizeResult[]> {
+  const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/batch/recognize`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({ items }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null)
+    throw new Error(error?.detail || '批量识别失败，请稍后重试')
+  }
+
+  const data = await response.json()
+  return data.results
+}
+
+/**
+ * 五行与材质深度分析（第二阶段：规则引擎 + 喜用神比对，无 LLM）
+ */
+export async function batchWuxingAnalysis(
+  items: BatchWuxingRequestItem[]
+): Promise<{ results: BatchWuxingResult[]; xiyong_elements: string[] }> {
+  const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/batch/wuxing-analysis`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({ items }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null)
+    throw new Error(error?.detail || '五行分析失败，请稍后重试')
+  }
+
+  return response.json()
+}
+
+/**
+ * 批量衣物入库（部分成功语义）
+ */
+export async function batchAddWardrobeItems(
+  items: BatchAddItemRequest[]
+): Promise<BatchAddResponse> {
+  const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/batch/items`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({ items }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null)
+    throw new Error(error?.detail || '批量入库失败')
+  }
+
+  return response.json()
+}
+
 /**
  * 提交推荐反馈
  */

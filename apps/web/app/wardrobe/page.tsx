@@ -16,6 +16,7 @@ import { WuxingBaguaChart } from '@/components/features/WuxingBaguaChart'
 import { IdleItemsCard } from '@/components/features/IdleItemsCard'
 
 const AddWardrobeModal = lazy(() => import('@/components/features/AddWardrobeModal').then(m => ({ default: m.AddWardrobeModal })))
+const BatchUploadModal = lazy(() => import('@/components/features/BatchUploadModal'))
 
 // 五行数据配置 - 春分优化版
 const WUXING_THEME: Record<string, { color: string; gradient: string; symbol: string; pattern: string }> = {
@@ -32,6 +33,7 @@ export default function WardrobePage() {
   
   const [filterElement, setFilterElement] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState(false)
   const [editItem, setEditItem] = useState<WardrobeItem | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
@@ -194,6 +196,7 @@ export default function WardrobePage() {
             </motion.p>
           </div>
           
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
           <motion.button
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -216,6 +219,30 @@ export default function WardrobePage() {
               transition={{ duration: 0.3 }}
             />
           </motion.button>
+
+          <motion.button
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.25 }}
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setIsBatchModalOpen(true)}
+            className="relative group px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl bg-gradient-to-r from-rose-500 to-pink-500 text-white font-medium shadow-xl shadow-rose-300/30 overflow-hidden touch-feedback w-full sm:w-auto"
+          >
+            <span className="relative z-10 flex items-center justify-center gap-2 text-sm md:text-base">
+              <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0-12l-4 4m4-4l4 4" />
+              </svg>
+              批量上传
+            </span>
+            <motion.div
+              className="absolute inset-0 bg-gradient-to-r from-pink-400 to-rose-400"
+              initial={{ x: '100%' }}
+              whileHover={{ x: 0 }}
+              transition={{ duration: 0.3 }}
+            />
+          </motion.button>
+          </div>
         </div>
       </motion.div>
 
@@ -466,6 +493,15 @@ export default function WardrobePage() {
           editItem={editItem}
         />
       </Suspense>
+      
+            {/* 批量上传弹窗 */}
+            <Suspense fallback={null}>
+              <BatchUploadModal
+                isOpen={isBatchModalOpen}
+                onClose={() => setIsBatchModalOpen(false)}
+                onSuccess={() => fetchItems()}
+              />
+            </Suspense>
 
       {/* 删除确认弹窗 */}
       <ConfirmDialog

@@ -14,6 +14,9 @@ import {
   UpdateWardrobeItemRequest,
   previewTagging,
   AddWardrobeItemRequest,
+  batchAddWardrobeItems,
+  BatchAddItemRequest,
+  BatchAddResponse,
 } from '@/lib/api'
 
 interface WardrobeState {
@@ -33,6 +36,7 @@ interface WardrobeState {
   // 操作方法
   fetchItems: (filters?: { category?: string; element?: string }) => Promise<void>
   addItem: (data: AddWardrobeItemRequest) => Promise<WardrobeItem>
+  addItems: (items: BatchAddItemRequest[]) => Promise<BatchAddResponse>
   updateItem: (itemId: number, data: UpdateWardrobeItemRequest) => Promise<void>
   deleteItem: (itemId: number) => Promise<void>
   clearError: () => void
@@ -87,6 +91,25 @@ export const useWardrobeStore = create<WardrobeState>()(
         } catch (error) {
           set({
             error: error instanceof Error ? error.message : '添加衣物失败',
+            isLoading: false,
+          })
+          throw error
+        }
+      },
+
+      addItems: async (data: BatchAddItemRequest[]) => {
+        set({ isLoading: true, error: null })
+        try {
+          const response = await batchAddWardrobeItems(data)
+          set((state) => ({
+            items: [...response.created, ...state.items],
+            total: state.total + response.created.length,
+            isLoading: false,
+          }))
+          return response
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : '批量入库失败',
             isLoading: false,
           })
           throw error

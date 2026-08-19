@@ -3,6 +3,7 @@ AI 自动打标服务
 分析衣物描述，返回五行属性
 """
 
+import asyncio
 import json
 import logging
 import os
@@ -363,6 +364,112 @@ class AITaggingService:
             result = await self.analyze_item(desc)
             results.append(result)
         return results
+
+    # ========== 批量上传第一阶段：视觉轻量识别 ==========
+    # 第一阶段只产出基础视觉属性（标题/描述/品类/性别/季节/场合/颜色/材质/风格原始值），
+    # 五行归属由第二阶段规则引擎（wuxing_analysis_service）确定性计算，避免 LLM 幻觉。
+
+    BATCH_CATEGORY_VOCAB = {"上装", "下装", "外套", "鞋履", "配饰", "裙装", "套装", "饰品", "文玩", "其他"}
+
+    def _build_recognize_prompt(self) -> str:
+        """第一阶段轻量识别提示词：仅视觉识别，不做五行分析"""
+        return """请观察这张衣物图片，输出其基础属性。只做视觉识别，不要做五行/命理分析。
+请以 JSON 格式输出，不要输出其他内容：
+{
+    "suggested_name": "建议标题（颜色+材质+品类，如：红色真丝衬衫）",
+    "description": "视觉特征的简洁自然语言描述（50字以内）",
+    "category": "分类（上装/下装/外套/鞋履/配饰/裙装/套装/饰品/文玩/其他 之一）",
+    "gender": "性别适配: 男/女/中性",
+    "applicable_seasons": ["适用季节: 春/夏/秋/冬"],
+    "functionality": ["适用场合: 面试/约会/商务/日常/运动/派对/居家/旅行"],
+    "color": "主色调名称",
+    "material": "材质名称（无法视觉判断时根据光泽/纹理合理推断）",
+    "style": "风格（商务/知性/简约/优雅/甜美/性感/休闲/运动/街头/森系/文艺/国潮 之一）"
+}"""
+
+    def _default_recognize_result(self) -> Dict:
+        """第一阶段识别失败时的兜底结构，前端引导用户手动填写"""
+        return {
+            "suggested_name": "",
+            "description": "",
+            "category": None,
+            "gender": None,
+            "applicable_seasons": [],
+            "functionality": [],
+            "color": "",
+            "material": "",
+            "style": None,
+            "confidence": 0.0,
+            "needs_manual_review": True,
+            "error": None,
+        }
+
+    async def recognize_basic(self, image_url: str) -> Dict:
+        """
+        第一阶段轻量识别：VL 模型对单张图片输出标题/描述/基础属性
+
+        失败降级：返回 needs_manual_review=True 的兜底结果，不阻断同批其他件
+        """
+        result = self._default_recognize_result()
+        if not self._is_fetchable_image(image_url):
+            result["error"] = "图片地址无法访问，请手动填写"
+            return result
+
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.vl_model,
+                messages=[
+                    {"role": "system", "content": "你是衣物识别助手。请严格按 JSON 格式输出，不要输出其他内容。"},
+                    {"role": "user", "content": [
+                        {"type": "text", "text": self._build_recognize_prompt()},
+                        {"type": "image_url", "image_url": {"url": image_url}},
+                    ]},
+                ],
+                temperature=0.2,
+                response_format={"type": "json_object"},
+                timeout=self.timeout,
+            )
+
+            parsed = json.loads(response.choices[0].message.content)
+            # 只取白名单字段，防止模型幻觉字段污染下游
+            for key in ("suggested_name", "description", "category", "gender",
+                        "applicable_seasons", "functionality", "color", "material", "style"):
+                if parsed.get(key):
+                    result[key] = parsed[key]
+
+            if not (result.get("suggested_name") or "").strip():
+                result["suggested_name"] = self._fallback_name(result)
+
+            result["confidence"] = 0.85
+            result["needs_manual_review"] = False
+
+            # token 用量随结果带回，供埋点折算成本（调用方汇总后传 log_llm_usage）
+            usage = extract_llm_usage(response)
+            if usage:
+                result["_llm_usage"] = usage
+
+            logger.info(f"批量识别单件成功: {result.get('suggested_name')} ({result.get('category')})")
+            return result
+
+        except Exception as e:
+            logger.error(f"批量识别单件失败: {e}")
+            result["error"] = str(e)
+            return result
+
+    async def batch_recognize(self, image_urls: List[str]) -> List[Dict]:
+        """
+        批量并行识别：一图一调用（避免多图结果混淆），并发上限 5，单件失败相互隔离
+
+        Returns:
+            与 image_urls 同序的识别结果列表
+        """
+        semaphore = asyncio.Semaphore(5)
+
+        async def _recognize_one(url: str) -> Dict:
+            async with semaphore:
+                return await self.recognize_basic(url)
+
+        return list(await asyncio.gather(*[_recognize_one(u) for u in image_urls]))
 
 
 # 单例

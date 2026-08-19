@@ -181,3 +181,124 @@ class RetrievalModeUpdate(BaseModel):
         pattern="^(public|wardrobe|hybrid)$", 
         description="检索模式: public=公共库, wardrobe=私有衣橱, hybrid=混合"
     )
+
+
+# ============================================
+# 批量上传相关
+# ============================================
+
+class BatchRecognizeItem(BaseModel):
+    """批量识别单件输入"""
+    index: int = Field(..., ge=0, description="前端卡片序号")
+    image_url: str = Field(..., max_length=500, description="已上传到对象存储的图片 URL")
+
+
+class BatchRecognizeRequest(BaseModel):
+    """批量识别请求（每批最多 5 件）"""
+    items: List[BatchRecognizeItem] = Field(..., min_length=1, max_length=5, description="待识别图片列表")
+
+
+class BatchRecognizeResultItem(BaseModel):
+    """批量识别单件结果（第一阶段：基础属性）"""
+    index: int = Field(..., description="与请求同序的卡片序号")
+    image_url: str = Field(..., description="图片 URL")
+    suggested_name: str = Field("", description="AI 建议标题")
+    description: str = Field("", description="视觉特征自然语言描述")
+    category: Optional[str] = Field(None, description="分类（词表内合法值或 None）")
+    gender: Optional[str] = Field(None, description="性别适配: 男/女/中性")
+    applicable_seasons: List[str] = Field(default_factory=list, description="适用季节")
+    functionality: List[str] = Field(default_factory=list, description="适用场合")
+    color: str = Field("", description="主色调")
+    material: str = Field("", description="材质")
+    style: Optional[str] = Field(None, description="风格（归一化后）")
+    confidence: float = Field(0.0, ge=0, le=1, description="置信度")
+    needs_manual_review: bool = Field(False, description="识别失败需手动填写")
+    error: Optional[str] = Field(None, description="单件识别失败原因")
+
+
+class BatchRecognizeResponse(BaseModel):
+    """批量识别响应"""
+    results: List[BatchRecognizeResultItem]
+
+
+class BatchWuxingItem(BaseModel):
+    """五行深度分析单件输入（含用户编辑后的值）"""
+    index: int = Field(..., ge=0, description="前端卡片序号")
+    name: Optional[str] = Field(None, max_length=255)
+    category: Optional[str] = Field(None, max_length=50)
+    color: Optional[str] = Field(None, description="颜色名称")
+    material: Optional[str] = Field(None, description="材质名称")
+    style: Optional[str] = Field(None, description="风格")
+
+
+class BatchWuxingAnalysisRequest(BaseModel):
+    """五行深度分析请求（每批最多 5 件）"""
+    items: List[BatchWuxingItem] = Field(..., min_length=1, max_length=5)
+
+
+class BatchWuxingResultItem(BaseModel):
+    """五行深度分析单件结果（第二阶段：规则引擎）"""
+    index: int = Field(..., description="与请求同序的卡片序号")
+    primary_element: str = Field(..., description="主五行")
+    secondary_element: Optional[str] = Field(None, description="次五行")
+    color_element: Optional[str] = Field(None, description="颜色五行")
+    material_element: Optional[str] = Field(None, description="材质五行")
+    style_element: Optional[str] = Field(None, description="风格五行")
+    xiyong_match: Optional[str] = Field(None, description="喜用匹配标签: 喜用匹配/中性/忌讳五行")
+    xiyong_advice: Optional[str] = Field(None, description="结合喜用神的建议文案")
+
+
+class BatchWuxingAnalysisResponse(BaseModel):
+    """五行深度分析响应"""
+    results: List[BatchWuxingResultItem]
+    xiyong_elements: List[str] = Field(default_factory=list, description="用户喜用神（仅展示，无八字资料时为空）")
+
+
+class BatchAddItem(BaseModel):
+    """批量入库单件（最终确认后的完整衣物信息）"""
+    name: str = Field(..., min_length=1, max_length=255, description="衣物名称")
+    description: Optional[str] = Field(None, max_length=500, description="描述")
+    category: Optional[str] = Field(None, max_length=50, description="分类")
+    image_url: Optional[str] = Field(None, max_length=500, description="图片 URL")
+    primary_element: Optional[str] = Field(None, max_length=10, description="主五行")
+    secondary_element: Optional[str] = Field(None, max_length=10, description="次五行")
+
+    # 五行深度分析字段（写入 attributes_detail）
+    color: Optional[str] = Field(None, description="颜色名称")
+    color_element: Optional[str] = Field(None, description="颜色五行")
+    material: Optional[str] = Field(None, description="材质名称")
+    material_element: Optional[str] = Field(None, description="材质五行")
+    style: Optional[str] = Field(None, description="风格")
+    shape: Optional[str] = Field(None, description="款式形状")
+    details: List[str] = Field(default_factory=list, description="款式细节")
+    season: List[str] = Field(default_factory=list, description="适用季节（打标维度）")
+    tags: List[str] = Field(default_factory=list, description="标签")
+    confidence: Optional[float] = Field(None, ge=0, le=1, description="AI 置信度")
+    xiyong_match: Optional[str] = Field(None, description="喜用匹配标签")
+    xiyong_advice: Optional[str] = Field(None, max_length=500, description="喜用建议文案")
+
+    # 天气/场景字段（与单件添加对齐）
+    gender: Optional[str] = Field(None, max_length=10, description="性别适配: 男/女/中性")
+    applicable_weather: List[str] = Field(default_factory=list, description="适用天气")
+    applicable_seasons: List[str] = Field(default_factory=list, description="适用季节")
+    temperature_range: Optional[Dict[str, int]] = Field(None, description="温度范围: {min, max}")
+    functionality: List[str] = Field(default_factory=list, description="功能场景")
+    thickness_level: Optional[str] = Field(None, max_length=20, description="厚度等级")
+    energy_intensity: Optional[float] = Field(None, ge=0, le=1, description="能量强度(0-1)")
+
+
+class BatchAddItemsRequest(BaseModel):
+    """批量入库请求（每批最多 5 件）"""
+    items: List[BatchAddItem] = Field(..., min_length=1, max_length=5)
+
+
+class BatchAddFailedItem(BaseModel):
+    """批量入库单件失败信息"""
+    index: int = Field(..., description="失败件在请求中的序号")
+    reason: str = Field(..., description="失败原因")
+
+
+class BatchAddItemsResponse(BaseModel):
+    """批量入库响应（部分成功语义）"""
+    created: List[WardrobeItemResponse] = Field(default_factory=list, description="成功入库的衣物")
+    failed: List[BatchAddFailedItem] = Field(default_factory=list, description="入库失败的衣物")

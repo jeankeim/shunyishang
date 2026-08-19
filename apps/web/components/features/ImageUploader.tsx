@@ -3,6 +3,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
 import { getAuthToken } from '@/lib/api';
+import { compressImageFile } from '@/lib/image-compress';
 
 interface ImageUploaderProps {
   onImageUploaded: (imageUrl: string) => void;
@@ -27,11 +28,6 @@ export function ImageUploader({
     // 检查文件类型
     if (!file.type.startsWith('image/')) {
       return '请上传图片文件（JPG/PNG 等）';
-    }
-
-    // 检查文件大小
-    if (file.size > maxSize) {
-      return `图片大小不能超过 ${Math.round(maxSize / 1024 / 1024)}MB`;
     }
 
     return null;
@@ -66,8 +62,17 @@ export function ImageUploader({
     setIsUploading(true);
     
     try {
+      // 超限图片前端自动压缩至限制内（未超限原样上传，零损耗）
+      let uploadFile = file;
+      if (file.size > maxSize) {
+        uploadFile = await compressImageFile(file, maxSize);
+        if (uploadFile.size > maxSize) {
+          throw new Error(`图片过大，压缩后仍超过 ${Math.round(maxSize / 1024 / 1024)}MB，请更换图片`);
+        }
+      }
+
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', uploadFile);
 
       const API_BASE = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
       const response = await fetch(`${API_BASE}/api/v1/wardrobe/upload-image`, {
@@ -182,7 +187,7 @@ export function ImageUploader({
                     或拖拽图片到此处
                   </p>
                   <p className="mt-1 text-xs">
-                    支持 JPG、PNG 格式，最大 5MB
+                    支持 JPG、PNG 格式，超过 5MB 自动压缩
                   </p>
                 </div>
               </>

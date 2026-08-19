@@ -26,11 +26,23 @@ from apps.api.schemas.wardrobe import (
     WardrobeItemUpdate,
     FeedbackCreate,
     FeedbackResponse,
+    BatchRecognizeRequest,
+    BatchRecognizeResponse,
+    BatchRecognizeResultItem,
+    BatchWuxingAnalysisRequest,
+    BatchWuxingAnalysisResponse,
+    BatchWuxingResultItem,
+    BatchAddItem,
+    BatchAddItemsRequest,
+    BatchAddItemsResponse,
+    BatchAddFailedItem,
 )
 from apps.api.services.ai_tagging_service import ai_tagging_service
 from apps.api.services.llm_usage_service import log_llm_usage
 from apps.api.services.embedding_service import embedding_service, build_wardrobe_embedding_text
 from apps.api.services.storage import get_storage_service
+from apps.api.services.wuxing_analysis_service import wuxing_analysis_service
+from packages.ai_agents.wardrobe_tagging import run_batch_tagging
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +53,7 @@ router = APIRouter(prefix="/wardrobe", tags=["wardrobe"])
 UPLOAD_DIR = Path(__file__).parent.parent.parent.parent / "data" / "uploads" / "wardrobe"
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+MAX_BATCH_SIZE = 5  # 批量上传每批上限
 
 
 # ========== 请求模型 ==========
@@ -210,6 +223,68 @@ async def preview_tagging(
         )
 
 
+# ========== 入库公共逻辑 ==========
+
+_WARDROBE_RETURNING_FIELDS = """id, user_id, item_code, name, category, image_url,
+               primary_element, secondary_element, attributes_detail,
+               is_custom, is_active, wear_count, last_worn_date,
+               is_favorite, notes, created_at, updated_at,
+               gender, applicable_weather, applicable_seasons,
+               temperature_range, functionality, thickness_level, energy_intensity"""
+
+
+def _insert_wardrobe_item(cur, user_id: int, data: dict) -> dict:
+    """衣橱入库 INSERT 公共逻辑（单件添加与批量添加共用）
+
+    Args:
+        cur: 数据库游标（调用方负责 commit）
+        user_id: 用户 ID
+        data: 必含 item_code/name/category/image_url/primary_element/secondary_element/
+              attributes_detail(dict)/is_custom/embedding/gender/applicable_weather/
+              applicable_seasons/temperature_range/functionality/thickness_level/
+              energy_intensity/style
+
+    Returns:
+        dict: RETURNING 行数据
+    """
+    query = f"""
+        INSERT INTO user_wardrobe (
+            user_id, item_code, name, category, image_url,
+            primary_element, secondary_element, attributes_detail,
+            is_custom, embedding,
+            gender, applicable_weather, applicable_seasons,
+            temperature_range, functionality, thickness_level, energy_intensity,
+            style
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING {_WARDROBE_RETURNING_FIELDS}
+    """
+
+    params = [
+        user_id,
+        data.get("item_code"),
+        data["name"],
+        data.get("category"),
+        data.get("image_url"),
+        data.get("primary_element"),
+        data.get("secondary_element"),
+        json.dumps(data.get("attributes_detail") or {}),
+        data.get("is_custom", True),
+        data.get("embedding"),
+        data.get("gender"),
+        json.dumps(data.get("applicable_weather") or []),
+        json.dumps(data.get("applicable_seasons") or []),
+        json.dumps(data["temperature_range"]) if data.get("temperature_range") else None,
+        json.dumps(data.get("functionality") or []),
+        data.get("thickness_level"),
+        data.get("energy_intensity"),
+        data.get("style"),
+    ]
+
+    cur.execute(query, params)
+    row = cur.fetchone()
+    return dict(row)
+
+
 @router.post("/items", response_model=WardrobeItemResponse)
 async def add_wardrobe_item(
     request: WardrobeItemCreate,
@@ -267,26 +342,6 @@ async def add_wardrobe_item(
         )
         embedding = embedding_service.generate_embedding(embedding_text)
         
-        # 4. 存入数据库
-        is_custom = request.item_code is None
-        
-        query = """
-            INSERT INTO user_wardrobe (
-                user_id, item_code, name, category, image_url,
-                primary_element, secondary_element, attributes_detail,
-                is_custom, embedding,
-                gender, applicable_weather, applicable_seasons,
-                temperature_range, functionality, thickness_level, energy_intensity,
-                style
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id, user_id, item_code, name, category, image_url,
-                      primary_element, secondary_element, attributes_detail,
-                      is_custom, is_active, wear_count, last_worn_date,
-                      is_favorite, notes, created_at, updated_at,
-                      gender, applicable_weather, applicable_seasons,
-                      temperature_range, functionality, thickness_level, energy_intensity
-        """
-        
         # 从 AI 结果或请求中获取天气/场景信息
         applicable_weather = request.applicable_weather or (ai_result.get("applicable_weather", []) if ai_result else [])
         applicable_seasons = request.applicable_seasons or (ai_result.get("applicable_seasons", []) if ai_result else [])
@@ -321,37 +376,33 @@ async def add_wardrobe_item(
             "ai_confidence": ai_result.get("confidence") if ai_result else None,
         }
         
-        import json
-        from psycopg2 import sql
-        
-        params = [
-            user_id,
-            request.item_code,
-            name,
-            request.category,
-            request.image_url,
-            primary_element,
-            secondary_element,
-            json.dumps(attributes_detail),
-            is_custom,
-            embedding,  # 向量嵌入
-            request.gender,
-            json.dumps(applicable_weather),
-            json.dumps(applicable_seasons),
-            json.dumps(temperature_range) if temperature_range else None,
-            json.dumps(functionality),
-            thickness_level,
-            request.energy_intensity,
-            style,
-        ]
+        # 4. 存入数据库（与批量添加共用 INSERT 逻辑）
+        insert_data = {
+            "item_code": request.item_code,
+            "name": name,
+            "category": request.category,
+            "image_url": request.image_url,
+            "primary_element": primary_element,
+            "secondary_element": secondary_element,
+            "attributes_detail": attributes_detail,
+            "is_custom": request.item_code is None,
+            "embedding": embedding,
+            "gender": request.gender,
+            "applicable_weather": applicable_weather,
+            "applicable_seasons": applicable_seasons,
+            "temperature_range": temperature_range,
+            "functionality": functionality,
+            "thickness_level": thickness_level,
+            "energy_intensity": request.energy_intensity,
+            "style": style,
+        }
         
         with DatabasePool.get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(query, params)
-                row = cur.fetchone()
+                row = _insert_wardrobe_item(cur, user_id, insert_data)
                 conn.commit()
         
-        return WardrobeItemResponse(**dict(row))
+        return WardrobeItemResponse(**row)
         
     except Exception as e:
         logger.error(f"添加衣物失败: {e}")
@@ -359,6 +410,249 @@ async def add_wardrobe_item(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"添加衣物失败: {str(e)}"
         )
+
+
+# ========== 批量上传 ==========
+
+
+def _get_user_xiyong(user_id: int):
+    """读取用户喜用神与忌讳五行
+
+    Returns:
+        (xiyong_elements, avoid_elements)，查询失败或无八字资料时返回空列表。
+        喜用神仅用于只读比对，严禁篡改。
+    """
+    try:
+        with DatabasePool.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT xiyong_elements, bazi FROM users WHERE id = %s", [user_id])
+                row = cur.fetchone()
+        if not row:
+            return [], []
+        xiyong = row[0] if isinstance(row[0], list) else []
+        bazi = row[1] if isinstance(row[1], dict) else {}
+        avoid = bazi.get("avoid_elements") if isinstance(bazi.get("avoid_elements"), list) else []
+        return xiyong, avoid
+    except Exception as e:
+        logger.warning(f"[批量上传] 读取用户喜用神失败: {e}")
+        return [], []
+
+
+@router.post("/batch/recognize", response_model=BatchRecognizeResponse)
+async def batch_recognize_items(
+    request: BatchRecognizeRequest,
+    user: dict = Depends(get_current_user)
+):
+    """
+    批量识别衣物图片（第一阶段：基础属性）
+
+    **核心逻辑**:
+    1. 校验每批上限 5 件
+    2. 调用 LangGraph 工作流 `run_batch_tagging`：VL 并行识别 + 词表归一化
+    3. 单件失败不阻断批次，该件置 needs_manual_review=true 由前端引导手动填写
+    """
+    user_id = user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户未登录")
+
+    if len(request.items) > MAX_BATCH_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"每批最多识别 {MAX_BATCH_SIZE} 件"
+        )
+
+    try:
+        final_state = await run_batch_tagging([it.image_url for it in request.items])
+    except Exception as e:
+        logger.error(f"批量识别工作流异常: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="批量识别服务暂时不可用，请稍后重试"
+        )
+
+    # 大模型调用明细埋点（批量识别，用量已在工作流内汇总）
+    log_llm_usage(
+        user_id, "wardrobe_batch_recognize",
+        f"批量识别 {len(request.items)} 件衣物",
+        final_state.get("error") or "批量识别完成",
+        usage=final_state.get("llm_token_usage"),
+    )
+
+    results_state = final_state.get("results") or []
+    if not results_state:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=final_state.get("error") or "识别失败，请稍后重试"
+        )
+
+    results = []
+    for i, item_in in enumerate(request.items):
+        r = results_state[i] if i < len(results_state) else {}
+        results.append(BatchRecognizeResultItem(
+            index=item_in.index,
+            image_url=item_in.image_url,
+            suggested_name=r.get("suggested_name") or "",
+            description=r.get("description") or "",
+            category=r.get("category"),
+            gender=r.get("gender"),
+            applicable_seasons=r.get("applicable_seasons") or [],
+            functionality=r.get("functionality") or [],
+            color=r.get("color") or "",
+            material=r.get("material") or "",
+            style=r.get("style"),
+            confidence=r.get("confidence") or 0.0,
+            needs_manual_review=bool(r.get("needs_manual_review") or r.get("error")),
+            error=r.get("error"),
+        ))
+
+    logger.info(f"用户 {user_id} 批量识别完成: {len(results)} 件")
+    return BatchRecognizeResponse(results=results)
+
+
+@router.post("/batch/wuxing-analysis", response_model=BatchWuxingAnalysisResponse)
+async def batch_wuxing_analysis(
+    request: BatchWuxingAnalysisRequest,
+    user: dict = Depends(get_current_user)
+):
+    """
+    五行与材质深度分析（第二阶段：规则引擎 + 喜用神比对）
+
+    **核心逻辑**:
+    1. 读取用户喜用神/忌讳五行（users 表，只读）
+    2. 规则引擎基于 data/standards 映射表计算颜色/材质/风格五行与主五行
+    3. 喜用神比对输出 xiyong_match 标签与建议文案（无 LLM 调用，确定性结果）
+    """
+    user_id = user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户未登录")
+
+    if len(request.items) > MAX_BATCH_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"每批最多分析 {MAX_BATCH_SIZE} 件"
+        )
+
+    xiyong, avoid = _get_user_xiyong(user_id)
+    items = [it.model_dump() for it in request.items]
+    analyses = wuxing_analysis_service.analyze_batch(items, xiyong, avoid)
+
+    results = [
+        BatchWuxingResultItem(index=item_in.index, **analysis)
+        for item_in, analysis in zip(request.items, analyses)
+    ]
+
+    logger.info(f"用户 {user_id} 五行深度分析完成: {len(results)} 件, 喜用={xiyong or '无'}")
+    return BatchWuxingAnalysisResponse(results=results, xiyong_elements=xiyong or [])
+
+
+def _build_batch_item_data(item: BatchAddItem) -> dict:
+    """将批量入库输入组装为 `_insert_wardrobe_item` 的 data（含 attributes_detail 与 Embedding）"""
+    # attributes_detail 与单件添加的中文键结构对齐，追加命理适配键
+    attributes_detail = {
+        "颜色": {
+            "名称": item.color,
+            "主五行": item.color_element,
+            "能量强度": item.energy_intensity,
+        },
+        "面料": {
+            "名称": item.material,
+            "主五行": item.material_element,
+        },
+        "款式": {
+            "形状": item.shape,
+            "细节": item.details,
+            "风格": item.style,
+        },
+        "season": item.season,
+        "tags": item.tags,
+        "ai_confidence": item.confidence,
+    }
+    if item.xiyong_match:
+        attributes_detail["命理适配"] = {
+            "喜用匹配": item.xiyong_match,
+            "建议": item.xiyong_advice,
+        }
+
+    # Embedding 生成（失败降级 NULL 向量，不阻断入库）
+    embedding = None
+    try:
+        embedding_text = build_wardrobe_embedding_text(
+            name=item.name,
+            category=item.category,
+            ai_result=None,
+            description=item.description
+        )
+        embedding = embedding_service.generate_embedding(embedding_text)
+    except Exception as e:
+        logger.warning(f"[批量上传] Embedding 生成失败，以 NULL 向量入库: {e}")
+
+    return {
+        "item_code": None,
+        "name": item.name,
+        "category": item.category,
+        "image_url": item.image_url,
+        "primary_element": item.primary_element or "金",
+        "secondary_element": item.secondary_element,
+        "attributes_detail": attributes_detail,
+        "is_custom": True,
+        "embedding": embedding,
+        "gender": item.gender,
+        "applicable_weather": item.applicable_weather,
+        "applicable_seasons": item.applicable_seasons,
+        "temperature_range": item.temperature_range,
+        "functionality": item.functionality,
+        "thickness_level": item.thickness_level,
+        "energy_intensity": item.energy_intensity,
+        "style": item.style,
+    }
+
+
+@router.post("/batch/items", response_model=BatchAddItemsResponse)
+async def batch_add_wardrobe_items(
+    request: BatchAddItemsRequest,
+    user: dict = Depends(get_current_user)
+):
+    """
+    批量衣物入库（部分成功语义）
+
+    逐件写入 user_wardrobe 表（与单件添加同一表结构），单件异常捕获后
+    计入 failed，不中断同批其他件；成功项随响应返回供前端刷新列表。
+    """
+    user_id = user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户未登录")
+
+    if len(request.items) > MAX_BATCH_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"每批最多入库 {MAX_BATCH_SIZE} 件"
+        )
+
+    created = []
+    failed = []
+
+    try:
+        with DatabasePool.get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                for idx, item in enumerate(request.items):
+                    try:
+                        row = _insert_wardrobe_item(cur, user_id, _build_batch_item_data(item))
+                        created.append(WardrobeItemResponse(**row))
+                    except Exception as e:
+                        logger.error(f"[批量上传] 第 {idx} 件 ({item.name}) 入库失败: {e}")
+                        failed.append(BatchAddFailedItem(index=idx, reason=str(e)))
+                conn.commit()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"批量入库事务失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"批量入库失败：{str(e)}"
+        )
+
+    logger.info(f"[批量上传] 用户 {user_id} 入库完成: 成功 {len(created)} 件, 失败 {len(failed)} 件")
+    return BatchAddItemsResponse(created=created, failed=failed)
 
 
 @router.get("/items", response_model=WardrobeItemListResponse)
