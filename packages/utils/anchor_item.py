@@ -133,13 +133,14 @@ def find_anchor_item(
             haystack = name + color_name
             if not any(syn in haystack for syn in synonyms):
                 continue
-            # 排序键：完整 phrase 命中=0，色词+品类词命中=1，仅同族=2
+            # 仅接受名称级命中：完整 phrase=0，色词+品类词=1；
+            # 仅同族颜色命中（如白毛衣≠白衬衫）不视为锚点，避免「指定」标记语义失真
             if spec["phrase"] in name or (spec["color_word"] + spec["category_word"]) in name:
                 rank = 0
             elif spec["color_word"] in name and spec["category_word"] in name:
                 rank = 1
             else:
-                rank = 2
+                continue
             candidates.append((rank, row[0], row))
 
         if not candidates:
