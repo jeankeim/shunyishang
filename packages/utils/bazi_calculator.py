@@ -468,14 +468,21 @@ EXPLICIT_AVOID_PATTERNS: List[str] = [
     "{e}太多", "{e}太旺",
 ]
 
+# 显式「命主身份」表述模板：用户以某五行命人身份提问（如「金命人适合什么颜色」）
+# 语义等价于「补 X + 生X者」（比和 + 生我），同属实时意图，优先于八字预设
+EXPLICIT_MING_PATTERNS: List[str] = [
+    "{e}命人", "{e}命的", "日主{e}", "日主属{e}", "日干{e}", "属{e}命",
+]
+
 
 def extract_explicit_element_intent(text: str) -> Dict[str, List[str]]:
     """
     检测用户 query 中的显式五行修正指令（实时意图）
 
     与 infer_elements_from_text 的隐式推断（场景/气质关键词）不同，
-    这里只识别用户主动说出的「补X / 缺X / 不要X」等明确指令，
-    例如「五行缺金」「想补金」「不要水」。
+    这里只识别用户主动说出的「补X / 缺X / 不要X / X命人」等明确指令，
+    例如「五行缺金」「想补金」「不要水」「金命人适合什么颜色」。
+    命主身份表述（X命人/日主X）语义映射为 add=[X, 生X者]（比和+生我）。
     结果供 merge_recommendations 作为最高优先级五行目标，
     可覆盖八字喜用神预设（用户实时意图 > 预设条件）。
 
@@ -485,9 +492,10 @@ def extract_explicit_element_intent(text: str) -> Dict[str, List[str]]:
     Returns:
         {"add": [用户显式要补的五行],
          "avoid": [用户显式要避的五行],
+         "ming": [用户提问的命主五行],
          "matched": [命中指令描述]}
     """
-    result: Dict[str, List[str]] = {"add": [], "avoid": [], "matched": []}
+    result: Dict[str, List[str]] = {"add": [], "avoid": [], "ming": [], "matched": []}
     if not text:
         return result
 
@@ -506,6 +514,19 @@ def extract_explicit_element_intent(text: str) -> Dict[str, List[str]]:
         if add_hit:
             result["add"].append(element)
             result["matched"].append(f"{add_hit.format(e=element)}→补{element}")
+            continue
+        # 命主身份表述：如「金命人」「日主金」，语义=补 X + 生X者（比和+生我）
+        ming_hit = next(
+            (p for p in EXPLICIT_MING_PATTERNS if p.format(e=element) in text), None
+        )
+        if ming_hit:
+            result["ming"].append(element)
+            for e2 in (element, GENERATED_BY.get(element)):
+                if e2 and e2 not in result["add"]:
+                    result["add"].append(e2)
+            result["matched"].append(
+                f"{ming_hit.format(e=element)}→{element}命(补{element}+{GENERATED_BY.get(element)})"
+            )
 
     return result
 
@@ -518,6 +539,9 @@ GENERATING_CYCLE: Dict[str, str] = {
     "火": "土",  # 火生土
     "土": "金",  # 土生金
 }
+
+# 相生逆查：生我者（土生金 → GENERATED_BY[金]=土），供命主身份语义映射使用
+GENERATED_BY: Dict[str, str] = {v: k for k, v in GENERATING_CYCLE.items()}
 
 
 def _check_generates_xiyong(elem: str, xiyong_elements: List[str]) -> bool:

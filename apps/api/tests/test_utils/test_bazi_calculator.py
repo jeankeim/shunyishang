@@ -597,7 +597,7 @@ class TestExtractExplicitElementIntent:
     def test_empty_text(self):
         """空文本防御"""
         result = extract_explicit_element_intent("")
-        assert result == {"add": [], "avoid": [], "matched": []}
+        assert result == {"add": [], "avoid": [], "ming": [], "matched": []}
 
 
 # ============================================================
@@ -677,3 +677,51 @@ class TestExplicitIntentPriority:
         assert "金" not in result  # 忌神不进 target
         assert "金" in boost  # 金生水，降级为 boost
         assert result == ["水", "木"]
+
+
+# ============================================================
+# 命主身份表述测试（X命人 / 日主X，实时意图优先于八字预设）
+# ============================================================
+
+class TestMingLordIntent:
+    """命主身份表述识别与优先级"""
+
+    def test_ming_life_person(self):
+        """「金命人适合什么颜色」→ ming=[金]，add=[金, 土]（比和+生我）"""
+        result = extract_explicit_element_intent("金命人适合什么颜色")
+        assert result["ming"] == ["金"]
+        assert result["add"][:2] == ["金", "土"]  # 土生金
+
+    def test_ming_wood_life(self):
+        """「木命人」→ add 含木与水（水生木）"""
+        result = extract_explicit_element_intent("木命人穿什么好")
+        assert result["ming"] == ["木"]
+        assert "木" in result["add"] and "水" in result["add"]
+
+    def test_ming_day_master(self):
+        """「日主火」表述识别"""
+        result = extract_explicit_element_intent("日主火适合什么颜色")
+        assert result["ming"] == ["火"]
+
+    def test_ming_coexists_with_lack(self):
+        """命主与缺X并存时两者均提取"""
+        result = extract_explicit_element_intent("金命人缺水怎么穿")
+        assert "金" in result["ming"]
+        assert "水" in result["add"]
+
+    def test_no_ming_false_positive(self):
+        """日常提问不误命中命主表述"""
+        result = extract_explicit_element_intent("今天穿什么合适")
+        assert result["ming"] == []
+        assert result["add"] == []
+
+    def test_ming_lord_overrides_bazi_avoid(self):
+        """核心 bad case：本账号喜用水木+忌土金，问「金命人」时金/土仍进 target 且金居首"""
+        bazi = {
+            "suggested_elements": ["水", "木"],
+            "avoid_elements": ["土", "金"],
+        }
+        explicit = extract_explicit_element_intent("金命人适合什么颜色")
+        result, boost = merge_recommendations(bazi, None, None, explicit_intent=explicit)
+        assert result[0] == "金"  # 命主五行置于最前，覆盖忌神
+        assert "土" in result  # 生我者随同进 target

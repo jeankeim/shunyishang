@@ -1615,8 +1615,16 @@ def generate_advice_node(state: AgentState) -> Dict:
         added_instruction = '不要提及"再加入"或场景加成元素'
 
     # 显式意图指令：用户显式要求补某五行时，理由必须优先回应（最高优先级）
-    explicit_add = (state.get("explicit_intent") or {}).get("add", [])
-    if explicit_add:
+    explicit_intent_data = state.get("explicit_intent") or {}
+    explicit_add = explicit_intent_data.get("add", [])
+    explicit_ming = explicit_intent_data.get("ming", [])
+    if explicit_ming:
+        added_instruction += (
+            f' 特别说明：用户询问的是【{"、".join(explicit_ming)}】命人的搭配，'
+            f'这是最高优先级需求，必须从该命人适合的五行角度（比和元素与生它的元素）回答，'
+            f'推荐理由开头必须直接回应「X命人」，不得改用本账号八字喜用神作答，不得降级或忽略。'
+        )
+    elif explicit_add:
         added_instruction += (
             f' 特别说明：用户明确要求补【{"、".join(explicit_add)}】元素，'
             f'这是最高优先级需求，推荐理由开头必须直接回应该需求，'
@@ -1797,8 +1805,16 @@ def generate_advice_stream(
         added_instruction = '不要提及"再加入"或场景加成元素'
 
     # 显式意图指令：用户显式要求补某五行时，理由必须优先回应（最高优先级）
-    explicit_add = (state.get("explicit_intent") or {}).get("add", [])
-    if explicit_add:
+    explicit_intent_data = state.get("explicit_intent") or {}
+    explicit_add = explicit_intent_data.get("add", [])
+    explicit_ming = explicit_intent_data.get("ming", [])
+    if explicit_ming:
+        added_instruction += (
+            f' 特别说明：用户询问的是【{"、".join(explicit_ming)}】命人的搭配，'
+            f'这是最高优先级需求，必须从该命人适合的五行角度（比和元素与生它的元素）回答，'
+            f'推荐理由开头必须直接回应「X命人」，不得改用本账号八字喜用神作答，不得降级或忽略。'
+        )
+    elif explicit_add:
         added_instruction += (
             f' 特别说明：用户明确要求补【{"、".join(explicit_add)}】元素，'
             f'这是最高优先级需求，推荐理由开头必须直接回应该需求，'
