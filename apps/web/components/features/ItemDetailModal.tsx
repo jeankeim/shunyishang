@@ -105,11 +105,13 @@ export function ItemDetailModal({ item, onClose }: ItemDetailModalProps) {
               />
               {/* 来源标签 */}
               <div className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-medium ${
-                item.source === 'wardrobe'
+                item.is_anchor
+                  ? 'bg-amber-500/90 text-white'
+                  : item.source === 'wardrobe'
                   ? 'bg-emerald-500/90 text-white'
                   : 'bg-blue-500/90 text-white'
               }`}>
-                {item.source === 'wardrobe' ? '🏠 自有衣橱' : '📚 公共库'}
+                {item.is_anchor ? '🎯 指定' : item.source === 'wardrobe' ? '🏠 自有衣橱' : '📚 公共库'}
               </div>
             </div>
           ) : (

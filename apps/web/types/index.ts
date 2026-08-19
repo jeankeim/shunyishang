@@ -26,6 +26,7 @@ export interface RecommendItem {
   image_url?: string       // 高清原图 URL
   thumbnail_url?: string   // 缩略图 URL（400px 宽度）
   source?: 'wardrobe' | 'public'
+  is_anchor?: boolean  // 用户显式指定的锚点单品（🎯 指定徽章）
   item_id?: number
   // 物品详情字段（用于详情弹窗）
   attributes_detail?: Record<string, any>  // 完整属性（颜色/面料/款式等）

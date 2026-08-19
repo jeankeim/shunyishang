@@ -197,9 +197,9 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
           >
             {/* 来源标签 */}
             <div className={`absolute top-2 left-2 z-10 px-2 py-0.5 rounded-full text-[10px] font-medium backdrop-blur-sm ${
-              isFromWardrobe ? 'bg-emerald-500/80 text-white' : 'bg-blue-500/80 text-white'
+              item.is_anchor ? 'bg-amber-500/90 text-white' : isFromWardrobe ? 'bg-emerald-500/80 text-white' : 'bg-blue-500/80 text-white'
             }`}>
-              {isFromWardrobe ? '🏠 自有' : '📚 公共库'}
+              {item.is_anchor ? '🎯 指定' : isFromWardrobe ? '🏠 自有' : '📚 公共库'}
             </div>
             {/* 放大查看按钮 */}
             <button
@@ -227,9 +227,9 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
           >
             <span className="text-4xl opacity-60">{config.emoji}</span>
             <div className={`absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-medium ${
-              isFromWardrobe ? 'bg-emerald-500/80 text-white' : 'bg-blue-500/80 text-white'
+              item.is_anchor ? 'bg-amber-500/90 text-white' : isFromWardrobe ? 'bg-emerald-500/80 text-white' : 'bg-blue-500/80 text-white'
             }`}>
-              {isFromWardrobe ? '🏠 自有' : '📚 公共库'}
+              {item.is_anchor ? '🎯 指定' : isFromWardrobe ? '🏠 自有' : '📚 公共库'}
             </div>
             {feedback && (
               <div className="absolute bottom-2 right-2">

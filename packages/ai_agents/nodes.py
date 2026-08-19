@@ -27,6 +27,7 @@ from packages.utils.bazi_calculator import (
     extract_explicit_element_intent,
     merge_recommendations,
 )
+from packages.utils.anchor_item import extract_anchor_spec, find_anchor_item
 from packages.utils.destiny_calculator import (
     analyze_year_fortune,
     get_current_major_luck,
@@ -293,6 +294,11 @@ def analyze_intent_node(state: AgentState) -> Dict:
     if explicit_intent["add"] or explicit_intent["avoid"]:
         logger.info(f"[Agent] 检测到用户显式五行意图: {explicit_intent}")
 
+    # 2.2 锚点单品识别（用户显式指定某件单品，如「白衬衫和什么搭配」）
+    anchor_spec = extract_anchor_spec(user_input)
+    if anchor_spec:
+        logger.info(f"[Agent] 检测到锚点单品: {anchor_spec['phrase']} → {anchor_spec['category']}")
+
     # 3. Task 03: 提取场曷（多维度识别）
     scene_data = extract_scene_multidimensional(user_input)
     scene = state.get("scene") or scene_data.get("main_scene")
@@ -377,6 +383,7 @@ def analyze_intent_node(state: AgentState) -> Dict:
         "major_luck": major_luck_data,
         "intent_result": intent_result,
         "explicit_intent": explicit_intent,
+        "anchor_spec": anchor_spec,
         "target_elements": target_elements,
         "xiyong_elements": xiyong_elements,
         "added_elements": added_elements,
@@ -504,6 +511,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
     top_k = state.get("top_k", 5)
     boost_elements = state.get("boost_elements", [])  # 相生辅助五行
     batch_index = state.get("batch_index", 0)  # 换一批：批次索引
+    anchor_spec = state.get("anchor_spec")  # 用户显式指定的锚点单品
     
     if not search_query:
         return {"error": "搜索查询为空", "retrieved_items": [], "item_sources": {}}
@@ -704,6 +712,20 @@ def retrieve_items_node(state: AgentState) -> Dict:
         items = [item for item in items if item.get("item_code") not in disliked_item_codes]
         if before_count != len(items):
             logger.info(f"[不喜欢过滤] 排除了 {before_count - len(items)} 件用户不喜欢的物品")
+
+    # ========== 锚点物品硬约束（用户显式指定单品） ==========
+    # 用户已拥有锚点物品，推荐结果应为搭配件；
+    # 排除同品类其他物品，避免与锚点冲突（如指定白衬衫却推其他颜色衬衫）
+    anchor_item = None
+    if anchor_spec:
+        anchor_item = find_anchor_item(anchor_spec, user_gender=user_gender)
+        before_count = len(items)
+        items = [i for i in items if i.get("category") != anchor_spec["category"]]
+        logger.info(
+            f"[锚点约束] {anchor_spec['phrase']} → 排除 {before_count - len(items)} 件"
+            f"{anchor_spec['category']}类冲突物品"
+            + (f"，库内匹配锚点 {anchor_item['item_code']}" if anchor_item else "，库内无精确匹配（仅排除）")
+        )
     
     if not items:
         # 根据模式决定如何处理空结果
@@ -720,6 +742,8 @@ def retrieve_items_node(state: AgentState) -> Dict:
         
         # 尝试百搭单品兜底（仅public模式和hybrid模式）
         fallback_items = _get_versatile_items(target_elements, top_k, user_gender=user_gender)
+        if anchor_spec:
+            fallback_items = [i for i in fallback_items if i.get("category") != anchor_spec["category"]]
         if fallback_items:
             for item in fallback_items:
                 item["source"] = "public"
@@ -788,6 +812,14 @@ def retrieve_items_node(state: AgentState) -> Dict:
     # 兜底：引擎返回空时尝试百搭单品
     if not top_items:
         top_items = _get_versatile_items(target_elements, top_k, user_gender=user_gender)
+        if anchor_spec:
+            top_items = [i for i in top_items if i.get("category") != anchor_spec["category"]]
+
+    # 锚点置顶：库内匹配到的锚点物品置于结果首位并标记
+    if anchor_spec and anchor_item:
+        top_items = [anchor_item] + [
+            i for i in top_items if i.get("item_code") != anchor_item.get("item_code")
+        ][: max(0, top_k - 1)]
 
     # 更新 item_sources（统一 key 规则，消除衣橱用 id / 公共库用 item_code 的键不一致）
     for item in top_items:
@@ -1630,6 +1662,19 @@ def generate_advice_node(state: AgentState) -> Dict:
             f'这是最高优先级需求，推荐理由开头必须直接回应该需求，'
             f'并将其作为主推荐元素，不得降级为辅助加分或忽略。'
         )
+
+    # 锚点物品指令：用户显式指定单品，叙事必须围绕它讲搭配
+    anchor_spec_data = state.get("anchor_spec")
+    if anchor_spec_data:
+        anchor_elem = anchor_spec_data.get("element")
+        elem_hint = f"，该物品五行可参考【{anchor_elem}】" if anchor_elem else ""
+        added_instruction += (
+            f' 特别说明：用户已明确指定【{anchor_spec_data["phrase"]}】为搭配锚点单品'
+            f'（用户自己已拥有该物品{elem_hint}）。'
+            f'叙事必须围绕「{anchor_spec_data["phrase"]}和什么搭配」展开：'
+            f'先说明它与哪些推荐单品组合，其余推荐单品均为衬托它的搭配件，'
+            f'不得推荐或提及与{anchor_spec_data["phrase"]}同类的其他{anchor_spec_data["category_word"]}。'
+        )
     
     # 构建"辅助加分"指令（boost_elements：忌神但生喜用神，不可作为正面推荐）
     boost_elements_str = "、".join(boost_elements) if boost_elements else ""
@@ -1819,6 +1864,19 @@ def generate_advice_stream(
             f' 特别说明：用户明确要求补【{"、".join(explicit_add)}】元素，'
             f'这是最高优先级需求，推荐理由开头必须直接回应该需求，'
             f'并将其作为主推荐元素，不得降级为辅助加分或忽略。'
+        )
+
+    # 锚点物品指令：用户显式指定单品，叙事必须围绕它讲搭配
+    anchor_spec_data = state.get("anchor_spec")
+    if anchor_spec_data:
+        anchor_elem = anchor_spec_data.get("element")
+        elem_hint = f"，该物品五行可参考【{anchor_elem}】" if anchor_elem else ""
+        added_instruction += (
+            f' 特别说明：用户已明确指定【{anchor_spec_data["phrase"]}】为搭配锚点单品'
+            f'（用户自己已拥有该物品{elem_hint}）。'
+            f'叙事必须围绕「{anchor_spec_data["phrase"]}和什么搭配」展开：'
+            f'先说明它与哪些推荐单品组合，其余推荐单品均为衬托它的搭配件，'
+            f'不得推荐或提及与{anchor_spec_data["phrase"]}同类的其他{anchor_spec_data["category_word"]}。'
         )
     
     # 构建"辅助加分"指令（boost_elements：忌神但生喜用神，不可作为正面推荐）
