@@ -28,6 +28,7 @@ from apps.api.schemas.wardrobe import (
     FeedbackResponse,
 )
 from apps.api.services.ai_tagging_service import ai_tagging_service
+from apps.api.services.llm_usage_service import log_llm_usage
 from apps.api.services.embedding_service import embedding_service, build_wardrobe_embedding_text
 from apps.api.services.storage import get_storage_service
 
@@ -172,6 +173,11 @@ async def preview_tagging(
             description=request.description,
             image_url=request.image_url
         )
+        # 大模型调用明细埋点（AI 打标预览）
+        log_llm_usage(
+            user.get("id"), "wardrobe_ai", request.description,
+            f"AI 打标：主五行 {result.get('primary_element', '')}",
+        )
         
         # 构建 AITaggingResult 响应
         return AITaggingResult(
@@ -237,6 +243,12 @@ async def add_wardrobe_item(
                 description=request.description or request.name,
                 image_url=request.image_url
             )
+            if ai_result:
+                # 大模型调用明细埋点（添加衣物 AI 打标）
+                log_llm_usage(
+                    user_id, "wardrobe_ai", request.description or request.name,
+                    f"AI 打标：主五行 {ai_result.get('primary_element', '')}",
+                )
         
         # 2. 确定最终值（用户指定优先，AI 结果其次）
         primary_element = request.primary_element or (ai_result.get("primary_element") if ai_result else "金")

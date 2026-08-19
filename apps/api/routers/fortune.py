@@ -18,6 +18,7 @@ from apps.api.core.security import decode_access_token
 from apps.api.routers.auth import get_current_user
 from apps.api.schemas.diary import FortuneResponse, FortuneScores, LuckyElements, TodayCardResponse
 from apps.api.services.fortune_engine import calculate_daily_fortune, _generate_ai_narrative
+from apps.api.services.llm_usage_service import log_llm_usage
 
 logger = logging.getLogger(__name__)
 
@@ -177,6 +178,10 @@ def _generate_and_store(user_id: int, target_date: date, force: bool = False, ge
 
     result = calculate_daily_fortune(user_bazi, target_date, generate_ai=generate_ai)
 
+    if generate_ai:
+        # 大模型调用明细埋点（GET 缓存未命中路径，真实调用 LLM 生成 AI 叙事）
+        log_llm_usage(user_id, "fortune", None, f"每日运势 AI 叙事（综合 {result.get('overall_score', 0)} 分）")
+
     # 使用 UPSERT
     query = """
         INSERT INTO daily_fortune (
@@ -270,6 +275,8 @@ def _enhance_ai_narrative_worker(user_id: int, target_date: date) -> None:
             overall=row["overall_score"],
             huangli=huangli,
         )
+        # 大模型调用明细埋点（后台异步增强路径）
+        log_llm_usage(user_id, "fortune", None, "每日运势 AI 叙事（后台异步增强）")
 
         # 条件更新：仅当仍为 pending 时才覆盖，避免踩掉手动重新生成的新行
         with DatabasePool.get_connection() as conn:

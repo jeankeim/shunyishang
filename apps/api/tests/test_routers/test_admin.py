@@ -20,6 +20,7 @@ ROUTES = [
     ("/api/v1/admin/dashboard", "get"),
     ("/api/v1/admin/bills", "get"),
     ("/api/v1/admin/bills/sync", "post"),
+    ("/api/v1/admin/llm-usage", "get"),
 ]
 
 
@@ -129,5 +130,34 @@ class TestAdminAccess:
                 response = await async_client.post("/api/v1/admin/bills/sync")
             assert response.status_code == 200
             assert response.json()["synced_days"] == 0
+        finally:
+            test_app.dependency_overrides.clear()
+
+    @pytest.mark.asyncio
+    async def test_admin_llm_usage_ok(self, async_client, test_app, admin_user, whitelist):
+        """管理员可访问大模型调用明细（按用户分组）"""
+        test_app.dependency_overrides[get_current_user] = lambda: admin_user
+        payload = {
+            "range": {"start": "2026-08-12", "end": "2026-08-18"},
+            "totals": {"call_count": 1, "user_count": 1, "image_cost": 0.0},
+            "users": [
+                {
+                    "user_id": 1, "nickname": "管理员", "created_at": None, "city": None,
+                    "call_count": 1, "image_cost": 0.0, "scenes": ["agent"],
+                    "records": [
+                        {"id": 1, "date": "2026-08-18", "scene": "agent",
+                         "query_text": "今天穿什么", "result_summary": "推荐 3 件物品",
+                         "image_cost": 0.0, "created_at": "2026-08-18T10:00:00"}
+                    ],
+                }
+            ],
+        }
+        try:
+            with patch("apps.api.services.llm_usage_service.get_llm_usage", return_value=payload):
+                response = await async_client.get("/api/v1/admin/llm-usage?days=7&q=管理")
+            assert response.status_code == 200
+            body = response.json()
+            assert body["totals"]["user_count"] == 1
+            assert body["users"][0]["records"][0]["scene"] == "agent"
         finally:
             test_app.dependency_overrides.clear()

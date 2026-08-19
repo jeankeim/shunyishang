@@ -19,6 +19,7 @@ type GuardState = 'loading' | 'unauthorized' | 'forbidden' | 'ok'
 const NAV_ITEMS = [
   { href: '/admin', label: '运营数据看板', exact: true },
   { href: '/admin/billing', label: '阿里云费用账单', exact: false },
+  { href: '/admin/llm-usage', label: '大模型调用明细', exact: false },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

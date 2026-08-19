@@ -11,6 +11,7 @@ from psycopg2.extras import RealDictCursor
 
 from apps.api.core.database import DatabasePool
 from apps.api.core.config import settings
+from apps.api.services.llm_usage_service import log_llm_usage
 from openai import OpenAI
 
 logger = logging.getLogger(__name__)
@@ -97,6 +98,9 @@ class FortuneReportService:
             logger.error(f"[FortuneReport] AI 生成失败: {e}")
             # 生成降级内容
             report_content = self._fallback_report(year, day_master)
+        else:
+            # 大模型调用明细埋点（仅 LLM 成功路径，降级不记录）
+            log_llm_usage(user_id, "fortune_report", None, f"{year} 年年度运势详批")
 
         # 存入数据库
         report_id = self._save_report(

@@ -30,6 +30,7 @@ from apps.api.schemas.diary import (
 from apps.api.services.diary_service import diary_service
 from apps.api.services.ai_review_service import generate_ai_review
 from apps.api.services.ai_tagging_service import ai_tagging_service
+from apps.api.services.llm_usage_service import log_llm_usage
 from apps.api.services.diary_feedback_service import diary_feedback_service
 
 logger = logging.getLogger(__name__)
@@ -303,6 +304,11 @@ async def quick_checkin(
                 "style": ai_result.get("style", ""),
                 "primary_element": ai_result.get("primary_element", ""),
             }
+            # 大模型调用明细埋点（快捷打卡 AI 穿搭分析）
+            log_llm_usage(
+                user_id, "diary_ai", description or "今日穿搭",
+                f"AI 穿搭分析：主五行 {ai_result.get('primary_element', '')}",
+            )
         except Exception as e:
             logger.warning(f"[QuickCheckIn] AI 分析失败: {e}")
 

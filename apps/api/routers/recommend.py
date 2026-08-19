@@ -24,6 +24,7 @@ from apps.api.core.database import DatabasePool
 from apps.api.routers.auth import get_current_user
 from apps.api.core.quota import llm_daily_quota
 from apps.api.services.admin_stats_service import log_recommend
+from apps.api.services.llm_usage_service import log_llm_usage
 from apps.api.services.user_service import get_user_bazi
 from apps.api.services.fortune_engine import calculate_daily_fortune
 from packages.utils.wuxing_rules import ELEMENT_COLOR_MAP
@@ -330,6 +331,13 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
             request.user_id, request.scene, request.query, "agent",
             len(collected_items) if isinstance(collected_items, list) else 0,
             int((time.time() - _sse_start_ts) * 1000),
+        )
+        # 大模型调用明细埋点（仅真实调用 LLM 的 agent 路径，缓存命中不记录）
+        log_llm_usage(
+            request.user_id,
+            "agent",
+            request.query,
+            f"推荐 {len(collected_items) if isinstance(collected_items, list) else 0} 件物品",
         )
         
         # 缓存完整结果（如果收集到了）

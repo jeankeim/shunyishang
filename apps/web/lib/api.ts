@@ -1986,3 +1986,50 @@ export async function syncAdminBills(days = 3): Promise<BillSyncResponse> {
   }
   return response.json()
 }
+
+/** 大模型调用明细记录 */
+export interface LlmUsageRecord {
+  id: number
+  date: string
+  scene: string
+  query_text: string | null
+  result_summary: string | null
+  image_cost: number
+  created_at: string | null
+}
+
+/** 按用户分组的大模型调用明细 */
+export interface LlmUsageUserGroup {
+  user_id: number
+  nickname: string
+  created_at: string | null
+  city: string | null
+  call_count: number
+  image_cost: number
+  scenes: string[]
+  records: LlmUsageRecord[]
+}
+
+/** 大模型调用明细响应 */
+export interface AdminLlmUsageResponse {
+  range: { start: string; end: string }
+  totals: { call_count: number; user_count: number; image_cost: number }
+  users: LlmUsageUserGroup[]
+}
+
+/** 获取用户大模型调用明细（按用户分组） */
+export async function getAdminLlmUsage(
+  params: { days?: number; date?: string; q?: string } = {}
+): Promise<AdminLlmUsageResponse> {
+  const qs = new URLSearchParams()
+  if (params.date) qs.set('date', params.date)
+  else qs.set('days', String(params.days ?? 7))
+  if (params.q) qs.set('q', params.q)
+  const response = await fetch(`${getAPIBase()}/api/v1/admin/llm-usage?${qs.toString()}`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) {
+    throw new Error(await extractErrorMessage(response, '获取大模型调用明细失败'))
+  }
+  return response.json()
+}

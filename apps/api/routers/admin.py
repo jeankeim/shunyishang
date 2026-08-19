@@ -8,13 +8,14 @@ user_code 仅从 JWT 解析，白名单为空时任何人不可访问，非管�
 
 import asyncio
 import logging
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from apps.api.core.config import settings
 from apps.api.routers.auth import get_current_user
-from apps.api.services import admin_stats_service, aliyun_billing_service
+from apps.api.services import admin_stats_service, aliyun_billing_service, llm_usage_service
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,19 @@ async def get_bills(
 ):
     """阿里云全产品（ECS/RDS/OSS/CDN/大模型等）按天账单汇总"""
     return await asyncio.to_thread(aliyun_billing_service.get_bill_summary, days)
+
+
+@router.get("/llm-usage", summary="用户大模型调用明细")
+async def get_llm_usage(
+    days: int = Query(7, ge=1, le=90, description="默认近 N 天"),
+    date: Optional[str] = Query(None, description="单日筛选 YYYY-MM-DD（优先于 days）"),
+    q: Optional[str] = Query(None, max_length=50, description="按昵称/用户ID搜索"),
+):
+    """
+    用户大模型调用明细：按用户分组展示每日调用详情
+    （场景/查询词/结果摘要/图片生成成本），仅统计真实大模型调用。
+    """
+    return await asyncio.to_thread(llm_usage_service.get_llm_usage, days, date, q)
 
 
 @router.post("/bills/sync", response_model=BillSyncResponse, summary="手动同步阿里云账单")
