@@ -43,6 +43,7 @@ class AgentState(TypedDict):
     intent_result: Optional[Dict]       # 意图推断结果
     explicit_intent: Optional[Dict]     # 用户显式五行修正意图（缺X/补X/忌X，最高优先级）
     anchor_spec: Optional[Dict]         # 用户显式指定的锚点单品（颜色+品类，如白衬衫）
+    anchor_specs: List[Dict]            # 用户显式指定的锚点单品列表（多锚点支持）
     target_elements: List[str]          # 最终推荐五行（合并后）
     xiyong_elements: List[str]          # 八字喜用神（纯八字，不含场景）
     added_elements: List[str]           # 场景/天气额外添加的五行
@@ -154,6 +155,7 @@ def create_initial_state(
         intent_result=None,
         explicit_intent=None,
         anchor_spec=None,
+        anchor_specs=[],
         target_elements=[],
         xiyong_elements=[],
         added_elements=[],

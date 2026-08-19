@@ -36,6 +36,7 @@ COLOR_GROUP_ELEMENT: Dict[str, str] = {
 }
 
 # 品类别名 → items 表主分类（长别名在前，避免「衬衫」误吞「衬衫裙」）
+# 内衣/袜子映射到虚拟分类「内衣」（库内无该类物品时排除为 no-op，叙事仍生效）
 CATEGORY_ALIASES: List[tuple] = [
     ("防晒衣", "外套"), ("羽绒服", "外套"), ("风衣", "外套"), ("大衣", "外套"),
     ("外套", "外套"), ("夹克", "外套"),
@@ -47,6 +48,30 @@ CATEGORY_ALIASES: List[tuple] = [
     ("阔腿裤", "下装"), ("裤子", "下装"), ("下装", "下装"),
     ("帆布鞋", "鞋履"), ("运动鞋", "鞋履"), ("乐福鞋", "鞋履"), ("皮鞋", "鞋履"),
     ("凉鞋", "鞋履"), ("靴子", "鞋履"), ("鞋子", "鞋履"),
+    ("内衣", "内衣"), ("内裤", "内衣"), ("打底内衣", "内衣"), ("文胸", "内衣"),
+    ("袜子", "内衣"), ("丝袜", "内衣"),
+    ("棒球帽", "配饰"), ("渔夫帽", "配饰"), ("帽子", "配饰"),
+    ("围巾", "配饰"), ("披肩", "配饰"), ("腰带", "配饰"),
+    ("背包", "配饰"), ("手提包", "配饰"), ("包包", "配饰"),
+    ("耳环", "饰品"), ("项链", "饰品"), ("手链", "饰品"),
+]
+
+# 细粒度分类：库内粗分类（配饰/饰品等）下含多种不冲突小类，
+# 冲突排除按「名称含同一品类词」判定（帽子锚点只排除其他帽子，不排除包包）；
+# 粗分类（上装/下装等）则整类排除（衬衫锚点排除所有上装）
+FINE_GRAINED_CATEGORIES = {"配饰", "饰品", "文玩", "内衣"}
+
+# 按别名长度降序稳定排序，保证长别名优先命中（衬衫裙 先于 衬衫、打底内衣 先于 内衣）
+CATEGORY_ALIASES.sort(key=lambda t: -len(t[0]))
+
+# 细分类同义组：同组别名互为冲突（帽子锚点排除棒球帽/渔夫帽）
+CATEGORY_SYNONYM_GROUPS: List[set] = [
+    {"帽子", "棒球帽", "渔夫帽"},
+    {"围巾", "披肩"},
+    {"背包", "手提包", "包包"},
+    {"内衣", "打底内衣", "文胸", "内裤"},
+    {"袜子", "丝袜"},
+    {"耳环", "耳钉"},
 ]
 
 # 颜色与品类之间允许的连接词（白衬衫 / 白色衬衫 / 白的衬衫 / 白色的衬衫）
@@ -56,38 +81,87 @@ _SEPARATORS = ("", "色", "的", "色的")
 _PREFIX_WINDOW = 7
 
 
-def extract_anchor_spec(text: str) -> Optional[Dict]:
+def extract_anchor_specs(text: str) -> List[Dict]:
     """
-    从用户文本提取锚点物品描述（颜色+品类相邻组合）
+    从用户文本提取全部锚点物品描述（颜色+品类相邻组合，支持多锚点）
 
-    Args:
-        text: 用户输入文本
+    如「白色衬衫和黑色裤子搭配什么」→ [白/上装, 黑/下装]。
+    重叠区间去重（「白色衬衫裙」只命中衬衫裙，不再重复命中衬衫），
+    结果按文本位置排序。
 
     Returns:
-        命中时返回 {"color_group", "color_word", "category", "category_word",
-                   "phrase", "element"}；否则 None
+        锚点描述列表，每项含 {"color_group", "color_word", "category",
+        "category_word", "phrase", "element"}；无命中时为空列表
     """
     if not text:
-        return None
+        return []
 
+    hits: List[tuple] = []  # (pos, span, spec)
+    spans: List[tuple] = []
     for alias, db_category in CATEGORY_ALIASES:
-        pos = text.find(alias)
-        if pos <= 0:
-            continue
-        prefix = text[max(0, pos - _PREFIX_WINDOW):pos]
-        for group, synonyms in COLOR_GROUPS.items():
-            for syn in synonyms:
-                for sep in _SEPARATORS:
-                    if prefix.endswith(syn + sep):
-                        return {
-                            "color_group": group,
-                            "color_word": syn,
-                            "category": db_category,
-                            "category_word": alias,
-                            "phrase": syn + sep + alias,
-                            "element": COLOR_GROUP_ELEMENT.get(group),
-                        }
-    return None
+        start = 0
+        while True:
+            pos = text.find(alias, start)
+            if pos <= 0:
+                break
+            start = pos + 1
+            span = (pos, pos + len(alias))
+            # 与已命中的更长别名重叠则跳过（长别名优先）
+            if any(not (span[1] <= s[0] or span[0] >= s[1]) for s in spans):
+                continue
+            prefix = text[max(0, pos - _PREFIX_WINDOW):pos]
+            spec = None
+            for group, synonyms in COLOR_GROUPS.items():
+                if spec:
+                    break
+                for syn in synonyms:
+                    for sep in _SEPARATORS:
+                        if prefix.endswith(syn + sep):
+                            spec = {
+                                "color_group": group,
+                                "color_word": syn,
+                                "category": db_category,
+                                "category_word": alias,
+                                "phrase": syn + sep + alias,
+                                "element": COLOR_GROUP_ELEMENT.get(group),
+                            }
+                            break
+                    if spec:
+                        break
+            if spec:
+                spans.append(span)
+                hits.append((pos, span, spec))
+
+    hits.sort(key=lambda t: t[0])
+    return [spec for _, _, spec in hits]
+
+
+def extract_anchor_spec(text: str) -> Optional[Dict]:
+    """兼容接口：返回首个锚点描述，无命中时 None"""
+    specs = extract_anchor_specs(text)
+    return specs[0] if specs else None
+
+
+def item_conflicts_with_anchor(item: Dict, spec: Dict) -> bool:
+    """
+    判定物品是否与锚点冲突（应被排除）
+
+    - 分类不同 → 不冲突
+    - 粗分类（上装/下装/外套/裙装/鞋履）→ 同分类即冲突
+    - 细分类（配饰/饰品/文玩/内衣）→ 名称含同一品类词才冲突
+      （帽子锚点排除其他帽子，但不排除包包/围巾）
+    """
+    if item.get("category") != spec["category"]:
+        return False
+    if spec["category"] in FINE_GRAINED_CATEGORIES:
+        name = item.get("name") or ""
+        group = next(
+            (g for g in CATEGORY_SYNONYM_GROUPS if spec["category_word"] in g),
+            None,
+        )
+        aliases = group if group else {spec["category_word"]}
+        return any(a in name for a in aliases)
+    return True
 
 
 def find_anchor_item(
