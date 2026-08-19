@@ -17,6 +17,7 @@ from packages.ai_agents.nodes import (
     generate_advice_node,
     format_output_node,
 )
+from apps.api.services.llm_usage_service import merge_llm_usage
 
 
 def check_error(state: AgentState) -> Literal["continue", "error"]:
@@ -208,6 +209,12 @@ def run_agent_stream(
     
     # 新增：从用户输入中提取场景和天气信息（优先级：用户提问 > 外部设置）
     extracted = _extract_context_from_query(user_input)
+
+    # 成本核算：累加本次请求所有 LLM 调用的 token 用量
+    usage_acc: dict = {}
+    ctx_usage = extracted.get("llm_usage") if isinstance(extracted, dict) else None
+    if ctx_usage:
+        usage_acc.update(ctx_usage)
     
     # 使用用户提问中提取的信息，如果未提取到则使用外部传入的参数
     final_scene = extracted.get("scene") or scene
@@ -259,6 +266,13 @@ def run_agent_stream(
     # 执行前三个节点（同步）
     state = analyze_intent_node(initial_state)
     initial_state.update(state)
+
+    # 合并意图节点（查询增强 LLM）的 token 用量
+    node_usage = initial_state.get("llm_token_usage")
+    if node_usage:
+        merged = merge_llm_usage(usage_acc, node_usage)
+        if merged:
+            usage_acc = merged
     
     if initial_state.get("error"):
         yield {"type": "error", "data": initial_state["error"]}
@@ -357,9 +371,13 @@ def run_agent_stream(
     
     # 流式输出推荐理由
     reasoning_parts = []
-    for token in generate_advice_stream(initial_state):
+    for token in generate_advice_stream(initial_state, usage_sink=usage_acc):
         reasoning_parts.append(token)
         yield {"type": "token", "data": token}
-    
+
+    # 成本核算内部事件：路由层拦截落库，不转发前端
+    if usage_acc:
+        yield {"type": "_llm_usage", "data": usage_acc}
+
     # 完成
     yield {"type": "done", "data": None}

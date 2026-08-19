@@ -19,6 +19,7 @@ import cnlunar
 from openai import OpenAI
 
 from apps.api.core.config import settings
+from apps.api.services.llm_usage_service import extract_llm_usage
 
 from packages.utils.wuxing_rules import (
     TIANGAN_WUXING,
@@ -185,9 +186,10 @@ def calculate_daily_fortune(
 
     # AI 个性化叙事
     ai_narrative = {}
+    ai_usage = None
     if generate_ai:
         try:
-            ai_narrative = _generate_ai_narrative(
+            ai_narrative, ai_usage = _generate_ai_narrative(
                 user_bazi=user_bazi,
                 target_date=target_date,
                 scores=scores,
@@ -209,6 +211,7 @@ def calculate_daily_fortune(
         "outfit_suggestion": outfit_suggestion,
         "huangli": huangli,
         "ai_narrative": ai_narrative,
+        "_llm_usage": ai_usage,
         "bazi_snapshot": {
             "day_master": day_master,
             "target_day_ganzhi": f"{day_tiangan}{day_dizhi}",
@@ -444,12 +447,13 @@ def _generate_ai_narrative(
     scores: Dict[str, int],
     overall: int,
     huangli: Dict[str, Any],
-) -> Dict[str, Any]:
+) -> tuple:
     """
     调用 LLM 生成个性化运势叙事
 
     Returns:
-        {
+        (narrative, usage) 元组：
+        narrative: {
             overview: str,       # 今日格局概述
             career_tip: str,     # 事业提示
             love_tip: str,       # 感情提示
@@ -551,7 +555,7 @@ def _generate_ai_narrative(
             if content.endswith("```"):
                 content = content[:-3]
 
-        return json.loads(content)
+        return json.loads(content), extract_llm_usage(response)
     except Exception as e:
         logger.error(f"[FortuneEngine] AI 叙事生成异常: {e}")
         raise

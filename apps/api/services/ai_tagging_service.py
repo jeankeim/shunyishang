@@ -11,6 +11,7 @@ from typing import Dict, Optional, List
 from openai import AsyncOpenAI
 
 from apps.api.core.config import settings
+from apps.api.services.llm_usage_service import extract_llm_usage
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +108,11 @@ class AITaggingService:
             
             # 计算置信度
             result["confidence"] = self._calculate_confidence(result, description)
+
+            # token 用量随结果带回，供埋点折算成本（调用方 pop 后传 log_llm_usage）
+            usage = extract_llm_usage(response)
+            if usage:
+                result["_llm_usage"] = usage
             
             logger.info(
                 f"AI打标成功[{'视觉' if use_vision else '文字'}]: {description} "

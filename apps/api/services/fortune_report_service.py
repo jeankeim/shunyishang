@@ -11,7 +11,7 @@ from psycopg2.extras import RealDictCursor
 
 from apps.api.core.database import DatabasePool
 from apps.api.core.config import settings
-from apps.api.services.llm_usage_service import log_llm_usage
+from apps.api.services.llm_usage_service import log_llm_usage, extract_llm_usage
 from openai import OpenAI
 
 logger = logging.getLogger(__name__)
@@ -85,6 +85,7 @@ class FortuneReportService:
                 temperature=0.7,
                 max_tokens=2000,
             )
+            ai_usage = extract_llm_usage(response)
             content = response.choices[0].message.content.strip()
 
             # 清理可能的 markdown 标记
@@ -100,7 +101,7 @@ class FortuneReportService:
             report_content = self._fallback_report(year, day_master)
         else:
             # 大模型调用明细埋点（仅 LLM 成功路径，降级不记录）
-            log_llm_usage(user_id, "fortune_report", None, f"{year} 年年度运势详批")
+            log_llm_usage(user_id, "fortune_report", None, f"{year} 年年度运势详批", usage=ai_usage)
 
         # 存入数据库
         report_id = self._save_report(

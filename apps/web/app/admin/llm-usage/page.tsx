@@ -4,7 +4,8 @@
  * 后台管理 - 用户大模型调用明细
  *
  * 按用户分组展示每日大模型使用情况：用户信息（ID/昵称/注册时间/城市）
- * + 调用详情（日期/场景/查询词/结果摘要/图片生成成本）。
+ * + 调用详情（日期/场景/查询词/结果摘要/模型与 token 用量/调用成本）。
+ * 成本按 DashScope 官网单价由 token 用量折算，历史数据按场景平均 token 估算。
  * 仅统计真实大模型调用（缓存命中不记录）。
  * 默认近 7 天，支持单日筛选与按用户搜索。
  */
@@ -35,6 +36,10 @@ function formatTime(iso: string | null): string {
   if (!iso) return '-'
   // 2026-08-18T10:00:00+00:00 → 08-18 10:00
   return iso.slice(5, 16).replace('T', ' ')
+}
+
+function formatCost(cost: number): string {
+  return `¥${(cost || 0).toFixed(4)}`
 }
 
 export default function AdminLlmUsagePage() {
@@ -153,16 +158,16 @@ export default function AdminLlmUsagePage() {
               </p>
             </div>
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-              <p className="text-xs text-gray-400">图片生成成本（元）</p>
+              <p className="text-xs text-gray-400">调用成本（元）</p>
               <p className="text-2xl font-semibold mt-1.5 text-amber-600">
-                ¥{data.totals.image_cost.toFixed(2)}
+                {formatCost(data.totals.cost)}
               </p>
             </div>
           </div>
 
           <p className="text-xs text-gray-400 -mt-2">
             统计范围 {data.range.start} ~ {data.range.end}
-            · 图片成本说明：当前在线链路无付费图片生成（海报为本地渲染，文生图仅离线脚本），该列为预留字段
+            · 成本按 DashScope 官网单价由 token 用量折算（历史数据按场景平均 token 估算）
           </p>
 
           {data.users.length === 0 ? (
@@ -186,7 +191,7 @@ export default function AdminLlmUsagePage() {
                     </span>
                   )}
                   <span className="ml-auto text-xs text-gray-500">
-                    {u.call_count} 次调用 · ¥{u.image_cost.toFixed(2)}
+                    {u.call_count} 次调用 · {formatCost(u.cost)}
                   </span>
                 </div>
 
@@ -199,7 +204,7 @@ export default function AdminLlmUsagePage() {
                         <th className="text-left font-normal py-2 pr-3">场景</th>
                         <th className="text-left font-normal py-2 pr-3">查询词</th>
                         <th className="text-left font-normal py-2 pr-3">结果摘要</th>
-                        <th className="text-right font-normal py-2 pl-3">图片成本</th>
+                        <th className="text-right font-normal py-2 pl-3">调用成本</th>
                       </tr>
                     </thead>
                     <tbody className="text-gray-600">
@@ -210,6 +215,11 @@ export default function AdminLlmUsagePage() {
                           </td>
                           <td className="py-2.5 pr-3">
                             <SceneBadge scene={r.scene} />
+                            {r.model && (
+                              <p className="text-[10px] text-gray-300 mt-1 whitespace-nowrap">
+                                {r.model} · 入{r.input_tokens ?? 0}/出{r.output_tokens ?? 0}
+                              </p>
+                            )}
                           </td>
                           <td className="py-2.5 pr-3 max-w-[220px] truncate" title={r.query_text || ''}>
                             {r.query_text || '-'}
@@ -217,8 +227,8 @@ export default function AdminLlmUsagePage() {
                           <td className="py-2.5 pr-3 max-w-[280px] truncate" title={r.result_summary || ''}>
                             {r.result_summary || '-'}
                           </td>
-                          <td className="py-2.5 pl-3 text-right">
-                            {r.image_cost > 0 ? `¥${r.image_cost.toFixed(2)}` : '-'}
+                          <td className="py-2.5 pl-3 text-right whitespace-nowrap">
+                            {r.cost > 0 ? formatCost(r.cost) : '-'}
                           </td>
                         </tr>
                       ))}

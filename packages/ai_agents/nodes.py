@@ -18,6 +18,7 @@ from apps.api.core.config import settings
 from apps.api.core.database import DatabasePool
 from apps.api.core.cache import cache as redis_cache
 from apps.api.core.retry import llm_retry
+from apps.api.services.llm_usage_service import extract_llm_usage, merge_llm_usage
 from packages.ai_agents.state import AgentState
 from packages.ai_agents.wardrobe_client import wardrobe_client
 from packages.utils.bazi_calculator import (
@@ -104,6 +105,7 @@ def call_llm_with_retry(
     max_tokens: int = 300,
     stream: bool = False,
     max_retries: int = DEFAULT_MAX_RETRIES,
+    include_usage: bool = False,
 ) -> Any:
     """
     带重试的 LLM 调用
@@ -126,11 +128,16 @@ def call_llm_with_retry(
     for attempt in range(1, max_retries + 1):
         try:
             if stream:
+                stream_kwargs: Dict = {}
+                if include_usage:
+                    # 流式末尾追加仅含 usage 的 chunk，用于成本核算
+                    stream_kwargs["stream_options"] = {"include_usage": True}
                 return client.chat.completions.create(
                     model=model,
                     messages=messages,
                     max_tokens=max_tokens,
                     stream=True,
+                    **stream_kwargs,
                 )
             else:
                 return client.chat.completions.create(
@@ -278,6 +285,9 @@ def analyze_intent_node(state: AgentState) -> Dict:
     # 2. 意图推断
     intent_result = infer_elements_from_text(user_input)
 
+    # 2.0 LLM token 用量累加器（成本核算，随状态传递给后续节点/调用方）
+    usage_sink: Dict = {}
+
     # 2.1 显式五行修正意图（用户实时意图，最高优先级，可覆盖八字预设）
     explicit_intent = extract_explicit_element_intent(user_input)
     if explicit_intent["add"] or explicit_intent["avoid"]:
@@ -354,7 +364,8 @@ def analyze_intent_node(state: AgentState) -> Dict:
             user_input=user_input,
             scene=scene,
             bazi_result=bazi_result,
-            target_elements=target_elements
+            target_elements=target_elements,
+            usage_sink=usage_sink,
         )
     
     return {
@@ -371,6 +382,7 @@ def analyze_intent_node(state: AgentState) -> Dict:
         "added_elements": added_elements,
         "boost_elements": boost_elements,
         "search_query": search_query,
+        "llm_token_usage": usage_sink or None,
     }
 
 
@@ -378,9 +390,14 @@ def _enhance_query_with_llm(
     user_input: str,
     scene: Optional[str],
     bazi_result: Optional[Dict],
-    target_elements: List[str]
+    target_elements: List[str],
+    usage_sink: Optional[Dict] = None,
 ) -> str:
-    """使用 LLM 增强搜索查询（带重试机制）"""
+    """使用 LLM 增强搜索查询（带重试机制）
+
+    Args:
+        usage_sink: 可选，传入 dict 时将本次调用的 token 用量累加其中（成本核算）
+    """
     try:
         client = get_llm_client()
         prompt_template = load_prompt("analyzer.txt")
@@ -410,7 +427,13 @@ def _enhance_query_with_llm(
             max_tokens=100,
             stream=False,
         )
-        
+
+        if usage_sink is not None:
+            merged = merge_llm_usage(usage_sink, extract_llm_usage(response))
+            if merged:
+                usage_sink.clear()
+                usage_sink.update(merged)
+
         return response.choices[0].message.content.strip()
     
     except Exception as e:
@@ -1626,6 +1649,7 @@ def generate_advice_node(state: AgentState) -> Dict:
     )
     
     # 调用 LLM（非流式，流式在 Task 04 实现）
+    usage = None
     try:
         client = get_llm_client()
         
@@ -1637,6 +1661,7 @@ def generate_advice_node(state: AgentState) -> Dict:
             max_tokens=200,  # 优化：从 300 降低到 200，理由通常不需要这么多
             stream=False,
         )
+        usage = extract_llm_usage(response)
         
         reasoning_text = response.choices[0].message.content.strip()
         
@@ -1654,12 +1679,19 @@ def generate_advice_node(state: AgentState) -> Dict:
     
     return {
         "reasoning_text": reasoning_text,
+        "llm_token_usage": merge_llm_usage(state.get("llm_token_usage"), usage),
     }
 
 
-def generate_advice_stream(state: AgentState) -> Generator[str, None, None]:
+def generate_advice_stream(
+    state: AgentState,
+    usage_sink: Optional[Dict] = None,
+) -> Generator[str, None, None]:
     """
     流式生成推荐理由（供 SSE 使用）
+    
+    Args:
+        usage_sink: 可选，传入 dict 时将流式调用的 token 用量累加其中（成本核算）
     
     Yields:
         str: 逐个 token
@@ -1808,9 +1840,19 @@ def generate_advice_stream(state: AgentState) -> Generator[str, None, None]:
             model=settings.qwen_model,
             max_tokens=300,
             stream=True,
+            include_usage=True,
         )
         
         for chunk in stream:
+            # 成本核算：累加 usage（含 include_usage 末尾 chunk）
+            if usage_sink is not None:
+                merged = merge_llm_usage(usage_sink, extract_llm_usage(chunk))
+                if merged:
+                    usage_sink.clear()
+                    usage_sink.update(merged)
+            # include_usage 的末尾 chunk 仅有 usage 无 choices，需跳过
+            if not chunk.choices:
+                continue
             if chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
     

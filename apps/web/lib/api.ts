@@ -1995,6 +1995,11 @@ export interface LlmUsageRecord {
   query_text: string | null
   result_summary: string | null
   image_cost: number
+  model: string | null
+  input_tokens: number | null
+  output_tokens: number | null
+  llm_cost: number
+  cost: number
   created_at: string | null
 }
 
@@ -2006,6 +2011,8 @@ export interface LlmUsageUserGroup {
   city: string | null
   call_count: number
   image_cost: number
+  llm_cost: number
+  cost: number
   scenes: string[]
   records: LlmUsageRecord[]
 }
@@ -2013,7 +2020,13 @@ export interface LlmUsageUserGroup {
 /** 大模型调用明细响应 */
 export interface AdminLlmUsageResponse {
   range: { start: string; end: string }
-  totals: { call_count: number; user_count: number; image_cost: number }
+  totals: {
+    call_count: number
+    user_count: number
+    llm_cost: number
+    image_cost: number
+    cost: number
+  }
   users: LlmUsageUserGroup[]
 }
 

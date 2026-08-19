@@ -177,6 +177,7 @@ async def preview_tagging(
         log_llm_usage(
             user.get("id"), "wardrobe_ai", request.description,
             f"AI 打标：主五行 {result.get('primary_element', '')}",
+            usage=result.pop("_llm_usage", None),
         )
         
         # 构建 AITaggingResult 响应
@@ -248,6 +249,7 @@ async def add_wardrobe_item(
                 log_llm_usage(
                     user_id, "wardrobe_ai", request.description or request.name,
                     f"AI 打标：主五行 {ai_result.get('primary_element', '')}",
+                    usage=ai_result.pop("_llm_usage", None),
                 )
         
         # 2. 确定最终值（用户指定优先，AI 结果其次）

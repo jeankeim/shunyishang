@@ -288,6 +288,7 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
         collected_items = None
         collected_travel_plan = None  # P2-98：收集旅行规划事件
         collected_reason = []
+        collected_usage = None  # 成本核算：agent 链路累计 token 用量
         is_fallback = False  # 衣橱→公共库软降级：不应把降级结果缓存到 wardrobe 键下
         
         for event in run_agent_stream(
@@ -317,6 +318,10 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
             elif event.get("type") == "notice":
                 # 收到软降级通知：标记本次为降级结果，跳过缓存写入
                 is_fallback = True
+            elif event.get("type") == "_llm_usage":
+                # 内部成本核算事件：仅收集落库，不转发前端
+                collected_usage = event.get("data") or None
+                continue
             
             # 编码为 SSE 格式
             data = json.dumps(event, ensure_ascii=False)
@@ -338,6 +343,7 @@ async def generate_sse(request: RecommendRequest) -> AsyncGenerator[bytes, None]
             "agent",
             request.query,
             f"推荐 {len(collected_items) if isinstance(collected_items, list) else 0} 件物品",
+            usage=collected_usage,
         )
         
         # 缓存完整结果（如果收集到了）

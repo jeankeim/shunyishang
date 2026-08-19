@@ -180,7 +180,11 @@ def _generate_and_store(user_id: int, target_date: date, force: bool = False, ge
 
     if generate_ai:
         # 大模型调用明细埋点（GET 缓存未命中路径，真实调用 LLM 生成 AI 叙事）
-        log_llm_usage(user_id, "fortune", None, f"每日运势 AI 叙事（综合 {result.get('overall_score', 0)} 分）")
+        log_llm_usage(
+            user_id, "fortune", None,
+            f"每日运势 AI 叙事（综合 {result.get('overall_score', 0)} 分）",
+            usage=result.pop("_llm_usage", None),
+        )
 
     # 使用 UPSERT
     query = """
@@ -268,7 +272,7 @@ def _enhance_ai_narrative_worker(user_id: int, target_date: date) -> None:
         scores = row["scores"] if isinstance(row["scores"], dict) else json.loads(row["scores"])
         huangli = row["huangli"] if isinstance(row["huangli"], dict) else json.loads(row["huangli"] or "{}")
 
-        narrative = _generate_ai_narrative(
+        narrative, ai_usage = _generate_ai_narrative(
             user_bazi=user_bazi,
             target_date=target_date,
             scores=scores,
@@ -276,7 +280,7 @@ def _enhance_ai_narrative_worker(user_id: int, target_date: date) -> None:
             huangli=huangli,
         )
         # 大模型调用明细埋点（后台异步增强路径）
-        log_llm_usage(user_id, "fortune", None, "每日运势 AI 叙事（后台异步增强）")
+        log_llm_usage(user_id, "fortune", None, "每日运势 AI 叙事（后台异步增强）", usage=ai_usage)
 
         # 条件更新：仅当仍为 pending 时才覆盖，避免踩掉手动重新生成的新行
         with DatabasePool.get_connection() as conn:

@@ -308,6 +308,7 @@ async def quick_checkin(
             log_llm_usage(
                 user_id, "diary_ai", description or "今日穿搭",
                 f"AI 穿搭分析：主五行 {ai_result.get('primary_element', '')}",
+                usage=ai_result.pop("_llm_usage", None),
             )
         except Exception as e:
             logger.warning(f"[QuickCheckIn] AI 分析失败: {e}")

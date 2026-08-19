@@ -118,6 +118,13 @@ def extract_context_from_query(user_input: str) -> Dict:
                 result["weather_element"] = _weather_desc_to_element(weather_desc)
 
         logger.info(f"[LLM提取] 场景: {result['scene']}, 天气: {weather_desc}, 温度: {temperature}")
+
+        # token 用量随结果带回，供 agent 链路累加成本核算
+        from apps.api.services.llm_usage_service import extract_llm_usage
+        usage = extract_llm_usage(response)
+        if usage:
+            result["llm_usage"] = usage
+
         return result
 
     except Exception as e:

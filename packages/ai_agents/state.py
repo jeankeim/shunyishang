@@ -37,6 +37,7 @@ class AgentState(TypedDict):
     
     # === 分析层 ===
     bazi_result: Optional[Dict]         # 八字计算结果（来自 Task 02）
+    llm_token_usage: Optional[Dict]     # 本次请求 LLM token 用量累加（成本核算）
     annual_luck: Optional[Dict]         # 流年运势（当年）
     major_luck: Optional[Dict]          # 当前大运
     intent_result: Optional[Dict]       # 意图推断结果
@@ -146,6 +147,7 @@ def create_initial_state(
         travel_plan=None,
         batch_index=batch_index,
         bazi_result=None,
+        llm_token_usage=None,
         annual_luck=None,
         major_luck=None,
         intent_result=None,
