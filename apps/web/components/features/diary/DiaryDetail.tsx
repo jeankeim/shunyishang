@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Share2, CheckCircle } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui'
+import { ModalPortal } from '@/components/ui/ModalPortal'
 import type { OutfitDiary } from '@/types'
 import { getPostByDiary, deletePostByDiary, createCommunityPost } from '@/lib/api'
 
@@ -165,6 +166,7 @@ export function DiaryDetail({ diary, onEdit, onDelete, onTriggerReview, onBack }
       )}
 
       {/* 图片灯箱 */}
+      <ModalPortal>
       <AnimatePresence>
         {lightboxIndex !== null && diary.image_urls && (
           <motion.div
@@ -172,7 +174,7 @@ export function DiaryDetail({ diary, onEdit, onDelete, onTriggerReview, onBack }
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setLightboxIndex(null)}
-            className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+            className="fixed inset-0 z-[70] bg-black/80 flex items-center justify-center p-4"
           >
             <button
               onClick={() => setLightboxIndex(null)}
@@ -219,6 +221,7 @@ export function DiaryDetail({ diary, onEdit, onDelete, onTriggerReview, onBack }
           </motion.div>
         )}
       </AnimatePresence>
+      </ModalPortal>
 
       {/* 关联衣物 */}
       {diary.items.length > 0 && (

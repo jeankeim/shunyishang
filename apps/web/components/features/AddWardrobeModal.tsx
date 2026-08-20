@@ -9,6 +9,7 @@ import type { WardrobeItem, AITaggingResult } from '@/lib/api'
 import { initAuthToken } from '@/lib/api'
 import { WUXING_ELEMENTS, WUXING_CONFIG, getWuxingConfig } from '@/lib/wuxing-config'
 import { ImageUploader } from './ImageUploader'
+import { ModalPortal } from '@/components/ui/ModalPortal'
 
 const CATEGORIES = ['上装', '下装', '外套', '鞋履', '配饰', '裙装', '套装', '其他'] as const
 const SEASONS = ['春', '夏', '秋', '冬'] as const
@@ -834,6 +835,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
   }
 
   return (
+    <ModalPortal>
     <AnimatePresence>
       {isOpen && (
         <>
@@ -842,14 +844,14 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleClose}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[70]"
           />
           
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed inset-x-0 top-0 h-viewport z-50 flex items-center justify-center p-4"
+            className="fixed inset-x-0 top-0 h-viewport z-[70] flex items-center justify-center p-4"
           >
             <div 
               onClick={(e) => e.stopPropagation()}
@@ -899,5 +901,6 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
         </>
       )}
     </AnimatePresence>
+    </ModalPortal>
   )
 }

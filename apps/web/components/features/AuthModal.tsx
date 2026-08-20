@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Eye, EyeOff, User, Lock, Phone, Mail } from 'lucide-react'
 import { useUserStore } from '@/store/user'
+import { ModalPortal } from '@/components/ui/ModalPortal'
 
 interface AuthModalProps {
   isOpen: boolean
@@ -70,12 +71,13 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   if (!isOpen) return null
 
   return (
+    <ModalPortal>
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-x-0 top-0 h-viewport z-50 overflow-y-auto overscroll-contain bg-black/60 backdrop-blur-sm flex p-4"
+        className="fixed inset-x-0 top-0 h-viewport z-[70] overflow-y-auto overscroll-contain bg-black/60 backdrop-blur-sm flex p-4"
         onClick={onClose}
       >
         <motion.div
@@ -365,5 +367,6 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         </motion.div>
       </motion.div>
     </AnimatePresence>
+    </ModalPortal>
   )
 }

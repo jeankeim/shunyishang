@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { ModalPortal } from '@/components/ui/ModalPortal'
 import { quickCheckIn, getDailyPick } from '@/lib/api'
 import { useUserStore } from '@/store/user'
 
@@ -156,13 +157,14 @@ export function QuickCheckIn({ isOpen, onClose, onSuccess, weatherInfo }: QuickC
   }
 
   return (
+    <ModalPortal>
     <AnimatePresence>
       {isOpen && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-x-0 top-0 h-viewport z-50 flex items-end sm:items-center justify-center"
+          className="fixed inset-x-0 top-0 h-viewport z-[70] flex items-end sm:items-center justify-center"
           onClick={handleClose}
         >
           {/* 背景遮罩 */}
@@ -486,5 +488,6 @@ export function QuickCheckIn({ isOpen, onClose, onSuccess, weatherInfo }: QuickC
         </motion.div>
       )}
     </AnimatePresence>
+    </ModalPortal>
   )
 }

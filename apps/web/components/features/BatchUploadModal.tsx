@@ -12,6 +12,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
+import { ModalPortal } from '@/components/ui/ModalPortal'
 import { useWardrobeStore } from '@/store/wardrobe'
 import { useUserStore } from '@/store/user'
 import {
@@ -709,8 +710,9 @@ export function BatchUploadModal({ isOpen, onClose, onSuccess }: BatchUploadModa
   }
 
   return (
+    <ModalPortal>
     <AnimatePresence>
-      <div className="fixed inset-x-0 top-0 h-viewport z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-x-0 top-0 h-viewport z-[70] flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -927,6 +929,7 @@ export function BatchUploadModal({ isOpen, onClose, onSuccess }: BatchUploadModa
         </motion.div>
       </div>
     </AnimatePresence>
+    </ModalPortal>
   )
 }
 
