@@ -1,13 +1,15 @@
 """
 锚点物品识别与匹配工具
 
-当用户在 query 中明确指定某件单品（如「白色衬衫和什么搭配适合我」），
-该单品称为「锚点物品」：用户自己已拥有它，推荐系统应围绕它给出搭配方案，
-而不是推荐其他同品类冲突单品（如别的颜色的衬衫）。
+当用户在 query 中明确指定某件单品（如「白色衬衫和什么搭配适合我」
+「牛仔裤配什么鞋」），该单品称为「锚点物品」：用户自己已拥有它，
+推荐系统应围绕它给出搭配方案，而不是推荐其他同品类冲突单品
+（如别的颜色的衬衫、别的裤子）。颜色可选：有色按「颜色+品类」
+相邻匹配，无色仅凭品类点名（如「牛仔裤」）同样构成锚点。
 
 提供能力：
-1. extract_anchor_spec: 从文本提取「颜色+品类」锚点描述（相邻匹配，防误命中）
-2. find_anchor_item: 在物品库检索最匹配的锚点物品（颜色同族宽松匹配）
+1. extract_anchor_spec: 从文本提取锚点描述（颜色+品类相邻，或无色品类点名）
+2. find_anchor_item: 在物品库检索最匹配的锚点物品（有色同族宽松 / 无色按品类词）
 3. COLOR_GROUP_ELEMENT: 色系→五行映射，供叙事上下文使用
 """
 
@@ -80,18 +82,25 @@ _SEPARATORS = ("", "色", "的", "色的")
 # 前缀窗口长度（颜色词最长4字如「象牙白」+ 连接词最长2字）
 _PREFIX_WINDOW = 7
 
+# 提问标记：前缀窗口内出现这些词时，品类词是提问对象（「配什么外套」），
+# 而非用户自有单品，不构成锚点
+_QUESTION_MARKERS = ("什么", "啥", "哪")
+
 
 def extract_anchor_specs(text: str) -> List[Dict]:
     """
-    从用户文本提取全部锚点物品描述（颜色+品类相邻组合，支持多锚点）
+    从用户文本提取全部锚点物品描述（支持多锚点）
 
-    如「白色衬衫和黑色裤子搭配什么」→ [白/上装, 黑/下装]。
+    有色锚点：颜色+品类相邻组合，如「白色衬衫和黑色裤子搭配什么」→ [白/上装, 黑/下装]；
+    无色锚点：仅品类点名，如「牛仔裤配什么鞋」→ [None/下装]（用户点名即视为自有）。
+    提问对象保护：「配什么外套」「哪条裤子」中品类词是诉求而非自有单品，不提取。
     重叠区间去重（「白色衬衫裙」只命中衬衫裙，不再重复命中衬衫），
     结果按文本位置排序。
 
     Returns:
         锚点描述列表，每项含 {"color_group", "color_word", "category",
-        "category_word", "phrase", "element"}；无命中时为空列表
+        "category_word", "phrase", "element"}（无色锚点颜色字段为 None）；
+        无命中时为空列表
     """
     if not text:
         return []
@@ -102,7 +111,7 @@ def extract_anchor_specs(text: str) -> List[Dict]:
         start = 0
         while True:
             pos = text.find(alias, start)
-            if pos <= 0:
+            if pos < 0:
                 break
             start = pos + 1
             span = (pos, pos + len(alias))
@@ -110,6 +119,9 @@ def extract_anchor_specs(text: str) -> List[Dict]:
             if any(not (span[1] <= s[0] or span[0] >= s[1]) for s in spans):
                 continue
             prefix = text[max(0, pos - _PREFIX_WINDOW):pos]
+            # 品类词是提问对象（「配什么外套」「哪条裤子」）而非自有单品 → 不作锚点
+            if any(m in prefix for m in _QUESTION_MARKERS):
+                continue
             spec = None
             for group, synonyms in COLOR_GROUPS.items():
                 if spec:
@@ -128,9 +140,19 @@ def extract_anchor_specs(text: str) -> List[Dict]:
                             break
                     if spec:
                         break
-            if spec:
-                spans.append(span)
-                hits.append((pos, span, spec))
+            if spec is None:
+                # 无色锚点：用户点名品类单品（「牛仔裤配什么鞋」），同样视为自有，
+                # 颜色字段为 None（排除/库内匹配仅按品类词判定）
+                spec = {
+                    "color_group": None,
+                    "color_word": None,
+                    "category": db_category,
+                    "category_word": alias,
+                    "phrase": alias,
+                    "element": None,
+                }
+            spans.append(span)
+            hits.append((pos, span, spec))
 
     hits.sort(key=lambda t: t[0])
     return [spec for _, _, spec in hits]
@@ -169,9 +191,10 @@ def find_anchor_item(
     user_gender: Optional[str] = None,
 ) -> Optional[Dict]:
     """
-    在物品库检索与锚点描述最匹配的物品（颜色同族宽松匹配）
+    在物品库检索与锚点描述最匹配的物品
 
-    匹配优先级：name 含完整 phrase > name 含「色词+品类词」> 颜色字段同族命中。
+    有色锚点匹配优先级：name 含完整 phrase > name 含「色词+品类词」> 颜色字段同族命中；
+    无色锚点：name 含品类词（如「牛仔裤」）即命中。
     库中无匹配时返回 None（调用方仅做同品类排除，不置顶）。
     """
     try:
@@ -201,8 +224,14 @@ def find_anchor_item(
             return ""
 
         candidates = []
+        colorless = spec.get("color_word") is None
         for row in rows:
             name = row[1] or ""
+            if colorless:
+                # 无色锚点：name 含品类词即视为锚点物品（牛仔裤 → 「xx牛仔裤」）
+                if spec["category_word"] in name:
+                    candidates.append((0, row[0], row))
+                continue
             color_name = _color_name(row)
             haystack = name + color_name
             if not any(syn in haystack for syn in synonyms):

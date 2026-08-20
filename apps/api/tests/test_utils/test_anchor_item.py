@@ -1,7 +1,7 @@
 """锚点物品识别与冲突判定测试（通用推荐约束机制）
 
-覆盖：颜色+品类相邻提取、9 色系×多品类矩阵、多锚点、
-重叠区间去重、细粒度品类冲突判定、误命中防御。
+覆盖：颜色+品类相邻提取、无色品类点名锚点、提问对象保护、
+9 色系×多品类矩阵、多锚点、重叠区间去重、细粒度品类冲突判定。
 """
 
 import pytest
@@ -47,18 +47,44 @@ class TestExtractAnchorSpec:
         assert spec["color_group"] == "白"
         assert spec["color_word"] == "米白"
 
-    def test_no_color_no_anchor(self):
-        """只有品类无颜色不构成锚点"""
-        assert extract_anchor_spec("衬衫配什么好") is None
+    def test_colorless_category_anchor(self):
+        """只有品类无颜色同样构成锚点（用户点名即自有）"""
+        spec = extract_anchor_spec("衬衫配什么好")
+        assert spec is not None
+        assert spec["color_group"] is None
+        assert spec["color_word"] is None
+        assert spec["category"] == "上装"
+        assert spec["phrase"] == "衬衫"
+        assert spec["element"] is None
+
+    def test_colorless_at_position_zero(self):
+        """核心 bad case：「牛仔裤配什么鞋」句首无色品类"""
+        spec = extract_anchor_spec("牛仔裤配什么鞋")
+        assert spec is not None
+        assert spec["color_group"] is None
+        assert spec["category"] == "下装"
+        assert spec["category_word"] == "牛仔裤"
+        assert spec["phrase"] == "牛仔裤"
+
+    def test_question_target_not_anchor(self):
+        """「什么/啥/哪」后的品类词是提问对象，不作锚点"""
+        assert extract_anchor_spec("什么裤子适合我") is None
+        assert extract_anchor_spec("裙子配啥外套") is not None
+        specs = extract_anchor_specs("裙子配什么外套")
+        assert len(specs) == 1
+        assert specs[0]["category"] == "裙装"
 
     def test_normal_query_no_anchor(self):
         """日常提问不误命中"""
         assert extract_anchor_spec("今天穿什么合适") is None
         assert extract_anchor_spec("金命人适合什么颜色") is None
 
-    def test_non_adjacent_color_not_anchor(self):
-        """颜色与品类不相邻（非指定单品语义）不提取"""
-        assert extract_anchor_spec("我喜欢白色，推荐一件衬衫") is None
+    def test_non_adjacent_color_degrades_to_colorless(self):
+        """颜色与品类不相邻 → 降级为无色锚点（仍排除同品类）"""
+        spec = extract_anchor_spec("我喜欢白色，推荐一件衬衫")
+        assert spec is not None
+        assert spec["color_group"] is None
+        assert spec["category"] == "上装"
 
     def test_empty_text(self):
         assert extract_anchor_spec("") is None
@@ -106,11 +132,14 @@ class TestMultiAnchor:
     def test_no_anchor(self):
         assert extract_anchor_specs("今天穿什么") == []
 
-    def test_partial_anchor_only(self):
-        """一个指定单品+一个无颜色品类 → 只提取前者"""
+    def test_mixed_color_and_colorless(self):
+        """一个有色指定单品+一个无色品类 → 双锚点"""
         specs = extract_anchor_specs("白色衬衫和裤子搭配")
-        assert len(specs) == 1
+        assert len(specs) == 2
         assert specs[0]["category"] == "上装"
+        assert specs[0]["color_group"] == "白"
+        assert specs[1]["category"] == "下装"
+        assert specs[1]["color_group"] is None
 
 
 class TestOverlapDedup:
@@ -159,4 +188,17 @@ class TestConflictDetection:
         )
         assert not item_conflicts_with_anchor(
             {"category": "上装", "name": "红色T恤"}, spec
+        )
+
+    def test_colorless_anchor_conflict(self):
+        """无色锚点（牛仔裤）：其他下装冲突，鞋履不冲突"""
+        spec = {"category": "下装", "category_word": "牛仔裤", "color_group": None}
+        assert item_conflicts_with_anchor(
+            {"category": "下装", "name": "薄荷绿短裤"}, spec
+        )
+        assert item_conflicts_with_anchor(
+            {"category": "下装", "name": "黑色运动短裤"}, spec
+        )
+        assert not item_conflicts_with_anchor(
+            {"category": "鞋履", "name": "黑色简约乐福鞋"}, spec
         )
