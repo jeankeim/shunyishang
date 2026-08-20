@@ -16,6 +16,7 @@ import { DailyRitualCard } from '@/components/features/DailyRitualCard'
 import { DailyOutfitCard } from '@/components/features/DailyOutfitCard'
 import { QuickCheckIn } from '@/components/features/QuickCheckIn'
 import { IcpFooter } from '@/components/features/IcpFooter'
+import { PullToRefresh } from '@/components/features/PullToRefresh'
 import { useChatStore } from '@/store/chat'
 import { useUserStore } from '@/store/user'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
@@ -639,8 +640,14 @@ export default function Home() {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3, ease: "easeOut" }}
           className="flex-1 overflow-y-auto overflow-x-visible bg-white p-3 md:p-4 pb-24 md:pb-4"
-          style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom, 0px))' }}
+          style={{
+            paddingBottom: 'calc(6rem + env(safe-area-inset-bottom, 0px))',
+            // Safari 滚动适配：阻止滚动链/橡皮筋干扰下拉刷新手势，iOS 惯性滚动更顺滑
+            overscrollBehaviorY: 'contain',
+            WebkitOverflowScrolling: 'touch',
+          }}
         >
+          <PullToRefresh onRefresh={handleRefresh}>
           <AnimatePresence initial={false}>
             {activeTab === 'chat' && (
               <motion.div
@@ -828,6 +835,7 @@ export default function Home() {
 
           {/* ICP 备案信息：滚动区底部展示，不被底部导航遮挡 */}
           <IcpFooter />
+          </PullToRefresh>
         </motion.div>
       </div>
       
