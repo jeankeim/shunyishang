@@ -474,6 +474,14 @@ EXPLICIT_MING_PATTERNS: List[str] = [
     "{e}命人", "{e}命的", "日主{e}", "日主属{e}", "日干{e}", "属{e}命",
 ]
 
+# 显式「喜用神自述」表述模板：用户直接声明喜用神为某五行（如「喜用神是火应该穿什么颜色」）
+# 语义等价于「补 X」，以用户自述为准，优先于本账号八字推算预设
+EXPLICIT_XIYONG_PATTERNS: List[str] = [
+    "喜用神是{e}", "喜用神为{e}", "喜用神属{e}",
+    "用神是{e}", "用神为{e}", "用神属{e}",
+    "喜神是{e}", "喜神为{e}", "喜用{e}",
+]
+
 
 def extract_explicit_element_intent(text: str) -> Dict[str, List[str]]:
     """
@@ -482,7 +490,8 @@ def extract_explicit_element_intent(text: str) -> Dict[str, List[str]]:
     与 infer_elements_from_text 的隐式推断（场景/气质关键词）不同，
     这里只识别用户主动说出的「补X / 缺X / 不要X / X命人」等明确指令，
     例如「五行缺金」「想补金」「不要水」「金命人适合什么颜色」。
-    命主身份表述（X命人/日主X）语义映射为 add=[X, 生X者]（比和+生我）。
+    命主身份表述（X命人/日主X）语义映射为 add=[X, 生X者]（比和+生我）；
+    喜用神自述（喜用神是X/用神为X）语义映射为 add=[X]（用户自述优先）。
     结果供 merge_recommendations 作为最高优先级五行目标，
     可覆盖八字喜用神预设（用户实时意图 > 预设条件）。
 
@@ -493,9 +502,10 @@ def extract_explicit_element_intent(text: str) -> Dict[str, List[str]]:
         {"add": [用户显式要补的五行],
          "avoid": [用户显式要避的五行],
          "ming": [用户提问的命主五行],
+         "xiyong": [用户自述的喜用神五行],
          "matched": [命中指令描述]}
     """
-    result: Dict[str, List[str]] = {"add": [], "avoid": [], "ming": [], "matched": []}
+    result: Dict[str, List[str]] = {"add": [], "avoid": [], "ming": [], "xiyong": [], "matched": []}
     if not text:
         return result
 
@@ -514,6 +524,16 @@ def extract_explicit_element_intent(text: str) -> Dict[str, List[str]]:
         if add_hit:
             result["add"].append(element)
             result["matched"].append(f"{add_hit.format(e=element)}→补{element}")
+            continue
+        # 喜用神自述：如「喜用神是火」「用神为金」，语义=补 X（用户自述优先于八字推算）
+        xiyong_hit = next(
+            (p for p in EXPLICIT_XIYONG_PATTERNS if p.format(e=element) in text), None
+        )
+        if xiyong_hit:
+            result["xiyong"].append(element)
+            if element not in result["add"]:
+                result["add"].append(element)
+            result["matched"].append(f"{xiyong_hit.format(e=element)}→喜用{element}")
             continue
         # 命主身份表述：如「金命人」「日主金」，语义=补 X + 生X者（比和+生我）
         ming_hit = next(

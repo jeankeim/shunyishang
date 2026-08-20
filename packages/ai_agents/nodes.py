@@ -1677,7 +1677,14 @@ def generate_advice_node(state: AgentState) -> Dict:
     explicit_intent_data = state.get("explicit_intent") or {}
     explicit_add = explicit_intent_data.get("add", [])
     explicit_ming = explicit_intent_data.get("ming", [])
-    if explicit_ming:
+    explicit_xiyong = explicit_intent_data.get("xiyong", [])
+    if explicit_xiyong:
+        added_instruction += (
+            f' 特别说明：用户自述其喜用神为【{"、".join(explicit_xiyong)}】（以用户自述为准，优先于本账号八字推算），'
+            f'这是最高优先级需求，推荐理由开头必须直接回应「喜用神是{explicit_xiyong[0]}」，'
+            f'围绕【{"、".join(explicit_xiyong)}】元素的颜色/单品作主推荐，不得改用本账号八字喜用神作答，不得降级或忽略。'
+        )
+    elif explicit_ming:
         added_instruction += (
             f' 特别说明：用户询问的是【{"、".join(explicit_ming)}】命人的搭配，'
             f'这是最高优先级需求，必须从该命人适合的五行角度（比和元素与生它的元素）回答，'
@@ -1883,7 +1890,14 @@ def generate_advice_stream(
     explicit_intent_data = state.get("explicit_intent") or {}
     explicit_add = explicit_intent_data.get("add", [])
     explicit_ming = explicit_intent_data.get("ming", [])
-    if explicit_ming:
+    explicit_xiyong = explicit_intent_data.get("xiyong", [])
+    if explicit_xiyong:
+        added_instruction += (
+            f' 特别说明：用户自述其喜用神为【{"、".join(explicit_xiyong)}】（以用户自述为准，优先于本账号八字推算），'
+            f'这是最高优先级需求，推荐理由开头必须直接回应「喜用神是{explicit_xiyong[0]}」，'
+            f'围绕【{"、".join(explicit_xiyong)}】元素的颜色/单品作主推荐，不得改用本账号八字喜用神作答，不得降级或忽略。'
+        )
+    elif explicit_ming:
         added_instruction += (
             f' 特别说明：用户询问的是【{"、".join(explicit_ming)}】命人的搭配，'
             f'这是最高优先级需求，必须从该命人适合的五行角度（比和元素与生它的元素）回答，'

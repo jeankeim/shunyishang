@@ -597,7 +597,7 @@ class TestExtractExplicitElementIntent:
     def test_empty_text(self):
         """空文本防御"""
         result = extract_explicit_element_intent("")
-        assert result == {"add": [], "avoid": [], "ming": [], "matched": []}
+        assert result == {"add": [], "avoid": [], "ming": [], "xiyong": [], "matched": []}
 
 
 # ============================================================
@@ -725,3 +725,44 @@ class TestMingLordIntent:
         result, boost = merge_recommendations(bazi, None, None, explicit_intent=explicit)
         assert result[0] == "金"  # 命主五行置于最前，覆盖忌神
         assert "土" in result  # 生我者随同进 target
+
+
+# ============================================================
+# 喜用神自述测试（喜用神是X / 用神为X，用户自述优先于八字推算）
+# ============================================================
+
+class TestXiyongDeclaration:
+    """喜用神自述识别与优先级"""
+
+    def test_xiyong_is_fire(self):
+        """核心 bad case：「喜用神是火应该穿什么颜色」→ xiyong=[火]，add 含火"""
+        result = extract_explicit_element_intent("喜用神是火应该穿什么颜色")
+        assert result["xiyong"] == ["火"]
+        assert "火" in result["add"]
+
+    def test_yongshen_wei_jin(self):
+        """「用神为金」表述识别"""
+        result = extract_explicit_element_intent("用神为金适合穿什么")
+        assert result["xiyong"] == ["金"]
+
+    def test_xiyong_short_form(self):
+        """「喜用水」简称表述识别"""
+        result = extract_explicit_element_intent("喜用水怎么搭配")
+        assert result["xiyong"] == ["水"]
+
+    def test_no_xiyong_false_positive(self):
+        """日常提问不误命中喜用神自述"""
+        result = extract_explicit_element_intent("今天穿什么合适")
+        assert result["xiyong"] == []
+        result = extract_explicit_element_intent("我的喜用神是什么")
+        assert result["xiyong"] == []
+
+    def test_xiyong_overrides_bazi_preset(self):
+        """核心 bad case：账号预设喜用水木，用户自述喜用火 → 火居 target 首位"""
+        bazi = {
+            "suggested_elements": ["水", "木"],
+            "avoid_elements": ["土", "金"],
+        }
+        explicit = extract_explicit_element_intent("喜用神是火应该穿什么颜色")
+        result, boost = merge_recommendations(bazi, None, None, explicit_intent=explicit)
+        assert result[0] == "火"  # 用户自述喜用神置于最前，覆盖预设
