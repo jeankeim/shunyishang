@@ -75,18 +75,18 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        className="fixed inset-x-0 top-0 h-viewport z-50 overflow-y-auto overscroll-contain bg-black/60 backdrop-blur-sm flex p-4"
         onClick={onClose}
       >
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md overflow-hidden"
+          className="m-auto bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md max-h-full flex flex-col overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {/* 头部 */}
-          <div className="flex items-center justify-between p-6 border-b border-slate-700">
+          <div className="flex items-center justify-between p-6 border-b border-slate-700 shrink-0">
             <h2 className="text-xl font-semibold text-white">
               {mode === 'login' ? '欢迎回来' : '创建账户'}
             </h2>
@@ -98,8 +98,8 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
             </button>
           </div>
 
-          {/* 内容 */}
-          <div className="p-6">
+          {/* 内容：小屏下内部滚动，确保注册按钮始终可达 */}
+          <div className="p-6 overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
             {/* 标签切换 */}
             <div className="flex gap-2 mb-6 bg-slate-800 p-1 rounded-lg">
               <button

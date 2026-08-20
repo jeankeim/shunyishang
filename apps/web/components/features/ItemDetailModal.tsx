@@ -70,7 +70,7 @@ export function ItemDetailModal({ item, onClose }: ItemDetailModalProps) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.2 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-end md:items-center justify-center"
+        className="fixed inset-x-0 top-0 h-viewport bg-black/60 backdrop-blur-sm z-[9999] flex items-end md:items-center justify-center"
         onClick={onClose}
         role="dialog"
         aria-modal="true"

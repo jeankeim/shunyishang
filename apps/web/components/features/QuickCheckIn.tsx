@@ -162,7 +162,7 @@ export function QuickCheckIn({ isOpen, onClose, onSuccess, weatherInfo }: QuickC
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          className="fixed inset-x-0 top-0 h-viewport z-50 flex items-end sm:items-center justify-center"
           onClick={handleClose}
         >
           {/* 背景遮罩 */}

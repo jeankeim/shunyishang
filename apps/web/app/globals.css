@@ -613,6 +613,13 @@ html[data-skin="jade"] {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
+/* iOS Safari 动态视口高度：100dvh 等于浏览器工具栏可见区域的实际高度，
+   100vh 作为不支持 dvh 的旧浏览器回退；用于 fixed 弹层，避免内容被地址栏遮挡 */
+.h-viewport {
+  height: 100vh;
+  height: 100dvh;
+}
+
 /* 流体排版 */
 .text-fluid-xs {
   font-size: clamp(0.625rem, 2vw, 0.75rem);
