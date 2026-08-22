@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import { ChatInput } from '../ChatInput'
+import { requestChatInputAutofill, consumePendingChatAutofill } from '@/lib/chatAutofill'
 
 describe('ChatInput', () => {
   it('should render textarea and send button', () => {
@@ -119,5 +120,43 @@ describe('ChatInput', () => {
 
     const button = screen.getByRole('button')
     expect(button).not.toBeDisabled()
+  })
+})
+
+describe('ChatInput 场景联动自动填充', () => {
+  beforeEach(() => {
+    // 清理上一个用例可能遗留的 pending 联动文本
+    consumePendingChatAutofill()
+  })
+
+  it('选中场景后输入框自动填充场景名称', () => {
+    render(<ChatInput onSend={vi.fn()} />)
+    const textarea = screen.getByPlaceholderText('描述你的穿搭需求...')
+    act(() => { requestChatInputAutofill('休闲日常') })
+    expect(textarea).toHaveValue('休闲日常')
+  })
+
+  it('取消场景时清空联动填充的文本', () => {
+    render(<ChatInput onSend={vi.fn()} />)
+    const textarea = screen.getByPlaceholderText('描述你的穿搭需求...')
+    act(() => { requestChatInputAutofill('商务办公') })
+    act(() => { requestChatInputAutofill('') })
+    expect(textarea).toHaveValue('')
+  })
+
+  it('取消场景时保留用户已修改的内容', () => {
+    render(<ChatInput onSend={vi.fn()} />)
+    const textarea = screen.getByPlaceholderText('描述你的穿搭需求...')
+    act(() => { requestChatInputAutofill('商务办公') })
+    fireEvent.change(textarea, { target: { value: '商务办公，偏正式一点' } })
+    act(() => { requestChatInputAutofill('') })
+    expect(textarea).toHaveValue('商务办公，偏正式一点')
+  })
+
+  it('输入框挂载前产生的联动文本在挂载时消费', () => {
+    requestChatInputAutofill('运动健身')
+    render(<ChatInput onSend={vi.fn()} />)
+    const textarea = screen.getByPlaceholderText('描述你的穿搭需求...')
+    expect(textarea).toHaveValue('运动健身')
   })
 })

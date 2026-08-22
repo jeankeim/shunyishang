@@ -102,7 +102,7 @@ interface WeatherData {
 }
 
 interface WeatherSceneSectionProps {
-  onSceneChange?: (scene: string, sceneElement: string) => void
+  onSceneChange?: (scene: string, sceneElement: string, sceneLabel?: string) => void
   onWeatherChange?: (weather: WeatherData) => void
   className?: string
 }
@@ -595,14 +595,15 @@ export function WeatherSceneSection({
   }, [])
 
   // 处理场景选择（支持 toggle 取消）
-  const handleSceneSelect = (sceneId: string, element: string) => {
+  // 选中时同步透传场景名称，供上层联动填充推荐输入框
+  const handleSceneSelect = (sceneId: string, element: string, label: string) => {
     if (selectedScene === sceneId) {
       // 再次点击取消选择
       setSelectedScene('')
-      onSceneChange?.('', '')
+      onSceneChange?.('', '', '')
     } else {
       setSelectedScene(sceneId)
-      onSceneChange?.(sceneId, element)
+      onSceneChange?.(sceneId, element, label)
       recordSceneUsage(sceneId)
       setSortedScenes(getSortedScenes()) // 重新排序
     }
@@ -611,7 +612,7 @@ export function WeatherSceneSection({
   // 清除场景选择
   const handleClearScene = () => {
     setSelectedScene('')
-    onSceneChange?.('', '')
+    onSceneChange?.('', '', '')
   }
 
   // 获取天气图标
@@ -750,7 +751,7 @@ export function WeatherSceneSection({
                 key={scene.id}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => handleSceneSelect(scene.id, scene.element)}
+                onClick={() => handleSceneSelect(scene.id, scene.element, scene.label)}
                 className={cn(
                   'relative flex items-center gap-2 p-2 rounded-lg border text-left transition-all duration-200',
                   isSelected

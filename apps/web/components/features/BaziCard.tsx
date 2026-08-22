@@ -26,6 +26,33 @@ const ganElement: Record<string, string> = {
   '壬': '水', '癸': '水',
 }
 
+// 推理文案润色：后端 reasoning 带加权评分（如「同党(印+比劫)6.0 vs 异党(财官食伤)4.6」），
+// 首页统一转换为定性描述，避免生硬数字干扰阅读体验
+function humanizeReasoning(text: string): string {
+  if (!text) return text
+  return text
+    // 「同党X vs 异党Y」→ 势力对比的定性描述（差值越小越接近中和）
+    .replace(
+      /同党(\([^)]*\))?\s*(\d+(?:\.\d+)?)\s*vs\s*异党(\([^)]*\))?\s*(\d+(?:\.\d+)?)/g,
+      (_m, sameTag: string | undefined, sameStr: string, diffTag: string | undefined, diffStr: string) => {
+        const same = parseFloat(sameStr)
+        const diff = parseFloat(diffStr)
+        const gap = Math.abs(same - diff)
+        if (gap <= 1.0) return '同党与异党势均力敌'
+        const degree = gap >= 3.5 ? '明显占优' : gap >= 2.0 ? '占优' : '略占优'
+        return same > diff
+          ? `同党${sameTag || ''}势力${degree}`
+          : `异党${diffTag || ''}势力${degree}`
+      }
+    )
+    // 「加权X/Y」→ 直接去除数值（独旺/主导等定性词保留）
+    .replace(/加权\d+(?:\.\d+)?\/\d+(?:\.\d+)?/g, '')
+    // 「仅X且」→「微弱且」
+    .replace(/仅\d+(?:\.\d+)?且/g, '微弱且')
+    // 「(根气X)」→ 去除（「无根」语义保留）
+    .replace(/\(根气\d+(?:\.\d+)?\)/g, '')
+}
+
 // 地支五行映射
 const zhiElement: Record<string, string> = {
   '子': '水', '丑': '土',
@@ -47,7 +74,8 @@ export function BaziCard({ onEdit }: BaziCardProps) {
   const xiyong = bazi.suggested_elements || user.xiyong_elements || []
   const avoidElements = bazi.avoid_elements || []
   // 喜用神推理说明（三分支判定：格局名+加权得分+流派注解）
-  const reasoning = bazi.reasoning || ''
+  // 首页展示做定性化润色，去除原始评分数字
+  const reasoning = humanizeReasoning(bazi.reasoning || '')
   
   // 解析八字四柱 - 后端返回格式: pillars: {year: "甲子", month: "乙丑", ...}
   const pillarsData = bazi.pillars || {}

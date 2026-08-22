@@ -178,4 +178,48 @@ describe('BaziCard', () => {
     render(<BaziCard />)
     expect(screen.queryByText('1990-05-15')).not.toBeInTheDocument()
   })
+
+  it('should render reasoning as qualitative description without raw scores', () => {
+    const userWithScores = {
+      ...mockUser,
+      bazi: {
+        ...mockBazi,
+        reasoning: '同党(印+比劫)6.0 vs 异党(财官食伤)4.6，日元身强，喜水克、金耗（食伤泄秀为辅），忌木、火生扶。',
+      } as any,
+    }
+    useUserStore.setState({ user: userWithScores as any })
+    render(<BaziCard />)
+    expect(
+      screen.getByText('同党(印+比劫)势力略占优，日元身强，喜水克、金耗（食伤泄秀为辅），忌木、火生扶。')
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/6\.0/)).not.toBeInTheDocument()
+  })
+
+  it('should describe balanced chart as 势均力敌', () => {
+    const userBalanced = {
+      ...mockUser,
+      bazi: {
+        ...mockBazi,
+        reasoning: '同党5.0 vs 异党4.6，旺衰中和，参考月令规则表：春火得木生，火渐旺，喜木生、火助，忌水克、金耗',
+      } as any,
+    }
+    useUserStore.setState({ user: userBalanced as any })
+    render(<BaziCard />)
+    expect(screen.getByText(/同党与异党势均力敌，旺衰中和/)).toBeInTheDocument()
+  })
+
+  it('should strip weighted scores for cong patterns', () => {
+    const userCong = {
+      ...mockUser,
+      bazi: {
+        ...mockBazi,
+        reasoning: '同党(印+比劫)加权7.8/9.2独旺，财官杀仅0.4且不当令，判为从强格：顺其旺势，喜水、金，忌木、火逆势。',
+      } as any,
+    }
+    useUserStore.setState({ user: userCong as any })
+    render(<BaziCard />)
+    expect(
+      screen.getByText('同党(印+比劫)独旺，财官杀微弱且不当令，判为从强格：顺其旺势，喜水、金，忌木、火逆势。')
+    ).toBeInTheDocument()
+  })
 })

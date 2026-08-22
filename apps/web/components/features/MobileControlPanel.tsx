@@ -11,7 +11,7 @@ import { useChatStore } from '@/store/chat'
 import { useUserStore } from '@/store/user'
 
 interface MobileControlPanelProps {
-  onSceneChange: (sceneId: string, element: string) => void
+  onSceneChange: (sceneId: string, element: string, sceneLabel?: string) => void
   onWeatherChange: (weather: any) => void
 }
 

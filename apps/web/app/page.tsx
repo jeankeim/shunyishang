@@ -19,6 +19,7 @@ import { IcpFooter } from '@/components/features/IcpFooter'
 import { PullToRefresh } from '@/components/features/PullToRefresh'
 import { useChatStore } from '@/store/chat'
 import { useUserStore } from '@/store/user'
+import { requestChatInputAutofill } from '@/lib/chatAutofill'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BookOpen, Mountain, Compass, MoreHorizontal } from 'lucide-react'
@@ -203,9 +204,11 @@ export default function Home() {
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
 
-  const handleSceneChange = (sceneId: string, element: string) => {
+  const handleSceneChange = (sceneId: string, element: string, sceneLabel?: string) => {
     setScene(sceneId)
     setSceneElement(element)
+    // 常用场景联动：选中场景后将场景名称自动填充到推荐输入框，取消选择时同步清空
+    requestChatInputAutofill(sceneLabel || '')
   }
 
   const handleWeatherChange = (weather: any) => {

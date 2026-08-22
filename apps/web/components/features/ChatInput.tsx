@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Send } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { BaziInput } from '@/types'
+import { consumePendingChatAutofill, onChatInputAutofill } from '@/lib/chatAutofill'
 
 interface ChatInputProps {
   onSend: (message: string, bazi?: BaziInput) => void
@@ -14,6 +15,29 @@ interface ChatInputProps {
 export function ChatInput({ onSend, disabled, bazi }: ChatInputProps) {
   const [input, setInput] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  // 场景联动：记录最近一次自动填充的文本，清除场景时仅清空联动文本，避免误删用户已输入内容
+  const lastAutofillRef = useRef('')
+
+  // 场景选择联动：常用场景选中后将场景名称自动填充到输入框
+  useEffect(() => {
+    // 消费挂载前产生的联动文本（如在其他 Tab 选择了场景）
+    const pending = consumePendingChatAutofill()
+    if (pending) {
+      lastAutofillRef.current = pending
+      setInput(pending)
+    }
+    return onChatInputAutofill((text) => {
+      if (text) {
+        lastAutofillRef.current = text
+        setInput(text)
+      } else {
+        // 取消场景：仅当输入框仍为联动文本时清空（先取值再重置，避免 updater 执行时 ref 已被清空）
+        const last = lastAutofillRef.current
+        lastAutofillRef.current = ''
+        setInput(prev => (prev === last ? '' : prev))
+      }
+    })
+  }, [])
 
   const handleSend = () => {
     if (!input.trim()) return
