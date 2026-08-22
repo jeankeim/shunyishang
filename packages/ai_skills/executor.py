@@ -3,6 +3,7 @@ Skill 统一执行器：渲染 prompt → 调用 LLM → 解析校验 → 返回
 
 所有技能走同一执行路径，保证：
 - prompt 模板集中管理（SkillSpec.prompt_template）
+- LLM 调用走 tenacity 指数退避重试（对齐项目约定：禁止裸调外部 LLM）
 - 输出 JSON 统一清洗（markdown 代码块）与必备键校验
 - 验收断言统一执行（不通过抛 SkillAssertionError → 调用方降级）
 - token 用量统一提取（extract_llm_usage），scene = 技能名
@@ -14,8 +15,10 @@ import logging
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 from openai import OpenAI
+from tenacity import retry as tenacity_retry
 
 from apps.api.core.config import settings
+from apps.api.core.retry import get_llm_retry_config
 from apps.api.services.llm_usage_service import extract_llm_usage
 
 from packages.ai_skills.base import (
@@ -65,6 +68,21 @@ def clean_llm_json(content: str) -> str:
     return content.strip()
 
 
+def _invoke_llm(spec: SkillSpec, prompt: str):
+    """单次 LLM 调用（供带重试的包装函数使用，独立拆出便于测试 mock）"""
+    client = _build_client(spec.timeout)
+    return client.chat.completions.create(
+        model=spec.model or settings.qwen_model,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=spec.temperature,
+        max_tokens=spec.max_tokens,
+    )
+
+
+# 指数退避重试：超时/连接/限流类抖动自动重试，与 nodes.py 推荐链路同款策略
+_invoke_llm_with_retry = tenacity_retry(**get_llm_retry_config(max_attempts=2, min_wait=1.0, max_wait=3.0))(_invoke_llm)
+
+
 def run_skill(
     skill: Union[str, SkillSpec],
     context: Dict[str, Any],
@@ -88,16 +106,10 @@ def run_skill(
     prompt = render_prompt(spec, context)
 
     try:
-        client = _build_client(spec.timeout)
-        response = client.chat.completions.create(
-            model=spec.model or settings.qwen_model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=spec.temperature,
-            max_tokens=spec.max_tokens,
-        )
+        response = _invoke_llm_with_retry(spec, prompt)
         content = response.choices[0].message.content
     except Exception as e:
-        logger.error(f"[Skill:{spec.name}] LLM 调用异常: {e}")
+        logger.error(f"[Skill:{spec.name}] LLM 调用异常（重试后仍失败）: {e}")
         raise SkillError(f"技能 {spec.name} LLM 调用失败: {e}") from e
 
     if not content:
