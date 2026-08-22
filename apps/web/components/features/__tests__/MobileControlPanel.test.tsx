@@ -31,8 +31,11 @@ vi.mock('../BaziInputSection', () => ({
 }))
 
 vi.mock('../WeatherSceneSection', () => ({
-  WeatherSceneSection: ({ onSceneChange, onWeatherChange }: any) => (
-    <div data-testid="weather-scene-section" />
+  WeatherSceneSection: ({ onSceneChange }: any) => (
+    <div data-testid="weather-scene-section">
+      <button data-testid="pick-scene" onClick={() => onSceneChange?.('商务', '金', '商务办公')}>选场景</button>
+      <button data-testid="clear-scene" onClick={() => onSceneChange?.('', '', '')}>取消场景</button>
+    </div>
   ),
 }))
 
@@ -134,5 +137,23 @@ describe('MobileControlPanel', () => {
     expect(screen.getByText('收起设置')).toBeInTheDocument()
     fireEvent.click(screen.getByText('收起设置'))
     expect(screen.getByText('展开设置')).toBeInTheDocument()
+  })
+
+  it('should auto-collapse and forward selection when scene picked', () => {
+    render(<MobileControlPanel onSceneChange={mockOnSceneChange} onWeatherChange={mockOnWeatherChange} />)
+    fireEvent.click(screen.getByText('展开设置'))
+    fireEvent.click(screen.getByTestId('pick-scene'))
+    // 场景透传给父级，且面板自动收起（避免遮挡推荐输入框）
+    expect(mockOnSceneChange).toHaveBeenCalledWith('商务', '金', '商务办公')
+    expect(screen.getByText('展开设置')).toBeInTheDocument()
+    expect(screen.queryByTestId('weather-scene-section')).not.toBeInTheDocument()
+  })
+
+  it('should stay expanded when scene cleared', () => {
+    render(<MobileControlPanel onSceneChange={mockOnSceneChange} onWeatherChange={mockOnWeatherChange} />)
+    fireEvent.click(screen.getByText('展开设置'))
+    fireEvent.click(screen.getByTestId('clear-scene'))
+    expect(mockOnSceneChange).toHaveBeenCalledWith('', '', '')
+    expect(screen.getByText('收起设置')).toBeInTheDocument()
   })
 })

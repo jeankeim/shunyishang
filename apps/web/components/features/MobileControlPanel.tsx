@@ -21,6 +21,14 @@ export function MobileControlPanel({ onSceneChange, onWeatherChange }: MobileCon
   const [expanded, setExpanded] = useState(false)
   
   const hasBazi = isAuthenticated && user?.bazi
+
+  // 场景选择后自动收起面板：避免展开层遮挡推荐输入框，让用户直接看到场景已带入
+  const handleSceneChange = (sceneId: string, element: string, sceneLabel?: string) => {
+    onSceneChange(sceneId, element, sceneLabel)
+    if (sceneId) {
+      setExpanded(false)
+    }
+  }
   
   return (
     <div className="md:hidden fixed bottom-16 left-0 right-0 z-[45] bg-white/95 backdrop-blur-md border-t border-[var(--brand-border)]/50 safe-bottom">
@@ -68,7 +76,7 @@ export function MobileControlPanel({ onSceneChange, onWeatherChange }: MobileCon
                     <h3 className="font-semibold text-[var(--brand-heading)] text-sm">天地气象</h3>
                 </div>
                 <WeatherSceneSection 
-                  onSceneChange={onSceneChange}
+                  onSceneChange={handleSceneChange}
                   onWeatherChange={onWeatherChange}
                 />
               </div>

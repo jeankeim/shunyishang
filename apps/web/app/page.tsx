@@ -207,8 +207,8 @@ export default function Home() {
   const handleSceneChange = (sceneId: string, element: string, sceneLabel?: string) => {
     setScene(sceneId)
     setSceneElement(element)
-    // 常用场景联动：选中场景后将场景名称自动填充到推荐输入框，取消选择时同步清空
-    requestChatInputAutofill(sceneLabel || '')
+    // 常用场景联动：以自然语句填充推荐输入框（如「商务办公」→「商务办公穿搭」），取消选择时同步清空
+    requestChatInputAutofill(sceneLabel ? `${sceneLabel}穿搭` : '')
   }
 
   const handleWeatherChange = (weather: any) => {

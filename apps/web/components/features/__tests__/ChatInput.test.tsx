@@ -159,4 +159,26 @@ describe('ChatInput 场景联动自动填充', () => {
     const textarea = screen.getByPlaceholderText('描述你的穿搭需求...')
     expect(textarea).toHaveValue('运动健身')
   })
+
+  it('联动填充后输入框出现高亮反馈', () => {
+    render(<ChatInput onSend={vi.fn()} />)
+    const textarea = screen.getByPlaceholderText('描述你的穿搭需求...')
+    act(() => { requestChatInputAutofill('约会聚餐') })
+    // 光晕高亮类：避免文本静默出现的生硬感
+    expect(textarea.className).toContain('ring-[var(--wuxing-wood)]/30')
+  })
+
+  it('高亮反馈随时间自动消退', () => {
+    vi.useFakeTimers()
+    try {
+      render(<ChatInput onSend={vi.fn()} />)
+      const textarea = screen.getByPlaceholderText('描述你的穿搭需求...')
+      act(() => { requestChatInputAutofill('派对聚会') })
+      expect(textarea.className).toContain('ring-[var(--wuxing-wood)]/30')
+      act(() => { vi.advanceTimersByTime(1600) })
+      expect(textarea.className).not.toContain('ring-[var(--wuxing-wood)]/30')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })
