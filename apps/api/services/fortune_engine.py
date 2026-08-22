@@ -16,11 +16,6 @@ from typing import Dict, List, Optional, Any
 
 import cnlunar
 
-from openai import OpenAI
-
-from apps.api.core.config import settings
-from apps.api.services.llm_usage_service import extract_llm_usage
-
 from packages.utils.wuxing_rules import (
     TIANGAN_WUXING,
     DIZHI_WUXING,
@@ -33,6 +28,7 @@ from packages.utils.wuxing_rules import (
     ELEMENT_MATERIAL_MAP,
 )
 from packages.utils.shen_sha import shen_sha_context
+from packages.ai_skills import run_skill
 
 logger = logging.getLogger(__name__)
 
@@ -502,69 +498,34 @@ def _generate_ai_narrative(
     elif next_term and 0 < days_to_term <= 7:
         solar_context = f"{days_to_term}天后是「{next_term}」节气，正值换季之际。"
 
-    prompt = f"""你是一位精通中国传统命理学的运势大师，请为用户生成今日运势的个性化叙事。
-
-## 用户八字
-- 日主：{day_master}
-- 喜用神：{', '.join(suggested) if suggested else '待定'}
-- 忌讳五行：{', '.join(avoid) if avoid else '待定'}
-- 四柱：{json.dumps(pillars, ensure_ascii=False) if pillars else '未提供'}
-{shen_sha_section}
-## 今日干支
-- 天干：{day_tiangan}（五行属{day_element}）
-- 地支：{day_dizhi}
-- 日干对日主关系：{relation_cn}
-
-## 五维度评分
-- 事业：{scores.get('career', 0)} | 财运：{scores.get('wealth', 0)} | 桃花：{scores.get('love', 0)}
-- 健康：{scores.get('health', 0)} | 学业：{scores.get('study', 0)}
-- 综合：{overall} 分
-- 最强维度：{best_dim}（{sorted_dims[0][1]}分）
-- 最弱维度：{worst_dim}（{sorted_dims[-1][1]}分）
-
-## 黄历信息
-- 宜：{yi_text}
-- 忌：{ji_text}
-- 冲煞：{chong_sha}
-{solar_context}
-
-## 要求
-请生成结构化 JSON，每段 50-80 字，温暖有共鸣，有具体可操作的建议。
-如提供「命带神煞」信息，请在 overview 或任一提示中自然融入至少一条神煞提及（传统文化参考口吻，避免确定性断言）。
-
-返回 JSON 格式：
-{{
-  "overview": "今日格局概述（结合五行生克关系）",
-  "career_tip": "事业/学业提示",
-  "love_tip": "感情/人际提示",
-  "health_tip": "健康/情绪提示",
-  "lucky_action": "今日最宜做的1件事",
-  "avoid_action": "今日最应避免的1件事"
-}}
-
-直接返回 JSON，不要加 markdown 代码块标记。"""
+    # 组装技能上下文，交由 Skill 框架统一执行（prompt 模板/输出校验/红线断言
+    # 见 packages/ai_skills/definitions.py::fortune_narrative）
+    context = {
+        "day_master": day_master,
+        "suggested_text": ", ".join(suggested) if suggested else "待定",
+        "avoid_text": ", ".join(avoid) if avoid else "待定",
+        "pillars_json": json.dumps(pillars, ensure_ascii=False) if pillars else "未提供",
+        "shen_sha_section": shen_sha_section,
+        "day_tiangan": day_tiangan,
+        "day_element": day_element,
+        "day_dizhi": day_dizhi,
+        "relation_cn": relation_cn,
+        "career_score": scores.get("career", 0),
+        "wealth_score": scores.get("wealth", 0),
+        "love_score": scores.get("love", 0),
+        "health_score": scores.get("health", 0),
+        "study_score": scores.get("study", 0),
+        "overall": overall,
+        "best_dim_text": f"{best_dim}（{sorted_dims[0][1]}分）",
+        "worst_dim_text": f"{worst_dim}（{sorted_dims[-1][1]}分）",
+        "yi_text": yi_text,
+        "ji_text": ji_text,
+        "chong_sha": chong_sha,
+        "solar_context": solar_context,
+    }
 
     try:
-        client = OpenAI(
-            api_key=settings.dashscope_api_key,
-            base_url=settings.dashscope_base_url,
-            timeout=20,  # 限制 LLM 调用耗时，避免后台增强线程长时间挂起
-        )
-        response = client.chat.completions.create(
-            model=settings.qwen_model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=800,
-        )
-        content = response.choices[0].message.content.strip()
-
-        # 清理 markdown 标记
-        if content.startswith("```"):
-            content = content.split("\n", 1)[-1]
-            if content.endswith("```"):
-                content = content[:-3]
-
-        return json.loads(content), extract_llm_usage(response)
+        return run_skill("fortune_narrative", context)
     except Exception as e:
         logger.error(f"[FortuneEngine] AI 叙事生成异常: {e}")
         raise
