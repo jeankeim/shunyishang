@@ -204,7 +204,7 @@ const SimpleTemplate: React.FC<PosterTemplateProps> = ({
       {/* 底部引导文字 */}
       <div className="relative z-10 px-10 py-2 text-center" style={{ background: 'rgba(255,255,255,0.3)' }}>
         <p className="text-[10px] tracking-wider" style={{ color: '#9CA3AF' }}>
-          扫码登录 shunyishang.com 体验更多功能
+          浏览 shunyishang.cn 体验更多功能
         </p>
       </div>
     </div>
@@ -388,7 +388,7 @@ const WuxingTemplate: React.FC<PosterTemplateProps> = ({
           </div>
           <div>
             <div className="text-xs font-semibold tracking-wider">我的个人衣橱</div>
-            <div className="text-xs opacity-50">传统智慧 · 现代穿搭</div>
+            <div className="text-xs opacity-50">弘扬传统文化 · 衣承五行</div>
           </div>
         </div>
         <div className="text-right">
@@ -402,7 +402,7 @@ const WuxingTemplate: React.FC<PosterTemplateProps> = ({
       {/* 底部引导文字 */}
       <div className="relative z-10 px-10 py-2 text-center" style={{ background: 'rgba(0,0,0,0.15)' }}>
         <p className="text-[10px] tracking-wider" style={{ color: 'rgba(255,255,255,0.4)' }}>
-          扫码登录 shunyishang.com 体验更多功能
+          浏览 shunyishang.cn 体验更多功能
         </p>
       </div>
     </div>
@@ -630,7 +630,7 @@ const CardTemplate: React.FC<PosterTemplateProps> = ({
       {/* 底部引导文字 */}
       <div className="relative z-10 px-8 py-3 text-center" style={{ background: 'rgba(255,255,255,0.5)' }}>
         <p className="text-sm tracking-wider" style={{ color: '#9CA3AF' }}>
-          扫码登录 shunyishang.com 体验更多功能
+          浏览 shunyishang.cn 体验更多功能
         </p>
       </div>
     </div>
@@ -792,9 +792,9 @@ const GuofengTemplate: React.FC<PosterTemplateProps> = ({
               <span className="w-6 h-6 rounded-sm flex items-center justify-center text-white text-xs" style={{ background: SEAL }}>顺</span>
               <span className="text-sm font-bold" style={{ color: INK }}>顺衣尚 · 五行穿搭</span>
             </div>
-            <span className="text-xs" style={{ color: GRAY }}>传统智慧 · 现代穿搭</span>
+            <span className="text-xs" style={{ color: GRAY }}>弘扬传统文化 · 衣承五行</span>
           </div>
-          <p className="mt-1 text-center text-[10px]" style={{ color: GRAY }}>扫码登录 shunyishang.com 领取专属五行穿搭</p>
+          <p className="mt-1 text-center text-[10px]" style={{ color: GRAY }}>浏览 shunyishang.cn 领取专属五行穿搭</p>
         </div>
       </div>
     </div>

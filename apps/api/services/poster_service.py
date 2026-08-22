@@ -452,7 +452,7 @@ def generate_simple_poster(
     
     # 底部引导文字（独立一行，小号字体）
     guide_font = get_font(20)
-    draw.text((POSTER_WIDTH // 2, POSTER_HEIGHT - 35), '扫码登录 shunyishang.com 体验更多功能', fill='#9CA3AF', font=guide_font, anchor='mm')
+    draw.text((POSTER_WIDTH // 2, POSTER_HEIGHT - 35), '浏览 shunyishang.cn 体验更多功能', fill='#9CA3AF', font=guide_font, anchor='mm')
     
     return img
 
@@ -623,12 +623,12 @@ def generate_wuxing_poster(
     # 第二行：品牌副标题（居中，小号字体）
     row2_y = row1_y + 40
     brand_sub_font = get_font(20)
-    draw.text((POSTER_WIDTH // 2, row2_y), '传统智慧 · 现代穿搭', fill=(255, 255, 255, 100), font=brand_sub_font, anchor='mm')
+    draw.text((POSTER_WIDTH // 2, row2_y), '弘扬传统文化 · 衣承五行', fill=(255, 255, 255, 100), font=brand_sub_font, anchor='mm')
     
     # 第三行：引导文字（居中，小号字体）
     row3_y = row2_y + 35
     guide_font = get_font(20)
-    draw.text((POSTER_WIDTH // 2, row3_y), '扫码登录 shunyishang.com 体验更多功能', fill=(255, 255, 255, 80), font=guide_font, anchor='mm')
+    draw.text((POSTER_WIDTH // 2, row3_y), '浏览 shunyishang.cn 体验更多功能', fill=(255, 255, 255, 80), font=guide_font, anchor='mm')
     
     # 第四行：签名（右下角）
     sign_font = get_font(24, 'bold')
@@ -822,7 +822,7 @@ def generate_card_poster(
         
     # 第二行：引导文字（居中，小号字体，独立一行）
     guide_font = get_font(20)
-    draw.text((POSTER_WIDTH // 2, row1_y + 38), '扫码登录 shunyishang.com 体验更多功能', fill='#9CA3AF', font=guide_font, anchor='mm')
+    draw.text((POSTER_WIDTH // 2, row1_y + 38), '浏览 shunyishang.cn 体验更多功能', fill='#9CA3AF', font=guide_font, anchor='mm')
     
     return img
 
@@ -1065,9 +1065,9 @@ def generate_guofeng_poster(
     draw.text((POSTER_WIDTH - 100, 1788), date_str, fill=INK_GRAY, font=date_font, anchor='rm')
 
     slogan_font = get_serif_font(24)
-    draw.text((POSTER_WIDTH // 2, 1848), '传统智慧 · 现代穿搭', fill=INK_GRAY, font=slogan_font, anchor='mm')
+    draw.text((POSTER_WIDTH // 2, 1848), '弘扬传统文化 · 衣承五行', fill=INK_GRAY, font=slogan_font, anchor='mm')
     guide_font = get_serif_font(22)
-    draw.text((POSTER_WIDTH // 2, 1888), '扫码登录 shunyishang.com 领取专属五行穿搭',
+    draw.text((POSTER_WIDTH // 2, 1888), '浏览 shunyishang.cn 领取专属五行穿搭',
               fill=INK_GRAY, font=guide_font, anchor='mm')
 
     # ---- 纸面颗粒（最顶层做旧）----

@@ -169,7 +169,7 @@ describe('PosterTemplate', () => {
     it('should render brand footer', () => {
       render(<PosterTemplate layout="guofeng" {...baseProps} />)
       expect(screen.getByText('顺衣尚 · 五行穿搭')).toBeInTheDocument()
-      expect(screen.getByText('传统智慧 · 现代穿搭')).toBeInTheDocument()
+      expect(screen.getByText('弘扬传统文化 · 衣承五行')).toBeInTheDocument()
     })
 
     it('should hide quote when many items', () => {

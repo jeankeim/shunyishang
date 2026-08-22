@@ -452,12 +452,12 @@ export function GuofengSatori(data: SatoriPosterData): ReactNode {
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: 18 }}>
           <div style={{ fontSize: 24, color: INK_GRAY, fontFamily: FONT, letterSpacing: 2 }}>
-            传统智慧 · 现代穿搭
+            弘扬传统文化 · 衣承五行
           </div>
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: 10, marginBottom: 26 }}>
           <div style={{ fontSize: 22, color: INK_GRAY, fontFamily: FONT }}>
-            扫码登录 shunyishang.com 领取专属五行穿搭
+            浏览 shunyishang.cn 领取专属五行穿搭
           </div>
         </div>
       </div>
