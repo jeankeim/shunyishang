@@ -299,12 +299,12 @@ async def register(request: UserRegisterRequest):
             if request.phone:
                 cur.execute("SELECT id FROM users WHERE phone = %s", (request.phone,))
                 if cur.fetchone():
-                    raise HTTPException(status_code=400, detail="手机号已注册")
+                    raise HTTPException(status_code=400, detail="该手机号已注册，请直接登录")
             
             if request.email:
                 cur.execute("SELECT id FROM users WHERE email = %s", (request.email,))
                 if cur.fetchone():
-                    raise HTTPException(status_code=400, detail="邮箱已注册")
+                    raise HTTPException(status_code=400, detail="该邮箱已注册，请直接登录")
             
             # 创建用户
             user_code = generate_user_code()

@@ -183,7 +183,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     className={`flex-1 py-2 text-sm rounded-lg transition-colors ${
                       loginType === 'phone'
                         ? 'bg-primary text-white'
-                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                        : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
                     }`}
                   >
                     手机号
@@ -194,7 +194,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     className={`flex-1 py-2 text-sm rounded-lg transition-colors ${
                       loginType === 'email'
                         ? 'bg-primary text-white'
-                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                        : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
                     }`}
                   >
                     邮箱
@@ -204,30 +204,30 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 {/* 手机号/邮箱输入 */}
                 {loginType === 'phone' ? (
                   <div className="space-y-2">
-                    <label className="text-sm text-slate-300">手机号</label>
+                    <label className="text-sm font-medium text-slate-200">手机号</label>
                     <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input
                         type="tel"
                         placeholder="请输入手机号"
                         value={phone}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPhone(e.target.value)}
-                        className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:border-primary"
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-white placeholder-slate-400 focus:outline-none focus:border-primary"
                         required
                       />
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <label className="text-sm text-slate-300">邮箱</label>
+                    <label className="text-sm font-medium text-slate-200">邮箱</label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input
                         type="email"
                         placeholder="请输入邮箱"
                         value={email}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-                        className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:border-primary"
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-white placeholder-slate-400 focus:outline-none focus:border-primary"
                         required
                       />
                     </div>
@@ -236,21 +236,21 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
                 {/* 密码 */}
                 <div className="space-y-2">
-                  <label className="text-sm text-slate-300">密码</label>
+                  <label className="text-sm font-medium text-slate-200">密码</label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                       type={showPassword ? 'text' : 'password'}
                       placeholder="请输入密码"
                       value={password}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-10 pr-10 text-white placeholder-slate-500 focus:outline-none focus:border-primary"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-10 pr-10 text-white placeholder-slate-400 focus:outline-none focus:border-primary"
                       required
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -276,30 +276,30 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* 昵称 */}
                 <div className="space-y-2">
-                  <label className="text-sm text-slate-300">昵称</label>
+                  <label className="text-sm font-medium text-slate-200">昵称</label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                       placeholder="请输入昵称（可选）"
                       value={nickname}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNickname(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:border-primary"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-white placeholder-slate-400 focus:outline-none focus:border-primary"
                     />
                   </div>
                 </div>
 
                 {/* 手机号 */}
                 <div className="space-y-2">
-                  <label className="text-sm text-slate-300">手机号</label>
+                  <label className="text-sm font-medium text-slate-200">手机号</label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                       type="tel"
                       placeholder="请输入手机号（注册必填）"
                       value={phone}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPhone(e.target.value)}
                       maxLength={11}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:border-primary"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-white placeholder-slate-400 focus:outline-none focus:border-primary"
                       required
                     />
                   </div>
@@ -307,17 +307,17 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
                 {/* 短信验证码 */}
                 <div className="space-y-2">
-                  <label className="text-sm text-slate-300">短信验证码</label>
+                  <label className="text-sm font-medium text-slate-200">短信验证码</label>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
-                      <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                      <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input
                         placeholder="请输入验证码"
                         value={smsCode}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSmsCode(e.target.value.replace(/\D/g, ''))}
                         maxLength={6}
                         inputMode="numeric"
-                        className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:border-primary"
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-white placeholder-slate-400 focus:outline-none focus:border-primary"
                       />
                     </div>
                     <button
@@ -334,37 +334,37 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
                 {/* 邮箱 */}
                 <div className="space-y-2">
-                  <label className="text-sm text-slate-300">邮箱</label>
+                  <label className="text-sm font-medium text-slate-200">邮箱（可选）</label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                       type="email"
                       placeholder="请输入邮箱"
                       value={email}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:border-primary"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-white placeholder-slate-400 focus:outline-none focus:border-primary"
                     />
                   </div>
                 </div>
 
                 {/* 密码 */}
                 <div className="space-y-2">
-                  <label className="text-sm text-slate-300">密码</label>
+                  <label className="text-sm font-medium text-slate-200">密码</label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                       type={showPassword ? 'text' : 'password'}
                       placeholder="请输入密码（至少6位）"
                       value={password}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-10 pr-10 text-white placeholder-slate-500 focus:outline-none focus:border-primary"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-10 pr-10 text-white placeholder-slate-400 focus:outline-none focus:border-primary"
                       required
                       minLength={6}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -373,7 +373,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
                 {/* 性别 */}
                 <div className="space-y-2">
-                  <label className="text-sm text-slate-300">性别</label>
+                  <label className="text-sm font-medium text-slate-200">性别</label>
                   <div className="flex gap-4">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -383,7 +383,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGender(e.target.value as '男' | '女')}
                         className="w-4 h-4 text-primary"
                       />
-                      <span className="text-slate-300">男</span>
+                      <span className="text-slate-200">男</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -393,7 +393,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGender(e.target.value as '男' | '女')}
                         className="w-4 h-4 text-primary"
                       />
-                      <span className="text-slate-300">女</span>
+                      <span className="text-slate-200">女</span>
                     </label>
                   </div>
                 </div>
@@ -406,7 +406,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPrivacyConsent(e.target.checked)}
                     className="mt-0.5 w-4 h-4 accent-[var(--wuxing-wood,#4f7a4f)]"
                   />
-                  <span className="text-xs text-slate-400 leading-relaxed">
+                  <span className="text-xs text-slate-300 leading-relaxed">
                     我已阅读并同意
                     <a
                       href="/privacy"
