@@ -32,6 +32,7 @@ from packages.utils.wuxing_rules import (
     ELEMENT_COLOR_MAP,
     ELEMENT_MATERIAL_MAP,
 )
+from packages.utils.shen_sha import shen_sha_context
 
 logger = logging.getLogger(__name__)
 
@@ -467,6 +468,13 @@ def _generate_ai_narrative(
     avoid = user_bazi.get("avoid_elements", [])
     pillars = user_bazi.get("pillars", {})
 
+    # 命带神煞上下文（纯规则查表；eight_chars 缺失时从四柱重建）
+    eight_chars = user_bazi.get("eight_chars") or []
+    if len(eight_chars) != 8 and pillars:
+        eight_chars = [ch for k in ("year", "month", "day", "hour") for ch in (pillars.get(k) or "")]
+    shen_sha_text = shen_sha_context(eight_chars) if len(eight_chars) == 8 else ""
+    shen_sha_section = f"\n## 命带神煞\n{shen_sha_text}\n" if shen_sha_text else ""
+
     day_tiangan, day_dizhi = _get_day_ganzhi(target_date)
     day_element = TIANGAN_WUXING.get(day_tiangan, "土")
 
@@ -501,7 +509,7 @@ def _generate_ai_narrative(
 - 喜用神：{', '.join(suggested) if suggested else '待定'}
 - 忌讳五行：{', '.join(avoid) if avoid else '待定'}
 - 四柱：{json.dumps(pillars, ensure_ascii=False) if pillars else '未提供'}
-
+{shen_sha_section}
 ## 今日干支
 - 天干：{day_tiangan}（五行属{day_element}）
 - 地支：{day_dizhi}
@@ -522,6 +530,7 @@ def _generate_ai_narrative(
 
 ## 要求
 请生成结构化 JSON，每段 50-80 字，温暖有共鸣，有具体可操作的建议。
+如提供「命带神煞」信息，请在 overview 或任一提示中自然融入至少一条神煞提及（传统文化参考口吻，避免确定性断言）。
 
 返回 JSON 格式：
 {{

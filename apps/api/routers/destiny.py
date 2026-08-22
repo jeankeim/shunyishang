@@ -22,11 +22,13 @@ from apps.api.schemas.destiny import (
     AnnualLuck,
     TenGodsResponse,
     TenGodInfo,
+    ShenShaInfo,
     MonthlyFortuneResponse,
     YearlyFortuneResponse,
     MonthlySummary,
     AdvancedBaziResponse,
 )
+from packages.utils.shen_sha import calculate_shen_sha, SHEN_SHA_COMPLIANCE_NOTE
 from packages.utils.destiny_calculator import (
     calculate_major_luck,
     get_current_major_luck,
@@ -164,6 +166,9 @@ async def get_ten_gods(
             ten_god=info["ten_god"],
         )
 
+    # 命带神煞（纯规则查表，确定性结果）
+    shen_sha_hits = calculate_shen_sha(user_bazi.get("eight_chars") or [])
+
     return TenGodsResponse(
         pillars=pillars,
         hidden_gods=result["hidden_gods"],
@@ -171,6 +176,8 @@ async def get_ten_gods(
         weak_gods=result["weak_gods"],
         god_distribution=result["god_distribution"],
         analysis=result["analysis"],
+        shen_sha=[ShenShaInfo(**h) for h in shen_sha_hits],
+        shen_sha_note=SHEN_SHA_COMPLIANCE_NOTE if shen_sha_hits else "",
     )
 
 

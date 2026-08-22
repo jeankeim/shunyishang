@@ -61,6 +61,14 @@ class TenGodInfo(BaseModel):
     ten_god: str = Field(..., description="十神名称")
 
 
+class ShenShaInfo(BaseModel):
+    """命带神煞信息"""
+    name: str = Field(..., description="神煞名")
+    category: str = Field(..., description="分类：吉/中性/煞")
+    positions: List[str] = Field(default_factory=list, description="出现柱位")
+    duanyu: str = Field(..., description="传统断语")
+
+
 class TenGodsResponse(BaseModel):
     """十神格局分析响应"""
     pillars: Dict[str, TenGodInfo] = Field(..., description="四柱十神")
@@ -69,6 +77,8 @@ class TenGodsResponse(BaseModel):
     weak_gods: List[str] = Field(default_factory=list, description="衰神")
     god_distribution: Dict[str, float] = Field(default_factory=dict, description="十神分布")
     analysis: str = Field(..., description="格局分析")
+    shen_sha: List[ShenShaInfo] = Field(default_factory=list, description="命带神煞")
+    shen_sha_note: str = Field("", description="神煞合规角标文案")
 
 
 # ============================================================

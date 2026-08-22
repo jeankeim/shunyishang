@@ -54,12 +54,19 @@ const PILLAR_NAMES: Record<string, string> = {
   hour: '时柱',
 }
 
+// 神煞分类配色（低饱和新中式）
+const SHEN_SHA_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  '吉': { bg: 'bg-[#B89B5E]/10', text: 'text-[#9A7E47]', border: 'border-[#B89B5E]/30' },
+  '中性': { bg: 'bg-[var(--wuxing-water)]/10', text: 'text-[#3570A0]', border: 'border-[var(--wuxing-water)]/30' },
+  '煞': { bg: 'bg-[#6B5B95]/10', text: 'text-[#5A4D7F]', border: 'border-[#6B5B95]/30' },
+}
+
 interface TenGodsCardProps {
   data: TenGodsData
 }
 
 export function TenGodsCard({ data }: TenGodsCardProps) {
-  const { pillars, hidden_gods, dominant_gods, weak_gods, god_distribution, analysis } = data
+  const { pillars, hidden_gods, dominant_gods, weak_gods, god_distribution, analysis, shen_sha, shen_sha_note } = data
 
   // 计算十神分布的最大值（用于归一化柱状图）
   const maxCount = Math.max(...Object.values(god_distribution), 1)
@@ -103,6 +110,40 @@ export function TenGodsCard({ data }: TenGodsCardProps) {
           })}
         </div>
       </div>
+
+      {/* 命带神煞 */}
+      {shen_sha && shen_sha.length > 0 && (
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
+          <h3 className="text-sm font-semibold text-stone-800 mb-4 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 bg-gradient-to-r from-[#B89B5E] to-[#6B5B95] rounded-full" />
+            命带神煞
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {shen_sha.map((s) => {
+              const colors = SHEN_SHA_COLORS[s.category] || SHEN_SHA_COLORS['中性']
+              return (
+                <motion.div
+                  key={s.name}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`rounded-xl p-3 ${colors.bg} border ${colors.border}`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`text-sm font-semibold ${colors.text}`}>{s.name}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/70 text-stone-500">
+                      {s.positions.join('·')}
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-500 leading-relaxed">{s.duanyu}</p>
+                </motion.div>
+              )
+            })}
+          </div>
+          {shen_sha_note && (
+            <p className="text-[10px] text-stone-400 mt-3">{shen_sha_note}</p>
+          )}
+        </div>
+      )}
 
       {/* 十神分布 */}
       {Object.keys(god_distribution).length > 0 && (

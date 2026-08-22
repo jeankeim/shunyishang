@@ -7,6 +7,13 @@ import { getTenGods, getAnnualLuck, getMajorLuck, getAdvancedBazi } from '@/lib/
 
 // ========== 类型定义 ==========
 
+export interface ShenShaInfo {
+  name: string
+  category: '吉' | '中性' | '煞' | string
+  positions: string[]
+  duanyu: string
+}
+
 export interface TenGodsData {
   pillars: Record<string, { stem: string; ganzhi: string; ten_god: string }>
   hidden_gods: Array<{ pillar: string; hidden_stem: string; ten_god: string }>
@@ -14,6 +21,8 @@ export interface TenGodsData {
   weak_gods: string[]
   god_distribution: Record<string, number>
   analysis: string
+  shen_sha?: ShenShaInfo[]
+  shen_sha_note?: string
 }
 
 export interface LuckPeriod {
