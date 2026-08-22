@@ -86,6 +86,7 @@ class SmsService:
             template_param='{"code":"##code##","min":"5"}',
             code_type=1,      # 纯数字
             code_length=6,    # 6 位验证码（与前端 maxLength=6 对齐）
+            duplicate_policy=2,  # 重发保留旧码（有效期内均可用），避免用户填上一条短信的码被拒
         )
         try:
             resp = await self._get_client().send_sms_verify_code_with_options_async(
@@ -130,11 +131,19 @@ class SmsService:
                 request, util_models.RuntimeOptions()
             )
         except Exception as e:
+            # isv.ValidateFail = 码错误/已失效，属业务结果而非服务故障
+            if "ValidateFail" in str(e):
+                logger.info("[短信] 验证码核验未通过: %s****%s", phone[:3], phone[7:])
+                return False
             logger.error("[短信] 验证码核验调用失败: %s", e)
             raise SmsServiceError("验证码核验失败，请稍后重试") from e
 
-        # VerifyResult: PASS=核验成功 / UNKNOWN=核验失败
-        return getattr(resp.body, "verify_result", "") == "PASS"
+        # VerifyResult 嵌套在 body.model 下：PASS=核验成功 / UNKNOWN=核验失败
+        # 注意：验证码为一次性消耗品，核验成功即失效
+        if getattr(resp.body, "code", "") != "OK":
+            return False
+        model = getattr(resp.body, "model", None)
+        return getattr(model, "verify_result", "") == "PASS"
 
 
 # 全局单例

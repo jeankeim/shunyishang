@@ -3,7 +3,7 @@
 覆盖 auth.py 所有端点
 """
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 from datetime import date, time, datetime
 
 from apps.api.routers.auth import get_current_user
@@ -606,3 +606,47 @@ class TestSmsProductionFailClosed:
             },
         )
         assert response.status_code == 503
+
+
+class TestSmsVerifyParsing:
+    """核验响应解析回归：VerifyResult 嵌套在 body.model 下；ValidateFail 属业务失败"""
+
+    @pytest.fixture
+    def fake_client(self, monkeypatch):
+        from apps.api.core.config import settings
+        from apps.api.services import sms_service as sms_mod
+        monkeypatch.setattr(settings, "sms_enabled", True)
+        fake = MagicMock()
+        monkeypatch.setattr(sms_mod.sms_service, "_client", fake)
+        yield fake
+
+    @staticmethod
+    def _resp(code="OK", verify_result="PASS"):
+        from types import SimpleNamespace
+        model = SimpleNamespace(verify_result=verify_result)
+        body = SimpleNamespace(code=code, model=model)
+        return SimpleNamespace(body=body)
+
+    @pytest.mark.asyncio
+    async def test_pass_nested_in_model(self, fake_client):
+        """正确路径：body.model.verify_result=PASS → 通过"""
+        from apps.api.services.sms_service import sms_service
+        fake_client.check_sms_verify_code_with_options_async = AsyncMock(
+            return_value=self._resp())
+        assert await sms_service.verify_code("13800138000", "123456") is True
+
+    @pytest.mark.asyncio
+    async def test_unknown_result_rejected(self, fake_client):
+        """VerifyResult=UNKNOWN → 拒绝"""
+        from apps.api.services.sms_service import sms_service
+        fake_client.check_sms_verify_code_with_options_async = AsyncMock(
+            return_value=self._resp(verify_result="UNKNOWN"))
+        assert await sms_service.verify_code("13800138000", "000000") is False
+
+    @pytest.mark.asyncio
+    async def test_validate_fail_is_business_false(self, fake_client):
+        """isv.ValidateFail（码错/已失效）→ 返回 False 而非 503"""
+        from apps.api.services.sms_service import sms_service
+        fake_client.check_sms_verify_code_with_options_async = AsyncMock(
+            side_effect=Exception("Error: isv.ValidateFail code: 400, 验证失败"))
+        assert await sms_service.verify_code("13800138000", "000000") is False
