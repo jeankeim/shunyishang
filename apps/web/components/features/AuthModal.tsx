@@ -324,7 +324,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                       type="button"
                       onClick={handleSendCode}
                       disabled={countdown > 0 || sendingCode}
-                      className="shrink-0 px-3 py-2.5 text-sm rounded-lg bg-slate-800 text-primary border border-slate-700 hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="shrink-0 px-3 py-2.5 text-sm font-medium rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {countdown > 0 ? `${countdown}s` : sendingCode ? '发送中' : '获取验证码'}
                     </button>
