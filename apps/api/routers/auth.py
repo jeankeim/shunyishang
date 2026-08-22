@@ -6,6 +6,7 @@
 import json
 import logging
 import os
+import re
 from datetime import timedelta, datetime, date, time
 from typing import Optional, List
 
@@ -24,8 +25,9 @@ from apps.api.core.security import (
     generate_user_code
 )
 from apps.api.core.config import settings
-from apps.api.core.rate_limit import auth_rate_limit
+from apps.api.core.rate_limit import auth_rate_limit, check_rate_limit
 from apps.api.core.pii_crypto import encrypt_pii, decrypt_pii, decrypt_date, decrypt_time
+from apps.api.services.sms_service import sms_service, SmsServiceError
 from packages.utils.bazi_calculator import calculate_bazi
 
 router = APIRouter()
@@ -33,17 +35,26 @@ router = APIRouter()
 # OAuth2 scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
+# 大陆手机号格式（防虚构/无效号码浪费短信额度）
+PHONE_REGEX = r"^1[3-9]\d{9}$"
+
 
 # ========== 请求/响应模型 ==========
 
 class UserRegisterRequest(BaseModel):
     """用户注册请求"""
     phone: Optional[str] = Field(None, description="手机号")
+    sms_code: Optional[str] = Field(None, description="短信验证码（开启短信验证后必填）")
     email: Optional[EmailStr] = Field(None, description="邮箱")
     password: str = Field(..., min_length=6, description="密码")
     nickname: Optional[str] = Field(None, description="昵称")
     gender: Optional[str] = Field(None, pattern="^(男|女)?$", description="性别")
     privacy_consent: bool = Field(False, description="是否已同意隐私政策（PIPL 必须为 true）")
+
+
+class SmsSendRequest(BaseModel):
+    """短信验证码发送请求"""
+    phone: str = Field(..., pattern=r"^1[3-9]\d{9}$", description="大陆手机号")
 
 
 class UserLoginRequest(BaseModel):
@@ -183,6 +194,42 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
 
 # ========== 路由 ==========
 
+@router.post("/sms/send", summary="发送短信验证码",
+             dependencies=[Depends(auth_rate_limit)])
+async def send_sms_code(request: SmsSendRequest):
+    """
+    发送注册短信验证码
+
+    **核心逻辑**:
+    1. IP 级限流（auth_rate_limit 依赖）
+    2. 同号每日 ≤5 次 + 60 秒重发间隔（防短信轰炸）
+    3. 调用阿里云短信认证发送（验证码由平台生成与托管）
+    """
+    # 每日上限：同一号码每天最多 5 次
+    allowed, _ = await check_rate_limit(f"sms:day:{request.phone}", 5, 86400)
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="今日发送次数已达上限，请明天再试"
+        )
+
+    # 重发间隔：同一号码 60 秒内最多 1 次
+    allowed, retry_after = await check_rate_limit(f"sms:cd:{request.phone}", 1, 60)
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"验证码已发送，请 {retry_after} 秒后重试",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    try:
+        await sms_service.send_verify_code(request.phone)
+    except SmsServiceError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+    return {"message": "验证码已发送", "expires_in": 300}
+
+
 @router.post("/register", response_model=TokenResponse, summary="用户注册",
              dependencies=[Depends(auth_rate_limit)])
 async def register(request: UserRegisterRequest):
@@ -191,10 +238,12 @@ async def register(request: UserRegisterRequest):
     
     **核心逻辑**:
     1. PIPL：注册必须先同意隐私政策
-    2. 检查手机号/邮箱是否已注册
-    3. 生成 user_code 和密码哈希
-    4. 插入用户数据到数据库
-    5. 生成 JWT token 返回
+    2. 手机号格式校验 + 短信验证码核验（sms_enabled 时强制）
+    3. fail-closed：生产环境未开启短信开关时拒绝注册
+    4. 检查手机号/邮箱是否已注册
+    5. 生成 user_code 和密码哈希
+    6. 插入用户数据到数据库
+    7. 生成 JWT token 返回
     """
     # PIPL：注册必须先同意隐私政策
     if not request.privacy_consent:
@@ -203,7 +252,42 @@ async def register(request: UserRegisterRequest):
             detail="请先阅读并同意隐私政策"
         )
 
-    if not request.phone and not request.email:
+    # 手机号格式校验：拒绝虚构/无效号码
+    if request.phone and not re.match(PHONE_REGEX, request.phone):
+        raise HTTPException(
+            status_code=400,
+            detail="手机号格式不正确"
+        )
+
+    # fail-closed：生产环境必须开启短信验证，防止配置疏漏导致绕过实名注册
+    if settings.is_production and not settings.sms_enabled:
+        raise HTTPException(
+            status_code=503,
+            detail="注册服务配置异常，请稍后重试"
+        )
+
+    # 短信实名验证：开启后注册必须提供手机号并通过验证码核验
+    if settings.sms_enabled:
+        if not request.phone:
+            raise HTTPException(
+                status_code=400,
+                detail="注册必须提供手机号"
+            )
+        if not request.sms_code:
+            raise HTTPException(
+                status_code=400,
+                detail="请输入短信验证码"
+            )
+        try:
+            verified = await sms_service.verify_code(request.phone, request.sms_code)
+        except SmsServiceError as e:
+            raise HTTPException(status_code=503, detail=str(e))
+        if not verified:
+            raise HTTPException(
+                status_code=400,
+                detail="验证码错误或已失效"
+            )
+    elif not request.phone and not request.email:
         raise HTTPException(
             status_code=400,
             detail="手机号或邮箱至少提供一个"

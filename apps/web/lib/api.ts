@@ -291,6 +291,8 @@ export interface LoginRequest {
 
 export interface RegisterRequest {
   phone?: string
+  /** 短信验证码（后端开启短信验证后必填） */
+  sms_code?: string
   email?: string
   password: string
   nickname?: string
@@ -366,6 +368,26 @@ export async function register(request: RegisterRequest): Promise<AuthResponse> 
   const data = await response.json()
   setAuthToken(data.access_token)
   return data
+}
+
+/**
+ * 发送注册短信验证码
+ */
+export async function sendSmsCode(phone: string): Promise<{ message: string; expires_in: number }> {
+  const response = await fetch(`${getAPIBase()}/api/v1/auth/sms/send`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ phone }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.detail || '验证码发送失败')
+  }
+
+  return response.json()
 }
 
 /**

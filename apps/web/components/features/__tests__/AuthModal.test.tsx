@@ -19,6 +19,13 @@ vi.mock('lucide-react', () => ({
   Lock: () => <span data-testid="lock-icon" />,
   Phone: () => <span data-testid="phone-icon" />,
   Mail: () => <span data-testid="mail-icon" />,
+  ShieldCheck: () => <span data-testid="shield-icon" />,
+}))
+
+// Mock 短信验证码发送 API
+const { mockSendSmsCode } = vi.hoisted(() => ({ mockSendSmsCode: vi.fn() }))
+vi.mock('@/lib/api', () => ({
+  sendSmsCode: mockSendSmsCode,
 }))
 
 // Configurable mock store
@@ -43,6 +50,7 @@ function clickTab(text: string) {
 describe('AuthModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSendSmsCode.mockResolvedValue({ message: '验证码已发送', expires_in: 300 })
     mockStoreData = {
       login: vi.fn().mockResolvedValue(undefined),
       loginWithEmail: vi.fn().mockResolvedValue(undefined),
@@ -173,7 +181,8 @@ describe('AuthModal', () => {
     render(<AuthModal isOpen={true} onClose={vi.fn()} />)
     clickTab('注册')
     expect(screen.getByPlaceholderText('请输入昵称（可选）')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('请输入手机号（手机号或邮箱至少填一个）')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('请输入手机号（注册必填）')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('请输入验证码')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('请输入邮箱')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('请输入密码（至少6位）')).toBeInTheDocument()
   })
@@ -190,7 +199,8 @@ describe('AuthModal', () => {
     clickTab('注册')
     
     fireEvent.change(screen.getByPlaceholderText('请输入昵称（可选）'), { target: { value: 'TestUser' } })
-    fireEvent.change(screen.getByPlaceholderText('请输入手机号（手机号或邮箱至少填一个）'), { target: { value: '13800000000' } })
+    fireEvent.change(screen.getByPlaceholderText('请输入手机号（注册必填）'), { target: { value: '13800000000' } })
+    fireEvent.change(screen.getByPlaceholderText('请输入验证码'), { target: { value: '123456' } })
     fireEvent.change(screen.getByPlaceholderText('请输入密码（至少6位）'), { target: { value: 'password123' } })
     // PIPL：勾选隐私政策同意后才能提交
     fireEvent.click(screen.getByRole('checkbox'))
@@ -199,6 +209,7 @@ describe('AuthModal', () => {
     await waitFor(() => {
       expect(mockStoreData.register).toHaveBeenCalledWith({
         phone: '13800000000',
+        sms_code: '123456',
         email: undefined,
         password: 'password123',
         nickname: 'TestUser',
@@ -212,13 +223,42 @@ describe('AuthModal', () => {
     render(<AuthModal isOpen={true} onClose={vi.fn()} />)
     clickTab('注册')
 
-    fireEvent.change(screen.getByPlaceholderText('请输入手机号（手机号或邮箱至少填一个）'), { target: { value: '13800000000' } })
+    fireEvent.change(screen.getByPlaceholderText('请输入手机号（注册必填）'), { target: { value: '13800000000' } })
     fireEvent.change(screen.getByPlaceholderText('请输入密码（至少6位）'), { target: { value: 'password123' } })
 
     // 未勾选隐私政策时提交按钮禁用
     expect(getSubmitButton()).toBeDisabled()
     fireEvent.click(screen.getByRole('checkbox'))
     expect(getSubmitButton()).not.toBeDisabled()
+  })
+
+  it('should show error when sending code with invalid phone', async () => {
+    render(<AuthModal isOpen={true} onClose={vi.fn()} />)
+    clickTab('注册')
+
+    fireEvent.change(screen.getByPlaceholderText('请输入手机号（注册必填）'), { target: { value: '12345' } })
+    fireEvent.click(screen.getByText('获取验证码'))
+
+    await waitFor(() => {
+      expect(screen.getByText('请先输入正确的手机号')).toBeInTheDocument()
+    })
+    expect(mockSendSmsCode).not.toHaveBeenCalled()
+  })
+
+  it('should call sendSmsCode and start countdown with valid phone', async () => {
+    render(<AuthModal isOpen={true} onClose={vi.fn()} />)
+    clickTab('注册')
+
+    fireEvent.change(screen.getByPlaceholderText('请输入手机号（注册必填）'), { target: { value: '13800000000' } })
+    fireEvent.click(screen.getByText('获取验证码'))
+
+    await waitFor(() => {
+      expect(mockSendSmsCode).toHaveBeenCalledWith('13800000000')
+    })
+    // 发送成功后进入 60 秒倒计时，按钮禁用
+    await waitFor(() => {
+      expect(screen.getByText('60s')).toBeInTheDocument()
+    })
   })
 
   it('should show error message when error exists', () => {

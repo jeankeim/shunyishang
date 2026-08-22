@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Eye, EyeOff, User, Lock, Phone, Mail } from 'lucide-react'
+import { X, Eye, EyeOff, User, Lock, Phone, Mail, ShieldCheck } from 'lucide-react'
 import { useUserStore } from '@/store/user'
+import { sendSmsCode } from '@/lib/api'
 import { ModalPortal } from '@/components/ui/ModalPortal'
 
 interface AuthModalProps {
@@ -27,6 +28,19 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [gender, setGender] = useState<'男' | '女'>('男')
   // PIPL 单独同意：注册前必须勾选隐私政策
   const [privacyConsent, setPrivacyConsent] = useState(false)
+  // 短信验证码（注册安全加固）
+  const [smsCode, setSmsCode] = useState('')
+  const [countdown, setCountdown] = useState(0)
+  const [sendingCode, setSendingCode] = useState(false)
+  const [codeError, setCodeError] = useState('')
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // 组件卸载时清理倒计时定时器
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [])
   
   const { login, loginWithEmail, register, isLoading, error, clearError } = useUserStore()
 
@@ -44,6 +58,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       } else {
         await register({
           phone: phone || undefined,
+          sms_code: smsCode || undefined,
           email: email || undefined,
           password,
           nickname: nickname || undefined,
@@ -57,6 +72,8 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       setEmail('')
       setPassword('')
       setNickname('')
+      setSmsCode('')
+      setCodeError('')
       setPrivacyConsent(false)
     } catch (err) {
       // 错误已在 store 中处理
@@ -66,6 +83,34 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const switchMode = (newMode: AuthMode) => {
     setMode(newMode)
     clearError()
+  }
+
+  // 发送短信验证码（60 秒重发倒计时）
+  const handleSendCode = async () => {
+    setCodeError('')
+    if (!/^1[3-9]\d{9}$/.test(phone)) {
+      setCodeError('请先输入正确的手机号')
+      return
+    }
+    setSendingCode(true)
+    try {
+      await sendSmsCode(phone)
+      setCountdown(60)
+      if (timerRef.current) clearInterval(timerRef.current)
+      timerRef.current = setInterval(() => {
+        setCountdown((c) => {
+          if (c <= 1) {
+            if (timerRef.current) clearInterval(timerRef.current)
+            return 0
+          }
+          return c - 1
+        })
+      }, 1000)
+    } catch (err) {
+      setCodeError(err instanceof Error ? err.message : '验证码发送失败')
+    } finally {
+      setSendingCode(false)
+    }
   }
 
   if (!isOpen) return null
@@ -250,12 +295,41 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                     <input
                       type="tel"
-                      placeholder="请输入手机号（手机号或邮箱至少填一个）"
+                      placeholder="请输入手机号（注册必填）"
                       value={phone}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPhone(e.target.value)}
+                      maxLength={11}
                       className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:border-primary"
+                      required
                     />
                   </div>
+                </div>
+
+                {/* 短信验证码 */}
+                <div className="space-y-2">
+                  <label className="text-sm text-slate-300">短信验证码</label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                      <input
+                        placeholder="请输入验证码"
+                        value={smsCode}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSmsCode(e.target.value.replace(/\D/g, ''))}
+                        maxLength={6}
+                        inputMode="numeric"
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:border-primary"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSendCode}
+                      disabled={countdown > 0 || sendingCode}
+                      className="shrink-0 px-3 py-2.5 text-sm rounded-lg bg-slate-800 text-primary border border-slate-700 hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {countdown > 0 ? `${countdown}s` : sendingCode ? '发送中' : '获取验证码'}
+                    </button>
+                  </div>
+                  {codeError && <p className="text-xs text-red-400">{codeError}</p>}
                 </div>
 
                 {/* 邮箱 */}
@@ -357,7 +431,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 <button
                   type="submit"
                   className="w-full bg-primary hover:bg-primary/90 text-white font-medium py-2.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={isLoading || (!phone && !email) || !privacyConsent}
+                  disabled={isLoading || !phone || !privacyConsent}
                 >
                   {isLoading ? '注册中...' : '注册'}
                 </button>

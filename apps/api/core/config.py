@@ -99,6 +99,14 @@ class Settings(BaseSettings):
     aliyun_billing_access_key_id: str = ""
     aliyun_billing_access_key_secret: str = ""
 
+    # === 短信验证码（阿里云号码认证服务-短信认证，个人备案免资质）===
+    # 凭证优先级：显式 AK/SK > 默认凭证链（ECS 实例 RAM 角色/环境变量）
+    sms_enabled: bool = False                    # 功能开关（关闭时开发环境不真实发送，固定码 123456）
+    aliyun_sms_access_key_id: str = ""
+    aliyun_sms_access_key_secret: str = ""
+    aliyun_sms_sign_name: str = ""               # 控制台获取的系统赠送签名
+    aliyun_sms_template_code: str = ""           # 控制台获取的系统赠送验证码模板编号
+
     # === 应用配置 ===
     app_env: str = "development"
     app_debug: bool = True

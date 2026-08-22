@@ -34,6 +34,7 @@ interface UserState {
 
 interface RegisterData {
   phone?: string
+  sms_code?: string
   email?: string
   password: string
   nickname?: string

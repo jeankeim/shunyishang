@@ -92,6 +92,121 @@ class TestRegister:
         )
         assert response.status_code == 422
 
+    @pytest.mark.asyncio
+    async def test_register_invalid_phone_format(self, async_client, mock_db_pool):
+        """虚构/无效手机号被格式校验拒绝"""
+        response = await async_client.post(
+            "/api/v1/auth/register",
+            json={"phone": "12345", "password": "123456", "privacy_consent": True},
+        )
+        assert response.status_code == 400
+        assert "手机号格式" in response.json()["detail"]
+
+
+class TestSmsSend:
+    """短信验证码发送端点"""
+
+    @pytest.mark.asyncio
+    async def test_send_success_dev_mode(self, async_client):
+        """开发模式（sms_enabled=False）不真实发送，直接返回成功"""
+        response = await async_client.post(
+            "/api/v1/auth/sms/send", json={"phone": "13800138000"},
+        )
+        assert response.status_code == 200
+        assert "验证码已发送" in response.json()["message"]
+
+    @pytest.mark.asyncio
+    async def test_send_invalid_phone(self, async_client):
+        """非法号码被 Pydantic pattern 拒绝 422"""
+        response = await async_client.post(
+            "/api/v1/auth/sms/send", json={"phone": "12345"},
+        )
+        assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_send_cooldown(self, async_client, monkeypatch):
+        """同一号码 60 秒重发间隔（防短信轰炸）"""
+        from apps.api.core.config import settings
+        monkeypatch.setattr(settings, "rate_limit_enabled", True)
+
+        r1 = await async_client.post(
+            "/api/v1/auth/sms/send", json={"phone": "13700137000"},
+        )
+        assert r1.status_code == 200
+
+        r2 = await async_client.post(
+            "/api/v1/auth/sms/send", json={"phone": "13700137000"},
+        )
+        assert r2.status_code == 429
+        assert "秒后重试" in r2.json()["detail"]
+
+
+class TestRegisterWithSms:
+    """短信验证开启后的注册流程"""
+
+    @pytest.fixture
+    def sms_on(self, monkeypatch):
+        """临时开启短信验证开关"""
+        from apps.api.core.config import settings
+        monkeypatch.setattr(settings, "sms_enabled", True)
+
+    @pytest.mark.asyncio
+    async def test_register_requires_phone(self, async_client, sms_on):
+        """开启后仅邮箱注册被拒绝"""
+        response = await async_client.post(
+            "/api/v1/auth/register",
+            json={"email": "a@b.com", "password": "123456", "privacy_consent": True},
+        )
+        assert response.status_code == 400
+        assert "手机号" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_register_requires_sms_code(self, async_client, sms_on):
+        """开启后缺少验证码被拒绝"""
+        response = await async_client.post(
+            "/api/v1/auth/register",
+            json={"phone": "13800138000", "password": "123456", "privacy_consent": True},
+        )
+        assert response.status_code == 400
+        assert "验证码" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_register_wrong_code(self, async_client, sms_on, monkeypatch):
+        """验证码核验不通过被拒绝"""
+        from apps.api.routers import auth as auth_router
+
+        async def fake_verify(phone, code):
+            return False
+
+        monkeypatch.setattr(auth_router.sms_service, "verify_code", fake_verify)
+        response = await async_client.post(
+            "/api/v1/auth/register",
+            json={"phone": "13800138000", "password": "123456",
+                  "sms_code": "000000", "privacy_consent": True},
+        )
+        assert response.status_code == 400
+        assert "验证码错误" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_register_success_with_code(self, async_client, mock_db_pool, sms_on, monkeypatch):
+        """验证码通过后注册成功"""
+        from apps.api.routers import auth as auth_router
+
+        async def fake_verify(phone, code):
+            return code == "654321"
+
+        monkeypatch.setattr(auth_router.sms_service, "verify_code", fake_verify)
+        mock_cursor = mock_db_pool["cursor"]
+        mock_cursor.fetchone.side_effect = [None, (3,)]
+
+        response = await async_client.post(
+            "/api/v1/auth/register",
+            json={"phone": "13600136000", "password": "123456",
+                  "sms_code": "654321", "privacy_consent": True},
+        )
+        assert response.status_code == 200
+        assert response.json()["user"]["phone"] == "13600136000"
+
 
 class TestLogin:
     @pytest.mark.asyncio
@@ -453,3 +568,41 @@ class TestDeleteAccount:
             assert response.status_code == 204
         finally:
             test_app.dependency_overrides.clear()
+
+
+class TestSmsProductionFailClosed:
+    """L3 安全加固：生产环境 sms_enabled=False 时 fail-closed，固定码不可达"""
+
+    @pytest.fixture
+    def prod_sms_off(self, monkeypatch):
+        from apps.api.core.config import settings
+        monkeypatch.setattr(settings, "sms_enabled", False)
+        monkeypatch.setattr(settings, "app_env", "production")
+        yield
+
+    @pytest.mark.asyncio
+    async def test_verify_rejects_fixed_code_in_production(self, prod_sms_off):
+        """生产环境固定码 123456 绝不能通过核验"""
+        from apps.api.services.sms_service import sms_service, DEV_VERIFY_CODE
+        assert await sms_service.verify_code("13800138000", DEV_VERIFY_CODE) is False
+
+    @pytest.mark.asyncio
+    async def test_send_raises_in_production(self, prod_sms_off):
+        """生产环境降级发送直接抛错"""
+        from apps.api.services.sms_service import sms_service, SmsServiceError
+        with pytest.raises(SmsServiceError):
+            await sms_service.send_verify_code("13800138000")
+
+    @pytest.mark.asyncio
+    async def test_register_rejected_in_production(self, async_client, prod_sms_off):
+        """生产环境未开短信开关时注册返回 503"""
+        response = await async_client.post(
+            "/api/v1/auth/register",
+            json={
+                "username": "produser",
+                "phone": "13800138000",
+                "password": "Test1234!",
+                "privacy_consent": True,
+            },
+        )
+        assert response.status_code == 503
