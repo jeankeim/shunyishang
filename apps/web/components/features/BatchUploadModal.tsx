@@ -10,7 +10,6 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ModalPortal } from '@/components/ui/ModalPortal'
 import { useWardrobeStore } from '@/store/wardrobe'
@@ -35,6 +34,14 @@ const SEASONS = ['春', '夏', '秋', '冬'] as const
 const OCCASIONS = ['日常', '通勤', '商务', '约会', '休闲', '运动', '聚会', '旅行'] as const
 
 type Step = 'select' | 'review' | 'wuxing'
+
+/** select 步本地预览条目：blob URL 仅在选图时创建一次，
+ * 避免渲染期间反复 createObjectURL 导致 next/image 重载竞态、移动端预览图空白 */
+interface SelectedEntry {
+  id: string
+  file: File
+  previewUrl: string
+}
 
 /** 单件衣物卡片状态（贯穿识别→五行→入库全流程） */
 interface BatchCard {
@@ -85,7 +92,7 @@ export function BatchUploadModal({ isOpen, onClose, onSuccess }: BatchUploadModa
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [step, setStep] = useState<Step>('select')
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [selectedFiles, setSelectedFiles] = useState<SelectedEntry[]>([])
   const [dragOver, setDragOver] = useState(false)
   const [cards, setCards] = useState<BatchCard[]>([])
   const [isRecognizing, setIsRecognizing] = useState(false)
@@ -102,6 +109,9 @@ export function BatchUploadModal({ isOpen, onClose, onSuccess }: BatchUploadModa
   // 弹窗关闭时重置
   useEffect(() => {
     if (!isOpen) {
+      // 回收 blob URL，避免内存泄漏
+      selectedFiles.forEach(e => URL.revokeObjectURL(e.previewUrl))
+      cards.forEach(c => URL.revokeObjectURL(c.previewUrl))
       setStep('select')
       setSelectedFiles([])
       setCards([])
@@ -120,7 +130,7 @@ export function BatchUploadModal({ isOpen, onClose, onSuccess }: BatchUploadModa
     setError('')
     setSuccessMsg('')
     const incoming = Array.from(files)
-    const accepted: File[] = []
+    const accepted: SelectedEntry[] = []
     for (const f of incoming) {
       if (selectedFiles.length + accepted.length >= MAX_BATCH) {
         setError(`每批最多上传 ${MAX_BATCH} 件，超出部分请分批上传`)
@@ -144,7 +154,7 @@ export function BatchUploadModal({ isOpen, onClose, onSuccess }: BatchUploadModa
         setError(`「${f.name}」过大且无法压缩至 5MB 内，请更换图片`)
         continue
       }
-      accepted.push(target)
+      accepted.push({ id: makeId(), file: target, previewUrl: URL.createObjectURL(target) })
     }
     if (accepted.length > 0) {
       setSelectedFiles(prev => [...prev, ...accepted])
@@ -152,7 +162,11 @@ export function BatchUploadModal({ isOpen, onClose, onSuccess }: BatchUploadModa
   }, [selectedFiles.length])
 
   const removeFile = useCallback((index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index))
+    setSelectedFiles(prev => {
+      const target = prev[index]
+      if (target) URL.revokeObjectURL(target.previewUrl)
+      return prev.filter((_, i) => i !== index)
+    })
     setError('')
   }, [])
 
@@ -180,10 +194,10 @@ export function BatchUploadModal({ isOpen, onClose, onSuccess }: BatchUploadModa
     setStep('review')
     setIsRecognizing(true)
 
-    const initial: BatchCard[] = selectedFiles.map(file => ({
-      id: makeId(),
-      file,
-      previewUrl: URL.createObjectURL(file),
+    const initial: BatchCard[] = selectedFiles.map(entry => ({
+      id: entry.id,
+      file: entry.file,
+      previewUrl: entry.previewUrl,
       imageUrl: '',
       uploadStatus: 'uploading',
       name: '',
@@ -434,6 +448,7 @@ export function BatchUploadModal({ isOpen, onClose, onSuccess }: BatchUploadModa
 
   const handleClose = () => {
     if (isRecognizing || isSubmitting) return
+    selectedFiles.forEach(e => URL.revokeObjectURL(e.previewUrl))
     cards.forEach(c => URL.revokeObjectURL(c.previewUrl))
     onClose()
   }
@@ -532,7 +547,20 @@ export function BatchUploadModal({ isOpen, onClose, onSuccess }: BatchUploadModa
         {/* 图片 + 状态 */}
         <div className="flex gap-3">
           <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-stone-100 flex-shrink-0">
-            <Image src={encodedImage} alt={card.name || '衣物'} fill unoptimized className="object-cover" />
+            {/* 原生 img 急加载：避免 next/image 对 blob/外链 URL 的加载竞态 */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={encodedImage}
+              alt={card.name || '衣物'}
+              loading="eager"
+              decoding="async"
+              // 上传后 URL 加载失败时回退本地预览，保证图区不空白
+              onError={e => {
+                const el = e.currentTarget
+                if (card.previewUrl && el.src !== card.previewUrl) el.src = card.previewUrl
+              }}
+              className="absolute inset-0 h-full w-full object-cover"
+            />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -802,14 +830,16 @@ export function BatchUploadModal({ isOpen, onClose, onSuccess }: BatchUploadModa
 
                 {selectedFiles.length > 0 && (
                   <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-                    {selectedFiles.map((file, i) => (
-                      <div key={`${file.name}-${i}`} className="relative aspect-square rounded-xl overflow-hidden bg-stone-100 group">
-                        <Image
-                          src={URL.createObjectURL(file)}
-                          alt={file.name}
-                          fill
-                          unoptimized
-                          className="object-cover"
+                    {selectedFiles.map((entry, i) => (
+                      <div key={entry.id} className="relative aspect-square rounded-xl overflow-hidden bg-stone-100 group">
+                        {/* blob URL 稳定不变，原生 img 急加载，杜绝重载竞态导致的预览空白 */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={entry.previewUrl}
+                          alt={entry.file.name}
+                          loading="eager"
+                          decoding="async"
+                          className="absolute inset-0 h-full w-full object-cover"
                         />
                         <button
                           type="button"
