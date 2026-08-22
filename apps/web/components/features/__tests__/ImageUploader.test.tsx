@@ -15,6 +15,12 @@ vi.mock('@/lib/api', () => ({
   getAuthToken: () => mockGetAuthToken(),
 }))
 
+// Mock 图片压缩（默认返回原文件，超限用例中可模拟压缩失败）
+const mockCompressImageFile = vi.fn(async (file: File, _maxSize?: number) => file)
+vi.mock('@/lib/image-compress', () => ({
+  compressImageFile: (...args: unknown[]) => mockCompressImageFile(...(args as [File, number])),
+}))
+
 // Mock FileReader as a proper constructor
 class MockFileReader {
   onload: ((e: any) => void) | null = null
@@ -44,9 +50,9 @@ describe('ImageUploader', () => {
     expect(screen.getByText(/或拖拽图片到此处/)).toBeInTheDocument()
   })
 
-  it('should render file format hint', () => {
+  it('should display allowed file formats', () => {
     render(<ImageUploader onImageUploaded={vi.fn()} />)
-    expect(screen.getByText('支持 JPG、PNG 格式，最大 5MB')).toBeInTheDocument()
+    expect(screen.getByText('支持 JPG、PNG 格式，超过 5MB 自动压缩')).toBeInTheDocument()
   })
 
   it('should render file input with correct accept type', () => {
@@ -68,16 +74,23 @@ describe('ImageUploader', () => {
     expect(screen.getByText('请上传图片文件（JPG/PNG 等）')).toBeInTheDocument()
   })
 
-  it('should show error when file is too large', () => {
+  it('should display image size limit when compression cannot meet maxSize', async () => {
+    mockGetAuthToken.mockReturnValue('valid-token')
+    // 模拟压缩后仍超限：返回一个依旧超限的文件
+    mockCompressImageFile.mockImplementation(async (file: File) => file)
+
     const onImageUploaded = vi.fn()
     render(<ImageUploader onImageUploaded={onImageUploaded} maxSize={100} />)
-    
+
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
     const file = new File(['x'.repeat(200)], 'large.jpg', { type: 'image/jpeg' })
-    
+
     fireEvent.change(input, { target: { files: [file] } })
-    
-    expect(screen.getByText(/图片大小不能超过/)).toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(screen.getByText(/图片过大，压缩后仍超过/)).toBeInTheDocument()
+    })
+    expect(onImageUploaded).not.toHaveBeenCalled()
   })
 
   it('should show login error when no auth token', () => {
