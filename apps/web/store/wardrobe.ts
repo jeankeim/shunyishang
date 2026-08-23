@@ -34,7 +34,14 @@ interface WardrobeState {
   isTaggingLoading: boolean
 
   // 操作方法
-  fetchItems: (filters?: { category?: string; element?: string }) => Promise<void>
+  fetchItems: (filters?: {
+    category?: string
+    element?: string
+    season?: string
+    weather?: string
+    thickness?: string
+    color_family?: string
+  }) => Promise<void>
   addItem: (data: AddWardrobeItemRequest) => Promise<WardrobeItem>
   addItems: (items: BatchAddItemRequest[]) => Promise<BatchAddResponse>
   updateItem: (itemId: number, data: UpdateWardrobeItemRequest) => Promise<void>
@@ -57,7 +64,14 @@ export const useWardrobeStore = create<WardrobeState>()(
       taggingPreview: null,
       isTaggingLoading: false,
 
-      fetchItems: async (filters?: { category?: string; element?: string }) => {
+      fetchItems: async (filters?: {
+        category?: string
+        element?: string
+        season?: string
+        weather?: string
+        thickness?: string
+        color_family?: string
+      }) => {
         set({ isLoading: true, error: null })
         try {
           const response: WardrobeListResponse = await getWardrobeItems({

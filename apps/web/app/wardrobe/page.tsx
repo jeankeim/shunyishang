@@ -27,11 +27,55 @@ const WUXING_THEME: Record<string, { color: string; gradient: string; symbol: st
   '土': { color: '#B89B5E', gradient: 'from-[#F9F5EC] via-[#F5F0E0] to-[#EDE5D0]', symbol: '☷', pattern: 'mountain' },
 }
 
+// 多维筛选状态（与后端列表接口筛选参数一一对应）
+interface WardrobeFilters {
+  element: string | null
+  category: string | null
+  season: string | null
+  weather: string | null
+  thickness: string | null
+  color_family: string | null
+}
+
+const EMPTY_FILTERS: WardrobeFilters = {
+  element: null, category: null, season: null,
+  weather: null, thickness: null, color_family: null,
+}
+
+// 筛选栏维度配置（选项与后端词表对齐：ai_tagging_service / COLOR_FAMILY_KEYWORDS）
+const FILTER_DIMENSIONS: { key: keyof WardrobeFilters; label: string; options: string[] }[] = [
+  { key: 'element', label: '五行', options: ['金', '木', '水', '火', '土'] },
+  { key: 'category', label: '品类', options: ['上装', '下装', '外套', '裙装', '套装', '鞋履', '配饰'] },
+  { key: 'season', label: '季节', options: ['春', '夏', '秋', '冬'] },
+  { key: 'weather', label: '天气', options: ['晴', '多云', '阴', '雨', '雪'] },
+  { key: 'thickness', label: '厚度', options: ['轻薄', '适中', '加厚', '厚重'] },
+  { key: 'color_family', label: '色系', options: ['白色系', '黑色系', '灰色系', '红色系', '蓝色系', '绿色系', '黄棕色系', '粉紫色系'] },
+]
+
+/** 筛选状态 → 列表接口请求参数（剔除空值） */
+function toFetchParams(f: WardrobeFilters) {
+  const params: Partial<Record<keyof WardrobeFilters, string>> = {}
+  ;(Object.keys(f) as (keyof WardrobeFilters)[]).forEach((k) => {
+    const v = f[k]
+    if (v) params[k] = v
+  })
+  return params
+}
+
+// 闲置徽标展示阈值与分级配色（与 WardrobeInsights 低频/冗余色板一致）
+const IDLE_BADGE_MIN_DAYS = 30
+
+function idleBadgeClass(days: number): string {
+  if (days >= 180) return 'bg-[#C75B5B]/85'
+  if (days >= 90) return 'bg-[#B89B5E]/85'
+  return 'bg-stone-500/70'
+}
+
 export default function WardrobePage() {
   const { items, total, elementStats, isLoading, fetchItems, deleteItem } = useWardrobeStore()
   const { isAuthenticated } = useUserStore()
   
-  const [filterElement, setFilterElement] = useState<string | null>(null)
+  const [filters, setFilters] = useState<WardrobeFilters>({ ...EMPTY_FILTERS })
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false)
   const [editItem, setEditItem] = useState<WardrobeItem | null>(null)
@@ -48,14 +92,19 @@ export default function WardrobePage() {
     }
   }, [isAuthenticated, fetchItems])
 
-  const handleFilterChange = (element: string | null) => {
-    setFilterElement(element)
-    if (element) {
-      fetchItems({ element })
-    } else {
-      fetchItems()
-    }
+  /** 点击筛选 chips：再次点击同值取消；变更后走列表接口服务端筛选 */
+  const updateFilter = (key: keyof WardrobeFilters, value: string) => {
+    const next = { ...filters, [key]: filters[key] === value ? null : value }
+    setFilters(next)
+    fetchItems(toFetchParams(next))
   }
+
+  const clearFilters = () => {
+    setFilters({ ...EMPTY_FILTERS })
+    fetchItems()
+  }
+
+  const hasActiveFilter = (Object.values(filters) as (string | null)[]).some(Boolean)
 
   const handleDelete = async (itemId: number) => {
     setConfirmDeleteId(itemId)
@@ -77,9 +126,7 @@ export default function WardrobePage() {
     setIsModalOpen(true)
   }
 
-  const filteredItems = filterElement
-    ? items.filter((item) => item.primary_element === filterElement)
-    : items
+  // 多维筛选已由列表接口服务端完成，前端直接渲染 items
 
 
   // 未登录状态
@@ -279,8 +326,13 @@ export default function WardrobePage() {
         <WuxingBaguaChart
           elementStats={elementStats}
           total={total}
-          filterElement={filterElement}
-          onFilter={(el) => handleFilterChange(filterElement === el ? null : el)}
+          filterElement={filters.element}
+          onFilter={(el) => {
+            // 八卦图内部已处理 toggle（激活中再点传 null），这里直接写入状态
+            const next = { ...filters, element: el }
+            setFilters(next)
+            fetchItems(toFetchParams(next))
+          }}
         />
 
         {/* 图例说明 */}
@@ -320,6 +372,55 @@ export default function WardrobePage() {
         </motion.div>
       )}
 
+      {/* 多维智能筛选栏 */}
+      {total > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.28 }}
+          className="mb-6 md:mb-8 p-3 md:p-4 bg-white/70 backdrop-blur-xl rounded-2xl md:rounded-3xl border border-white/50 shadow-xl shadow-stone-200/20"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-xs md:text-sm font-medium text-stone-500 uppercase tracking-wider">智能筛选 · 多维分类</h3>
+            {hasActiveFilter && (
+              <button
+                onClick={clearFilters}
+                className="text-xs text-[var(--brand-subtle)] hover:text-[var(--brand-heading)] transition-colors touch-feedback"
+              >
+                清除筛选
+              </button>
+            )}
+          </div>
+          <div className="space-y-1.5">
+            {FILTER_DIMENSIONS.map((dim) => (
+              <div key={dim.key} className="flex items-center gap-2">
+                <span className="w-10 shrink-0 text-[11px] text-[var(--brand-subtle)]">{dim.label}</span>
+                <div className="flex gap-1.5 overflow-x-auto scrollbar-hide py-0.5">
+                  {dim.options.map((opt) => {
+                    const active = filters[dim.key] === opt
+                    const elemColor = dim.key === 'element' ? WUXING_THEME[opt]?.color : null
+                    return (
+                      <button
+                        key={opt}
+                        onClick={() => updateFilter(dim.key, opt)}
+                        className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-xs transition-all touch-feedback ${
+                          active
+                            ? 'text-white shadow-sm font-medium'
+                            : 'bg-[var(--brand-bg)]/60 text-[var(--brand-subtle)] hover:text-[var(--brand-heading)] hover:bg-[var(--brand-surface)]'
+                        }`}
+                        style={active ? { backgroundColor: elemColor || 'var(--brand-heading)' } : undefined}
+                      >
+                        {opt}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
       {/* 衣物展示区 */}
       <motion.div
         initial={{ opacity: 0 }}
@@ -328,13 +429,13 @@ export default function WardrobePage() {
       >
         {isLoading && items.length === 0 ? (
           <SkeletonList count={6} showImage={true} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4" />
-        ) : filteredItems.length === 0 ? (
+        ) : items.length === 0 ? (
           <EmptyState
             icon="wardrobe"
-            title={filterElement ? '此五行暂无衣物' : '衣橱空空如也'}
-            description={filterElement ? '换个五行属性看看' : '开始添加你的第一件衣物，让 AI 为你推荐完美搭配'}
-            actionLabel="添加衣物"
-            onAction={handleAddNew}
+            title={hasActiveFilter ? '没有符合筛选条件的衣物' : '衣橱空空如也'}
+            description={hasActiveFilter ? '试试调整或清除上方筛选条件' : '开始添加你的第一件衣物，让 AI 为你推荐完美搭配'}
+            actionLabel={hasActiveFilter ? '清除筛选' : '添加衣物'}
+            onAction={hasActiveFilter ? clearFilters : handleAddNew}
           />
         ) : (
           <div className={viewMode === 'grid' 
@@ -342,7 +443,7 @@ export default function WardrobePage() {
             : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"
           }>
             <AnimatePresence mode="popLayout">
-              {filteredItems.map((item, index) => {
+              {items.map((item, index) => {
                 const config = getWuxingConfig(item.primary_element)
                 const theme = WUXING_THEME[item.primary_element] || WUXING_THEME['金']
 
@@ -431,6 +532,15 @@ export default function WardrobePage() {
                       
                       {/* 底部渐变 */}
                       <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-white to-transparent" />
+
+                      {/* 闲置天数徽标（图片右上角；hover 时让位于操作按钮） */}
+                      {item.idle_days != null && item.idle_days >= IDLE_BADGE_MIN_DAYS && (
+                        <div
+                          className={`absolute top-3 right-3 z-10 px-2 py-1 rounded-lg backdrop-blur-md text-[10px] font-medium text-white shadow-sm transition-opacity duration-300 group-hover:opacity-0 ${idleBadgeClass(item.idle_days)}`}
+                        >
+                          {item.wear_count === 0 ? `未穿 ${item.idle_days} 天` : `已闲置 ${item.idle_days} 天`}
+                        </div>
+                      )}
                     </div>
 
                     {/* 信息区域 */}

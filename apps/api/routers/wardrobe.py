@@ -9,6 +9,7 @@ import os
 import re
 import time
 import uuid
+from datetime import date
 from typing import Optional
 from pathlib import Path
 
@@ -230,7 +231,32 @@ _WARDROBE_RETURNING_FIELDS = """id, user_id, item_code, name, category, image_ur
                is_custom, is_active, wear_count, last_worn_date,
                is_favorite, notes, created_at, updated_at,
                gender, applicable_weather, applicable_seasons,
-               temperature_range, functionality, thickness_level, energy_intensity"""
+               temperature_range, functionality, thickness_level, energy_intensity,
+               color, style, material"""
+
+
+# 色系 → 颜色名称关键词映射（color_family 筛选用，与前端筛选栏选项对齐）
+COLOR_FAMILY_KEYWORDS = {
+    "白色系": ["白", "米", "银", "象牙"],
+    "黑色系": ["黑", "藏青"],
+    "灰色系": ["灰"],
+    "红色系": ["红", "橙"],
+    "蓝色系": ["蓝"],
+    "绿色系": ["绿", "青", "翠"],
+    "黄棕色系": ["黄", "棕", "卡其", "驼", "咖", "褐"],
+    "粉紫色系": ["粉", "紫"],
+}
+
+
+def _compute_idle_days(row: dict) -> Optional[int]:
+    """计算闲置天数：以 last_worn_date 为基准，从未穿着则以 created_at 为基准"""
+    base = row.get("last_worn_date")
+    if base is None:
+        created = row.get("created_at")
+        base = created.date() if created else None
+    if base is None:
+        return None
+    return max(0, (date.today() - base).days)
 
 
 def _insert_wardrobe_item(cur, user_id: int, data: dict) -> dict:
@@ -659,6 +685,10 @@ async def batch_add_wardrobe_items(
 async def list_wardrobe_items(
     category: Optional[str] = Query(None, description="分类筛选"),
     element: Optional[str] = Query(None, description="五行筛选"),
+    season: Optional[str] = Query(None, description="季节筛选: 春/夏/秋/冬"),
+    weather: Optional[str] = Query(None, description="天气筛选: 晴/多云/阴/雨/雪"),
+    thickness: Optional[str] = Query(None, description="厚度筛选: 轻薄/适中/加厚/厚重"),
+    color_family: Optional[str] = Query(None, description="色系筛选: 白色系/黑色系/灰色系/红色系/蓝色系/绿色系/黄棕色系/粉紫色系"),
     page: int = Query(1, ge=1, description="页码"),
     limit: int = Query(20, ge=1, le=100, description="每页数量"),
     user: dict = Depends(get_current_user)
@@ -668,11 +698,15 @@ async def list_wardrobe_items(
     
     **源码位置**: `apps/api/routers/wardrobe.py:list_wardrobe_items()` (第211行起)
     
-    **核心逻辑**: 查询数据库，支持按分类、五行筛选，分页返回
+    **核心逻辑**: 查询数据库，支持多维筛选，分页返回；每件附带闲置天数计算字段
     
     **筛选参数**:
-    - `category`: 分类筛选（上衣、裤子、裙子等）
+    - `category`: 分类筛选（上装、下装、外套等）
     - `element`: 五行筛选（金、木、水、火、土）
+    - `season`: 季节筛选（JSONB 包含匹配 applicable_seasons）
+    - `weather`: 天气筛选（JSONB 包含匹配 applicable_weather）
+    - `thickness`: 厚度等级筛选
+    - `color_family`: 色系筛选（颜色名称关键词模糊匹配）
     """
     user_id = user.get("id")
     if not user_id:
@@ -690,7 +724,8 @@ async def list_wardrobe_items(
                is_custom, is_active, wear_count, last_worn_date,
                is_favorite, notes, created_at, updated_at,
                gender, applicable_weather, applicable_seasons,
-               temperature_range, functionality, thickness_level, energy_intensity
+               temperature_range, functionality, thickness_level, energy_intensity,
+               color, style, material
         FROM user_wardrobe
         WHERE user_id = %s AND is_active = TRUE
     """
@@ -703,6 +738,24 @@ async def list_wardrobe_items(
     if element:
         base_query += " AND primary_element = %s"
         params.append(element)
+    
+    if season:
+        base_query += " AND applicable_seasons @> %s::jsonb"
+        params.append(json.dumps([season], ensure_ascii=False))
+    
+    if weather:
+        base_query += " AND applicable_weather @> %s::jsonb"
+        params.append(json.dumps([weather], ensure_ascii=False))
+    
+    if thickness:
+        base_query += " AND thickness_level = %s"
+        params.append(thickness)
+    
+    if color_family:
+        keywords = COLOR_FAMILY_KEYWORDS.get(color_family)
+        if keywords:
+            base_query += " AND (" + " OR ".join(["color LIKE %s"] * len(keywords)) + ")"
+            params.extend([f"%{k}%" for k in keywords])
     
     # 获取列表
     list_query = base_query + " ORDER BY created_at DESC LIMIT %s OFFSET %s"
@@ -729,7 +782,12 @@ async def list_wardrobe_items(
             cur.execute(stats_query, [user_id])
             stats_rows = cur.fetchall()
     
-    items = [WardrobeItemResponse(**dict(row)) for row in rows]
+    # 注入闲置天数计算字段（不新增接口，列表直接携带）
+    items = []
+    for row in rows:
+        row_dict = dict(row)
+        row_dict["idle_days"] = _compute_idle_days(row_dict)
+        items.append(WardrobeItemResponse(**row_dict))
     element_stats = {row['primary_element']: row['count'] for row in stats_rows if row['primary_element'] is not None}
     
     return WardrobeItemListResponse(
@@ -758,7 +816,8 @@ async def get_wardrobe_item(
                is_custom, is_active, wear_count, last_worn_date,
                is_favorite, notes, created_at, updated_at,
                gender, applicable_weather, applicable_seasons,
-               temperature_range, functionality, thickness_level, energy_intensity
+               temperature_range, functionality, thickness_level, energy_intensity,
+               color, style, material
         FROM user_wardrobe
         WHERE id = %s AND user_id = %s AND is_active = TRUE
     """
@@ -774,7 +833,9 @@ async def get_wardrobe_item(
             detail="衣物不存在或无权访问"
         )
     
-    return WardrobeItemResponse(**dict(row))
+    row_dict = dict(row)
+    row_dict["idle_days"] = _compute_idle_days(row_dict)
+    return WardrobeItemResponse(**row_dict)
 
 
 @router.patch("/items/{item_id}", response_model=WardrobeItemResponse)

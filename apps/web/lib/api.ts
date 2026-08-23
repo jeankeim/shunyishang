@@ -581,6 +581,12 @@ export interface WardrobeItem {
   functionality?: string[]
   thickness_level?: string
   energy_intensity?: number
+  // 偏好维度独立列（筛选与展示用）
+  color?: string
+  style?: string
+  material?: string
+  // 闲置天数计算字段（后端注入：last_worn_date 基准，从未穿着以 created_at 基准）
+  idle_days?: number
 }
 
 export interface WardrobeListResponse {
@@ -676,12 +682,20 @@ export interface FeedbackResponse {
 export async function getWardrobeItems(params?: {
   category?: string
   element?: string
+  season?: string
+  weather?: string
+  thickness?: string
+  color_family?: string
   page?: number
   limit?: number
 }): Promise<WardrobeListResponse> {
   const searchParams = new URLSearchParams()
   if (params?.category) searchParams.append('category', params.category)
   if (params?.element) searchParams.append('element', params.element)
+  if (params?.season) searchParams.append('season', params.season)
+  if (params?.weather) searchParams.append('weather', params.weather)
+  if (params?.thickness) searchParams.append('thickness', params.thickness)
+  if (params?.color_family) searchParams.append('color_family', params.color_family)
   if (params?.page) searchParams.append('page', params.page.toString())
   if (params?.limit) searchParams.append('limit', params.limit.toString())
 

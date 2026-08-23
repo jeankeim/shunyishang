@@ -103,6 +103,17 @@ class WardrobeItemResponse(WardrobeItemBase):
     notes: Optional[str] = Field(None, description="备注")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
+
+    # 偏好维度独立列（migration 23 回填，供筛选与展示）
+    color: Optional[str] = Field(None, description="颜色名称")
+    style: Optional[str] = Field(None, description="风格")
+    material: Optional[str] = Field(None, description="材质名称")
+
+    # 闲置状态计算字段（列表/详情接口注入，未计算时为 None）
+    idle_days: Optional[int] = Field(
+        None, ge=0,
+        description="闲置天数：以 last_worn_date 为基准，从未穿着则以 created_at 为基准"
+    )
     
     model_config = {
         "from_attributes": True,
