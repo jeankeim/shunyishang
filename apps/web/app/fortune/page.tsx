@@ -494,10 +494,12 @@ export default function FortunePage() {
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="mystic-modal w-full max-w-lg rounded-2xl p-6 max-h-[80vh] overflow-y-auto"
+          className="mystic-modal w-full max-w-lg rounded-2xl"
           onClick={e => e.stopPropagation()}
         >
-          <div className="relative z-10">
+          {/* 内层独立滚动容器：.mystic-modal 的 overflow:hidden 仅用于圆角/星空裁切，
+              若在外层加 overflow-y-auto 会被其覆盖导致内容被裁、无法滚动 */}
+          <div className="relative z-10 max-h-[85vh] overflow-y-auto overscroll-contain p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="mystic-heading text-lg font-bold">
               {reportView.year || reportView.title} 运势详批
