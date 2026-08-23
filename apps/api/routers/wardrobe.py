@@ -25,6 +25,7 @@ from apps.api.schemas.wardrobe import (
     WardrobeItemResponse,
     WardrobeItemListResponse,
     WardrobeItemUpdate,
+    WardrobeFilterStatsResponse,
     FeedbackCreate,
     FeedbackResponse,
     BatchRecognizeRequest,
@@ -257,6 +258,48 @@ def _compute_idle_days(row: dict) -> Optional[int]:
     if base is None:
         return None
     return max(0, (date.today() - base).days)
+
+
+# 筛选栏各维度选项词表（与前端 FILTER_DIMENSIONS 保持一致）
+FILTER_DIMENSION_OPTIONS = {
+    "element": ["金", "木", "水", "火", "土"],
+    "category": ["上装", "下装", "外套", "裙装", "套装", "鞋履", "配饰"],
+    "season": ["春", "夏", "秋", "冬"],
+    "weather": ["晴", "多云", "阴", "雨", "雪"],
+    "thickness": ["轻薄", "适中", "加厚", "厚重"],
+    "color_family": list(COLOR_FAMILY_KEYWORDS.keys()),
+}
+
+
+def _row_matches_dim(row: dict, dim: str, value: str) -> bool:
+    """判断衣橱行是否匹配某维度选项（与列表筛选 SQL 语义一致）"""
+    if dim == "element":
+        return row.get("primary_element") == value
+    if dim == "category":
+        return row.get("category") == value
+    if dim == "season":
+        return value in (row.get("applicable_seasons") or [])
+    if dim == "weather":
+        return value in (row.get("applicable_weather") or [])
+    if dim == "thickness":
+        return row.get("thickness_level") == value
+    if dim == "color_family":
+        keywords = COLOR_FAMILY_KEYWORDS.get(value, [])
+        color = row.get("color") or ""
+        if color:
+            return any(k in color for k in keywords)
+        return any(k in (row.get("name") or "") for k in keywords)
+    return False
+
+
+def _row_matches_filters(row: dict, active: dict, exclude_dim: Optional[str] = None) -> bool:
+    """判断衣橱行是否满足激活的筛选条件（exclude_dim 维度跳过，用于 facet 计数）"""
+    for dim, value in active.items():
+        if not value or dim == exclude_dim:
+            continue
+        if not _row_matches_dim(row, dim, value):
+            return False
+    return True
 
 
 def _insert_wardrobe_item(cur, user_id: int, data: dict) -> dict:
@@ -812,6 +855,57 @@ async def list_wardrobe_items(
         total=total,
         element_stats=element_stats
     )
+
+
+@router.get("/filter-stats", response_model=WardrobeFilterStatsResponse)
+async def get_wardrobe_filter_stats(
+    element: Optional[str] = Query(None, description="五行筛选"),
+    category: Optional[str] = Query(None, description="品类筛选"),
+    season: Optional[str] = Query(None, description="季节筛选"),
+    weather: Optional[str] = Query(None, description="天气筛选"),
+    thickness: Optional[str] = Query(None, description="厚度筛选"),
+    color_family: Optional[str] = Query(None, description="色系筛选"),
+    user: dict = Depends(get_current_user)
+):
+    """
+    筛选栏实时统计：衣橱总数 / 当前条件命中数 / 各维度每个选项的计数。
+
+    Facet 语义：统计某维度时仅应用**其他维度**的筛选条件，
+    因此同维度内选中某选项后，兄弟选项仍显示可选数量。
+    """
+    user_id = user.get("id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户未登录"
+        )
+
+    active = {k: v for k, v in {
+        "element": element, "category": category, "season": season,
+        "weather": weather, "thickness": thickness, "color_family": color_family,
+    }.items() if v}
+
+    with DatabasePool.get_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                """SELECT primary_element, category, applicable_seasons,
+                          applicable_weather, thickness_level, color, name
+                   FROM user_wardrobe
+                   WHERE user_id = %s AND is_active = TRUE""",
+                [user_id]
+            )
+            rows = [dict(r) for r in cur.fetchall()]
+
+    facets = {}
+    for dim, options in FILTER_DIMENSION_OPTIONS.items():
+        base = [r for r in rows if _row_matches_filters(r, active, exclude_dim=dim)]
+        facets[dim] = {
+            opt: sum(1 for r in base if _row_matches_dim(r, dim, opt))
+            for opt in options
+        }
+
+    matched = sum(1 for r in rows if _row_matches_filters(r, active))
+    return WardrobeFilterStatsResponse(total=len(rows), matched=matched, facets=facets)
 
 
 @router.get("/items/{item_id}", response_model=WardrobeItemResponse)

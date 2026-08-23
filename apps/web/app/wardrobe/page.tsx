@@ -8,6 +8,7 @@ import { useUserStore } from '@/store/user'
 import { SwipeToDelete } from '@/components/features/SwipeToDelete'
 import { WUXING_ELEMENTS, WUXING_CONFIG, getWuxingConfig } from '@/lib/wuxing-config'
 import type { WardrobeItem } from '@/lib/api'
+import { getWardrobeFilterStats, type WardrobeFilterStats } from '@/lib/api'
 import { getImageUrl } from '@/lib/image'
 import { EmptyState, SkeletonList, ConfirmDialog } from '@/components/ui'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
@@ -76,6 +77,7 @@ export default function WardrobePage() {
   const { isAuthenticated } = useUserStore()
   
   const [filters, setFilters] = useState<WardrobeFilters>({ ...EMPTY_FILTERS })
+  const [filterStats, setFilterStats] = useState<WardrobeFilterStats | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false)
   const [editItem, setEditItem] = useState<WardrobeItem | null>(null)
@@ -89,22 +91,36 @@ export default function WardrobePage() {
   useEffect(() => {
     if (isAuthenticated) {
       fetchItems()
+      refreshStats(EMPTY_FILTERS)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, fetchItems])
+
+  /** 拉取筛选栏实时计数（失败静默，不阻断页面） */
+  const refreshStats = (f: WardrobeFilters) => {
+    getWardrobeFilterStats(toFetchParams(f))
+      .then(setFilterStats)
+      .catch(() => undefined)
+  }
 
   /** 点击筛选 chips：再次点击同值取消；变更后走列表接口服务端筛选 */
   const updateFilter = (key: keyof WardrobeFilters, value: string) => {
     const next = { ...filters, [key]: filters[key] === value ? null : value }
     setFilters(next)
     fetchItems(toFetchParams(next))
+    refreshStats(next)
   }
 
   const clearFilters = () => {
     setFilters({ ...EMPTY_FILTERS })
     fetchItems()
+    refreshStats(EMPTY_FILTERS)
   }
 
   const hasActiveFilter = (Object.values(filters) as (string | null)[]).some(Boolean)
+
+  // 衣橱是否真的为空（区别于筛选无结果）：优先用统计接口总数判定
+  const wardrobeEmpty = filterStats ? filterStats.total === 0 : (!hasActiveFilter && total === 0)
 
   const handleDelete = async (itemId: number) => {
     setConfirmDeleteId(itemId)
@@ -115,6 +131,7 @@ export default function WardrobePage() {
     setDeletingId(confirmDeleteId)
     try {
       await deleteItem(confirmDeleteId)
+      refreshStats(filters)
     } finally {
       setDeletingId(null)
       setConfirmDeleteId(null)
@@ -239,7 +256,10 @@ export default function WardrobePage() {
               className="text-stone-500 mt-2 flex items-center gap-2 text-sm md:text-base"
             >
               <span className="inline-block w-2 h-2 rounded-full bg-gradient-to-r from-rose-400 to-pink-400" />
-              共收藏 <span className="font-medium text-stone-700">{total}</span> 件衣物
+              共收藏 <span className="font-medium text-stone-700">{filterStats?.total ?? total}</span> 件衣物
+              {hasActiveFilter && filterStats && (
+                <span className="text-[var(--brand-subtle)]">· 当前命中 <span className="font-medium text-stone-700">{filterStats.matched}</span> 件</span>
+              )}
             </motion.p>
           </div>
           
@@ -332,6 +352,7 @@ export default function WardrobePage() {
             const next = { ...filters, element: el }
             setFilters(next)
             fetchItems(toFetchParams(next))
+            refreshStats(next)
           }}
         />
 
@@ -380,16 +401,23 @@ export default function WardrobePage() {
           transition={{ delay: 0.28 }}
           className="mb-6 md:mb-8 p-3 md:p-4 bg-white/70 backdrop-blur-xl rounded-2xl md:rounded-3xl border border-white/50 shadow-xl shadow-stone-200/20"
         >
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 gap-2">
             <h3 className="text-xs md:text-sm font-medium text-stone-500 uppercase tracking-wider">智能筛选 · 多维分类</h3>
-            {hasActiveFilter && (
-              <button
-                onClick={clearFilters}
-                className="text-xs text-[var(--brand-subtle)] hover:text-[var(--brand-heading)] transition-colors touch-feedback"
-              >
-                清除筛选
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {filterStats && (
+                <span className="text-[11px] text-[var(--brand-subtle)] tabular-nums whitespace-nowrap">
+                  命中 <span className="font-semibold text-[var(--brand-heading)]">{filterStats.matched}</span> / {filterStats.total} 件
+                </span>
+              )}
+              {hasActiveFilter && (
+                <button
+                  onClick={clearFilters}
+                  className="text-xs text-[var(--brand-subtle)] hover:text-[var(--brand-heading)] transition-colors touch-feedback whitespace-nowrap"
+                >
+                  清除筛选
+                </button>
+              )}
+            </div>
           </div>
           <div className="space-y-1.5">
             {FILTER_DIMENSIONS.map((dim) => (
@@ -398,19 +426,25 @@ export default function WardrobePage() {
                 <div className="flex gap-1.5 overflow-x-auto scrollbar-hide py-0.5">
                   {dim.options.map((opt) => {
                     const active = filters[dim.key] === opt
+                    const count = filterStats?.facets?.[dim.key]?.[opt]
                     const elemColor = dim.key === 'element' ? WUXING_THEME[opt]?.color : null
                     return (
                       <button
                         key={opt}
                         onClick={() => updateFilter(dim.key, opt)}
-                        className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-xs transition-all touch-feedback ${
+                        className={`flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs transition-all touch-feedback ${
                           active
                             ? 'text-white shadow-sm font-medium'
-                            : 'bg-[var(--brand-bg)]/60 text-[var(--brand-subtle)] hover:text-[var(--brand-heading)] hover:bg-[var(--brand-surface)]'
+                            : count === 0
+                              ? 'bg-[var(--brand-bg)]/40 text-[var(--brand-subtle)]/50 hover:bg-[var(--brand-surface)]'
+                              : 'bg-[var(--brand-bg)]/60 text-[var(--brand-subtle)] hover:text-[var(--brand-heading)] hover:bg-[var(--brand-surface)]'
                         }`}
                         style={active ? { backgroundColor: elemColor || 'var(--brand-heading)' } : undefined}
                       >
                         {opt}
+                        {count != null && (
+                          <span className={`text-[10px] tabular-nums ${active ? 'text-white/80' : 'opacity-60'}`}>{count}</span>
+                        )}
                       </button>
                     )
                   })}
@@ -430,13 +464,32 @@ export default function WardrobePage() {
         {isLoading && items.length === 0 ? (
           <SkeletonList count={6} showImage={true} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4" />
         ) : items.length === 0 ? (
-          <EmptyState
-            icon="wardrobe"
-            title={hasActiveFilter ? '没有符合筛选条件的衣物' : '衣橱空空如也'}
-            description={hasActiveFilter ? '试试调整或清除上方筛选条件' : '开始添加你的第一件衣物，让 AI 为你推荐完美搭配'}
-            actionLabel={hasActiveFilter ? '清除筛选' : '添加衣物'}
-            onAction={hasActiveFilter ? clearFilters : handleAddNew}
-          />
+          wardrobeEmpty ? (
+            <EmptyState
+              icon="wardrobe"
+              title="衣橱空空如也"
+              description="开始添加你的第一件衣物，让 AI 为你推荐完美搭配"
+              actionLabel="添加衣物"
+              onAction={handleAddNew}
+            />
+          ) : (
+            /* 筛选无结果：保持页面结构稳定，内联轻量提示（不整页跳空态） */
+            <div className="py-12 md:py-16 rounded-2xl md:rounded-3xl border border-dashed border-stone-300/60 bg-white/40 backdrop-blur-sm text-center">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[var(--brand-bg)] flex items-center justify-center">
+                <svg className="w-5 h-5 text-[var(--brand-subtle)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z" />
+                </svg>
+              </div>
+              <p className="text-sm font-medium text-[var(--brand-heading)]" style={{ fontFamily: 'serif' }}>无相关物品</p>
+              <p className="text-xs text-[var(--brand-subtle)] mt-1.5">试试调整上方筛选条件，或清除筛选查看全部衣物</p>
+              <button
+                onClick={clearFilters}
+                className="mt-4 px-4 py-1.5 rounded-lg text-xs text-white bg-[var(--brand-heading)]/80 hover:bg-[var(--brand-heading)] transition-colors touch-feedback"
+              >
+                清除筛选
+              </button>
+            </div>
+          )
         ) : (
           <div className={viewMode === 'grid' 
             ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
@@ -599,7 +652,7 @@ export default function WardrobePage() {
         <AddWardrobeModal
           isOpen={isModalOpen}
           onClose={() => { setIsModalOpen(false); setEditItem(null) }}
-          onSuccess={() => { fetchItems(); setIsModalOpen(false); setEditItem(null) }}
+          onSuccess={() => { fetchItems(); refreshStats(filters); setIsModalOpen(false); setEditItem(null) }}
           editItem={editItem}
         />
       </Suspense>
@@ -609,7 +662,7 @@ export default function WardrobePage() {
               <BatchUploadModal
                 isOpen={isBatchModalOpen}
                 onClose={() => setIsBatchModalOpen(false)}
-                onSuccess={() => fetchItems()}
+                onSuccess={() => { fetchItems(); refreshStats(filters) }}
               />
             </Suspense>
 

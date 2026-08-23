@@ -90,6 +90,16 @@ class WardrobeItemUpdate(BaseModel):
     image_url: Optional[str] = Field(None, max_length=500, description="图片URL")
 
 
+class WardrobeFilterStatsResponse(BaseModel):
+    """筛选栏实时统计（总数/命中数/各维度选项计数）"""
+    total: int = Field(..., ge=0, description="衣橱有效物品总数")
+    matched: int = Field(..., ge=0, description="符合当前筛选条件的数量")
+    facets: Dict[str, Dict[str, int]] = Field(
+        default_factory=dict,
+        description="各维度每个选项的计数（统计某维度时仅应用其他维度筛选）"
+    )
+
+
 class WardrobeItemResponse(WardrobeItemBase):
     """衣橱物品响应"""
     id: int = Field(..., description="物品ID")

@@ -710,6 +710,43 @@ export async function getWardrobeItems(params?: {
   return response.json()
 }
 
+/** 筛选栏实时统计：总数 / 命中数 / 各维度选项计数 */
+export interface WardrobeFilterStats {
+  total: number
+  matched: number
+  facets: Record<string, Record<string, number>>
+}
+
+/**
+ * 获取衣橱筛选栏实时计数（facet 语义：统计某维度时仅应用其他维度筛选）
+ */
+export async function getWardrobeFilterStats(params?: {
+  category?: string
+  element?: string
+  season?: string
+  weather?: string
+  thickness?: string
+  color_family?: string
+}): Promise<WardrobeFilterStats> {
+  const searchParams = new URLSearchParams()
+  if (params?.category) searchParams.append('category', params.category)
+  if (params?.element) searchParams.append('element', params.element)
+  if (params?.season) searchParams.append('season', params.season)
+  if (params?.weather) searchParams.append('weather', params.weather)
+  if (params?.thickness) searchParams.append('thickness', params.thickness)
+  if (params?.color_family) searchParams.append('color_family', params.color_family)
+
+  const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/filter-stats?${searchParams}`, {
+    headers: getAuthHeaders(),
+  })
+
+  if (!response.ok) {
+    throw new Error('获取筛选统计失败')
+  }
+
+  return response.json()
+}
+
 /**
  * 添加衣物到衣橱
  */
