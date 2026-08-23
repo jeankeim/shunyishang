@@ -268,7 +268,7 @@ def _insert_wardrobe_item(cur, user_id: int, data: dict) -> dict:
         data: 必含 item_code/name/category/image_url/primary_element/secondary_element/
               attributes_detail(dict)/is_custom/embedding/gender/applicable_weather/
               applicable_seasons/temperature_range/functionality/thickness_level/
-              energy_intensity/style
+              energy_intensity/style/color/material
 
     Returns:
         dict: RETURNING 行数据
@@ -280,8 +280,8 @@ def _insert_wardrobe_item(cur, user_id: int, data: dict) -> dict:
             is_custom, embedding,
             gender, applicable_weather, applicable_seasons,
             temperature_range, functionality, thickness_level, energy_intensity,
-            style
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            style, color, material
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING {_WARDROBE_RETURNING_FIELDS}
     """
 
@@ -304,6 +304,8 @@ def _insert_wardrobe_item(cur, user_id: int, data: dict) -> dict:
         data.get("thickness_level"),
         data.get("energy_intensity"),
         data.get("style"),
+        data.get("color"),
+        data.get("material"),
     ]
 
     cur.execute(query, params)
@@ -376,6 +378,11 @@ async def add_wardrobe_item(
         thickness_level = request.thickness_level or (ai_result.get("thickness_level") if ai_result else None)
         energy_intensity = request.energy_intensity or (ai_result.get("energy_intensity") if ai_result else None)
         style = ai_result.get("style") if ai_result else None
+        # 颜色/材质独立列（色系筛选与展示依赖）：AI 兜底值"未知"视为空
+        _raw_color = ai_result.get("color") if ai_result else None
+        color = None if _raw_color in (None, "", "未知") else _raw_color
+        _raw_material = ai_result.get("material") if ai_result else None
+        material = None if _raw_material in (None, "", "未知") else _raw_material
         
         # 构建 attributes_detail（与 items 表结构对齐）
         attributes_detail = {
@@ -421,6 +428,8 @@ async def add_wardrobe_item(
             "thickness_level": thickness_level,
             "energy_intensity": request.energy_intensity,
             "style": style,
+            "color": color,
+            "material": material,
         }
         
         with DatabasePool.get_connection() as conn:
@@ -630,6 +639,8 @@ def _build_batch_item_data(item: BatchAddItem) -> dict:
         "thickness_level": item.thickness_level,
         "energy_intensity": item.energy_intensity,
         "style": item.style,
+        "color": None if item.color in (None, "", "未知") else item.color,
+        "material": None if item.material in (None, "", "未知") else item.material,
     }
 
 
@@ -706,7 +717,7 @@ async def list_wardrobe_items(
     - `season`: 季节筛选（JSONB 包含匹配 applicable_seasons）
     - `weather`: 天气筛选（JSONB 包含匹配 applicable_weather）
     - `thickness`: 厚度等级筛选
-    - `color_family`: 色系筛选（颜色名称关键词模糊匹配）
+    - `color_family`: 色系筛选（颜色名称关键词模糊匹配，color 为空时回退名称匹配）
     """
     user_id = user.get("id")
     if not user_id:
@@ -754,8 +765,14 @@ async def list_wardrobe_items(
     if color_family:
         keywords = COLOR_FAMILY_KEYWORDS.get(color_family)
         if keywords:
-            base_query += " AND (" + " OR ".join(["color LIKE %s"] * len(keywords)) + ")"
-            params.extend([f"%{k}%" for k in keywords])
+            # 优先匹配 color 列；color 为空时回退到名称关键词（存量未打标衣物兜底）
+            color_conds = " OR ".join(["color LIKE %s"] * len(keywords))
+            name_conds = " OR ".join(["name LIKE %s"] * len(keywords))
+            base_query += (
+                f" AND (({color_conds}) OR "
+                f"((color IS NULL OR color = '') AND ({name_conds})))"
+            )
+            params.extend([f"%{k}%" for k in keywords] * 2)
     
     # 获取列表
     list_query = base_query + " ORDER BY created_at DESC LIMIT %s OFFSET %s"

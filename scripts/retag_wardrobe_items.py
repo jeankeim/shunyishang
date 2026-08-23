@@ -9,7 +9,7 @@
     # 预览（不写库）
     python3 scripts/retag_wardrobe_items.py --env .env.production --dry-run
 
-    # 执行（默认只处理 style 为空的物品）
+    # 执行（默认只处理 style/color/material 为空的物品）
     python3 scripts/retag_wardrobe_items.py --env .env.production
 
     # 指定用户 + 同步刷新 embedding
@@ -17,6 +17,7 @@
 
 更新策略（保守）：
 - 写入 style/color/material 列 + attributes_detail 的 颜色/面料/款式 键
+- applicable_seasons/applicable_weather/thickness_level 仅在为空时补齐，不覆盖已有值
 - 不改动 name/category/primary_element 等用户可能手工修正过的字段
 - --with-embedding 时用补全后的属性重建 embedding（提升语义检索区分度）
 """
@@ -51,7 +52,7 @@ async def main() -> None:
     parser.add_argument("--env", default=".env", help="env 文件路径（决定目标数据库与 API key）")
     parser.add_argument("--user", type=int, help="只处理指定用户ID")
     parser.add_argument("--ids", help="只处理指定物品ID，逗号分隔")
-    parser.add_argument("--all", action="store_true", help="处理全部物品（默认只处理 style 为空的）")
+    parser.add_argument("--all", action="store_true", help="处理全部物品（默认只处理 style/color/material 为空的）")
     parser.add_argument("--with-embedding", action="store_true", help="同步重建 embedding")
     parser.add_argument("--no-vision", action="store_true",
                         help="强制走文字打标（视觉通道超时/不可用时，名称信息足够则推荐）")
@@ -71,7 +72,10 @@ async def main() -> None:
     conditions = ["is_active = TRUE"]
     params: list = []
     if not args.all and not args.ids:
-        conditions.append("(style IS NULL OR style = '')")
+        conditions.append(
+            "((style IS NULL OR style = '') OR (color IS NULL OR color = '') "
+            "OR (material IS NULL OR material = ''))"
+        )
     if args.user:
         conditions.append("user_id = %s")
         params.append(args.user)
@@ -83,7 +87,8 @@ async def main() -> None:
     conn = psycopg2.connect(db_url)
     with conn.cursor() as cur:
         cur.execute(
-            f"""SELECT id, user_id, name, category, image_url, attributes_detail
+            f"""SELECT id, user_id, name, category, image_url, attributes_detail,
+                       applicable_seasons, applicable_weather, thickness_level
                 FROM user_wardrobe WHERE {' AND '.join(conditions)} ORDER BY id""",
             params,
         )
@@ -98,7 +103,7 @@ async def main() -> None:
     service.timeout = 60.0  # 视觉打标较慢，放宽超时
     ok, failed = 0, 0
 
-    for item_id, user_id, name, category, image_url, detail in rows:
+    for item_id, user_id, name, category, image_url, detail, cur_seasons, cur_weather, cur_thickness in rows:
         desc = f"{name}（分类:{category}）" if category else name
         img = None if args.no_vision else image_url
         result = None
@@ -125,6 +130,11 @@ async def main() -> None:
         if material in ("未知", ""):
             material = None
 
+        # 缺失维度补齐（保守：仅空时填，不覆盖已有值）
+        fill_seasons = cur_seasons or result.get("applicable_seasons") or []
+        fill_weather = cur_weather or result.get("applicable_weather") or []
+        fill_thickness = cur_thickness or result.get("thickness_level")
+
         detail = detail or {}
         detail["颜色"] = {
             "名称": color,
@@ -141,7 +151,10 @@ async def main() -> None:
             detail["tags"] = result.get("tags", [])
 
         print(f"  [{'预览' if args.dry_run else '更新'}] #{item_id} {name}: "
-              f"风格={style} 颜色={color} 面料={material}")
+              f"风格={style} 颜色={color} 面料={material}"
+              + ("" if cur_seasons else f" 补季节={fill_seasons}")
+              + ("" if cur_weather else f" 补天气={fill_weather}")
+              + ("" if cur_thickness else f" 补厚度={fill_thickness}"))
 
         if args.dry_run:
             ok += 1
@@ -160,18 +173,25 @@ async def main() -> None:
                 cur.execute(
                     """UPDATE user_wardrobe
                        SET style=%s, color=%s, material=%s, attributes_detail=%s,
-                           embedding=%s, updated_at=NOW()
+                           applicable_seasons=%s, applicable_weather=%s,
+                           thickness_level=%s, embedding=%s, updated_at=NOW()
                        WHERE id=%s""",
                     [style, color, material, json.dumps(detail, ensure_ascii=False),
-                     embedding, item_id],
+                     json.dumps(fill_seasons, ensure_ascii=False),
+                     json.dumps(fill_weather, ensure_ascii=False),
+                     fill_thickness, embedding, item_id],
                 )
             else:
                 cur.execute(
                     """UPDATE user_wardrobe
                        SET style=%s, color=%s, material=%s, attributes_detail=%s,
-                           updated_at=NOW()
+                           applicable_seasons=%s, applicable_weather=%s,
+                           thickness_level=%s, updated_at=NOW()
                        WHERE id=%s""",
-                    [style, color, material, json.dumps(detail, ensure_ascii=False), item_id],
+                    [style, color, material, json.dumps(detail, ensure_ascii=False),
+                     json.dumps(fill_seasons, ensure_ascii=False),
+                     json.dumps(fill_weather, ensure_ascii=False),
+                     fill_thickness, item_id],
                 )
         conn.commit()
         ok += 1
