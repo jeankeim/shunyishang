@@ -1,19 +1,21 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { useUserStore } from '@/store/user'
-import { Calendar, MapPin, User, Save, Loader2, X, Sparkles, LogOut, Compass, Sun } from 'lucide-react'
+import { Calendar, MapPin, User, Save, Loader2, X, Sparkles, LogOut, Compass, Sun, Upload, Link2 } from 'lucide-react'
 import DatePicker, { registerLocale } from 'react-datepicker'
 import { zhCN } from 'date-fns/locale'
 import 'react-datepicker/dist/react-datepicker.css'
-import { getUserProfile, calculateBazi, updateUserBazi, deleteAccount } from '@/lib/api'
+import { getUserProfile, calculateBazi, updateUserBazi, deleteAccount, getAuthToken } from '@/lib/api'
 import { formatLocalDate } from '@/lib/date'
 import { cn } from '@/lib/utils'
 import { PreferenceRadar } from './PreferenceRadar'
 import { SkinSettings } from './SkinSettings'
+import { FontSizeSettings } from './FontSizeSettings'
 import { AuthModal } from './AuthModal'
+import { compressImageFile } from '@/lib/image-compress'
 
 // 日历纯中文化：月份/星期/头部均显示中文（2026年8月 / 日 一 二 ...）
 registerLocale('zh-CN', zhCN)
@@ -71,6 +73,16 @@ const SHICHEN_OPTIONS = [
   { label: '亥时 (21:00-22:59)', value: '22:00' },
 ]
 
+// 预设头像：国风插画，普通用户一键选用（解决“不理解图片链接”的痛点）
+const PRESET_AVATARS = [
+  { src: '/avatars/lotus.png', label: '荷花' },
+  { src: '/avatars/bamboo.png', label: '翠竹' },
+  { src: '/avatars/koi.png', label: '锦鲤' },
+  { src: '/avatars/crane.png', label: '仙鹤' },
+  { src: '/avatars/mountains.png', label: '山水' },
+  { src: '/avatars/osmanthus.png', label: '桂花' },
+]
+
 export function UserProfile({ onClose }: UserProfileProps) {
   const { user, isAuthenticated, updateProfile, fetchUserInfo, logout } = useUserStore()
   const [loading, setLoading] = useState(false)
@@ -98,6 +110,10 @@ export function UserProfile({ onClose }: UserProfileProps) {
   })
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [showCityDropdown, setShowCityDropdown] = useState(false)
+  // 头像本地上传状态
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [avatarError, setAvatarError] = useState<string | null>(null)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
   // 城市列表：优先从后端 /weather/cities 动态拉取（与后端单一数据源一致）
   const [cities, setCities] = useState<string[]>(FALLBACK_CITIES)
 
@@ -179,6 +195,52 @@ export function UserProfile({ onClose }: UserProfileProps) {
       ...prev,
       [field]: value
     }))
+  }
+
+  // 头像本地上传：从相册选图 → 超限自动压缩 → 上传对象存储 → 写入表单
+  const handleAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    // 清空以便重复选择同一文件
+    e.target.value = ''
+    if (!file) return
+    setAvatarError(null)
+
+    const token = getAuthToken()
+    if (!token) {
+      setAvatarError('请先登录后再上传头像')
+      return
+    }
+
+    setUploadingAvatar(true)
+    try {
+      // 与衣物上传一致：超限图片前端自动压缩后上传
+      const maxSize = 5 * 1024 * 1024
+      const uploadFile = file.size > maxSize ? await compressImageFile(file, maxSize) : file
+
+      const payload = new FormData()
+      payload.append('file', uploadFile)
+
+      const API_BASE = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
+      const response = await fetch(`${API_BASE}/api/v1/wardrobe/upload-image`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: payload,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || '上传失败')
+      }
+
+      const data = await response.json()
+      handleChange('avatar_url', data.image_url)
+      setMessage({ type: 'success', text: '头像已上传，记得点击底部保存生效' })
+      setTimeout(() => setMessage(null), 3000)
+    } catch (err) {
+      setAvatarError(err instanceof Error ? err.message : '上传失败，请重试')
+    } finally {
+      setUploadingAvatar(false)
+    }
   }
 
   // 审美标签切换（多选）
@@ -462,6 +524,11 @@ export function UserProfile({ onClose }: UserProfileProps) {
             <p className="mt-3 text-xs text-[var(--brand-subtle)]">
               登录即可解锁专属于你的命理穿搭方案
             </p>
+
+            {/* 字体大小未登录也可调（适老化） */}
+            <div className="mt-6 text-left">
+              <FontSizeSettings />
+            </div>
           </motion.div>
         </div>
 
@@ -853,43 +920,111 @@ export function UserProfile({ onClose }: UserProfileProps) {
               <h3 className="text-lg font-semibold text-[var(--brand-heading)] pb-3 mb-4 border-b border-[var(--brand-border)]/40">
                 头像设置
               </h3>
-              
-              <div className="space-y-2">
-                <label htmlFor="avatar_url" className="block text-sm font-medium text-[var(--brand-body)]">
-                  头像URL
-                </label>
-                <input
-                  id="avatar_url"
-                  type="text"
-                  value={formData.avatar_url || ''}
-                  onChange={(e) => handleChange('avatar_url', e.target.value)}
-                                    placeholder="请输入头像图片链接"
-                  className="w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[var(--brand-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--wuxing-wood)] focus:border-transparent transition-all hover:border-[var(--wuxing-wood)]/40"
-                />
-                {formData.avatar_url && (
-                  <div className="mt-4 p-4 bg-[var(--brand-surface)] rounded-xl">
-                    <p className="text-sm text-[var(--brand-subtle)] mb-3">头像预览：</p>
+
+              <div className="space-y-5">
+                {/* 当前头像 + 本地上传（主方式，解决普通用户不理解图片链接的痛点） */}
+                <div className="flex items-center gap-4">
+                  {formData.avatar_url ? (
                     <Image
                       src={formData.avatar_url}
                       alt="预览头像"
-                      width={80}
-                      height={80}
+                      width={72}
+                      height={72}
                       unoptimized
-                      className="w-20 h-20 rounded-full object-cover border-2 border-white shadow-md"
+                      className="w-[72px] h-[72px] rounded-full object-cover border-2 border-white shadow-md"
                       onError={(e) => {
                         const target = e.currentTarget as HTMLImageElement;
                         target.src = 'https://placehold.co/80x80?text=Avatar';
                       }}
                     />
+                  ) : (
+                    <div className="w-[72px] h-[72px] rounded-full bg-[var(--brand-surface)] flex items-center justify-center">
+                      <User className="w-8 h-8 text-[var(--brand-subtle)]" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <input
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={handleAvatarFile}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => avatarInputRef.current?.click()}
+                      disabled={uploadingAvatar}
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[var(--wuxing-wood)] to-[var(--wuxing-water)] text-white text-sm font-medium shadow-sm hover:shadow-md active:scale-95 transition-all disabled:opacity-60"
+                    >
+                      {uploadingAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                      {uploadingAvatar ? '正在上传...' : '从相册上传'}
+                    </button>
+                    <p className="mt-1.5 text-xs text-[var(--brand-subtle)]">
+                      从手机里选一张照片，支持 JPG/PNG，超大自动压缩
+                    </p>
                   </div>
+                </div>
+
+                {avatarError && (
+                  <p className="text-sm text-red-600">{avatarError}</p>
                 )}
+
+                {/* 预设头像：一键选用 */}
+                <div>
+                  <p className="text-sm font-medium text-[var(--brand-body)] mb-2.5">或选一个预设头像</p>
+                  <div className="grid grid-cols-6 gap-2.5">
+                    {PRESET_AVATARS.map((a) => {
+                      const active = formData.avatar_url === a.src
+                      return (
+                        <button
+                          key={a.src}
+                          type="button"
+                          onClick={() => handleChange('avatar_url', a.src)}
+                          aria-label={`使用${a.label}头像`}
+                          aria-pressed={active}
+                          className={cn(
+                            'relative rounded-full overflow-hidden aspect-square border-2 transition-all hover:scale-105 active:scale-95',
+                            active
+                              ? 'border-[var(--wuxing-wood)] shadow-md'
+                              : 'border-transparent hover:border-[var(--brand-border)]'
+                          )}
+                        >
+                          <Image
+                            src={a.src}
+                            alt={a.label}
+                            width={64}
+                            height={64}
+                            className="w-full h-full object-cover"
+                          />
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* 进阶：URL 输入（降级折叠，面向进阶用户） */}
+                <details>
+                  <summary className="inline-flex items-center gap-1.5 text-xs text-[var(--brand-subtle)] cursor-pointer hover:text-[var(--brand-body)] transition-colors">
+                    <Link2 className="w-3.5 h-3.5" />
+                    进阶：粘贴图片链接
+                  </summary>
+                  <input
+                    id="avatar_url"
+                    type="text"
+                    value={formData.avatar_url || ''}
+                    onChange={(e) => handleChange('avatar_url', e.target.value)}
+                    placeholder="https://example.com/avatar.jpg"
+                    className="mt-2 w-full px-4 py-3 text-base md:text-sm rounded-xl border border-[var(--brand-border)] bg-white text-[var(--brand-heading)] placeholder:text-[var(--brand-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--wuxing-wood)] focus:border-transparent transition-all hover:border-[var(--wuxing-wood)]/40"
+                  />
+                </details>
               </div>
             </section>
 
           </form>
 
-          {/* 应用设置 - 皮肤切换 */}
-          <div className="mt-6">
+          {/* 应用设置 - 字体大小（适老化）+ 皮肤切换 */}
+          <div className="mt-6 space-y-6">
+            <FontSizeSettings />
             <SkinSettings />
           </div>
 

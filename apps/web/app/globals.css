@@ -184,6 +184,19 @@ h1, h2, h3,
     font-size: 16px !important;
   }
 
+  /* 字体大小设置（适老化）：中/大号时表单输入同步放大（仍 ≥16px，不触发 iOS 缩放） */
+  html[data-font-size='md'] input,
+  html[data-font-size='md'] select,
+  html[data-font-size='md'] textarea {
+    font-size: 17px !important;
+  }
+
+  html[data-font-size='lg'] input,
+  html[data-font-size='lg'] select,
+  html[data-font-size='lg'] textarea {
+    font-size: 19px !important;
+  }
+
   /* 安全区域适配 */
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -196,6 +209,17 @@ h1, h2, h3,
       transform: scale(0.95);
     }
   }
+}
+
+/* 字体大小设置（适老化）
+   缩放根字体大小，全站 rem 字号/间距等比放大；小号=默认 16px（不加属性）
+   由 lib/font-sizes.ts applyFontSize() 在 <html> 上设置 data-font-size */
+html[data-font-size='md'] {
+  font-size: 18px;
+}
+
+html[data-font-size='lg'] {
+  font-size: 20px;
 }
 
 /* 深色模式支持 */
