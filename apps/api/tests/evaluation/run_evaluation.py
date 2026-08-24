@@ -79,7 +79,7 @@ def run_recommendation_for_case(
         item_copy["semantic_score"] = base_semantic
         enriched_items.append(item_copy)
     
-    # 调用推荐引擎
+    # 调用推荐引擎（透传性别，与生产链路一致：评分后性别硬过滤安全网生效）
     result = score_and_rank_items(
         items=enriched_items,
         target_elements=target_elements,
@@ -93,6 +93,7 @@ def run_recommendation_for_case(
         user_skin_tone=skin_tone,
         user_style_preference=style_pref,
         user_body_type=body_type,
+        user_gender=user.gender,
         top_k=top_k,
         batch_index=0,
     )

@@ -51,6 +51,9 @@ interface TravelPlanData {
     item_element_distribution: Record<string, number>
     balance_score: number
   }
+  // 未提供具体出行日期时，后端不生成天气预判（用户反馈 #4）
+  weather_confirmed?: boolean
+  weather_note?: string
 }
 
 interface TravelPlanCardProps {
@@ -96,21 +99,30 @@ export function TravelPlanCard({ data }: TravelPlanCardProps) {
           </div>
         </div>
 
-        {/* 天气概览 */}
-        <div className="flex gap-2 mt-3 overflow-x-auto pb-1 scrollbar-hide">
-          {data.weather_forecast.map((w, i) => (
-            <div
-              key={i}
-              className="flex-shrink-0 px-3 py-1.5 bg-white/60 rounded-lg border border-amber-200/30 text-center min-w-[72px]"
-            >
-              <p className="text-xs text-stone-500">第{i + 1}天</p>
-              <p className="text-sm">{w.weather_desc === '晴' ? '☀️' : w.weather_desc === '多云' ? '⛅' : w.weather_desc?.includes('雨') ? '🌧️' : w.weather_desc?.includes('雪') ? '❄️' : '🌤️'}</p>
-              <p className="text-xs text-stone-600 font-medium">
-                {w.temperature_min}~{w.temperature_max}°C
-              </p>
-            </div>
-          ))}
-        </div>
+        {/* 天气概览：未确认出行日期时展示提示条，不渲染可能不准确的天气数据（用户反馈 #4） */}
+        {data.weather_confirmed === false ? (
+          <div className="mt-3 px-3 py-2 bg-white/60 rounded-lg border border-amber-200/30 flex items-start gap-2">
+            <span className="text-sm leading-none mt-0.5">🌤️</span>
+            <p className="text-xs text-stone-500 leading-relaxed">
+              {data.weather_note || '未提供具体出行日期，暂未生成天气预判，建议出发前查看目的地天气'}
+            </p>
+          </div>
+        ) : (
+          <div className="flex gap-2 mt-3 overflow-x-auto pb-1 scrollbar-hide">
+            {data.weather_forecast.map((w, i) => (
+              <div
+                key={i}
+                className="flex-shrink-0 px-3 py-1.5 bg-white/60 rounded-lg border border-amber-200/30 text-center min-w-[72px]"
+              >
+                <p className="text-xs text-stone-500">第{i + 1}天</p>
+                <p className="text-sm">{w.weather_desc === '晴' ? '☀️' : w.weather_desc === '多云' ? '⛅' : w.weather_desc?.includes('雨') ? '🌧️' : w.weather_desc?.includes('雪') ? '❄️' : '🌤️'}</p>
+                <p className="text-xs text-stone-600 font-medium">
+                  {w.temperature_min}~{w.temperature_max}°C
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* 每日穿搭计划 */}

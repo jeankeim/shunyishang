@@ -31,6 +31,7 @@ class AgentState(TypedDict):
     destination: Optional[str]          # 目的地城市
     luggage_size: Optional[str]         # 行李箱大小: 小/中/大
     travel_plan: Optional[Dict]         # 多天行程规划结果
+    travel_date_confirmed: bool         # 用户是否提供明确出行日期（无日期时不做天气预判）
     
     # === 换一批功能 ===
     batch_index: int                    # 批次索引（0-2，最多3批）
@@ -109,6 +110,7 @@ def create_initial_state(
     travel_days: Optional[int] = None,
     destination: Optional[str] = None,
     luggage_size: Optional[str] = None,
+    travel_date_confirmed: bool = False,
     batch_index: int = 0,
 ) -> AgentState:
     """
@@ -128,6 +130,7 @@ def create_initial_state(
         travel_days: 旅行天数（可选）
         destination: 目的地城市（可选）
         luggage_size: 行李箱大小（可选，小/中/大）
+        travel_date_confirmed: 是否提供明确出行日期（无日期时不做天气预判）
         batch_index: 换一批批次索引（0-2，默认0）
     
     Returns:
@@ -147,6 +150,7 @@ def create_initial_state(
         destination=destination,
         luggage_size=luggage_size,
         travel_plan=None,
+        travel_date_confirmed=travel_date_confirmed,
         batch_index=batch_index,
         bazi_result=None,
         llm_token_usage=None,

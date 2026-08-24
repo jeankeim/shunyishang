@@ -8,6 +8,7 @@ import { useUserStore } from '@/store/user'
 import { streamRecommendation } from '@/lib/api'
 import { ChatMessageItem } from './ChatMessageItem'
 import { ChatInput } from './ChatInput'
+import { toast } from '@/components/ui/Toast'
 
 interface ChatInterfaceProps {
   scene?: string
@@ -20,68 +21,48 @@ interface ChatInterfaceProps {
     wind_level?: number
   }
   userCity?: string  // 用户当前城市
+  onNavigateToWardrobe?: () => void  // 推荐结果→衣橱交叉入口
 }
 
-// 推荐模式切换组件 - 优化为紧凑卡片样式
-function RetrievalModeToggle({ isAuthenticated }: { isAuthenticated: boolean }) {
+// 推荐模式紧凑切换器（常驻顶部工具栏）：支持对话中随时切换 retrieval_mode，无需刷新页面
+function RetrievalModeCompact({ isAuthenticated }: { isAuthenticated: boolean }) {
   const { retrievalMode, setRetrievalMode } = useChatStore()
 
-  // 未登录时显示简化状态
-  if (!isAuthenticated) {
-    return (
-      <div className="flex items-center justify-between bg-white/80 backdrop-blur-sm rounded-2xl px-4 py-3 border border-[var(--brand-border)] shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[var(--brand-surface)] flex items-center justify-center text-lg">
-            🛒
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-[var(--brand-heading)]">全局推荐</p>
-            <p className="text-xs text-[var(--brand-subtle)]">优先衣橱，不足时补充</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1 text-[var(--brand-subtle)]">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-          </svg>
-        </div>
-      </div>
-    )
-  }
+  if (!isAuthenticated) return null
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-3 border border-[var(--brand-border)] shadow-sm">
-      <p className="text-xs text-[var(--brand-subtle)] mb-2 font-medium">推荐范围</p>
-      <div className="grid grid-cols-3 gap-2">
-        {(Object.keys(RETRIEVAL_MODE_CONFIG) as RetrievalMode[]).map((mode) => {
-          const config = RETRIEVAL_MODE_CONFIG[mode]
-          const isActive = retrievalMode === mode
-          return (
-            <motion.button
-              key={mode}
-              onClick={() => setRetrievalMode(mode)}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              aria-label={`切换到${config.label}模式`}
-              className={`relative flex flex-col items-center justify-center gap-1.5 px-3 py-3 min-h-[64px] rounded-xl text-xs font-medium transition-all duration-200 ${
-                isActive
-                  ? 'text-[var(--brand-heading)]'
-                  : 'text-[var(--brand-subtle)] hover:text-[var(--brand-body)] hover:bg-[var(--brand-surface)]/40'
-              }`}
-              title={config.description}
-            >
-              {isActive && (
-                <motion.div
-                  layoutId="activeMode"
-                  className="absolute inset-0 bg-[var(--brand-surface)] rounded-xl border-2 border-[var(--brand-border)]"
-                  transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-                />
-              )}
-              <span className="relative z-10 text-xl" aria-hidden="true">{config.icon}</span>
-              <span className="relative z-10 font-semibold">{config.label}</span>
-            </motion.button>
-          )
-        })}
-      </div>
+    <div
+      className="flex items-center gap-0.5 bg-[var(--brand-surface)]/60 border border-[var(--brand-border)] rounded-full p-0.5"
+      role="radiogroup"
+      aria-label="推荐范围切换"
+    >
+      {(Object.keys(RETRIEVAL_MODE_CONFIG) as RetrievalMode[]).map((mode) => {
+        const config = RETRIEVAL_MODE_CONFIG[mode]
+        const isActive = retrievalMode === mode
+        return (
+          <button
+            key={mode}
+            role="radio"
+            aria-checked={isActive}
+            onClick={() => {
+              if (isActive) return
+              setRetrievalMode(mode)
+              // 即时生效提示：store 已更新，下次发送即使用新模式，无需刷新
+              toast.info(`已切换「${config.label}」，立即生效`, 2000)
+            }}
+            title={config.description}
+            aria-label={`切换到${config.label}模式`}
+            className={`px-2 py-1 rounded-full text-xs font-medium transition-all duration-200 ${
+              isActive
+                ? 'bg-white shadow-sm text-[var(--brand-heading)] border border-[var(--brand-border)]'
+                : 'text-[var(--brand-subtle)] hover:text-[var(--brand-body)] border border-transparent'
+            }`}
+          >
+            <span className="mr-0.5" aria-hidden="true">{config.icon}</span>
+            <span>{config.label}</span>
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -244,7 +225,7 @@ function pickDiversePrompts(count: number): string[] {
   return selected.sort(() => Math.random() - 0.5)
 }
 
-export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: ChatInterfaceProps) {
+export function ChatInterface({ scene, weatherElement, weatherInfo, userCity, onNavigateToWardrobe }: ChatInterfaceProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [currentPrompts, setCurrentPrompts] = useState<string[]>([])
   const [batchIndex, setBatchIndex] = useState(0)  // 换一批：当前批次索引（0-2）
@@ -264,6 +245,17 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: 
     retrievalMode,
   } = useChatStore()
   const { user, isAuthenticated } = useUserStore()
+
+  // 首次使用引导：全局模式下未填个人信息时，发起推荐前提示补充八字（用户反馈 #1）
+  const [showBaziGuide, setShowBaziGuide] = useState(false)
+  const dismissBaziGuide = useCallback(() => {
+    setShowBaziGuide(false)
+    try {
+      window.localStorage.setItem('bazi_guide_dismissed', '1')
+    } catch {
+      /* 忽略存储异常 */
+    }
+  }, [])
 
   // 随机选择 5 个不重复的推荐示例，确保场景多样性
   useEffect(() => {
@@ -338,6 +330,17 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: 
 
     // 使用传入的 bazi 参数，如果没有传入则使用 store 中的 userBazi
     const effectiveBazi = bazi ?? userBazi
+
+    // 首次使用引导：未填写八字/性别等个人信息时，温和提示补充可获更精准推荐（一次性，用户反馈 #1）
+    if (!effectiveBazi && !user?.bazi && !showBaziGuide) {
+      try {
+        if (typeof window === 'undefined' || !window.localStorage.getItem('bazi_guide_dismissed')) {
+          setShowBaziGuide(true)
+        }
+      } catch {
+        setShowBaziGuide(true)
+      }
+    }
     
     // 流式请求
     // 优先从用户资料获取性别，其次从八字输入获取
@@ -628,18 +631,55 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: 
 
   return (
     <div className="flex flex-col h-full">
-      {/* 顶部工具栏 - 简化版 */}
+      {/* 顶部工具栏：推荐范围切换器常驻，对话中随时切换、无需刷新 */}
       <div className="flex items-center justify-between px-4 py-3 bg-white/50 backdrop-blur-sm border-b border-stone-200/60">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-stone-700">智能推荐</span>
-          <span className="text-xs text-stone-400">·</span>
-          <span className="text-xs text-stone-500">
-            {isAuthenticated 
-              ? RETRIEVAL_MODE_CONFIG[retrievalMode].description
-              : '从公共种子库推荐（登录后解锁更多）'}
-          </span>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-medium text-stone-700 shrink-0">智能推荐</span>
+          {!isAuthenticated && (
+            <>
+              <span className="text-xs text-stone-400">·</span>
+              <span className="text-xs text-stone-500 truncate">从公共种子库推荐（登录后解锁更多）</span>
+            </>
+          )}
         </div>
+        {/* 常驻模式切换器：登录后随时切换推荐范围，下次发送即生效 */}
+        <RetrievalModeCompact isAuthenticated={isAuthenticated} />
       </div>
+
+      {/* 首次使用引导：提示补充八字/性别可获得更精准推荐（用户反馈 #1） */}
+      <AnimatePresence>
+        {showBaziGuide && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25 }}
+            className="overflow-hidden"
+          >
+            <div className="mx-4 mt-3 px-4 py-3 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60 rounded-xl">
+              <div className="flex items-start gap-2">
+                <span className="text-lg leading-none mt-0.5">✨</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-stone-700">补充个人信息，推荐更精准</p>
+                  <p className="text-xs text-stone-500 mt-1 leading-relaxed">
+                    当前为通用推荐。在首页「八字输入」面板填写出生日期、时辰与性别后，
+                    即可基于您的喜用神进行个性化五行穿搭推荐。
+                  </p>
+                </div>
+                <button
+                  onClick={dismissBaziGuide}
+                  className="p-1 rounded-lg hover:bg-amber-100/60 text-stone-400 hover:text-stone-600 transition-colors shrink-0"
+                  aria-label="关闭引导提示"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         {messages.length === 0 ? (
@@ -648,7 +688,7 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: 
               <span className="text-4xl">🌿</span>
             </div>
             <h2 className="text-xl font-semibold mb-2 text-[var(--brand-heading)]">我的个人衣橱</h2>
-            <p className="text-sm mb-4 text-[var(--brand-subtle)]">输入你的穿搭需求，获取五行推荐</p>
+            <p className="text-sm mb-4 text-[var(--brand-subtle)]">输入你的穿搭需求，获取五行推荐；顶部可随时切换推荐范围，底部导航可切换「衣橱」管理衣物</p>
             
             {/* 未登录提示 */}
             {!isAuthenticated && (
@@ -687,10 +727,7 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: 
               </div>
             )}
             
-            {/* 推荐范围选择器 - 放到空状态中 */}
-            <div className="w-full max-w-lg mb-6">
-              <RetrievalModeToggle isAuthenticated={isAuthenticated} />
-            </div>
+            {/* 推荐范围切换器已常驻顶部工具栏，空状态不再重复展示 */}
                         
             <div className="flex flex-col items-center gap-4">
               <div className="flex flex-wrap justify-center gap-3 max-w-2xl">
@@ -734,6 +771,7 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity }: 
                 onOpenPoster={scrollToTop}
                 onClosePoster={() => scrollToMessage(message.id)}
                 onRefreshBatch={handleRefreshBatch}
+                onNavigateToWardrobe={onNavigateToWardrobe}
                 batchIndex={batchIndex}
                 isLoading={false}
               />

@@ -701,7 +701,21 @@ def retrieve_items_node(state: AgentState) -> Dict:
     
     # ========== 配饰辅路召回（双路召回策略） ==========
     # 主路向量检索偏服装语义，配饰天然语义距离远，需辅路补充
-    if retrieval_mode in ("public", "hybrid") and target_elements:
+    # 场景校验：若当前场景规则明确排除配饰/饰品类（如运动），跳过辅路召回，
+    # 避免配饰绕过场景过滤漏入结果（bad case：健身场景推荐木戒指）
+    _accent_blocked_by_scene = False
+    if scene and retrieval_mode in ("public", "hybrid") and target_elements:
+        try:
+            from packages.utils.scene_mapping import get_scene_rules
+            _scene_rules = get_scene_rules(scene) or {}
+            _excluded_cats = set(_scene_rules.get("excluded_categories", []))
+            if _excluded_cats & {"配饰", "饰品", "文玩"}:
+                _accent_blocked_by_scene = True
+                logger.info(f"[配饰辅路] 场景「{scene}」排除配饰类，跳过辅路召回")
+        except Exception:
+            pass
+
+    if retrieval_mode in ("public", "hybrid") and target_elements and not _accent_blocked_by_scene:
         existing_ids = {item.get("item_code") for item in items}
         accent_items = _search_accent_items(
             target_elements=target_elements,
@@ -858,7 +872,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
     destination = state.get("destination")
     luggage_size = state.get("luggage_size", "中")
     
-    if travel_days and destination and travel_days >= 2:
+    if travel_days and destination and travel_days >= 1:
         # 传递更大的物品池给旅行规划器（至少20件，确保多日行程有足够多样性）
         travel_item_pool = scored_items[:max(20, top_k * 4)] if len(scored_items) > len(top_items) else scored_items
         travel_plan = _generate_travel_plan(
@@ -920,8 +934,17 @@ def _generate_travel_plan(
         # 智能构建多天场景（第1天可穿插面板场景，其余天旅行主场景）
         scenes_per_day = _build_travel_scenes(state, travel_days)
         
-        # 获取目的地天气
-        weather_forecast = get_destination_weather(destination, travel_days)
+        # 获取目的地天气：仅当用户提供明确出行日期时才做天气预判；
+        # 仅有地点+天数（如"北京三天行程"）时缺乏时间维度，天气预报不准确，
+        # 不强行生成（用户反馈 #4）
+        travel_date_confirmed = state.get("travel_date_confirmed", False)
+        if travel_date_confirmed:
+            weather_forecast = get_destination_weather(destination, travel_days)
+        else:
+            weather_forecast = []
+            logger.info(
+                f"[旅行规划] 未提供明确出行日期，跳过 {destination} 天气预判"
+            )
         
         # 如果有实际检索到的衣物，注入到行程规划中
         available_items = None
@@ -961,6 +984,19 @@ def _generate_travel_plan(
         
         # 优化行李箱
         optimized_days = optimize_luggage(outfits_plan.get("days", []), luggage_size)
+        
+        # 未确认出行日期时：剔除规划器填充的默认天气，避免向用户展示伪造天气预报（用户反馈 #4）
+        if not travel_date_confirmed:
+            for day in optimized_days:
+                scene_text = day.get("scene", "")
+                if day.get("sub_scene"):
+                    scene_text = f"{scene_text}（{day['sub_scene']}）"
+                cats = [it.get("category", "") for it in day.get("items", [])]
+                day["weather"] = None
+                day["notes"] = (
+                    f"第{day.get('day')}天，{scene_text}，出行日期未确认，请出发前关注目的地天气。"
+                    + (f"推荐{len(cats)}件：{'、'.join(cats)}。" if cats else "")
+                )
         
         # 收集所有唯一物品
         all_items = []
@@ -1004,6 +1040,9 @@ def _generate_travel_plan(
                 "luggage_score": luggage_score,
             },
             "weather_forecast": weather_forecast,
+            # 未提供明确出行日期时不做天气预判，前端据此展示提示（用户反馈 #4）
+            "weather_confirmed": travel_date_confirmed,
+            "weather_note": None if travel_date_confirmed else "未提供具体出行日期，暂未生成天气预判，建议出发前查看目的地天气",
             "wuxing_analysis": {
                 "target_elements": target_elements,
                 "weather_elements": weather_elements,

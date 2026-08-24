@@ -191,7 +191,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
       <div className="relative">
         {shouldShowImage ? (
           <div
-            className="h-44 cursor-pointer relative overflow-hidden"
+            className="h-40 sm:h-44 cursor-pointer relative overflow-hidden"
             style={{ backgroundImage: `url(${displayImageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
             onClick={handleImageTap}
           >
@@ -222,7 +222,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
           </div>
         ) : (
           <div
-            className={`h-44 bg-gradient-to-br ${config.gradientClass} flex items-center justify-center relative cursor-pointer`}
+            className={`h-40 sm:h-44 bg-gradient-to-br ${config.gradientClass} flex items-center justify-center relative cursor-pointer`}
             onClick={handleImageTap}
           >
             <span className="text-4xl opacity-60">{config.emoji}</span>
@@ -404,7 +404,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
       </div>
 
       {/* ===== 文字信息区域 ===== */}
-      <div className="p-3.5">
+      <div className="p-3 sm:p-3.5">
         <div className="flex items-start justify-between gap-2">
           <button
             onClick={() => setShowDetailModal(true)}
@@ -529,8 +529,14 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
           </AnimatePresence>
         </div>
 
+        {/* 推荐理由（五行契合/场景适配/气温适配，后端生成，用户反馈 #6） */}
         {item.reason && (
-          <p className="text-xs text-stone-500 mt-2 line-clamp-2">{item.reason}</p>
+          <div className="mt-2 px-2.5 py-1.5 rounded-lg bg-amber-50/80 border border-amber-100">
+            <p className="text-[11px] leading-relaxed text-amber-700 line-clamp-2">
+              <span className="mr-1" aria-hidden="true">💡</span>
+              {item.reason}
+            </p>
+          </div>
         )}
       </div>
 

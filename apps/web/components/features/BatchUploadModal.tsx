@@ -23,6 +23,7 @@ import {
 } from '@/lib/api'
 import { WUXING_ELEMENTS, WUXING_CONFIG, getWuxingConfig } from '@/lib/wuxing-config'
 import { compressImageFile } from '@/lib/image-compress'
+import { toast } from '@/components/ui/Toast'
 
 const MAX_BATCH = 5
 const MAX_FILE_SIZE = 5 * 1024 * 1024
@@ -134,6 +135,11 @@ export function BatchUploadModal({ isOpen, onClose, onSuccess }: BatchUploadModa
     for (const f of incoming) {
       if (selectedFiles.length + accepted.length >= MAX_BATCH) {
         setError(`每批最多上传 ${MAX_BATCH} 件，超出部分请分批上传`)
+        // 醒目的全局提示：避免超限被静默截断导致用户困惑（用户反馈 #7）
+        toast.warning(
+          `每批最多上传 ${MAX_BATCH} 件，已保留前 ${selectedFiles.length + accepted.length} 件，其余请分批上传`,
+          4000
+        )
         break
       }
       if (!ACCEPTED_TYPES.includes(f.type)) {
@@ -800,21 +806,43 @@ export function BatchUploadModal({ isOpen, onClose, onSuccess }: BatchUploadModa
             {step === 'select' && (
               <div className="space-y-4">
                 <div
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => {
+                    // 本批已达上限时不再弹出文件选择，改用 Toast 引导分批（用户反馈 #7）
+                    if (selectedFiles.length >= MAX_BATCH) {
+                      toast.warning(`每批最多上传 ${MAX_BATCH} 件，请先点击「开始识别」，完成后可继续上传下一批`, 4000)
+                      return
+                    }
+                    fileInputRef.current?.click()
+                  }}
                   onDragOver={e => { e.preventDefault(); setDragOver(true) }}
                   onDragLeave={() => setDragOver(false)}
                   onDrop={handleDrop}
-                  className={`cursor-pointer rounded-2xl border-2 border-dashed p-8 text-center transition-all ${
-                    dragOver
-                      ? 'border-rose-400 bg-rose-50'
-                      : 'border-stone-300 hover:border-rose-300 hover:bg-rose-50/30'
+                  className={`rounded-2xl border-2 border-dashed p-8 text-center transition-all ${
+                    selectedFiles.length >= MAX_BATCH
+                      ? 'cursor-not-allowed border-stone-200 bg-stone-50 opacity-70'
+                      : `cursor-pointer ${
+                          dragOver
+                            ? 'border-rose-400 bg-rose-50'
+                            : 'border-stone-300 hover:border-rose-300 hover:bg-rose-50/30'
+                        }`
                   }`}
                 >
                   <div className="text-4xl mb-3">👕</div>
-                  <p className="text-sm font-medium text-[var(--brand-body)]">拖拽图片到此处，或点击选择</p>
-                  <p className="text-xs text-[var(--brand-subtle)] mt-1">
-                    支持 JPG / PNG / WebP，超过 5MB 自动压缩，每批最多 {MAX_BATCH} 件
-                  </p>
+                  {selectedFiles.length >= MAX_BATCH ? (
+                    <>
+                      <p className="text-sm font-medium text-[var(--brand-body)]">本批已达上限 {MAX_BATCH} 件</p>
+                      <p className="text-xs text-[var(--brand-subtle)] mt-1">
+                        请先点击「开始识别」完成本批，入库成功后可继续上传下一批
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-medium text-[var(--brand-body)]">拖拽图片到此处，或点击选择</p>
+                      <p className="text-xs text-[var(--brand-subtle)] mt-1">
+                        支持 JPG / PNG / WebP，超过 5MB 自动压缩，每批最多 {MAX_BATCH} 件
+                      </p>
+                    </>
+                  )}
                   <input
                     ref={fileInputRef}
                     type="file"

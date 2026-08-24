@@ -25,6 +25,8 @@ from packages.recommendation.config import (
     CATEGORY_LIMITS, TEMP_SAFETY_THRESHOLD,
     get_effective_temperature,
 )
+from packages.recommendation.filters import is_hot_unfit_item
+from packages.utils.scene_mapping import is_style_scene_appropriate
 
 
 # ============================================================
@@ -328,7 +330,7 @@ def score_reasonableness(
             inappropriate_count = 0
             for item in items:
                 thickness = item.get("thickness_level", "")
-                if _is_temp_inappropriate(temp, thickness):
+                if _is_temp_inappropriate(temp, thickness, item):
                     inappropriate_count += 1
             temp_score = max(0, 8.0 - inappropriate_count * 2.0)
     
@@ -350,12 +352,17 @@ def score_reasonableness(
     })
 
 
-def _is_temp_inappropriate(temp: float, thickness: str) -> bool:
-    """判断厚度是否明显不适合温度"""
+def _is_temp_inappropriate(temp: float, thickness: str, item: Optional[Dict] = None) -> bool:
+    """判断厚度/袖长是否明显不适合温度（与生产温度硬过滤口径对齐）"""
     if temp >= EXTREME_HOT_TEMP:  # >=30°C
-        return thickness in ("厚重", "中厚")
+        if thickness in ("厚重", "中厚"):
+            return True
+        # 名称长袖/保暖类拦截（防晒/冰丝等功能性长袖豁免）
+        return bool(item) and is_hot_unfit_item(item, temp)
     elif temp >= HOT_TEMP:  # >=28°C
-        return thickness in ("厚重", "中厚")
+        if thickness in ("厚重", "中厚"):
+            return True
+        return bool(item) and is_hot_unfit_item(item, temp)
     elif temp <= EXTREME_COLD_TEMP:  # <=5°C
         return thickness in ("极薄", "轻薄")
     elif temp <= MILD_COLD_TEMP:  # <=10°C
@@ -364,30 +371,8 @@ def _is_temp_inappropriate(temp: float, thickness: str) -> bool:
 
 
 def _is_scene_appropriate(item: Dict, scene: str) -> bool:
-    """判断物品是否适合场景"""
-    item_style = item.get("style", "")
-    item_category = item.get("category", "")
-    
-    # 场景-风格映射
-    scene_style_map = {
-        "商务": ["商务", "知性", "简约", "优雅"],
-        "面试": ["商务", "知性", "简约"],
-        "约会": ["优雅", "甜美", "性感", "休闲"],
-        "运动": ["运动", "休闲"],
-        "居家": ["休闲", "简约", "森系"],
-        "婚礼": ["优雅", "商务", "知性"],
-        "派对": ["街头", "性感", "优雅", "甜美"],
-        "旅行": ["休闲", "运动", "简约"],
-        "出差": ["商务", "休闲", "简约"],
-        "度假": ["休闲", "甜美", "森系", "运动"],
-        "户外探险": ["运动", "休闲"],
-    }
-    
-    appropriate_styles = scene_style_map.get(scene, [])
-    if not appropriate_styles:
-        return True  # 未知场景不扣分
-    
-    return item_style in appropriate_styles or item_category in ["饰品", "文玩", "配饰"]
+    """判断物品是否适合场景（复用生产 scene_mapping 的风格得体度判定，避免双重标准）"""
+    return is_style_scene_appropriate(item, scene)
 
 
 # ============================================================
@@ -491,7 +476,7 @@ def score_common_sense(
         if temp is not None:
             for item in items:
                 thickness = item.get("thickness_level", "")
-                violation = _check_temp_violation(temp, thickness, item.get("name", ""))
+                violation = _check_temp_violation(temp, thickness, item.get("name", ""), item)
                 if violation:
                     violations.append(violation)
                     temp_sense_score -= 1.75
@@ -544,12 +529,14 @@ def score_common_sense(
     })
 
 
-def _check_temp_violation(temp: float, thickness: str, item_name: str) -> Optional[str]:
-    """检查温度常识违反（与生产温度硬过滤阈值对齐）"""
+def _check_temp_violation(temp: float, thickness: str, item_name: str, item: Optional[Dict] = None) -> Optional[str]:
+    """检查温度常识违反（与生产温度硬过滤阈值对齐，含高温长袖名称拦截）"""
     if temp >= 30 and thickness == "厚重":
         return f"极热({temp}°C)推荐厚重衣物: {item_name}"
     if temp >= 28 and thickness in ("厚重", "中厚"):
         return f"高温({temp}°C)推荐{thickness}衣物: {item_name}"
+    if temp >= 28 and item is not None and is_hot_unfit_item(item, temp):
+        return f"高温({temp}°C)推荐长袖/保暖类: {item_name}"
     if temp <= 0 and thickness in ("极薄", "轻薄"):
         return f"严寒({temp}°C)推荐{thickness}衣物: {item_name}"
     if temp <= 5 and thickness == "极薄":

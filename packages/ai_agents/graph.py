@@ -144,11 +144,16 @@ def run_agent(
     final_travel_days = extracted.get("travel_days")
     final_destination = extracted.get("destination")
     
-    # 判断是否为旅行/出差场景
+    # 旅行场景：有目的地但未说明天数时，默认按1天出行处理（单日旅行同样触发旅行服务）
+    if final_scene in ("旅行", "出差", "度假", "户外探险") and final_destination and not final_travel_days:
+        final_travel_days = 1
+    
+    # 判断是否为旅行/出差场景（必须有目的地，否则无法获取目的地天气做行程规划）
     is_travel_scene = (
         final_scene in ("旅行", "出差", "度假", "户外探险")
+        and final_destination is not None
         and final_travel_days is not None
-        and final_travel_days >= 2
+        and final_travel_days >= 1
     )
     
     if is_travel_scene:
@@ -165,6 +170,8 @@ def run_agent(
         travel_days=final_travel_days if is_travel_scene else None,
         destination=final_destination if is_travel_scene else None,
         luggage_size="中" if is_travel_scene else None,
+        # 无明确出行日期时不做目的地天气预判（用户反馈 #4）
+        travel_date_confirmed=bool(extracted.get("travel_date_confirmed")),
     )
     
     result = app.invoke(initial_state)
@@ -226,11 +233,24 @@ def run_agent_stream(
     final_destination = destination or extracted.get("destination")
     final_luggage_size = luggage_size or "中"  # 默认中号行李箱
     
-    # 判断是否为旅行/出差场景（有天数 + 目的地，或场景为旅行/出差）
+    # 旅行场景：有目的地但未说明天数时，默认按1天出行处理（单日旅行同样触发旅行服务）
+    if final_scene in ("旅行", "出差", "度假", "户外探险") and final_destination and not final_travel_days:
+        final_travel_days = 1
+    
+    # 判断是否为旅行/出差场景（必须有目的地，否则无法获取目的地天气做行程规划）
+    # 旅行参数提取层已做意图门控：Query 未提及旅行/出差关键词时不提取行程参数（用户反馈 #4）
     is_travel_scene = (
         final_scene in ("旅行", "出差", "度假", "户外探险")
+        and final_destination is not None
         and final_travel_days is not None
-        and final_travel_days >= 2
+        and final_travel_days >= 1
+    )
+    
+    # 出行日期确认：外部显式传入天数/目的地视为已确认行程；
+    # 否则依赖 Query 中的日期信号，无日期时不做目的地天气预判（用户反馈 #4）
+    travel_date_confirmed = bool(
+        (travel_days and destination)
+        or extracted.get("travel_date_confirmed")
     )
     
     if extracted.get("scene"):
@@ -238,7 +258,10 @@ def run_agent_stream(
     if extracted.get("weather_info"):
         logger.info(f"[推荐] 从用户提问中提取到天气: {extracted['weather_info']}")
     if is_travel_scene:
-        logger.info(f"[推荐] 旅行场景: 目的地={final_destination}, 天数={final_travel_days}, 行李箱={final_luggage_size}")
+        logger.info(
+            f"[推荐] 旅行场景: 目的地={final_destination}, 天数={final_travel_days}, "
+            f"行李箱={final_luggage_size}, 日期确认={travel_date_confirmed}"
+        )
     
     # 使用传入的 user_gender，如果没有则从八字输入中提取
     if user_gender is None and bazi_input:
@@ -260,6 +283,7 @@ def run_agent_stream(
         travel_days=final_travel_days if is_travel_scene else None,
         destination=final_destination if is_travel_scene else None,
         luggage_size=final_luggage_size if is_travel_scene else None,
+        travel_date_confirmed=travel_date_confirmed if is_travel_scene else False,
         batch_index=batch_index,
     )
     
@@ -341,6 +365,27 @@ def run_agent_stream(
     logger.debug(f"[调试] retrieved_items 总数: {len(initial_state['retrieved_items'])}")
     logger.debug(f"[调试] retrieved_items 类型: {type(initial_state['retrieved_items'])}")
     
+    # 推荐理由预计算数据（五行契合/场景适配/气温适配，供前端卡片展示，用户反馈 #6）
+    _target_elems = set(initial_state.get("target_elements") or [])
+    _eff_temp = None
+    if final_weather_info:
+        try:
+            from packages.recommendation.config import get_effective_temperature
+            _eff_temp = get_effective_temperature(final_weather_info)
+        except Exception:
+            _eff_temp = None
+    
+    def _compose_item_reason(it: dict) -> str:
+        parts = []
+        elem = it.get("primary_element")
+        if elem and elem in _target_elems:
+            parts.append(f"五行{elem}契合喜用")
+        if final_scene and (it.get("scene_score") or 0) >= 0.7:
+            parts.append(f"适配{final_scene}场景")
+        if _eff_temp is not None and (it.get("temp_score") or 0.5) >= 0.8:
+            parts.append(f"适配{int(_eff_temp)}°C气温")
+        return " · ".join(parts[:2])
+    
     for idx, item in enumerate(initial_state["retrieved_items"]):
         # 调试：检查 item 的类型
         if not isinstance(item, dict):
@@ -364,6 +409,7 @@ def run_agent_stream(
             "source": item.get("source") or "public",
             "item_id": item.get("id"),
             "image_url": item.get("image_url"),
+            "reason": _compose_item_reason(item) or None,  # 简短推荐理由（用户反馈 #6）
         })
     
     logger.debug(f"[调试] 成功构建 items 数量: {len(items)}")

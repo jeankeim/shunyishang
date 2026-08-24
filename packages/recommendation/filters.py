@@ -19,6 +19,34 @@ from packages.recommendation.scoring import infer_item_thickness, get_current_se
 
 logger = logging.getLogger(__name__)
 
+# 高温不适宜的长袖/保暖类名称关键词（thickness_level 缺少袖长维度，用名称兜底）
+# bad case：33°C 高温仍推荐长袖 Polo
+HOT_UNFIT_NAME_KEYWORDS = ("长袖", "德绒", "加绒", "加厚", "保暖")
+# 高温功能性豁免词（防晒衣/冰丝等长袖是合理夏季单品）
+HOT_FIT_NAME_KEYWORDS = ("防晒", "冰丝", "速干", "凉感")
+
+# 鞋履品类（极端温度补充路径中鞋履最多1件，避免一次推荐两双鞋）
+SHOE_CATEGORY = {"鞋履"}
+
+# 低温保暖关键词：低温场景下这些保暖单品不因场景风格规则被硬排除
+# （bad case：-5°C 出差场景把羽绒服/大衣全部排除，候选池失去保暖上装层）
+COLD_KEEP_NAME_KEYWORDS = ("羽绒服", "棉袄", "大衣", "毛衣", "卫衣", "加绒", "加厚", "保暖")
+
+
+def is_hot_unfit_item(item: Dict, temp) -> bool:
+    """
+    判断物品在高温下是否不适宜（长袖/保暖类，功能性长袖豁免）
+
+    供硬过滤与最终批次安全网复用，确保多样性/搭配完整性换入的候选
+    也不会把高温不适宜的单品带进最终结果（用户反馈 #5）。
+    """
+    if temp is None or temp < HOT_TEMP:
+        return False
+    item_name = item.get("name") or ""
+    return any(k in item_name for k in HOT_UNFIT_NAME_KEYWORDS) and not any(
+        k in item_name for k in HOT_FIT_NAME_KEYWORDS
+    )
+
 
 # ============================================================
 # 温度硬过滤
@@ -70,9 +98,18 @@ def apply_temperature_hard_filter(
         # 季节硬排除：高温盛夏排除不含夏季的衣物，严寒隆冬排除不含冬季的衣物
         seasons = _parse_item_seasons(item)
         if seasons:
+            season_set = set(seasons)
             if temp >= HOT_TEMP and current_season == "夏" and "夏" not in seasons:
                 continue
             if temp <= EXTREME_COLD_TEMP and current_season == "冬" and "冬" not in seasons:
+                continue
+            # 温度驱动的季节护栏（不依赖日历季节，按实际气温判断）：
+            # bad case：春季 12°C 推荐夏季专属防晒衣、冬季 7°C 推荐春夏单品
+            # 夏季专属衣物（不含春/秋/冬）在 <20°C 下不适宜
+            if temp < 20 and season_set == {"夏"}:
+                continue
+            # ≤10°C 低温下衣物必须含秋/冬适用标记（春夏专属单品不适宜）
+            if temp <= MILD_COLD_TEMP and not ({"秋", "冬"} & season_set):
                 continue
 
         # temperature_range 硬排除
@@ -101,8 +138,14 @@ def apply_temperature_hard_filter(
         if temp >= EXTREME_HOT_TEMP:
             if thickness in ("厚重", "中厚"):
                 continue
+            # 名称硬排除：高温下长袖/保暖类单品不适宜，防晒/冰丝等功能性长袖豁免
+            if is_hot_unfit_item(item, temp):
+                continue
         elif temp >= HOT_TEMP:
             if thickness in ("厚重", "中厚"):
+                continue
+            # 高温区间同样排除长袖/保暖类（bad case：33°C 推荐长袖上衣）
+            if is_hot_unfit_item(item, temp):
                 continue
         elif temp >= 20:
             if thickness == "厚重":
@@ -155,6 +198,9 @@ def apply_temperature_safety_check(
         return top_items
 
     temp_safe_items = [i for i in top_items if (i.get("temp_score") or 1.0) >= TEMP_SAFETY_THRESHOLD]
+    # 高温长袖安全网：极端高温下即使 temp_score 达标，长袖/保暖类名称也需拦截
+    if temp >= EXTREME_HOT_TEMP:
+        temp_safe_items = [i for i in temp_safe_items if not is_hot_unfit_item(i, temp)]
     if len(temp_safe_items) < len(top_items) and scored_items:
         used_ids = {i.get("id") for i in temp_safe_items}
         # 统计当前品类分布，替换时遵守品类限制
@@ -168,6 +214,9 @@ def apply_temperature_safety_check(
                 continue
             if (candidate.get("temp_score") or 0) < TEMP_SAFETY_THRESHOLD:
                 continue
+            # 替换候选同样需通过高温长袖校验
+            if temp >= EXTREME_HOT_TEMP and is_hot_unfit_item(candidate, temp):
+                continue
             # 遵守品类限制：不超过该品类允许的最大数量
             cat = candidate.get("category", "其他")
             max_allowed = CATEGORY_LIMITS.get(cat, DEFAULT_CATEGORY_LIMIT)
@@ -178,15 +227,31 @@ def apply_temperature_safety_check(
             cat_count[cat] = cat_count.get(cat, 0) + 1
             if len(temp_safe_items) >= top_k:
                 break
-        # 如果遵守品类限制后仍不足，放宽限制补充
+        # 如果遵守品类限制后仍不足，放宽限制补充：
+        # 服装品类允许超过常规上限，但鞋履仍最多1件、点缀类仍受总额度限制
+        # （bad case：极端温度补充路径放宽限制后出现鞋履×2，挤掉下装致搭配不成套）
+        from packages.recommendation.config import ACCENT_CATEGORIES, MAX_ACCENT_ITEMS
+        accent_used = sum(
+            1 for i in temp_safe_items if i.get("category", "其他") in ACCENT_CATEGORIES
+        )
         if len(temp_safe_items) < top_k:
             for candidate in scored_items:
                 if candidate.get("id") in used_ids:
                     continue
                 if (candidate.get("temp_score") or 0) < TEMP_SAFETY_THRESHOLD:
                     continue
+                if temp >= EXTREME_HOT_TEMP and is_hot_unfit_item(candidate, temp):
+                    continue
+                cat = candidate.get("category", "其他")
+                if cat in SHOE_CATEGORY and cat_count.get(cat, 0) >= 1:
+                    continue
+                if cat in ACCENT_CATEGORIES and accent_used >= MAX_ACCENT_ITEMS:
+                    continue
                 temp_safe_items.append(candidate)
                 used_ids.add(candidate.get("id"))
+                cat_count[cat] = cat_count.get(cat, 0) + 1
+                if cat in ACCENT_CATEGORIES:
+                    accent_used += 1
                 if len(temp_safe_items) >= top_k:
                     break
         return temp_safe_items[:top_k]
@@ -419,3 +484,78 @@ def build_scene_filter(scene: Optional[str], sub_scene: Optional[str] = None) ->
 def filter_by_scene_score(scored_items: List[Dict]) -> List[Dict]:
     """过滤掉场景分为0的物品（硬排除）"""
     return [item for item in scored_items if item.get("scene_score", 0.5) > 0]
+
+
+# ============================================================
+# 场景硬过滤（评分层安全网）
+# ============================================================
+
+def apply_scene_hard_filter(
+    scored_items: List[Dict],
+    scene: Optional[str],
+    sub_scene: Optional[str] = None,
+    weather_info: Optional[Dict] = None,
+) -> List[Dict]:
+    """
+    场景硬过滤（全检索链路安全网）
+
+    依据 scene_mapping 的场景规则，在评分层排除品类/关键词不合规物品，
+    拦截衣橱模式（无场景 SQL 过滤）与配饰辅路召回漏过的场景错配物品
+    （bad case：健身场景推荐木戒指）。
+
+    低温豁免：≤10°C 时保暖类单品（羽绒服/大衣/毛衣等）不因场景
+    风格关键词被排除——保暖优先于风格，避免候选池失去保暖层。
+
+    Args:
+        scored_items: 已评分物品列表
+        scene: 场景
+        sub_scene: 子场景
+        weather_info: 天气信息（用于低温豁免判断）
+
+    Returns:
+        过滤后的物品列表
+    """
+    if not scored_items or not scene:
+        return scored_items
+
+    from packages.utils.scene_mapping import get_scene_rules, get_sub_scene_rules
+
+    rules = get_scene_rules(scene)
+    if not rules:
+        return scored_items
+
+    # 低温豁免开关：≤MILD_COLD_TEMP 时保暖单品跳过关键词排除
+    temp = get_effective_temperature(weather_info)
+    cold_exempt = temp is not None and temp <= MILD_COLD_TEMP
+
+    excluded_cats = set(rules.get("excluded_categories", []))
+    excluded_kws = tuple(rules.get("excluded_keywords", []))
+    sub_kws: tuple = ()
+    if sub_scene:
+        sub_rules = get_sub_scene_rules(sub_scene)
+        if sub_rules:
+            sub_kws = tuple(sub_rules.get("extra_excluded_keywords", []))
+
+    kept = []
+    removed_names = []
+    for item in scored_items:
+        name = item.get("name") or ""
+        if item.get("category") in excluded_cats:
+            removed_names.append(name or item.get("item_code"))
+            continue
+        if cold_exempt and any(k in name for k in COLD_KEEP_NAME_KEYWORDS):
+            kept.append(item)
+            continue
+        if excluded_kws and any(k in name for k in excluded_kws):
+            removed_names.append(name or item.get("item_code"))
+            continue
+        if sub_kws and any(k in name for k in sub_kws):
+            removed_names.append(name or item.get("item_code"))
+            continue
+        kept.append(item)
+
+    if removed_names:
+        logger.warning(
+            f"[场景硬过滤] scene={scene}，排除{len(removed_names)}件场景错配物品: {removed_names[:5]}"
+        )
+    return kept

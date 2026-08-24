@@ -440,6 +440,31 @@ def calculate_body_type_bonus(item: Dict, body_type: Optional[str]) -> float:
 # 轮换奖励
 # ============================================================
 
+# 雨天不耐水的材质关键词（鞋履类，物品库无防水属性时用名称判断）
+RAIN_UNFIT_MATERIAL_KEYWORDS = ("帆布", "麂皮", "绒面", "绸缎", "真丝")
+RAIN_PENALTY = -0.15
+
+
+def calculate_rain_penalty(item: Dict, weather_info: Optional[Dict]) -> float:
+    """
+    雨天不耐水材质软惩罚（0 或 RAIN_PENALTY）
+
+    雨天场景下帆布/麂皮等不耐水鞋履排序下沉，不硬排除
+    （避免候选池小时返回空结果）。
+    """
+    if not weather_info:
+        return 0.0
+    weather_desc = weather_info.get("weather_desc") or ""
+    if "雨" not in weather_desc:
+        return 0.0
+    if item.get("category") != "鞋履":
+        return 0.0
+    name = item.get("name") or ""
+    if any(k in name for k in RAIN_UNFIT_MATERIAL_KEYWORDS):
+        return RAIN_PENALTY
+    return 0.0
+
+
 def calculate_rotation_bonus(item: Dict) -> float:
     """
     计算衣物轮换奖励（独立于五行分的微调项）
@@ -519,6 +544,9 @@ def calculate_final_score(
         preference_score * weights.get("pref", 0.0) +
         temp_score * weights.get("temp", 0.0)
     ) * season_score
+
+    # 雨天不耐水鞋履软惩罚（bad case：雨天推荐帆布鞋）
+    final_score += calculate_rain_penalty(item, weather_info)
 
     # 独立微调项
     rotation_bonus = calculate_rotation_bonus(item)

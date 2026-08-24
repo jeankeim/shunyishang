@@ -128,7 +128,7 @@ def delete_old_demo(remote):
     log("INFO", f"删除旧 demo 数据 {deleted} 条")
 
 
-def verify(remote):
+def verify(remote, expected_total: int):
     cur = remote.cursor()
     cur.execute("""
         SELECT count(*),
@@ -155,7 +155,7 @@ def verify(remote):
         log("SUCCESS", "所有品类×五行格子 ≥ 10")
     cur.close()
 
-    ok = (total == 500 and null_emb == 0 and not short)
+    ok = (total == expected_total and null_emb == 0 and not short)
     return ok
 
 
@@ -183,7 +183,7 @@ def main():
     delete_old_demo(remote)
 
     log("INFO", "-" * 50)
-    ok = verify(remote)
+    ok = verify(remote, expected_total=len(rows))
 
     local.close()
     remote.close()

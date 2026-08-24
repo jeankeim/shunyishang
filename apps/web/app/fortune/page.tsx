@@ -11,6 +11,7 @@ import { useUserStore } from '@/store/user'
 import { generateAnnualReport, getFortuneReport, getFortuneReports, getWeeklyFortune, type WeeklyFortune } from '@/lib/api'
 import { createPortal } from 'react-dom'
 import { SkeletonCard, EmptyState } from '@/components/ui'
+import { AuthModal } from '@/components/features/AuthModal'
 
 // ========== 本周运势概览卡片（可折叠） ==========
 function WeeklyFortuneCard() {
@@ -171,6 +172,7 @@ export default function FortunePage() {
   const { todayFortune, isLoading, error, fetchTodayFortune, regenerateFortune, clearError } = useFortuneStore()
   const { isAuthenticated, user } = useUserStore()
   const [showShareCard, setShowShareCard] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
   const [annualReport, setAnnualReport] = useState<any>(null)
   const [generatingReport, setGeneratingReport] = useState(false)
   const [reportView, setReportView] = useState<any>(null)
@@ -237,15 +239,42 @@ export default function FortunePage() {
   }
 
   if (!isAuthenticated) {
+    // 运势数据仅登录后可见：未登录隐藏分数，展示占位提示并引导登录（用户反馈 #3）
     return (
       <div className="max-w-lg mx-auto space-y-4 py-8">
-        {/* 未登录用户也展示本周运势概览（通用版） */}
-        <WeeklyFortuneCard />
+        {/* 本周运势占位卡片（不展示真实分数） */}
+        <div className="bg-card rounded-2xl border border-stone-200/60 p-6 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-50/60 to-orange-50/40 pointer-events-none" />
+          <div className="relative">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-stone-800">📅 本周运势</h3>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-stone-100 text-stone-500 border border-stone-200/60">
+                🔒 未解锁
+              </span>
+            </div>
+            {/* 模糊占位：暗示有内容但不展示具体数据 */}
+            <div className="space-y-2 select-none" aria-hidden>
+              <p className="text-3xl font-bold text-stone-300 blur-[4px]">?? 分</p>
+              <div className="h-2 rounded-full bg-stone-200/80 blur-[2px] w-3/4" />
+              <div className="h-2 rounded-full bg-stone-200/60 blur-[2px] w-1/2" />
+            </div>
+            <div className="mt-5 text-center">
+              <p className="text-sm text-stone-500 mb-3">登录后查看基于您八字的专属运势数据</p>
+              <button
+                onClick={() => setShowAuthModal(true)}
+                className="px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl text-sm font-medium hover:from-amber-600 hover:to-orange-600 transition-all shadow-sm"
+              >
+                登录查看
+              </button>
+            </div>
+          </div>
+        </div>
         <div className="text-center py-8">
           <p className="text-4xl mb-3">🔮</p>
           <h2 className="text-lg font-semibold text-stone-800 mb-2">每日运势</h2>
           <p className="text-sm text-stone-500 mb-4">登录后即可查看基于您八字的专属运势分析</p>
         </div>
+        <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
       </div>
     )
   }

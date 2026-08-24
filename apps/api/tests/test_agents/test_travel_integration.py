@@ -241,6 +241,53 @@ class TestRunAgentStreamTravel:
         travel_events = [r for r in results if r["type"] == "travel_plan"]
         assert len(travel_events) == 0
 
+    def test_stream_single_day_travel_with_destination_emits_plan(self):
+        """单日旅行（有目的地、未说明天数）默认按1天处理并输出 travel_plan 事件
+
+        bad case：用户问“我8月25日去杭州旅游，应该穿什么？”此前因 travel_days>=2
+        门槛不触发旅行服务，导致场景与服务功能不匹配。
+        """
+        travel_plan_data = {
+            "destination": "杭州",
+            "days": 1,
+            "outfits_plan": [{"day": 1, "scene": "旅行", "items": [], "notes": ""}],
+            "luggage_summary": {"total_items": 0},
+        }
+        with patch("packages.ai_agents.graph._extract_context_from_query") as mock_extract:
+            mock_extract.return_value = {
+                "scene": "旅行",
+                "weather_info": None,
+                "weather_element": None,
+                "travel_days": None,
+                "destination": "杭州",
+            }
+            with patch("packages.ai_agents.graph.analyze_intent_node") as mock_analyze:
+                mock_analyze.return_value = {
+                    "target_elements": ["木"],
+                    "search_query": "旅行穿搭",
+                    "scene": "旅行",
+                }
+                with patch("packages.ai_agents.graph.retrieve_items_node") as mock_retrieve:
+                    mock_retrieve.return_value = {
+                        "retrieved_items": [
+                            {"id": 1, "name": "速干短袖", "category": "上装", "primary_element": "木",
+                             "final_score": 0.8, "source": "public"},
+                        ],
+                        "travel_plan": travel_plan_data,
+                    }
+                    with patch("packages.ai_agents.nodes.generate_advice_stream") as mock_stream:
+                        mock_stream.return_value = iter(["推荐"])
+                        results = list(run_agent_stream("我8月25日去杭州旅游，应该穿什么？"))
+
+        travel_events = [r for r in results if r["type"] == "travel_plan"]
+        assert len(travel_events) == 1
+        assert travel_events[0]["data"]["destination"] == "杭州"
+
+        analysis = [r for r in results if r["type"] == "analysis"]
+        assert analysis, "应输出 analysis 事件"
+        assert analysis[0]["data"]["is_travel"] is True
+        assert analysis[0]["data"]["travel_days"] == 1
+
     def test_stream_travel_scene_detection_from_query(self):
         """从用户输入自动提取旅行意图"""
         with patch("packages.ai_agents.graph._extract_context_from_query") as mock_extract:

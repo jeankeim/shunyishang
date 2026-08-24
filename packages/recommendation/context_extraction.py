@@ -12,6 +12,35 @@ from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
 
+# 旅行/出差意图关键词：仅当 Query 明确涉及旅行/出差语境时才提取行程参数，
+# 避免普通穿搭提问（如"北京穿什么"）被误判为行程规划（用户反馈 #4）
+TRAVEL_INTENT_KEYWORDS = (
+    "出差", "旅行", "旅游", "行程", "度假", "出行", "差旅", "商务旅行",
+    "行李", "行李箱", "打包",
+)
+
+# 明确日期/时间信号：只有提及具体出发时间时，目的地天气预报才有时间维度依据；
+# 仅有地点+天数（如"北京三天行程"）时不做天气预判，避免输出不准确的天气数据（用户反馈 #4）
+DATE_SIGNAL_PATTERNS = (
+    r"明天", r"后天", r"大后天", r"今天",
+    r"下周", r"本周", r"这周", r"周末",
+    r"下个月", r"月底", r"月初",
+    r"\d+\s*月\s*\d+\s*[日号]",
+    r"周[一二三四五六日天末]",
+    r"星期[一二三四五六日天]",
+    r"\d+\s*[天日周后]后",
+)
+
+
+def has_travel_intent(user_input: str) -> bool:
+    """判断 Query 是否明确涉及旅行/出差意图"""
+    return any(kw in user_input for kw in TRAVEL_INTENT_KEYWORDS)
+
+
+def has_date_signal(user_input: str) -> bool:
+    """判断 Query 是否包含明确的出行日期/时间信号"""
+    return any(re.search(p, user_input) for p in DATE_SIGNAL_PATTERNS)
+
 
 def extract_context_from_query(user_input: str) -> Dict:
     """
@@ -27,6 +56,7 @@ def extract_context_from_query(user_input: str) -> Dict:
             "weather_element": str | None,
             "travel_days": int | None,
             "destination": str | None,
+            "travel_date_confirmed": bool,  # 用户是否提供了明确出行日期
         }
     """
     try:
@@ -46,8 +76,12 @@ def extract_context_from_query(user_input: str) -> Dict:
 4. travel_days: 旅行天数（数字，如用户提到"去北京出差3天"则为3）
 5. destination: 目的地城市（如用户提到"去三亚"则为"三亚"）
 
+**重要旅行参数提取规则**：
+- 仅当用户**明确提及旅行/出差/行程/度假/出行等旅行语境**时，才提取 travel_days 和 destination；
+  普通穿搭提问（如"北京今天穿什么"）即使包含城市名也不要提取旅行参数
+
 **重要场景识别规则**：
-- 如果提到"游泳"、"海边游泳"、"泳池"等，场景应该是"运动"（不是"旅行"）
+- 如果提到“游泳”、“戏水”、“玩水”、“海边游泳”、“泳池”等，场景应该是“运动”（不是“旅行”）
 - 如果提到"马拉松"、"跑步"、"健身"、"瑜伽"等，场景应该是"运动"
 - 如果提到"三亚"、"海边"、"度假"但**没有**提到具体运动，场景才是"度假"
 - 如果提到"出差"、"商务旅行"，场景应该是"出差"
@@ -78,6 +112,7 @@ def extract_context_from_query(user_input: str) -> Dict:
             "weather_element": None,
             "travel_days": None,
             "destination": None,
+            "travel_date_confirmed": has_date_signal(user_input),
         }
 
         scene = extracted.get("scene")
@@ -85,6 +120,11 @@ def extract_context_from_query(user_input: str) -> Dict:
         weather_desc = extracted.get("weather_desc")
         travel_days = extracted.get("travel_days")
         destination = extracted.get("destination")
+
+        # 旅行意图安全网：LLM 可能过度提取，无旅行关键词时强制丢弃行程参数（用户反馈 #4）
+        if not has_travel_intent(user_input):
+            travel_days = None
+            destination = None
 
         # 场景映射
         scene_mapping = {
@@ -144,12 +184,13 @@ def extract_context_by_rules(user_input: str) -> Dict:
         "weather_element": None,
         "travel_days": None,
         "destination": None,
+        "travel_date_confirmed": has_date_signal(user_input),
     }
 
     text = user_input.lower()
 
     # 1. 场景提取（活动型优先于地点型）
-    if any(kw in text for kw in ['马拉松', '跑步', '健身', '运动', '打球', '游泳', '瑜伽']):
+    if any(kw in text for kw in ['马拉松', '跑步', '健身', '运动', '打球', '游泳', '瑜伽', '戏水', '玩水']):
         result["scene"] = "运动"
     elif any(kw in text for kw in ['徒步', '登山', '露营', '探险', '滑雪', '户外探险']):
         result["scene"] = "户外探险"
@@ -174,21 +215,30 @@ def extract_context_by_rules(user_input: str) -> Dict:
     elif any(kw in text for kw in ['派对', '聚会', 'party']):
         result["scene"] = "派对"
 
-    # 2. 多天行程提取
-    day_match = re.search(r'(\d+)\s*[天日]', text)
-    if day_match:
-        result["travel_days"] = int(day_match.group(1))
-    else:
-        cn_num_map = {'一': 1, '两': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10}
-        cn_day_match = re.search(r'([一二两三四五六七八九十])\s*[天日]', text)
-        if cn_day_match:
-            result["travel_days"] = cn_num_map.get(cn_day_match.group(1), 1)
-
-    # 3. 目的地城市提取
-    dest_match = re.search(
-        r'(?:去|到|飞|前往|出发去)\s*([\u4e00-\u9fa5]{2,4}?)(?=[出差旅游度假玩天日回来了\s]|$)',
-        text,
+    # 旅行意图门控：无旅行/出差关键词且场景非旅行类时不提取行程参数，
+    # 避免普通提问（如"北京穿什么"）误触发行程规划（用户反馈 #4）
+    travel_intent = has_travel_intent(user_input) or result["scene"] in (
+        "旅行", "出差", "度假", "户外探险",
     )
+
+    # 2. 多天行程提取（仅在明确旅行意图时）
+    if travel_intent:
+        day_match = re.search(r'(\d+)\s*[天日]', text)
+        if day_match:
+            result["travel_days"] = int(day_match.group(1))
+        else:
+            cn_num_map = {'一': 1, '两': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10}
+            cn_day_match = re.search(r'([一二两三四五六七八九十])\s*[天日]', text)
+            if cn_day_match:
+                result["travel_days"] = cn_num_map.get(cn_day_match.group(1), 1)
+
+    # 3. 目的地城市提取（仅在明确旅行意图时）
+    dest_match = None
+    if travel_intent:
+        dest_match = re.search(
+            r'(?:去|到|飞|前往|出发去)\s*([\u4e00-\u9fa5]{2,4}?)(?=[出差旅游度假玩天日回来了\s]|$)',
+            text,
+        )
     if dest_match:
         city = dest_match.group(1)
         non_city_words = {'什么', '哪里', '怎么', '这里', '那里', '外面', '室内', '户外'}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Sparkles, Shirt, User, Menu, Scan, BookOpen, Compass, Mountain, GraduationCap } from 'lucide-react'
 
@@ -31,19 +31,55 @@ const SECONDARY_ITEMS = [
 // 高亮判断需覆盖合并前的 destiny
 const SECONDARY_IDS: TabId[] = ['diary', 'fortune', 'destiny', 'cultivation', 'wuxing-classroom']
 
+// 首次访问导航引导标记（localStorage key）
+const NAV_GUIDE_KEY = 'sys_nav_guide_shown'
+
 export function MobileBottomNav({ activeTab, onTabChange }: MobileBottomNavProps) {
   const [showMore, setShowMore] = useState(false)
+  const [showGuide, setShowGuide] = useState(false)
+
+  // 首次访问导航引导：延迟弹出一次性气泡，告知新用户底部导航可切换页面
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      if (!localStorage.getItem(NAV_GUIDE_KEY)) {
+        timer = setTimeout(() => setShowGuide(true), 1500)
+      }
+    } catch {
+      /* localStorage 不可用时忽略 */
+    }
+    return () => { if (timer) clearTimeout(timer) }
+  }, [])
+
+  // 引导 10 秒后自动消失
+  useEffect(() => {
+    if (!showGuide) return
+    const timer = setTimeout(() => dismissGuide(), 10000)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showGuide])
+
+  const dismissGuide = () => {
+    setShowGuide(false)
+    try {
+      localStorage.setItem(NAV_GUIDE_KEY, '1')
+    } catch {
+      /* ignore */
+    }
+  }
 
   const isSecondaryActive = SECONDARY_IDS.includes(activeTab)
   const isMoreActive = showMore || isSecondaryActive
 
   const handlePrimaryClick = (id: TabId) => {
     setShowMore(false)
+    if (showGuide) dismissGuide()
     onTabChange(id)
   }
 
   const handleSecondaryClick = (id: TabId) => {
     setShowMore(false)
+    if (showGuide) dismissGuide()
     onTabChange(id)
   }
 
@@ -119,6 +155,33 @@ export function MobileBottomNav({ activeTab, onTabChange }: MobileBottomNavProps
               </div>
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* 首次访问导航引导气泡 */}
+      <AnimatePresence>
+        {showGuide && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            role="tooltip"
+            className="md:hidden fixed bottom-20 left-4 right-4 z-[55] px-4 py-3 rounded-2xl bg-stone-900/90 text-white text-xs leading-relaxed shadow-xl"
+          >
+            <div className="flex items-start gap-2">
+              <span className="text-sm" aria-hidden="true">👇</span>
+              <span className="flex-1">
+                底部导航可切换页面：<b>运势</b>看今日运势、<b>衣橱</b>管理衣物、<b>我的</b>看个人资料
+              </span>
+              <button
+                onClick={dismissGuide}
+                aria-label="关闭导航引导"
+                className="text-white/60 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 

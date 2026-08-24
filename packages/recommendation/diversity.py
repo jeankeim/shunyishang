@@ -946,9 +946,11 @@ def _find_swap_target(
     找到可替换的物品索引
 
     优先级：
-    1. 同品类有2件以上的物品（从最低分开始）
+    1. 同品类有2件以上的物品（从最低分开始；重复品类冗余，即使是
+       温度必需也允许换出——低温下全部候选 temp_score≥0.7 时若不允许，
+       缺失的上装/下装永远补不进来）
     2. 非核心服装品类（配饰/饰品/文玩）
-    3. 不替换温度必需物品
+    3. 不替换温度必需物品（仅针对非重复品类）
     """
     # 统计品类分布
     cat_counts = {}
@@ -962,9 +964,6 @@ def _find_swap_target(
         if cat in exclude_categories:
             continue
         if cat_counts.get(cat, 0) > 1:
-            # 不替换温度必需物品
-            if (items[i].get("temp_score") or 0) >= TEMP_ESSENTIAL_THRESHOLD:
-                continue
             return i
 
     # 策略2：找点缀类物品（配饰/饰品/文玩）
@@ -985,13 +984,17 @@ def _find_swap_target(
                 continue
             return i
 
-    # 最后手段：找任何非温度必需的物品
+    # 最后手段：找任何非温度必需的物品（不替换覆盖关键物品：
+    # 避免补下装时把唯一下装换成第二件鞋履，导致搭配不成套）
     for i in range(len(items) - 1, -1, -1):
         cat = items[i].get("category", "")
         if cat in exclude_categories:
             continue
-        if (items[i].get("temp_score") or 0) < TEMP_ESSENTIAL_THRESHOLD:
-            return i
+        if (items[i].get("temp_score") or 0) >= TEMP_ESSENTIAL_THRESHOLD:
+            continue
+        if _is_coverage_critical(items[i], items):
+            continue
+        return i
 
     return None
 
@@ -1008,6 +1011,10 @@ def ensure_wuxing_diversity(
     - 如果 top-k 中所有物品都是同一五行，用次高分的不同五行物品替换最低分的重复物品
     - 最多替换 1 件，避免过度干预排序
     - 不引入 temp_score < TEMP_SAFETY_THRESHOLD 的候选
+    - 跨品类换入遵守 CATEGORY_LIMITS，避免引入第二件鞋履（bad case：
+      五行多样性把点缀换成第二双鞋，挤掉下装致搭配不成套）
+    - 优先换出重复品类/点缀类物品，不替换覆盖关键物品，
+      且始终保留最高分物品（索引0）不被换出
 
     Args:
         items: 当前 top-k 物品列表
@@ -1033,26 +1040,81 @@ def ensure_wuxing_diversity(
     # 找出主导五行
     dominant_element = elements.pop() if elements else None
 
-    # 从备选中找分数最高的不同五行物品（温度安全）
-    used_ids = {str(item.get("id", item.get("item_code", ""))) for item in items}
-    best_replacement = None
-    for candidate in all_scored:
-        cand_elem = candidate.get("primary_element", "")
-        cand_id = str(candidate.get("id", candidate.get("item_code", "")))
-        if cand_elem and cand_elem != dominant_element and cand_id not in used_ids:
-            if (candidate.get("temp_score") or 0) < TEMP_SAFETY_THRESHOLD:
-                continue
-            best_replacement = candidate
-            break
+    # 当前品类分布（跨品类换入时的限额检查）
+    cat_counts: Dict[str, int] = {}
+    for item in items:
+        c = item.get("category", "")
+        cat_counts[c] = cat_counts.get(c, 0) + 1
 
-    if best_replacement:
-        for i in range(len(items) - 1, -1, -1):
-            if items[i].get("primary_element", "") == dominant_element:
-                logger.debug(
-                    f"[五行多样性] 替换: {items[i].get('name')}({dominant_element}) "
-                    f"→ {best_replacement.get('name')}({best_replacement.get('primary_element')})"
-                )
-                items[i] = best_replacement
-                break
+    def _within_limit(cand: Dict, swap_cat: str) -> bool:
+        cand_cat = cand.get("category", "")
+        if cand_cat == swap_cat:
+            return True  # 同品类替换不改变计数
+        return cat_counts.get(cand_cat, 0) < CATEGORY_LIMITS.get(cand_cat, DEFAULT_CATEGORY_LIMIT)
+
+    # 从备选中找分数最高的不同五行物品（温度安全 + 品类限额）
+    used_ids = {str(item.get("id", item.get("item_code", ""))) for item in items}
+
+    def _find_candidate(swap_cat: str):
+        for candidate in all_scored:
+            cand_elem = candidate.get("primary_element", "")
+            cand_id = str(candidate.get("id", candidate.get("item_code", "")))
+            if cand_elem and cand_elem != dominant_element and cand_id not in used_ids:
+                if (candidate.get("temp_score") or 0) < TEMP_SAFETY_THRESHOLD:
+                    continue
+                if not _within_limit(candidate, swap_cat):
+                    continue
+                return candidate
+        return None
+
+    # 换出项优先级：重复品类 > 点缀类（不破坏搭配覆盖结构；
+    # 跳过索引0：最高分物品不得因五行多样性被换出）
+    for i in range(len(items) - 1, 0, -1):
+        if items[i].get("primary_element", "") != dominant_element:
+            continue
+        cat = items[i].get("category", "")
+        if cat_counts.get(cat, 0) <= 1:
+            continue
+        replacement = _find_candidate(cat)
+        if replacement:
+            logger.debug(
+                f"[五行多样性] 替换: {items[i].get('name')}({dominant_element}) "
+                f"→ {replacement.get('name')}({replacement.get('primary_element')})"
+            )
+            items[i] = replacement
+            return items
+
+    for i in range(len(items) - 1, 0, -1):
+        if items[i].get("primary_element", "") != dominant_element:
+            continue
+        cat = items[i].get("category", "")
+        if cat not in ACCENT_CATEGORIES:
+            continue
+        replacement = _find_candidate(cat)
+        if replacement:
+            logger.debug(
+                f"[五行多样性] 替换: {items[i].get('name')}({dominant_element}) "
+                f"→ {replacement.get('name')}({replacement.get('primary_element')})"
+            )
+            items[i] = replacement
+            return items
+
+    # 最后手段：任何非覆盖关键且非温度必需的物品（同样保留索引0）
+    for i in range(len(items) - 1, 0, -1):
+        if items[i].get("primary_element", "") != dominant_element:
+            continue
+        if _is_coverage_critical(items[i], items):
+            continue
+        if (items[i].get("temp_score") or 0) >= TEMP_ESSENTIAL_THRESHOLD:
+            continue
+        cat = items[i].get("category", "")
+        replacement = _find_candidate(cat)
+        if replacement:
+            logger.debug(
+                f"[五行多样性] 替换: {items[i].get('name')}({dominant_element}) "
+                f"→ {replacement.get('name')}({replacement.get('primary_element')})"
+            )
+            items[i] = replacement
+            break
 
     return items

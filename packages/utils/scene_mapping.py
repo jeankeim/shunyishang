@@ -16,7 +16,8 @@ SCENE_MAPPING: Dict[str, Dict] = {
     "运动": {
         "description": "运动健身、跑步、瑜伽、打球等",
         "preferred_categories": ["鞋履", "下装", "上装"],
-        "excluded_categories": ["外套", "配饰", "裙装"],
+        # 饰品/文玩在运动中存在安全隐患且不合场景（bad case：健身场景推荐木戒指）
+        "excluded_categories": ["外套", "配饰", "裙装", "饰品", "文玩"],
         "preferred_functionality": ["透气", "速干", "运动", "弹性"],
         "excluded_keywords": ["风衣", "大衣", "围巾", "西装", "礼服", "睡衣", "拖鞋", "卫衣", "毛衣", "棉袄", "羽绒服",
                               "真丝", "丝绸", "汉服", "连衣裙", "长裙", "领带", "方巾", "高跟鞋", "皮鞋", "皮裙",
@@ -29,7 +30,7 @@ SCENE_MAPPING: Dict[str, Dict] = {
         "preferred_categories": ["上装", "下装", "鞋履"],
         "excluded_categories": [],
         "preferred_functionality": ["正式", "职业", "抗皱"],
-        "excluded_keywords": ["运动裤", "睡衣", "泳衣", "拖鞋", "短裤", "T恤"],
+        "excluded_keywords": ["运动裤", "睡衣", "泳衣", "拖鞋", "短裤", "T恤", "帆布鞋"],
         "preferred_thickness": ["适中", "中厚"],
         "temperature_range": {"min": 10, "max": 25},
     },
@@ -56,7 +57,7 @@ SCENE_MAPPING: Dict[str, Dict] = {
         "preferred_categories": ["上装", "下装", "鞋履"],
         "excluded_categories": [],
         "preferred_functionality": ["正式", "职业", "抗皱"],
-        "excluded_keywords": ["运动裤", "睡衣", "拖鞋", "泳衣", "短裤", "T恤"],
+        "excluded_keywords": ["运动裤", "睡衣", "泳衣", "拖鞋", "短裤", "T恤", "帆布鞋", "风衣"],
         "preferred_thickness": ["适中", "中厚"],
         "temperature_range": {"min": 10, "max": 25},
     },
@@ -66,7 +67,7 @@ SCENE_MAPPING: Dict[str, Dict] = {
         "excluded_categories": [],
         "preferred_functionality": ["优雅", "正式", "时尚"],
         "excluded_keywords": ["运动裤", "睡衣", "拖鞋", "泳衣", "短裤",
-                              "T恤", "T 恤", "运动鞋", "跑鞋", "扎染", "卫衣", "帽衫"],
+                              "T恤", "T 恤", "运动鞋", "跑鞋", "扎染", "卫衣", "帽衫", "帆布鞋", "风衣"],
         "preferred_thickness": ["适中"],
         "temperature_range": {"min": 15, "max": 30},
     },
@@ -366,13 +367,15 @@ def calculate_scene_match_score(item: Dict, scene: str, sub_scene: Optional[str]
     # 5.5 风格-场景得体度（软信号）
     # 仅在物品有 style 且该场景定义了风格规则、且非点缀类时生效，
     # 使场景明显不搭的风格（如约会推运动风）排序下沉，但不硬排除。
+    # 惩罚加重至 -0.3：原 -0.15 在 scene 权重 0.15~0.2 下差异过小，
+    # 无法将风格冲突单品压到得体候选之下（评估发现 38% 场景风格冲突）
     style = item.get("style", "")
     preferred_styles = SCENE_PREFERRED_STYLES.get(scene)
     if style and preferred_styles and category not in SCENE_STYLE_NEUTRAL_CATEGORIES:
         if style in preferred_styles:
             current_bonus += 0.1
         else:
-            current_bonus -= 0.15
+            current_bonus -= 0.3
     
     # 6. 温度范围匹配（兼容中文键“最低/最高”和英文键“min/max”）
     temp_range = item.get("temperature_range")

@@ -731,6 +731,10 @@ export default function Home() {
                   weatherElement={weatherElement}
                   weatherInfo={weatherInfo}
                   userCity={userCity}
+                  onNavigateToWardrobe={() => {
+                    setActiveTab('wardrobe')
+                    window.location.hash = '#wardrobe'
+                  }}
                 />
               </motion.div>
             )}

@@ -363,6 +363,47 @@ class TestTemperatureHardFilter:
         items = [{"name": "T恤"}, {"name": "羽绒服"}]
         assert apply_temperature_hard_filter(items, None) == items
 
+    def test_extreme_hot_filters_long_sleeve_by_name(self):
+        """高温≥30°C 按名称过滤长袖/保暖类单品（bad case：33°C 推长袖 Polo）"""
+        from packages.recommendation.filters import apply_temperature_hard_filter
+
+        items = [
+            {"name": "亚麻长袖Polo", "thickness_level": "轻薄", "temp_score": 0.8},
+            {"name": "保暖内衣上装", "thickness_level": "轻薄", "temp_score": 0.8},
+            {"name": "短袖T恤", "thickness_level": "轻薄", "temp_score": 0.9},
+        ]
+        weather = {"temperature": 33}
+        filtered = apply_temperature_hard_filter(items, weather)
+
+        names = [i["name"] for i in filtered]
+        assert "亚麻长袖Polo" not in names
+        assert "保暖内衣上装" not in names
+        assert "短袖T恤" in names
+
+    def test_extreme_hot_keeps_sun_protection_long_sleeve(self):
+        """防晒/冰丝/速干等功能性长袖豁免高温名称过滤"""
+        from packages.recommendation.filters import apply_temperature_hard_filter
+
+        items = [
+            {"name": "冰丝防晒长袖衫", "thickness_level": "轻薄", "temp_score": 0.9},
+            {"name": "速干长袖T恤", "thickness_level": "轻薄", "temp_score": 0.9},
+        ]
+        weather = {"temperature": 33}
+        filtered = apply_temperature_hard_filter(items, weather)
+
+        names = [i["name"] for i in filtered]
+        assert "冰丝防晒长袖衫" in names
+        assert "速干长袖T恤" in names
+
+    def test_mild_hot_keeps_long_sleeve(self):
+        """温和温度（24°C）不按名称过滤长袖"""
+        from packages.recommendation.filters import apply_temperature_hard_filter
+
+        items = [{"name": "长袖衬衫", "thickness_level": "轻薄", "temp_score": 0.8}]
+        weather = {"temperature": 24}
+        filtered = apply_temperature_hard_filter(items, weather)
+        assert [i["name"] for i in filtered] == ["长袖衬衫"]
+
 
 # ============================================================
 # 4.5 有效温度与季节硬排除测试（杭州青金石蓝西装 bad case 修复）
@@ -891,6 +932,58 @@ class TestDiversity:
         # temp_score < 0.3 的应被替换
         ids = [i["id"] for i in result]
         assert 1 not in ids or len(result) < 2
+
+    def test_wuxing_diversity_no_second_shoe(self):
+        """五行多样性替换不得引入第二件鞋履（鞋履上限1）
+
+        bad case：五行多样性把点缀换成候选池分数最高的鞋履，
+        导致同套推荐出现两双鞋并挤掉下装。
+        """
+        from packages.recommendation.diversity import ensure_wuxing_diversity
+
+        items = [
+            {"id": 1, "category": "鞋履", "primary_element": "火", "name": "高跟鞋", "temp_score": 0.8},
+            {"id": 2, "category": "文玩", "primary_element": "火", "name": "手串", "temp_score": 0.8},
+            {"id": 3, "category": "外套", "primary_element": "火", "name": "防晒衣", "temp_score": 0.8},
+            {"id": 4, "category": "外套", "primary_element": "火", "name": "风衣", "temp_score": 0.8},
+            {"id": 5, "category": "裙装", "primary_element": "火", "name": "长裙", "temp_score": 0.8},
+        ]
+        all_scored = items + [
+            # 候选池分数最高的不同五行物品是鞋履
+            {"id": 6, "category": "鞋履", "primary_element": "水", "name": "跑鞋", "temp_score": 0.9},
+            {"id": 7, "category": "饰品", "primary_element": "水", "name": "胸针", "temp_score": 0.7},
+        ]
+        result = ensure_wuxing_diversity(items, all_scored, 5)
+
+        shoe_count = sum(1 for i in result if i.get("category") == "鞋履")
+        assert shoe_count <= 1, f"鞋履应≤1件，实际 {shoe_count} 件"
+        elements = {i.get("primary_element") for i in result}
+        assert len(elements) >= 2, "应至少覆盖2种五行"
+
+    def test_temp_safety_check_relaxed_keeps_shoe_limit(self):
+        """温度安全放宽补充路径：鞋履仍最多1件
+
+        bad case：极端温度下遵守品类限制后候选不足，放宽路径无上限
+        补充导致出现两双鞋。
+        """
+        from packages.recommendation.filters import apply_temperature_safety_check
+
+        top_items = [
+            {"id": 1, "category": "上装", "temp_score": 0.2, "name": "不合适"},
+            {"id": 2, "category": "鞋履", "temp_score": 0.8, "name": "鞋1"},
+        ]
+        # 候选池：多双鞋 + 多件上装（都温度安全）
+        scored_items = top_items + [
+            {"id": 3, "category": "鞋履", "temp_score": 0.9, "name": "鞋2"},
+            {"id": 4, "category": "鞋履", "temp_score": 0.85, "name": "鞋3"},
+            {"id": 5, "category": "上装", "temp_score": 0.7, "name": "T恤"},
+        ]
+        weather = {"temperature": -5}  # 极端低温
+
+        result = apply_temperature_safety_check(top_items, scored_items, weather, 2)
+
+        shoe_count = sum(1 for i in result if i.get("category") == "鞋履")
+        assert shoe_count <= 1, f"鞋履应≤1件，实际 {shoe_count} 件"
 
 
 # ============================================================

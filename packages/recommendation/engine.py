@@ -25,6 +25,7 @@ from packages.recommendation.filters import (
     apply_gender_hard_filter,
     apply_temperature_hard_filter,
     apply_temperature_safety_check,
+    apply_scene_hard_filter,
     filter_by_scene_score,
 )
 from packages.recommendation.diversity import (
@@ -163,6 +164,9 @@ def score_and_rank_items(
 
     # ========== 4. 场景分硬排除 ==========
     scored_items = filter_by_scene_score(scored_items)
+
+    # ========== 4.5 场景硬过滤（安全网：拦截衣橱/配饰辅路漏过的场景错配物品） ==========
+    scored_items = apply_scene_hard_filter(scored_items, scene, sub_scene, weather_info)
 
     # ========== 5. 温度硬过滤 ==========
     scored_items = apply_temperature_hard_filter(scored_items, weather_info)

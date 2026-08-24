@@ -15,11 +15,17 @@ const ELEMENT_EMOJI: Record<string, string> = {
   '金': '⚪', '木': '🟢', '水': '🔵', '火': '🔴', '土': '🟡',
 }
 
+// 整体搭配展示顺序：按穿搭部位从主到次排列，让推荐结果更像一套完整 Outfit（用户反馈 #5）
+const OUTFIT_SLOT_ORDER: Record<string, number> = {
+  '上装': 0, '裙装': 1, '下装': 2, '外套': 3, '鞋履': 4, '配饰': 5, '饰品': 6, '文玩': 7,
+}
+
 interface ChatMessageItemProps {
   message: ChatMessage
   onOpenPoster?: () => void
   onClosePoster?: () => void
   onRefreshBatch?: () => void
+  onNavigateToWardrobe?: () => void
   batchIndex?: number
   isLoading?: boolean
 }
@@ -29,6 +35,7 @@ export function ChatMessageItem({
   onOpenPoster,
   onClosePoster,
   onRefreshBatch,
+  onNavigateToWardrobe,
   batchIndex = 0,
   isLoading = false,
 }: ChatMessageItemProps) {
@@ -158,11 +165,23 @@ export function ChatMessageItem({
           <TravelPlanCard data={message.metadata.travelPlan} />
         )}
 
-        {/* 推荐卡片 */}
+        {/* 推荐卡片：按穿搭部位排序，以整体搭配方案呈现（用户反馈 #5） */}
         {message.metadata?.items && message.metadata.items.length > 0 && (
           <>
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              {message.metadata.items.map((item: RecommendItem, index: number) => (
+            {/* 整体搭配标题：强调这是一套可执行的搭配而非单品罗列 */}
+            <div className="flex items-center gap-2 pt-2">
+              <span className="text-xs font-medium text-stone-600">🧥 整体搭配方案</span>
+              <span className="text-[10px] text-stone-400">
+                {Array.from(new Set(message.metadata.items.map((it: RecommendItem) => it.category))).slice(0, 4).join(' · ') || `${message.metadata.items.length} 件单品`}
+              </span>
+            </div>
+            {/* 移动端加大行间距，避免卡片拥挤（用户反馈 #2） */}
+            <div className="grid grid-cols-2 gap-x-3 gap-y-4 pt-1 sm:gap-4">
+              {[...message.metadata.items]
+                .sort((a: RecommendItem, b: RecommendItem) =>
+                  (OUTFIT_SLOT_ORDER[a.category] ?? 8) - (OUTFIT_SLOT_ORDER[b.category] ?? 8)
+                )
+                .map((item: RecommendItem, index: number) => (
                 <RecommendCard 
                   key={item.item_code || `item-${index}`} 
                   item={item} 
@@ -192,6 +211,17 @@ export function ChatMessageItem({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
                   换一批
+                </button>
+              )}
+
+              {/* 衣橱交叉入口：推荐结果→衣橱，解决新用户找不到衣橱的问题 */}
+              {onNavigateToWardrobe && (
+                <button
+                  onClick={onNavigateToWardrobe}
+                  className="flex items-center gap-2 px-5 py-3 bg-white border border-stone-200 text-stone-700 rounded-xl font-medium hover:bg-stone-50 transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                >
+                  <span aria-hidden="true">👗</span>
+                  去衣橱试搭
                 </button>
               )}
             </div>
