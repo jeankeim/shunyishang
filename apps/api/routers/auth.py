@@ -94,7 +94,7 @@ class UpdateBaziRequest(BaseModel):
     birth_year: int = Field(..., ge=1900, le=2100)
     birth_month: int = Field(..., ge=1, le=12)
     birth_day: int = Field(..., ge=1, le=31)
-    birth_hour: int = Field(..., ge=0, le=23)
+    birth_hour: Optional[int] = Field(None, ge=0, le=23, description="出生时（0-23），未知时传 null 按三柱推演")
     gender: str = Field(..., pattern="^(男|女)$")
     sensitive_consent: bool = Field(False, description="是否单独同意处理出生信息（PIPL 敏感信息，必须为 true）")
 
@@ -514,7 +514,7 @@ async def update_bazi(
                 """,
                 (
                     encrypt_pii(f"{request.birth_year}-{request.birth_month:02d}-{request.birth_day:02d}"),
-                    encrypt_pii(f"{request.birth_hour:02d}:00:00"),
+                    encrypt_pii(f"{request.birth_hour:02d}:00:00") if request.birth_hour is not None else None,
                     request.gender,
                     bazi_result,
                     bazi_result["suggested_elements"],

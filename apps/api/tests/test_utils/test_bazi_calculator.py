@@ -98,6 +98,28 @@ class TestCalculateBazi:
         # cnlunar 已正确处理子时跨日，两者日柱应相同
         assert result_late["pillars"]["day"] == result_next_day["pillars"]["day"]
 
+    def test_birth_hour_unknown_three_pillars(self):
+        """时辰未知：按三柱推演，返回 6 字且时柱为'未知'"""
+        result = calculate_bazi(1990, 5, 15, None, "男")
+        assert len(result["eight_chars"]) == 6
+        assert result["pillars"]["hour"] == "未知"
+        assert "三柱" in result["reasoning"]
+        # 年/月/日柱与同时辰完整排盘一致（用正午12点对照）
+        full = calculate_bazi(1990, 5, 15, 12, "男")
+        assert result["pillars"]["year"] == full["pillars"]["year"]
+        assert result["pillars"]["month"] == full["pillars"]["month"]
+        assert result["pillars"]["day"] == full["pillars"]["day"]
+        assert result["day_master"] == full["day_master"]
+        # 喜用神可正常推出且喜忌不相交
+        assert result["suggested_elements"]
+        assert not set(result["suggested_elements"]) & set(result["avoid_elements"])
+
+    def test_birth_hour_unknown_zi_hour_day_stable(self):
+        """时辰未知时不受子时跨日影响：日柱按当日正午排盘"""
+        result = calculate_bazi(2000, 1, 15, None, "男")
+        result_noon = calculate_bazi(2000, 1, 15, 12, "男")
+        assert result["pillars"]["day"] == result_noon["pillars"]["day"]
+
     def test_round_precision_for_cangan_weights(self):
         """验证 round() 精度：地支藏干小数权重不被截断"""
         # 午: 丁(火,主气1) + 己(土,中气0.5) → round(0.5)=0 (Python banker's rounding)

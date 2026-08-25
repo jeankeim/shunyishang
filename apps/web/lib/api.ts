@@ -111,7 +111,7 @@ export interface RecommendRequest {
     birth_year: number
     birth_month: number
     birth_day: number
-    birth_hour: number
+    birth_hour: number | null  // null = 时辰未知，按三柱推演
     gender: '男' | '女'
   }
   gender?: '男' | '女'  // 用户性别（优先于bazi中的gender）
@@ -225,7 +225,7 @@ export interface BaziCalculateRequest {
   birth_year: number
   birth_month: number
   birth_day: number
-  birth_hour: number
+  birth_hour: number | null  // null = 时辰未知，按三柱推演
   gender: '男' | '女'
   /** PIPL 敏感信息处理同意（保存八字到账号时必传 true） */
   sensitive_consent?: boolean

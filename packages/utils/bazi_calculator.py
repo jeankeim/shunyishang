@@ -54,7 +54,7 @@ def calculate_bazi(
     birth_year: int,
     birth_month: int,
     birth_day: int,
-    birth_hour: int,
+    birth_hour: Optional[int],
     gender: str
 ) -> BaziResult:
     """
@@ -64,15 +64,20 @@ def calculate_bazi(
         birth_year: 出生年（公历）
         birth_month: 出生月
         birth_day: 出生日
-        birth_hour: 出生时（0-23）
+        birth_hour: 出生时（0-23），传 None 表示时辰未知，按三柱（年/月/日）推演
         gender: 性别（"男"或"女"）
     
     Returns:
         BaziResult: 八字计算结果
     """
+    # 时辰未知标记：后续仅按年/月/日三柱推演喜用神
+    hour_unknown = birth_hour is None
+
     # 使用 cnlunar 获取农历信息和四柱
     from datetime import datetime
-    dt = datetime(birth_year, birth_month, birth_day, birth_hour)
+    # 时辰未知时用正午12点占位排盘：年/月/日柱与具体时辰无关，
+    # 且避开子时（23:00-00:59）跨日逻辑，保证日柱稳定
+    dt = datetime(birth_year, birth_month, birth_day, birth_hour if not hour_unknown else 12)
     lunar = cnlunar.Lunar(dt, godType='8char')
     
     # 获取四柱（年柱、月柱、日柱、时柱）
@@ -81,16 +86,23 @@ def calculate_bazi(
     # cnlunar 已正确处理子时跨日：23:00-00:59 自动使用次日日柱
     day_gz = lunar.day8Char  # 日柱干支
     
-    # 时柱需要根据 twohourNum 从列表中取对应索引
-    hour_gz = lunar.twohour8CharList[lunar.twohourNum] if lunar.twohour8CharList else day_gz  # 时柱干支
-    
-    # 提取八个字
-    eight_chars = [
-        year_gz[0], year_gz[1],   # 年干、年支
-        month_gz[0], month_gz[1], # 月干、月支
-        day_gz[0], day_gz[1],     # 日干、日支
-        hour_gz[0], hour_gz[1],   # 时干、时支
-    ]
+    if hour_unknown:
+        # 三柱模式：不含时柱，仅 6 字（喜用神切片逻辑对 6 字列表天然兼容）
+        eight_chars = [
+            year_gz[0], year_gz[1],   # 年干、年支
+            month_gz[0], month_gz[1], # 月干、月支
+            day_gz[0], day_gz[1],     # 日干、日支
+        ]
+    else:
+        # 时柱需要根据 twohourNum 从列表中取对应索引
+        hour_gz = lunar.twohour8CharList[lunar.twohourNum] if lunar.twohour8CharList else day_gz  # 时柱干支
+        # 提取八个字
+        eight_chars = [
+            year_gz[0], year_gz[1],   # 年干、年支
+            month_gz[0], month_gz[1], # 月干、月支
+            day_gz[0], day_gz[1],     # 日干、日支
+            hour_gz[0], hour_gz[1],   # 时干、时支
+        ]
     
     # 统计五行分布
     five_elements_count = count_five_elements(eight_chars)
@@ -105,6 +117,8 @@ def calculate_bazi(
     suggested_elements, avoid_elements, reasoning = infer_xiyong(
         day_master, month_element, eight_chars=eight_chars, day_gan=day_gz[0]
     )
+    if hour_unknown:
+        reasoning = f"时辰未知，按年/月/日三柱推演（不含时柱）。{reasoning}"
     
     # 找出最旺和缺失的五行
     dominant_element = max(five_elements_count, key=five_elements_count.get)
@@ -115,7 +129,7 @@ def calculate_bazi(
             "year": year_gz,
             "month": month_gz,
             "day": day_gz,
-            "hour": hour_gz,
+            "hour": "未知" if hour_unknown else hour_gz,
         },
         eight_chars=eight_chars,
         five_elements_count=five_elements_count,

@@ -47,8 +47,8 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
   const { setRadarData, userBazi, setUserBazi } = useChatStore()
   const { user, isAuthenticated } = useUserStore()
 
-  // 日期状态
-  const [date, setDate] = useState({
+  // 日期状态（hour 为 null 表示时辰未知，按三柱推演）
+  const [date, setDate] = useState<{ year: number; month: number; day: number; hour: number | null; minute: number }>({
     year: 1995,
     month: 1,
     day: 1,
@@ -77,7 +77,7 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
         year: birthDate.getFullYear(),
         month: birthDate.getMonth() + 1,
         day: birthDate.getDate(),
-        hour: user.birth_time ? parseInt(user.birth_time.split(':')[0]) : 12,
+        hour: user.birth_time ? parseInt(user.birth_time.split(':')[0]) : null,
         minute: user.birth_time ? parseInt(user.birth_time.split(':')[1]) : 0,
       }
       const newGender = user.gender as '男' | '女'
@@ -109,7 +109,7 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
             year: birthDate.getFullYear(),
             month: birthDate.getMonth() + 1,
             day: birthDate.getDate(),
-            hour: birth_time ? parseInt(birth_time.split(':')[0]) : 12,
+            hour: birth_time ? parseInt(birth_time.split(':')[0]) : null,
             minute: birth_time ? parseInt(birth_time.split(':')[1]) : 0,
           }
           const newGender = gender as '男' | '女'
@@ -165,8 +165,8 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
   // 性能优化：使用 useCallback 缓存事件处理函数
   // ============================================================
 
-  // 更新日期的通用方法
-  const updateDate = useCallback((field: keyof typeof date, value: number) => {
+  // 更新日期的通用方法（hour 可为 null 表示时辰未知）
+  const updateDate = useCallback((field: keyof typeof date, value: number | null) => {
     setDate(prev => ({ ...prev, [field]: value }))
   }, [])
 
@@ -300,6 +300,7 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
           {userBazi && (
             <span className="text-xs text-[var(--brand-subtle)]">
               {userBazi.birthYear}年{userBazi.birthMonth}月{userBazi.birthDay}日
+              {userBazi.birthHour === null ? '（时辰未知）' : ''}
             </span>
           )}
         </div>
@@ -446,10 +447,11 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
             <div className="min-w-0">
               <label className="text-xs text-[var(--brand-subtle)] mb-1 block truncate">时辰</label>
               <select
-                value={date.hour}
-                onChange={(e) => updateDate('hour', parseInt(e.target.value))}
+                value={date.hour === null ? 'unknown' : date.hour}
+                onChange={(e) => updateDate('hour', e.target.value === 'unknown' ? null : parseInt(e.target.value))}
                 className="w-full min-w-[70px] px-3 py-2.5 rounded-lg border border-[var(--brand-border)] bg-white text-sm text-[var(--brand-heading)] focus:outline-none focus:ring-2 focus:ring-[#3DA35D]/30 focus:border-[#3DA35D] hover:border-[#3DA35D]/50 transition-all duration-200"
               >
+                <option value="unknown">未知</option>
                 {HOUR_OPTIONS.map((h) => (
                   <option key={h.value} value={h.value}>
                     {h.label}
@@ -458,6 +460,14 @@ export function BaziInputSection({ className }: BaziInputSectionProps) {
               </select>
             </div>
           </div>
+
+          {/* 时辰未知提示 */}
+          {date.hour === null && (
+            <div className="flex items-start gap-2 px-3 py-2 bg-[#F9F5EC]/60 border border-[#B89B5E]/40 rounded-lg text-xs text-[#8A7340]">
+              <AlertCircle className="h-3.5 w-3.5 text-[#B89B5E] mt-0.5 flex-shrink-0" />
+              <span>时辰未知：喜用神将按年/月/日三柱推演（不含时柱），后续推荐均以此为准；若后续确认时辰，可随时修改重新计算。</span>
+            </div>
+          )}
 
           {/* 农历日期显示（公历模式下显示） */}
           {calendarType === 'solar' && lunarDisplay && (

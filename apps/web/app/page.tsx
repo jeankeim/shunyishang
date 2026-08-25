@@ -22,7 +22,7 @@ import { useUserStore } from '@/store/user'
 import { requestChatInputAutofill } from '@/lib/chatAutofill'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { motion, AnimatePresence } from 'framer-motion'
-import { BookOpen, Mountain, Compass, MoreHorizontal } from 'lucide-react'
+import { BookOpen, Mountain, Compass, MoreHorizontal, X } from 'lucide-react'
 import { SkeletonCard } from '@/components/ui'
 
 // 懒加载衣橱页面，减少首页初始加载时间
@@ -131,7 +131,7 @@ function QuickRecommendBar({
 }
 
 export default function Home() {
-  const { radarData, setUserBazi } = useChatStore()
+  const { radarData, userBazi, setUserBazi } = useChatStore()
   const { user, isAuthenticated, isLoading: isAuthLoading } = useUserStore()
   const [mounted, setMounted] = useState(false)
   const [scene, setScene] = useState('')
@@ -145,6 +145,8 @@ export default function Home() {
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [smartAlerts, setSmartAlerts] = useState<string[]>([])
+  // 首次访问提醒：提醒用户务必填写出生日期（关闭状态存 localStorage，不再重复打扰）
+  const [showBaziPrompt, setShowBaziPrompt] = useState(false)
   
   // 判断用户是否有八字（已登录且资料完整）
   const hasBazi = isAuthenticated && !isAuthLoading && user?.bazi
@@ -170,12 +172,26 @@ export default function Home() {
         birthYear: birthDate.getFullYear(),
         birthMonth: birthDate.getMonth() + 1,
         birthDay: birthDate.getDate(),
-        birthHour: user.birth_time ? parseInt(user.birth_time.split(':')[0]) : 12,
+        birthHour: user.birth_time ? parseInt(user.birth_time.split(':')[0]) : null,
         gender: user.gender as '男' | '女',
       }
       setUserBazi(baziInput)
     }
   }, [hasBazi, user, setUserBazi])
+
+  // 首次访问且尚无八字时，展示“务必填写出生日期”提醒
+  useEffect(() => {
+    if (!mounted || isAuthLoading) return
+    const dismissed = typeof window !== 'undefined' && localStorage.getItem('bazi_first_visit_prompted')
+    if (!dismissed && !hasBazi && !userBazi) {
+      setShowBaziPrompt(true)
+    }
+  }, [mounted, isAuthLoading, hasBazi, userBazi])
+
+  const dismissBaziPrompt = useCallback(() => {
+    localStorage.setItem('bazi_first_visit_prompted', '1')
+    setShowBaziPrompt(false)
+  }, [])
 
   // 监听hash变化
   useEffect(() => {
@@ -338,6 +354,23 @@ export default function Home() {
             transition={{ delay: 0.2 }}
             className="card-secondary p-5 bg-gradient-to-br from-[var(--brand-surface)]/80 to-[var(--brand-surface-active)]/60 hover:shadow-[0_6px_24px_rgba(61,163,93,0.12)] transition-all duration-300 group"
           >
+            {/* 首次访问提醒：务必填写出生日期，否则推荐不准 */}
+            {showBaziPrompt && (
+              <div className="mb-4 p-3 bg-[#FFF8E8] border border-[#B89B5E]/50 rounded-lg relative">
+                <button
+                  onClick={dismissBaziPrompt}
+                  aria-label="关闭提醒"
+                  className="absolute top-2 right-2 text-[#B89B5E] hover:text-[#8A7340] transition-colors"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+                <p className="text-xs font-semibold text-[#9A7E47] pr-5">请务必填写出生日期</p>
+                <p className="text-xs text-[#8A7340] mt-1 leading-relaxed">
+                  推荐以八字喜用神为依据，缺少出生日期会明显影响推荐准确度。
+                  不知道时辰可选“未知”，将按年/月/日三柱推演。
+                </p>
+              </div>
+            )}
             <div className="flex items-center gap-3 mb-4">
               <div className="w-2.5 h-2.5 bg-gradient-to-br from-[var(--wuxing-wood)] to-[var(--wuxing-water)] rounded-full group-hover:scale-110 transition-transform duration-300"></div>
               <h2 className="font-semibold text-[var(--brand-heading)] text-base tracking-wide">生辰八字</h2>

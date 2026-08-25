@@ -4,7 +4,7 @@ export interface BaziInput {
   birthYear: number
   birthMonth: number
   birthDay: number
-  birthHour: number
+  birthHour: number | null  // null = 时辰未知，按三柱推演
   gender: '男' | '女'
 }
 

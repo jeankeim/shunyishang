@@ -467,7 +467,10 @@ def _generate_ai_narrative(
     # 命带神煞上下文（纯规则查表；eight_chars 缺失时从四柱重建）
     eight_chars = user_bazi.get("eight_chars") or []
     if len(eight_chars) != 8 and pillars:
-        eight_chars = [ch for k in ("year", "month", "day", "hour") for ch in (pillars.get(k) or "")]
+        rebuilt = [ch for k in ("year", "month", "day", "hour") for ch in (pillars.get(k) or "")]
+        # 时辰未知（三柱）时重建会混入"未知"等无效字，宁缺勿误：不输出神煞
+        if len(rebuilt) == 8 and all(c in TIANGAN_WUXING or c in DIZHI_WUXING for c in rebuilt):
+            eight_chars = rebuilt
     shen_sha_text = shen_sha_context(eight_chars) if len(eight_chars) == 8 else ""
     shen_sha_section = f"\n## 命带神煞\n{shen_sha_text}\n" if shen_sha_text else ""
 

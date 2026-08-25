@@ -245,6 +245,14 @@ def analyze_ten_gods_chart(bazi_result: Dict[str, Any]) -> Dict[str, Any]:
 
     for pillar_name in ["year", "month", "day", "hour"]:
         gz = pillars.get(pillar_name, "甲子")
+        # 时辰未知时时柱为"未知"，无法计算十神，直接标记跳过
+        if gz and gz[0] not in TIANGAN_WUXING:
+            pillar_gods[pillar_name] = {
+                "stem": None,
+                "ganzhi": gz,
+                "ten_god": "未知",
+            }
+            continue
         stem = gz[0]
         if pillar_name == "day":
             ten_god = "日主"

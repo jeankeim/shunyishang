@@ -20,14 +20,14 @@ class BaziCalculateRequest(BaseModel):
     birth_year: int = Field(..., ge=1900, le=2100, description="出生年（公历）")
     birth_month: int = Field(..., ge=1, le=12, description="出生月")
     birth_day: int = Field(..., ge=1, le=31, description="出生日")
-    birth_hour: int = Field(..., ge=0, le=23, description="出生时（0-23）")
+    birth_hour: Optional[int] = Field(None, ge=0, le=23, description="出生时（0-23），未知时传 null 按三柱推演")
     gender: str = Field(..., pattern="^(男|女)$", description="性别：男/女")
 
 
 class BaziCalculateResponse(BaseModel):
     """八字计算响应"""
-    pillars: Dict[str, str] = Field(..., description="四柱：年柱、月柱、日柱、时柱")
-    eight_chars: List[str] = Field(..., description="八字：8个字")
+    pillars: Dict[str, str] = Field(..., description="四柱：年柱、月柱、日柱、时柱（时辰未知时为'未知'）")
+    eight_chars: List[str] = Field(..., description="八字：8个字（时辰未知时为6个字）")
     five_elements_count: Dict[str, int] = Field(..., description="五行统计")
     dominant_element: str = Field(..., description="最旺五行")
     lacking_element: Optional[str] = Field(None, description="缺失五行")
@@ -59,8 +59,8 @@ async def bazi_calculate(request: BaziCalculateRequest):
     
     **依赖**: `packages/utils/bazi_calculator.py:calculate_bazi()`
     """
-    # 生成缓存键
-    birth_key = f"bazi:{request.birth_year}:{request.birth_month}:{request.birth_day}:{request.birth_hour}:{request.gender}"
+    # 生成缓存键（时辰未知用 'x' 占位）
+    birth_key = f"bazi:{request.birth_year}:{request.birth_month}:{request.birth_day}:{request.birth_hour if request.birth_hour is not None else 'x'}:{request.gender}"
     
     # 尝试读取缓存
     cached = await cache.get(birth_key)

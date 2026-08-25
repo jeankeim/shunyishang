@@ -78,12 +78,14 @@ export function BaziCard({ onEdit }: BaziCardProps) {
   const reasoning = humanizeReasoning(bazi.reasoning || '')
   
   // 解析八字四柱 - 后端返回格式: pillars: {year: "甲子", month: "乙丑", ...}
+  // 时辰未知时 hour 为"未知"，时柱展示为占位样式
   const pillarsData = bazi.pillars || {}
+  const hourUnknown = pillarsData.hour === '未知'
   const pillars = [
-    { name: '年柱', gan: pillarsData.year?.[0] || '', zhi: pillarsData.year?.[1] || '' },
-    { name: '月柱', gan: pillarsData.month?.[0] || '', zhi: pillarsData.month?.[1] || '' },
-    { name: '日柱', gan: pillarsData.day?.[0] || '', zhi: pillarsData.day?.[1] || '' },
-    { name: '时柱', gan: pillarsData.hour?.[0] || '', zhi: pillarsData.hour?.[1] || '' },
+    { name: '年柱', gan: pillarsData.year?.[0] || '', zhi: pillarsData.year?.[1] || '', unknown: false },
+    { name: '月柱', gan: pillarsData.month?.[0] || '', zhi: pillarsData.month?.[1] || '', unknown: false },
+    { name: '日柱', gan: pillarsData.day?.[0] || '', zhi: pillarsData.day?.[1] || '', unknown: false },
+    { name: '时柱', gan: hourUnknown ? '' : (pillarsData.hour?.[0] || ''), zhi: hourUnknown ? '' : (pillarsData.hour?.[1] || ''), unknown: hourUnknown },
   ]
   
   // 获取天干地支的五行颜色
@@ -131,14 +133,20 @@ export function BaziCard({ onEdit }: BaziCardProps) {
         {pillars.map((pillar, idx) => (
           <div key={idx} className="text-center">
             <div className="text-xs text-[var(--brand-subtle)] font-medium mb-1">{pillar.name}</div>
-            <div className="space-y-1">
-              <div className={`w-9 h-9 mx-auto rounded-lg ${getGanColor(pillar.gan)} text-white flex items-center justify-center font-bold text-sm shadow-sm`}>
-                {pillar.gan}
+            {pillar.unknown ? (
+              <div className="w-9 h-[4.5rem] mx-auto rounded-lg bg-gray-200 text-gray-400 flex items-center justify-center text-xs font-medium shadow-sm [writing-mode:vertical-rl] tracking-widest">
+                未知
               </div>
-              <div className={`w-9 h-9 mx-auto rounded-lg ${getZhiColor(pillar.zhi)} text-white flex items-center justify-center font-bold text-sm shadow-sm`}>
-                {pillar.zhi}
+            ) : (
+              <div className="space-y-1">
+                <div className={`w-9 h-9 mx-auto rounded-lg ${getGanColor(pillar.gan)} text-white flex items-center justify-center font-bold text-sm shadow-sm`}>
+                  {pillar.gan}
+                </div>
+                <div className={`w-9 h-9 mx-auto rounded-lg ${getZhiColor(pillar.zhi)} text-white flex items-center justify-center font-bold text-sm shadow-sm`}>
+                  {pillar.zhi}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         ))}
       </div>

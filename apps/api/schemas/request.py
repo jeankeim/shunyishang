@@ -11,7 +11,7 @@ class BaziInput(BaseModel):
     birth_year: int = Field(..., ge=1900, le=2100, description="出生年（公历）")
     birth_month: int = Field(..., ge=1, le=12, description="出生月")
     birth_day: int = Field(..., ge=1, le=31, description="出生日")
-    birth_hour: int = Field(..., ge=0, le=23, description="出生时（0-23）")
+    birth_hour: Optional[int] = Field(None, ge=0, le=23, description="出生时（0-23），未知时传 null 按三柱推演")
     gender: str = Field(..., pattern="^(男|女)$", description="性别：男/女")
 
 
