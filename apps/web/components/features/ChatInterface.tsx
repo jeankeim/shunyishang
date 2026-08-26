@@ -231,6 +231,8 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity, on
   const [batchIndex, setBatchIndex] = useState(0)  // 换一批：当前批次索引（0-2）
   const [lastQuery, setLastQuery] = useState<string>('')  // 换一批：记录上次查询内容
   const [lastBazi, setLastBazi] = useState<BaziInput | undefined>(undefined)  // 换一批：记录上次八字
+    // 自动折叠：换一批/新输入后，旧推荐结果收起为一行摘要，不占地方（用户可点击展开）
+    const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set())
   const {
     currentConversation,
     currentConversationId,
@@ -301,6 +303,9 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity, on
     if (!convId) {
       convId = createConversation()
     }
+
+    // 新输入：自动折叠此前所有推荐结果，保持对话区清爽（可点击摘要条展开）
+    collapsePriorResults()
 
     // 保存查询内容用于"换一批"功能
     setLastQuery(content)
@@ -501,10 +506,26 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity, on
     }
   }
 
+  // 自动折叠：将当前会话中已有推荐结果的旧消息标记为折叠态（仅含 items 的 assistant 消息）
+  const collapsePriorResults = useCallback(() => {
+    const priorIds = (currentConversation?.messages || [])
+      .filter(m => m.role === 'assistant' && m.metadata?.items && m.metadata.items.length > 0)
+      .map(m => m.id)
+    if (priorIds.length === 0) return
+    setCollapsedIds(prev => {
+      const next = new Set(prev)
+      priorIds.forEach(id => next.add(id))
+      return next
+    })
+  }, [currentConversation?.messages])
+
   // 换一批：重新请求相同查询但不同批次
   const handleRefreshBatch = async () => {
     if (!lastQuery || batchIndex >= 2) return  // 最多3批（0, 1, 2）
     
+    // 新批次到来：旧批次结果自动折叠，只展示最新一批（可展开回看）
+    collapsePriorResults()
+
     const newBatchIndex = batchIndex + 1
     setBatchIndex(newBatchIndex)
     
@@ -774,6 +795,13 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity, on
                 onNavigateToWardrobe={onNavigateToWardrobe}
                 batchIndex={batchIndex}
                 isLoading={false}
+                collapsed={collapsedIds.has(message.id)}
+                onToggleCollapse={(c) => setCollapsedIds(prev => {
+                  const next = new Set(prev)
+                  if (c) next.add(message.id)
+                  else next.delete(message.id)
+                  return next
+                })}
               />
             ))}
           </div>

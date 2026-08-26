@@ -28,6 +28,10 @@ interface ChatMessageItemProps {
   onNavigateToWardrobe?: () => void
   batchIndex?: number
   isLoading?: boolean
+  /** 自动折叠：换一批/新输入后旧推荐结果收起为一行摘要，不再占位 */
+  collapsed?: boolean
+  /** 用户手动展开/收起时的回调（父组件同步记录，避免状态回弹） */
+  onToggleCollapse?: (collapsed: boolean) => void
 }
 
 export function ChatMessageItem({ 
@@ -38,6 +42,8 @@ export function ChatMessageItem({
   onNavigateToWardrobe,
   batchIndex = 0,
   isLoading = false,
+  collapsed: collapsedProp = false,
+  onToggleCollapse,
 }: ChatMessageItemProps) {
   const user = useUserStore(state => state.user)
   const displayName = user?.nickname || user?.phone || '用户'
@@ -49,6 +55,14 @@ export function ChatMessageItem({
   const hasItems = !!message.metadata?.items  // 已有推荐物品
   const [isPosterOpen, setIsPosterOpen] = useState(false)
   const messageRef = useRef<HTMLDivElement>(null)
+
+  // 折叠态：外部（换一批/新输入）自动收起，本地允许手动展开/收起；
+  // 流式消息不做折叠（用户正在看结果）
+  const [collapsedState, setCollapsedState] = useState(collapsedProp)
+  useEffect(() => {
+    setCollapsedState(collapsedProp)
+  }, [collapsedProp])
+  const isCollapsed = collapsedState && !isStreaming
 
   // 当海报弹窗打开时，滚动到顶部
   useEffect(() => {
@@ -140,17 +154,17 @@ export function ChatMessageItem({
           </div>
         )}
 
-        {/* 内容 */}
+        {/* 内容（折叠态下收起正文，只保留下方摘要条） */}
         {message.type === 'hint' ? (
           <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60 rounded-xl p-4 text-stone-700">
             <p className="text-sm leading-relaxed">{message.content}</p>
           </div>
-        ) : (
+        ) : !isCollapsed ? (
           <div className="text-stone-700 leading-relaxed whitespace-pre-wrap">
             {message.content}
             {isStreaming && message.content && <span className="inline-block w-0.5 h-4 bg-amber-500 ml-0.5 animate-pulse align-middle" />}
           </div>
-        )}
+        ) : null}
 
         {/* 软降级提示横幅（如衣橱→公共库） */}
         {message.metadata?.notice && (
@@ -166,14 +180,57 @@ export function ChatMessageItem({
         )}
 
         {/* 推荐卡片：按穿搭部位排序，以整体搭配方案呈现（用户反馈 #5） */}
-        {message.metadata?.items && message.metadata.items.length > 0 && (
+        {message.metadata?.items && message.metadata.items.length > 0 && isCollapsed && (
+          /* 折叠摘要条：旧批次推荐自动收起，一行即可重新展开 */
+          <button
+            onClick={() => {
+              setCollapsedState(false)
+              onToggleCollapse?.(false)
+            }}
+            className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-amber-200/50 bg-amber-50/50 hover:bg-amber-50 transition-colors text-left"
+            aria-label="展开查看这条推荐结果"
+          >
+            <span className="flex items-center gap-2 min-w-0 text-xs text-stone-500">
+              <span aria-hidden="true">🧥</span>
+              <span className="truncate">
+                {message.metadata.items.length} 件单品 · {Array.from(new Set(message.metadata.items.map((it: RecommendItem) => it.category))).slice(0, 3).join(' / ')}
+              </span>
+            </span>
+            <span className="shrink-0 text-[11px] text-stone-400 flex items-center gap-0.5">
+              展开
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </span>
+          </button>
+        )}
+
+        {message.metadata?.items && message.metadata.items.length > 0 && !isCollapsed && (
           <>
             {/* 整体搭配标题：强调这是一套可执行的搭配而非单品罗列 */}
-            <div className="flex items-center gap-2 pt-2">
-              <span className="text-xs font-medium text-stone-600">🧥 整体搭配方案</span>
-              <span className="text-[10px] text-stone-400">
-                {Array.from(new Set(message.metadata.items.map((it: RecommendItem) => it.category))).slice(0, 4).join(' · ') || `${message.metadata.items.length} 件单品`}
-              </span>
+            <div className="flex items-center justify-between gap-2 pt-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xs font-medium text-stone-600">🧥 整体搭配方案</span>
+                <span className="text-[10px] text-stone-400 truncate">
+                  {Array.from(new Set(message.metadata.items.map((it: RecommendItem) => it.category))).slice(0, 4).join(' · ') || `${message.metadata.items.length} 件单品`}
+                </span>
+              </div>
+              {/* 手动收起：已看过的批次可随时折叠，不占地方 */}
+              {!isStreaming && (
+                <button
+                  onClick={() => {
+                    setCollapsedState(true)
+                    onToggleCollapse?.(true)
+                  }}
+                  className="shrink-0 flex items-center gap-0.5 text-[11px] text-stone-400 hover:text-stone-600 transition-colors"
+                  aria-label="收起这条推荐结果"
+                >
+                  收起
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                  </svg>
+                </button>
+              )}
             </div>
             {/* 移动端加大行间距，避免卡片拥挤（用户反馈 #2） */}
             <div className="grid grid-cols-2 gap-x-3 gap-y-4 pt-1 sm:gap-4">

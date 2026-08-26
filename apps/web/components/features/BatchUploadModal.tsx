@@ -94,6 +94,9 @@ export function BatchUploadModal({ isOpen, onClose, onSuccess }: BatchUploadModa
 
   const [step, setStep] = useState<Step>('select')
   const [selectedFiles, setSelectedFiles] = useState<SelectedEntry[]>([])
+  // 溢出队列：系统选择器一次最多可选 100 项，与每批 5 件上限不符，
+  // 超出部分自动入队，本批入库成功后自动晋升为下一批
+  const [queuedFiles, setQueuedFiles] = useState<SelectedEntry[]>([])
   const [dragOver, setDragOver] = useState(false)
   const [cards, setCards] = useState<BatchCard[]>([])
   const [isRecognizing, setIsRecognizing] = useState(false)
@@ -115,6 +118,8 @@ export function BatchUploadModal({ isOpen, onClose, onSuccess }: BatchUploadModa
       cards.forEach(c => URL.revokeObjectURL(c.previewUrl))
       setStep('select')
       setSelectedFiles([])
+      queuedFiles.forEach(e => URL.revokeObjectURL(e.previewUrl))
+      setQueuedFiles([])
       setCards([])
       setIsRecognizing(false)
       setWuxingLoading(false)
@@ -131,17 +136,8 @@ export function BatchUploadModal({ isOpen, onClose, onSuccess }: BatchUploadModa
     setError('')
     setSuccessMsg('')
     const incoming = Array.from(files)
-    const accepted: SelectedEntry[] = []
+    const valid: SelectedEntry[] = []
     for (const f of incoming) {
-      if (selectedFiles.length + accepted.length >= MAX_BATCH) {
-        setError(`每批最多上传 ${MAX_BATCH} 件，超出部分请分批上传`)
-        // 醒目的全局提示：避免超限被静默截断导致用户困惑（用户反馈 #7）
-        toast.warning(
-          `每批最多上传 ${MAX_BATCH} 件，已保留前 ${selectedFiles.length + accepted.length} 件，其余请分批上传`,
-          4000
-        )
-        break
-      }
       if (!ACCEPTED_TYPES.includes(f.type)) {
         setError(`「${f.name}」格式不支持，仅支持 JPG/PNG/WebP`)
         continue
@@ -160,10 +156,22 @@ export function BatchUploadModal({ isOpen, onClose, onSuccess }: BatchUploadModa
         setError(`「${f.name}」过大且无法压缩至 5MB 内，请更换图片`)
         continue
       }
-      accepted.push({ id: makeId(), file: target, previewUrl: URL.createObjectURL(target) })
+      valid.push({ id: makeId(), file: target, previewUrl: URL.createObjectURL(target) })
     }
-    if (accepted.length > 0) {
-      setSelectedFiles(prev => [...prev, ...accepted])
+    if (valid.length === 0) return
+    // 本批补足 MAX_BATCH 件，溢出进队列由后续批次自动上传
+    const room = Math.max(0, MAX_BATCH - selectedFiles.length)
+    const toBatch = valid.slice(0, room)
+    const toQueue = valid.slice(room)
+    if (toBatch.length > 0) setSelectedFiles(prev => [...prev, ...toBatch])
+    if (toQueue.length > 0) {
+      setQueuedFiles(prev => [...prev, ...toQueue])
+      toast.warning(
+        toBatch.length > 0
+          ? `每批上限 ${MAX_BATCH} 件：本批保留 ${toBatch.length} 件，${toQueue.length} 件已排队待后续批次自动上传`
+          : `本批已满 ${MAX_BATCH} 件，新选 ${toQueue.length} 张已排队待后续批次自动上传`,
+        4000
+      )
     }
   }, [selectedFiles.length])
 
@@ -174,6 +182,14 @@ export function BatchUploadModal({ isOpen, onClose, onSuccess }: BatchUploadModa
       return prev.filter((_, i) => i !== index)
     })
     setError('')
+  }, [])
+
+  const removeQueued = useCallback((index: number) => {
+    setQueuedFiles(prev => {
+      const target = prev[index]
+      if (target) URL.revokeObjectURL(target.previewUrl)
+      return prev.filter((_, i) => i !== index)
+    })
   }, [])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -430,10 +446,24 @@ export function BatchUploadModal({ isOpen, onClose, onSuccess }: BatchUploadModa
       onSuccess()
 
       if (resp.failed.length === 0) {
-        // 全部成功：清空已选，弹窗保留支持下一批
-        setSuccessMsg(`成功入库 ${resp.created.length} 件，可继续上传下一批`)
+        // 全部成功：清空卡片，弹窗保留支持下一批
         cards.forEach(c => URL.revokeObjectURL(c.previewUrl))
         setCards([])
+        if (queuedFiles.length > 0) {
+          // 队列自动晋升：取前 MAX_BATCH 件作为下一批，其余继续排队
+          const next = queuedFiles.slice(0, MAX_BATCH)
+          const rest = queuedFiles.slice(MAX_BATCH)
+          setQueuedFiles(rest)
+          setSelectedFiles(next)
+          setSuccessMsg(
+            `成功入库 ${resp.created.length} 件，已自动排入下一批 ${next.length} 件` +
+              (rest.length > 0 ? `（队列还剩 ${rest.length} 件）` : '') +
+              '，点击「开始识别」继续'
+          )
+        } else {
+          setSelectedFiles([])
+          setSuccessMsg(`成功入库 ${resp.created.length} 件，可继续上传下一批`)
+        }
         setStep('select')
       } else {
         // 部分失败：成功项已进列表，失败卡片保留可重提
@@ -455,6 +485,7 @@ export function BatchUploadModal({ isOpen, onClose, onSuccess }: BatchUploadModa
   const handleClose = () => {
     if (isRecognizing || isSubmitting) return
     selectedFiles.forEach(e => URL.revokeObjectURL(e.previewUrl))
+    queuedFiles.forEach(e => URL.revokeObjectURL(e.previewUrl))
     cards.forEach(c => URL.revokeObjectURL(c.previewUrl))
     onClose()
   }
@@ -770,6 +801,7 @@ export function BatchUploadModal({ isOpen, onClose, onSuccess }: BatchUploadModa
                   : 'bg-rose-50 text-rose-600'
               }`}>
                 已选 {step === 'select' ? selectedFiles.length : cards.length}/{MAX_BATCH}
+                {queuedFiles.length > 0 && ` · 排队 ${queuedFiles.length}`}
               </span>
             </div>
             <button
@@ -806,43 +838,21 @@ export function BatchUploadModal({ isOpen, onClose, onSuccess }: BatchUploadModa
             {step === 'select' && (
               <div className="space-y-4">
                 <div
-                  onClick={() => {
-                    // 本批已达上限时不再弹出文件选择，改用 Toast 引导分批（用户反馈 #7）
-                    if (selectedFiles.length >= MAX_BATCH) {
-                      toast.warning(`每批最多上传 ${MAX_BATCH} 件，请先点击「开始识别」，完成后可继续上传下一批`, 4000)
-                      return
-                    }
-                    fileInputRef.current?.click()
-                  }}
+                  onClick={() => fileInputRef.current?.click()}
                   onDragOver={e => { e.preventDefault(); setDragOver(true) }}
                   onDragLeave={() => setDragOver(false)}
                   onDrop={handleDrop}
-                  className={`rounded-2xl border-2 border-dashed p-8 text-center transition-all ${
-                    selectedFiles.length >= MAX_BATCH
-                      ? 'cursor-not-allowed border-stone-200 bg-stone-50 opacity-70'
-                      : `cursor-pointer ${
-                          dragOver
-                            ? 'border-rose-400 bg-rose-50'
-                            : 'border-stone-300 hover:border-rose-300 hover:bg-rose-50/30'
-                        }`
+                  className={`rounded-2xl border-2 border-dashed p-8 text-center transition-all cursor-pointer ${
+                    dragOver
+                      ? 'border-rose-400 bg-rose-50'
+                      : 'border-stone-300 hover:border-rose-300 hover:bg-rose-50/30'
                   }`}
                 >
                   <div className="text-4xl mb-3">👕</div>
-                  {selectedFiles.length >= MAX_BATCH ? (
-                    <>
-                      <p className="text-sm font-medium text-[var(--brand-body)]">本批已达上限 {MAX_BATCH} 件</p>
-                      <p className="text-xs text-[var(--brand-subtle)] mt-1">
-                        请先点击「开始识别」完成本批，入库成功后可继续上传下一批
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-sm font-medium text-[var(--brand-body)]">拖拽图片到此处，或点击选择</p>
-                      <p className="text-xs text-[var(--brand-subtle)] mt-1">
-                        支持 JPG / PNG / WebP，超过 5MB 自动压缩，每批最多 {MAX_BATCH} 件
-                      </p>
-                    </>
-                  )}
+                  <p className="text-sm font-medium text-[var(--brand-body)]">拖拽图片到此处，或点击选择（可多选）</p>
+                  <p className="text-xs text-[var(--brand-subtle)] mt-1">
+                    支持 JPG / PNG / WebP，超过 5MB 自动压缩；每批 {MAX_BATCH} 件，超出自动排队分批上传
+                  </p>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -881,6 +891,50 @@ export function BatchUploadModal({ isOpen, onClose, onSuccess }: BatchUploadModa
                         </button>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {queuedFiles.length > 0 && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-medium text-amber-700">
+                        排队中 · {queuedFiles.length} 张（每批 {MAX_BATCH} 件，本批完成后自动上传）
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          queuedFiles.forEach(e => URL.revokeObjectURL(e.previewUrl))
+                          setQueuedFiles([])
+                        }}
+                        className="text-xs text-amber-600 hover:text-amber-700 font-medium"
+                      >
+                        清空队列
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-5 sm:grid-cols-8 gap-2">
+                      {queuedFiles.map((entry, i) => (
+                        <div key={entry.id} className="relative aspect-square rounded-lg overflow-hidden bg-stone-100 group">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={entry.previewUrl}
+                            alt={entry.file.name}
+                            loading="lazy"
+                            decoding="async"
+                            className="absolute inset-0 h-full w-full object-cover opacity-80"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeQueued(i)}
+                            className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            aria-label="移除排队图片"
+                          >
+                            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 
