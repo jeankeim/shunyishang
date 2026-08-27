@@ -14,6 +14,8 @@ interface RecommendCardProps {
   sessionId?: string
   onFeedback?: (action: 'like' | 'dislike') => void
   onImageClick?: (imageUrl: string) => void
+  /** 是否显示卡片底部推荐理由小字（搭配页仅对最相关1-2张显示，避免雷同重复） */
+  showReason?: boolean
 }
 
 // 点踩原因配置：五行传统色系（低饱和、雅致）
@@ -25,7 +27,7 @@ const DISLIKE_REASONS = [
   { value: 'other', label: '其他', color: 'bg-[#5A5A5A]', ring: 'ring-[#5A5A5A]/30' },       // 墨灰
 ]
 
-export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick }: RecommendCardProps) {
+export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick, showReason = true }: RecommendCardProps) {
   const [feedback, setFeedback] = useState<'like' | 'dislike' | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [imageError, setImageError] = useState(false)
@@ -530,7 +532,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
         </div>
 
         {/* 推荐理由（五行契合/场景适配/气温适配，后端生成，用户反馈 #6） */}
-        {item.reason && (
+        {item.reason && showReason && (
           <div className="mt-2 px-2.5 py-1.5 rounded-lg bg-amber-50/80 border border-amber-100">
             <p className="text-[11px] leading-relaxed text-amber-700 line-clamp-2">
               <span className="mr-1" aria-hidden="true">💡</span>

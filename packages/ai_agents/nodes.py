@@ -1998,7 +1998,7 @@ def generate_advice_stream(
             client=client,
             messages=[{"role": "user", "content": prompt}],
             model=settings.qwen_model,
-            max_tokens=300,
+            max_tokens=220,  # 推荐理由压缩至100-130字（约150 token），220留足余量
             stream=True,
             include_usage=True,
         )

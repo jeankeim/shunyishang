@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react'
 import { motion } from 'framer-motion'
 import { ChatMessage, RecommendItem } from '@/types'
 import { RecommendCard } from './RecommendCard'
@@ -63,6 +63,16 @@ export function ChatMessageItem({
     setCollapsedState(collapsedProp)
   }, [collapsedProp])
   const isCollapsed = collapsedState && !isStreaming
+
+  // 推荐理由小字：仅对匹配度（final_score）最高的2件展示，避免多张卡片雷同重复
+  const topReasonItems = useMemo(() => {
+    const withReason = (message.metadata?.items || []).filter((it: RecommendItem) => it.reason)
+    return new Set(
+      [...withReason]
+        .sort((a: RecommendItem, b: RecommendItem) => (b.final_score ?? 0) - (a.final_score ?? 0))
+        .slice(0, 2)
+    )
+  }, [message.metadata?.items])
 
   // 当海报弹窗打开时，滚动到顶部
   useEffect(() => {
@@ -244,6 +254,7 @@ export function ChatMessageItem({
                   item={item} 
                   index={index} 
                   onImageClick={(imageUrl) => setSelectedImage(imageUrl)}
+                  showReason={topReasonItems.has(item)}
                 />
               ))}
             </div>

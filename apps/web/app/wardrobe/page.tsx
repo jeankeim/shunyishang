@@ -663,6 +663,7 @@ export default function WardrobePage() {
                 isOpen={isBatchModalOpen}
                 onClose={() => setIsBatchModalOpen(false)}
                 onSuccess={() => { fetchItems(); refreshStats(filters) }}
+                isEmptyWardrobe={wardrobeEmpty}
               />
             </Suspense>
 

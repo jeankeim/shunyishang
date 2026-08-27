@@ -81,13 +81,15 @@ interface BatchUploadModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess: () => void
+  /** 衣橱是否为空：空衣橱时展示首传鼓励文案，入库有衣物后自动隐藏 */
+  isEmptyWardrobe?: boolean
 }
 
 function makeId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-export function BatchUploadModal({ isOpen, onClose, onSuccess }: BatchUploadModalProps) {
+export function BatchUploadModal({ isOpen, onClose, onSuccess, isEmptyWardrobe = false }: BatchUploadModalProps) {
   const { addItems } = useWardrobeStore()
   const { isAuthenticated } = useUserStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -850,6 +852,14 @@ export function BatchUploadModal({ isOpen, onClose, onSuccess }: BatchUploadModa
                 >
                   <div className="text-4xl mb-3">👕</div>
                   <p className="text-sm font-medium text-[var(--brand-body)]">拖拽图片到此处，或点击选择（可多选）</p>
+                  {/* 空衣橱鼓励文案：入库有衣物后自动隐藏，不打扰老用户 */}
+                  {isEmptyWardrobe && (
+                    <p className="text-xs text-rose-500 mt-1.5 leading-relaxed">
+                      支持一次选择多组照片，每 {MAX_BATCH} 件自动解析入库一组，
+                      <br />
+                      让衣橱一下子丰富起来，赶快行动吧 ✨
+                    </p>
+                  )}
                   <p className="text-xs text-[var(--brand-subtle)] mt-1">
                     支持 JPG / PNG / WebP，超过 5MB 自动压缩；每批 {MAX_BATCH} 件，超出自动排队分批上传
                   </p>
