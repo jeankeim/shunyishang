@@ -38,7 +38,7 @@ export function MobileBottomNav({ activeTab, onTabChange }: MobileBottomNavProps
   const [showMore, setShowMore] = useState(false)
   const [showGuide, setShowGuide] = useState(false)
 
-  // 首次访问导航引导：延迟弹出一次性气泡，告知新用户底部导航可切换页面
+  // 首次访问引导：延迟弹出一次性气泡，引导新用户填写出生信息以获得个性化推荐
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined
     try {
@@ -158,7 +158,7 @@ export function MobileBottomNav({ activeTab, onTabChange }: MobileBottomNavProps
         )}
       </AnimatePresence>
 
-      {/* 首次访问导航引导气泡 */}
+      {/* 首次访问引导气泡：引导填写出生信息 */}
       <AnimatePresence>
         {showGuide && (
           <motion.div
@@ -169,13 +169,13 @@ export function MobileBottomNav({ activeTab, onTabChange }: MobileBottomNavProps
             className="md:hidden fixed bottom-20 left-4 right-4 z-[55] px-4 py-3 rounded-2xl bg-stone-900/90 text-white text-xs leading-relaxed shadow-xl"
           >
             <div className="flex items-start gap-2">
-              <span className="text-sm" aria-hidden="true">👇</span>
+              <span className="text-sm" aria-hidden="true">✨</span>
               <span className="flex-1">
-                底部导航可切换页面：<b>运势</b>看今日运势、<b>衣橱</b>管理衣物、<b>我的</b>看个人资料
+                填写<b>出生年月日时</b>，解锁你的专属五行推荐～时辰不确定？选「未知」也可以哦
               </span>
               <button
                 onClick={dismissGuide}
-                aria-label="关闭导航引导"
+                aria-label="关闭引导提示"
                 className="text-white/60 hover:text-white"
               >
                 ✕
