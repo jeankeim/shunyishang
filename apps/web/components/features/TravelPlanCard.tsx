@@ -18,6 +18,7 @@ interface DailyPlan {
     name: string
     category: string
     primary_element: string
+    image_url?: string
     final_score?: number
     scene_score?: number
     wuxing_score?: number
@@ -58,6 +59,8 @@ interface TravelPlanData {
 
 interface TravelPlanCardProps {
   data: TravelPlanData
+  /** 点击每日衣物图片时回调（复用消息层灯箱） */
+  onImageClick?: (imageUrl: string) => void
 }
 
 const ELEMENT_COLORS: Record<string, string> = {
@@ -70,7 +73,7 @@ const ELEMENT_COLORS: Record<string, string> = {
 
 const LUGGAGE_EMOJI: Record<string, string> = { '小': '🎒', '中': '🧳', '大': '💼' }
 
-export function TravelPlanCard({ data }: TravelPlanCardProps) {
+export function TravelPlanCard({ data, onImageClick }: TravelPlanCardProps) {
   const [expandedDay, setExpandedDay] = useState<number | null>(0)
   const [showWuxing, setShowWuxing] = useState(false)
 
@@ -184,26 +187,46 @@ export function TravelPlanCard({ data }: TravelPlanCardProps) {
                     className="overflow-hidden"
                   >
                     <div className="px-4 pb-3 space-y-2">
-                      {plan.items.map((item, itemIdx) => (
-                        <div
-                          key={itemIdx}
-                          className="flex items-center gap-3 px-3 py-2 bg-stone-50 rounded-lg"
-                        >
-                          <div className={`w-2 h-8 rounded-full bg-gradient-to-b ${ELEMENT_COLORS[item.primary_element] || 'from-stone-200 to-stone-300'}`} />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-stone-700 truncate">{item.name}</p>
-                            <p className="text-xs text-stone-500">{item.category} · {item.primary_element}</p>
+                      {/* 每日衣物图片直接展示在对应天下方（用户反馈），点击图片可放大 */}
+                      <div className="grid grid-cols-2 gap-2">
+                        {plan.items.map((item, itemIdx) => (
+                          <div
+                            key={itemIdx}
+                            className="bg-stone-50 rounded-lg overflow-hidden border border-stone-100"
+                          >
+                            {item.image_url && (
+                              <button
+                                type="button"
+                                onClick={() => onImageClick?.(item.image_url!)}
+                                className="block w-full aspect-square bg-stone-100 cursor-zoom-in"
+                                aria-label={`查看${item.name}大图`}
+                              >
+                                <img
+                                  src={item.image_url}
+                                  alt={item.name}
+                                  loading="lazy"
+                                  className="w-full h-full object-cover"
+                                />
+                              </button>
+                            )}
+                            <div className="px-2.5 py-2">
+                              <div className="flex items-center gap-1.5">
+                                <div className={`shrink-0 w-1.5 h-4 rounded-full bg-gradient-to-b ${ELEMENT_COLORS[item.primary_element] || 'from-stone-200 to-stone-300'}`} />
+                                <p className="flex-1 min-w-0 text-xs font-medium text-stone-700 truncate">{item.name}</p>
+                                {item.final_score !== undefined && (
+                                  <span
+                                    className="shrink-0 text-[11px] font-semibold text-amber-600 cursor-help"
+                                    title={`综合匹配度 ${(item.final_score * 100).toFixed(0)} 分\n场景适配 ${((item.scene_score ?? 0) * 100).toFixed(0)} · 五行 ${((item.wuxing_score ?? 0) * 100).toFixed(0)} · 天气 ${((item.weather_score ?? 0) * 100).toFixed(0)}`}
+                                  >
+                                    {(item.final_score * 100).toFixed(0)}分
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-stone-400 mt-0.5">{item.category} · {item.primary_element}</p>
+                            </div>
                           </div>
-                          {item.final_score !== undefined && (
-                            <span
-                              className="text-xs font-semibold text-amber-600 cursor-help"
-                              title={`综合匹配度 ${(item.final_score * 100).toFixed(0)} 分\n场景适配 ${((item.scene_score ?? 0) * 100).toFixed(0)} · 五行 ${((item.wuxing_score ?? 0) * 100).toFixed(0)} · 天气 ${((item.weather_score ?? 0) * 100).toFixed(0)}`}
-                            >
-                              {(item.final_score * 100).toFixed(0)}分
-                            </span>
-                          )}
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                       {plan.notes && (
                         <p className="text-xs text-stone-500 italic mt-1">{plan.notes}</p>
                       )}

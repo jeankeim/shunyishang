@@ -15,7 +15,7 @@ describe('useChatStore', () => {
         suggestedData: { '金': 20, '木': 20, '水': 20, '火': 20, '土': 20 },
         xiyongShen: [],
       },
-      retrievalMode: 'hybrid',
+      retrievalMode: 'wardrobe',
     })
   })
 
@@ -27,7 +27,7 @@ describe('useChatStore', () => {
       expect(state.currentConversation).toBeNull()
       expect(state.userBazi).toBeNull()
       expect(state.isLoading).toBe(false)
-      expect(state.retrievalMode).toBe('hybrid')
+      expect(state.retrievalMode).toBe('wardrobe')
     })
 
     it('should have default radar data', () => {
@@ -283,9 +283,6 @@ describe('useChatStore', () => {
 
       useChatStore.getState().setRetrievalMode('wardrobe')
       expect(useChatStore.getState().retrievalMode).toBe('wardrobe')
-
-      useChatStore.getState().setRetrievalMode('hybrid')
-      expect(useChatStore.getState().retrievalMode).toBe('hybrid')
     })
   })
 
@@ -304,8 +301,8 @@ describe('useChatStore', () => {
 })
 
 describe('getDefaultRetrievalMode', () => {
-  it('should return hybrid when authenticated', () => {
-    expect(getDefaultRetrievalMode(true)).toBe('hybrid')
+  it('should return wardrobe when authenticated', () => {
+    expect(getDefaultRetrievalMode(true)).toBe('wardrobe')
   })
 
   it('should return public when not authenticated', () => {
@@ -314,8 +311,8 @@ describe('getDefaultRetrievalMode', () => {
 })
 
 describe('RETRIEVAL_MODE_CONFIG', () => {
-  it('should have correct config for public mode', () => {
-    expect(RETRIEVAL_MODE_CONFIG.public.label).toBe('全局库')
+  it('should have correct config for public mode (灵感库)', () => {
+    expect(RETRIEVAL_MODE_CONFIG.public.label).toBe('灵感库')
     expect(RETRIEVAL_MODE_CONFIG.public.requiresAuth).toBe(false)
   })
 
@@ -324,8 +321,7 @@ describe('RETRIEVAL_MODE_CONFIG', () => {
     expect(RETRIEVAL_MODE_CONFIG.wardrobe.requiresAuth).toBe(true)
   })
 
-  it('should have correct config for hybrid mode', () => {
-    expect(RETRIEVAL_MODE_CONFIG.hybrid.label).toBe('智能混合')
-    expect(RETRIEVAL_MODE_CONFIG.hybrid.requiresAuth).toBe(true)
+  it('should not expose hybrid mode in UI', () => {
+    expect('hybrid' in RETRIEVAL_MODE_CONFIG).toBe(false)
   })
 })

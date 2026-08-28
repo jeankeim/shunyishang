@@ -36,7 +36,7 @@ function RetrievalModeCompact({ isAuthenticated }: { isAuthenticated: boolean })
       role="radiogroup"
       aria-label="推荐范围切换"
     >
-      {(Object.keys(RETRIEVAL_MODE_CONFIG) as RetrievalMode[]).map((mode) => {
+      {(Object.keys(RETRIEVAL_MODE_CONFIG) as (keyof typeof RETRIEVAL_MODE_CONFIG)[]).map((mode) => {
         const config = RETRIEVAL_MODE_CONFIG[mode]
         const isActive = retrievalMode === mode
         return (
@@ -351,13 +351,15 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity, on
     // 优先从用户资料获取性别，其次从八字输入获取
     const userGender = (user?.gender as '男' | '女' | undefined) || effectiveBazi?.gender
     
-    // 未登录时强制使用 public 模式
-    const effectiveRetrievalMode = isAuthenticated ? retrievalMode : 'public'
+    // 未登录时强制使用 public 模式；hybrid 已下线，历史值兜底为 wardrobe
+    const effectiveRetrievalMode = isAuthenticated
+      ? (retrievalMode === 'hybrid' ? 'wardrobe' : retrievalMode)
+      : 'public'
     
     // 获取用户ID（衣橱模式需要）
     const userId = user?.id
     
-    // 防御性降级：衣橱/智能混合模式需要 user_id，若用户资料尚未加载完成则降级为 public
+    // 防御性降级：衣橱模式需要 user_id，若用户资料尚未加载完成则降级为 public
     const finalRetrievalMode = (effectiveRetrievalMode !== 'public' && !userId) ? 'public' : effectiveRetrievalMode
     // 构建请求参数
     const requestParams = {
@@ -461,12 +463,12 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity, on
             if (errorMsg.includes('衣橱')) {
               // 衣橱相关错误（需要登录）
               if (isAuthenticated) {
-                userFriendlyMsg = '👗 ' + errorMsg + '\n\n💡 建议：\n1. 先添加几件衣物到您的衣橱\n2. 或切换到「智能混合」/「全局库」模式'
+                userFriendlyMsg = '👗 ' + errorMsg + '\n\n💡 建议：\n1. 先添加几件衣物到您的衣橱\n2. 或切换到「灵感库」模式'
               } else {
                 userFriendlyMsg = '👗 ' + errorMsg + '\n\n💡 建议：登录后可使用「我的衣橱」模式，获得更个性化的推荐'
               }
             } else if (errorMsg.includes('没有找到')) {
-              // 未找到衣物的错误（可能是全局库为空或筛选条件太严格）
+              // 未找到衣物的错误（可能是灵感库为空或筛选条件太严格）
               userFriendlyMsg = '👗 ' + errorMsg + '\n\n💡 建议：\n1. 尝试调整筛选条件\n2. 更换推荐场景或天气'
             } else if (errorMsg.includes('登录')) {
               userFriendlyMsg = '🔒 ' + errorMsg
@@ -476,7 +478,7 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity, on
               return
             } else if (finalRetrievalMode === 'wardrobe') {
               // 衣橱模式下的未知错误：通常是衣橱为空或衣物缺少语义向量
-              userFriendlyMsg = '👗 暂时无法从您的衣橱生成推荐。\n\n💡 建议：\n1. 确认衣橱中已添加衣物\n2. 或切换到「智能混合」/「全局库」模式再试'
+              userFriendlyMsg = '👗 暂时无法从您的衣橱生成推荐。\n\n💡 建议：\n1. 确认衣橱中已添加衣物\n2. 或切换到「灵感库」模式再试'
             }
             
             // 如果已经有推荐卡片，不覆盖错误信息，只在控制台记录
@@ -717,11 +719,11 @@ export function ChatInterface({ scene, weatherElement, weatherInfo, userCity, on
                 <div className="flex items-center gap-2 text-blue-700">
                   <span className="text-lg">🔓</span>
                   <span className="text-sm font-medium">
-                    当前使用全局库模式
+                    当前使用灵感库模式
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-stone-500">
-                  登录后可解锁「我的衣橱」和「智能混合」模式，获得更个性化的推荐
+                  登录后可解锁「我的衣橱」模式，获得更个性化的推荐
                 </p>
               </div>
             )}

@@ -123,7 +123,8 @@ export function ChatMessageItem({
         </div>
       </div>
 
-      <div className="flex-1 space-y-3 min-w-0">
+      {/* 移动端：整列内容左移与 AI 头像左缘对齐（正文/推荐理由/卡片一致），充分利用窄屏宽度（用户反馈）；桌面端保持原缩进 */}
+      <div className={cn('flex-1 space-y-3 min-w-0', !isUser && '-ml-12 md:ml-0')}>
         <div className="font-medium">{isUser ? '' : ''}</div>
 
         {/* 五行标签 */}
@@ -184,9 +185,9 @@ export function ChatMessageItem({
           </div>
         )}
 
-        {/* 多天行程规划卡片 */}
+        {/* 多天行程规划卡片：每日衣物图片直接展示在对应天下方（用户反馈），底部不再重复聚合网格 */}
         {message.metadata?.travelPlan && (
-          <TravelPlanCard data={message.metadata.travelPlan} />
+          <TravelPlanCard data={message.metadata.travelPlan} onImageClick={(imageUrl) => setSelectedImage(imageUrl)} />
         )}
 
         {/* 推荐卡片：按穿搭部位排序，以整体搭配方案呈现（用户反馈 #5） */}
@@ -217,8 +218,11 @@ export function ChatMessageItem({
 
         {message.metadata?.items && message.metadata.items.length > 0 && !isCollapsed && (
           <>
-            {/* 移动端：推荐内容左移与 AI 头像左缘对齐，充分利用窄屏宽度（用户反馈）；桌面端保持原缩进 */}
-            <div className="-ml-12 md:ml-0 space-y-3">
+            {/* 行程规划场景下每日图片已在 TravelPlanCard 内按天展示，底部不再重复聚合网格 */}
+            {!message.metadata?.travelPlan && (
+            <>
+            {/* 移动端对齐由外层内容列统一处理（-ml-12） */}
+            <div className="space-y-3">
             {/* 整体搭配标题：强调这是一套可执行的搭配而非单品罗列 */}
             <div className="flex items-center justify-between gap-2 pt-2">
               <div className="flex items-center gap-2 min-w-0">
@@ -261,6 +265,8 @@ export function ChatMessageItem({
               ))}
             </div>
             </div>
+            </>
+            )}
 
             {/* 生成海报按钮 */}
             <div className="pt-4 flex justify-center gap-3">

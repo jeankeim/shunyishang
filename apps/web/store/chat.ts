@@ -18,14 +18,15 @@ const DEFAULT_RADAR: RadarData = {
   xiyongShen: [],
 }
 
-// 推荐检索模式
+// 推荐检索模式（hybrid 已下线：入口移除，历史持久化值由 migrate 迁移为 wardrobe）
 export type RetrievalMode = 'public' | 'wardrobe' | 'hybrid'
 
-export const RETRIEVAL_MODE_CONFIG: Record<RetrievalMode, { label: string; icon: string; description: string; requiresAuth: boolean }> = {
+// 界面可见的推荐模式：仅「灵感库」与「我的衣橱」
+export const RETRIEVAL_MODE_CONFIG: Record<Exclude<RetrievalMode, 'hybrid'>, { label: string; icon: string; description: string; requiresAuth: boolean }> = {
   public: {
-    label: '全局库',
-    icon: '🛒',
-    description: '从公共种子库推荐',
+    label: '灵感库',
+    icon: '✨',
+    description: '从平台精选单品推荐',
     requiresAuth: false,
   },
   wardrobe: {
@@ -34,17 +35,11 @@ export const RETRIEVAL_MODE_CONFIG: Record<RetrievalMode, { label: string; icon:
     description: '仅从您的衣橱推荐',
     requiresAuth: true,
   },
-  hybrid: {
-    label: '智能混合',
-    icon: '✨',
-    description: '优先衣橱，不足时补充',
-    requiresAuth: true,
-  },
 }
 
 // 获取默认推荐模式（根据登录状态）
 export function getDefaultRetrievalMode(isAuthenticated: boolean): RetrievalMode {
-  return isAuthenticated ? 'hybrid' : 'public'
+  return isAuthenticated ? 'wardrobe' : 'public'
 }
 
 interface ChatState {
@@ -78,7 +73,7 @@ export const useChatStore = create<ChatState>()(
       userBazi: null,
       isLoading: false,
       radarData: DEFAULT_RADAR,
-      retrievalMode: 'hybrid',
+      retrievalMode: 'wardrobe',
 
       createConversation: () => {
         const id = `conv_${Date.now()}`
@@ -213,6 +208,15 @@ export const useChatStore = create<ChatState>()(
     {
       name: 'wuxing-chat-storage',
       skipHydration: true,
+      // hybrid 模式已下线：老用户持久化的 'hybrid' 迁移为 'wardrobe'
+      version: 1,
+      migrate: (persistedState, version) => {
+        const state = persistedState as { retrievalMode?: RetrievalMode }
+        if (version < 1 && state?.retrievalMode === 'hybrid') {
+          state.retrievalMode = 'wardrobe'
+        }
+        return persistedState
+      },
       partialize: (state) => ({
         conversations: state.conversations,
         userBazi: state.userBazi,
