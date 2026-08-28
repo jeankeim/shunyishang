@@ -217,6 +217,8 @@ export function ChatMessageItem({
 
         {message.metadata?.items && message.metadata.items.length > 0 && !isCollapsed && (
           <>
+            {/* 移动端：推荐内容左移与 AI 头像左缘对齐，充分利用窄屏宽度（用户反馈）；桌面端保持原缩进 */}
+            <div className="-ml-12 md:ml-0 space-y-3">
             {/* 整体搭配标题：强调这是一套可执行的搭配而非单品罗列 */}
             <div className="flex items-center justify-between gap-2 pt-2">
               <div className="flex items-center gap-2 min-w-0">
@@ -257,6 +259,7 @@ export function ChatMessageItem({
                   showReason={topReasonItems.has(item)}
                 />
               ))}
+            </div>
             </div>
 
             {/* 生成海报按钮 */}
