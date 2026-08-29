@@ -14,6 +14,7 @@ import { MobileControlPanel } from '@/components/features/MobileControlPanel'
 import { MobileBottomNav } from '@/components/features/MobileBottomNav'
 import { DailyRitualCard } from '@/components/features/DailyRitualCard'
 import { DailyOutfitCard } from '@/components/features/DailyOutfitCard'
+import { WeeklyOutfitCalendar } from '@/components/features/WeeklyOutfitCalendar'
 import { QuickCheckIn } from '@/components/features/QuickCheckIn'
 import { IcpFooter } from '@/components/features/IcpFooter'
 import { PullToRefresh } from '@/components/features/PullToRefresh'
@@ -740,6 +741,11 @@ export default function Home() {
                 {/* 每日智能穿搭建议 — 已登录用户自动展示 */}
                 {isAuthenticated && !isAuthLoading && (
                   <DailyOutfitCard isAuthenticated={isAuthenticated} city={userCity} />
+                )}
+
+                {/* 一周穿搭日历 — 今日穿搭卡下方，按 7 天预报预先排好 */}
+                {isAuthenticated && !isAuthLoading && (
+                  <WeeklyOutfitCalendar isAuthenticated={isAuthenticated} city={userCity} />
                 )}
 
                 {/* 快捷推荐入口 — 已登录用户一键推荐 */}

@@ -1,77 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Cloud, Sun, CloudRain, Wind, MapPin, Briefcase, Coffee, Heart, Users, Plane, Locate, Loader2, Dumbbell, GraduationCap, PartyPopper, Home, Gift, X } from 'lucide-react'
+import { Cloud, Sun, CloudRain, Wind, MapPin, Briefcase, Locate, Loader2, X } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
-
-// 场景时间段定义（用于智能排序）
-const TIME_SLOTS: Record<string, { start: number; end: number }> = {
-  '商务': { start: 9, end: 12 },
-  '会议': { start: 10, end: 12 },
-  '面试': { start: 9, end: 11 },
-  '日常': { start: 8, end: 18 },
-  '约会': { start: 18, end: 22 },
-  '运动': { start: 6, end: 9 },
-  '派对': { start: 20, end: 24 },
-  '旅行': { start: 7, end: 19 },
-  '居家': { start: 19, end: 24 },
-  '婚礼': { start: 10, end: 16 },
-}
-
-// 常用场景定义 — ID 与后端 SCENE_ELEMENT_MAP 中文 key 完全一致
-const COMMON_SCENES = [
-  { id: '商务', label: '商务办公', icon: Briefcase, element: '金', desc: '专业沉稳' },
-  { id: '会议', label: '会议汇报', icon: Users, element: '金', desc: '正式专业' },
-  { id: '面试', label: '面试求职', icon: GraduationCap, element: '金', desc: '职业干练' },
-  { id: '日常', label: '休闲日常', icon: Coffee, element: '土', desc: '舒适自然' },
-  { id: '约会', label: '约会聚会', icon: Heart, element: '火', desc: '浪漫活力' },
-  { id: '运动', label: '运动健身', icon: Dumbbell, element: '木', desc: '活力清爽' },
-  { id: '旅行', label: '出行旅游', icon: Plane, element: '木', desc: '自由灵动' },
-  { id: '派对', label: '派对聚会', icon: PartyPopper, element: '火', desc: '热情闪耀' },
-  { id: '居家', label: '居家休闲', icon: Home, element: '土', desc: '温暖舒适' },
-  { id: '婚礼', label: '婚礼婚宴', icon: Gift, element: '火', desc: '喜庆华丽' },
-]
-
-// 获取当前时间段的场景排序
-function getSortedScenes(): typeof COMMON_SCENES {
-  const hour = new Date().getHours()
-  const usageFreq = getSceneUsageFrequency()
-
-  return [...COMMON_SCENES].sort((a, b) => {
-    const aFreq = usageFreq[a.id] || 0
-    const bFreq = usageFreq[b.id] || 0
-    const aSlot = TIME_SLOTS[a.id]
-    const bSlot = TIME_SLOTS[b.id]
-    const aInSlot = aSlot ? (hour >= aSlot.start && hour < aSlot.end ? 1 : 0) : 0
-    const bInSlot = bSlot ? (hour >= bSlot.start && hour < bSlot.end ? 1 : 0) : 0
-
-    // 1. 当前时间段优先
-    if (aInSlot !== bInSlot) return bInSlot - aInSlot
-    // 2. 使用频率次之
-    if (aFreq !== bFreq) return bFreq - aFreq
-    // 3. 默认顺序
-    return 0
-  })
-}
-
-// 场景使用频率（localStorage 持久化）
-function getSceneUsageFrequency(): Record<string, number> {
-  try {
-    const data = localStorage.getItem('scene_usage_frequency')
-    return data ? JSON.parse(data) : {}
-  } catch {
-    return {}
-  }
-}
-
-function recordSceneUsage(sceneId: string) {
-  try {
-    const freq = getSceneUsageFrequency()
-    freq[sceneId] = (freq[sceneId] || 0) + 1
-    localStorage.setItem('scene_usage_frequency', JSON.stringify(freq))
-  } catch {}
-}
+import {
+  COMMON_SCENES,
+  SCENE_TIME_SLOTS,
+  getSceneUsageFrequency,
+  getSortedScenes,
+  recordSceneUsage,
+} from '@/lib/scene-config'
 
 // 天气图标映射
 const WEATHER_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -743,7 +682,7 @@ export function WeatherSceneSection({
             const isSelected = selectedScene === scene.id
             const usageFreq = getSceneUsageFrequency()
             const isFrequent = (usageFreq[scene.id] || 0) >= 3
-            const slot = TIME_SLOTS[scene.id]
+            const slot = SCENE_TIME_SLOTS[scene.id]
             const hour = new Date().getHours()
             const isCurrentSlot = slot ? (hour >= slot.start && hour < slot.end) : false
             return (

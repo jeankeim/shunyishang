@@ -3,9 +3,9 @@
 """
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import List, Optional
-from apps.api.services.poster_service import generate_poster
+from apps.api.services.poster_service import generate_poster, generate_week_poster_bytes
 from fastapi.responses import Response
 import logging
 
@@ -107,4 +107,72 @@ async def generate_poster_base64(request: PosterGenerateRequest):
         
     except Exception as e:
         logger.error(f"Base64 海报生成失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"海报生成失败: {str(e)}")
+
+
+# ============================================================
+# 一周穿搭海报
+# ============================================================
+
+VALID_WEEK_THEMES = {"fire", "wood", "earth", "metal", "water"}
+
+
+class WeekPosterRequest(BaseModel):
+    """一周穿搭海报请求（days 来自 GET /recommend/week-outfit）"""
+    days: List[dict]
+    theme: str = "wood"
+    username: Optional[str] = ""
+    signature: Optional[str] = "顺衣尚"
+    city: Optional[str] = ""
+
+    @field_validator("days")
+    @classmethod
+    def _check_days(cls, v: List[dict]) -> List[dict]:
+        if not v:
+            raise ValueError("days 不能为空")
+        if len(v) > 7:
+            raise ValueError("days 最多 7 天")
+        for day in v:
+            if not str(day.get("date") or "").strip():
+                raise ValueError("每一天都需要 date 字段")
+            items = day.get("items")
+            if items is not None and not isinstance(items, list):
+                raise ValueError("items 必须是数组")
+        return v
+
+    @field_validator("theme")
+    @classmethod
+    def _check_theme(cls, v: str) -> str:
+        return v if v in VALID_WEEK_THEMES else "wood"
+
+
+@router.post("/week")
+async def generate_week_poster_image(request: WeekPosterRequest):
+    """
+    生成一周穿搭海报并返回 Base64 编码
+
+    Returns:
+        { "image": "base64_string", "filename": "xxx.png", "size": 字节数 }
+    """
+    try:
+        import base64
+
+        logger.info(f"收到一周海报生成请求: {len(request.days)} 天, theme={request.theme}")
+
+        image_bytes = generate_week_poster_bytes(
+            days=request.days,
+            theme=request.theme,
+            username=request.username or "",
+            signature=request.signature or "顺衣尚",
+            city=request.city or "",
+        )
+
+        return {
+            "image": base64.b64encode(image_bytes).decode("utf-8"),
+            "filename": "一周穿搭海报.png",
+            "size": len(image_bytes),
+        }
+
+    except Exception as e:
+        logger.error(f"一周海报生成失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"海报生成失败: {str(e)}")

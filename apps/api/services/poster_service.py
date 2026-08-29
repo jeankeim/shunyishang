@@ -1079,6 +1079,216 @@ def generate_guofeng_poster(
     return img.convert('RGB')
 
 
+# ============================================================
+# 一周穿搭海报（7 行网格竖版）
+# ============================================================
+
+# 行布局：7 天 × (行高 + 间距)，从 WEEK_ROWS_TOP 起排
+# 7*200 + 6*12 = 1472，行尾 1734，留 186px 给底部落款
+WEEK_ROW_HEIGHT = 200
+WEEK_ROW_GAP = 12
+WEEK_ROWS_TOP = 262
+WEEK_THUMB_SIZE = 130
+
+
+def _truncate(text: str, limit: int) -> str:
+    """按字符数截断（中文等宽场景够用），超出补省略号"""
+    text = (text or '').strip()
+    return text if len(text) <= limit else text[:limit] + '…'
+
+
+def _paste_round_thumb(
+    img: Image.Image,
+    url: str,
+    x: int,
+    y: int,
+    size: int,
+    cache: Dict[str, Optional[Image.Image]],
+    border: str = ANTIQUE_GOLD,
+):
+    """下载并居中裁剪成圆角缩略图贴到 (x, y)，失败时画虚位方框"""
+    sheet: Optional[Image.Image] = None
+    if url:
+        if url not in cache:
+            cache[url] = download_image(url, timeout=8)
+        sheet = cache[url]
+
+    if sheet is None:
+        d = ImageDraw.Draw(img)
+        d.rounded_rectangle([x, y, x + size, y + size], radius=12,
+                            outline=(176, 141, 87, 90), width=2)
+        d.text((x + size // 2, y + size // 2), '衣', fill=(122, 116, 104, 140),
+               font=get_serif_font(int(size * 0.28)), anchor='mm')
+        return
+
+    w, h = sheet.size
+    side = min(w, h)
+    sheet = sheet.crop(((w - side) // 2, (h - side) // 2, (w + side) // 2, (h + side) // 2))
+    sheet = sheet.resize((size, size), Image.Resampling.LANCZOS)
+    mask = Image.new('L', (size, size), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, size, size], radius=12, fill=255)
+    img.paste(sheet, (x, y), mask)
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle([x, y, x + size, y + size], radius=12, outline=border, width=2)
+
+
+def generate_week_poster(
+    days: List[Dict],
+    theme_name: str = 'wood',
+    username: str = '',
+    signature: str = '顺衣尚',
+    city: str = '',
+) -> Image.Image:
+    """
+    生成「一周穿搭」海报：1080x1920 竖版，7 行日历网格
+
+    每行 = 日期/星期/天气温度 + 当日成套前 3 件缩略图 + 幸运元素印章，
+    沿用宋锦国风的宣纸底、回纹、印章与衬线字，缺图时降级为占位方框。
+    """
+    theme = GUOFENG_THEMES.get(theme_name, GUOFENG_THEMES['wood'])
+    primary = hex_to_rgb(theme['primary'])
+    ink_dark = hex_to_rgb(theme['ink_dark'])
+
+    # ---- 背景：宣纸底 + 主题水墨晕染 ----
+    img = Image.new('RGBA', (POSTER_WIDTH, POSTER_HEIGHT), theme['paper'])
+    overlay = Image.new('RGBA', (POSTER_WIDTH, POSTER_HEIGHT), (0, 0, 0, 0))
+    od = ImageDraw.Draw(overlay)
+    od.ellipse([-220, -260, 560, 260], fill=(*ink_dark, 45))
+    od.ellipse([720, -180, 1400, 220], fill=(*primary, 40))
+    od.ellipse([-260, 1720, 520, 2200], fill=(*primary, 26))
+    od.ellipse([760, 1760, 1420, 2240], fill=(*ink_dark, 26))
+    overlay = overlay.filter(ImageFilter.GaussianBlur(96))
+    img = Image.alpha_composite(img, overlay)
+    paper_tex = load_poster_asset('paper_texture.png')
+    if paper_tex is not None:
+        img = Image.alpha_composite(img, paper_tex)
+    draw = ImageDraw.Draw(img)
+
+    # ---- 顶部回纹 + 标题 ----
+    draw_meander(draw, 90, 40, POSTER_WIDTH - 180, unit=30, color=ANTIQUE_GOLD, line_width=2)
+
+    first_date = str((days[0] or {}).get('date') or '') if days else ''
+    last_date = str((days[-1] or {}).get('date') or '') if days else ''
+    lucky_head = next(
+        (str(e) for d in days for e in (d.get('lucky_elements') or [])), ''
+    ) if days else ''
+    draw_seal(img, 90, 92, 96, lucky_head or '衣', font=get_serif_font(46))
+    draw = ImageDraw.Draw(img)
+
+    title_font = get_serif_font(72)
+    draw.text((POSTER_WIDTH // 2, 148), '一周穿搭', fill=INK, font=title_font, anchor='mm')
+
+    sub_font = get_serif_font(28)
+    range_text = ''
+    if first_date and last_date:
+        range_text = f"{first_date[5:].replace('-', '/')} — {last_date[5:].replace('-', '/')}"
+        if city:
+            range_text = f"{city} · {range_text}"
+    if username:
+        range_text = f"{username} · {range_text}" if range_text else f"{username} 的一周"
+    draw.text((POSTER_WIDTH // 2, 216), range_text or '按天气与运势排好的一周',
+              fill=theme['primary'], font=sub_font, anchor='mm')
+
+    # ---- 7 行日历 ----
+    weekday_font = get_serif_font(40)
+    date_font = get_serif_font(24)
+    meta_font = get_serif_font(22)
+    name_font = get_serif_font(20)
+    thumb_cache: Dict[str, Optional[Image.Image]] = {}
+
+    for idx in range(7):
+        day = days[idx] if idx < len(days) else {}
+        y = WEEK_ROWS_TOP + idx * (WEEK_ROW_HEIGHT + WEEK_ROW_GAP)
+
+        draw_soft_shadow(img, [70, y, POSTER_WIDTH - 70, y + WEEK_ROW_HEIGHT],
+                         radius=16, blur=12, alpha=30, dy=7)
+        draw = ImageDraw.Draw(img)
+        draw.rounded_rectangle([70, y, POSTER_WIDTH - 70, y + WEEK_ROW_HEIGHT],
+                               radius=16, fill='#FFFDF6', outline=(176, 141, 87, 120), width=2)
+
+        # 左侧日期块
+        weekday = str(day.get('weekday') or '')
+        draw.text((126, y + 56), _truncate(weekday, 3), fill=INK, font=weekday_font, anchor='mm')
+        draw.text((126, y + 100), _truncate(str(day.get('date') or '')[5:].replace('-', '/'), 8),
+                  fill=ANTIQUE_GOLD, font=date_font, anchor='mm')
+
+        temp_min, temp_max = day.get('temp_min'), day.get('temp_max')
+        if temp_min is not None and temp_max is not None:
+            temp_text = f"{temp_min}~{temp_max}°"
+        else:
+            temp_text = ''
+        draw.text((126, y + 140), _truncate(str(day.get('weather') or ''), 5),
+                  fill=INK_GRAY, font=meta_font, anchor='mm')
+        if temp_text:
+            draw.text((126, y + 172), temp_text, fill=INK_GRAY, font=meta_font, anchor='mm')
+
+        draw.line([(200, y + 26), (200, y + WEEK_ROW_HEIGHT - 26)],
+                  fill=(176, 141, 87, 90), width=1)
+
+        # 中间缩略图（最多 3 件）
+        items = (day.get('items') or [])[:3]
+        thumb_x = 236
+        for t_idx, item in enumerate(items):
+            x = thumb_x + t_idx * (WEEK_THUMB_SIZE + 22)
+            _paste_round_thumb(img, str(item.get('image_url') or ''), x, y + 24,
+                               WEEK_THUMB_SIZE, thumb_cache)
+            draw = ImageDraw.Draw(img)
+            label = _truncate(str(item.get('name') or item.get('category') or ''), 6)
+            draw.text((x + WEEK_THUMB_SIZE // 2, y + 178), label,
+                      fill=INK_GRAY, font=name_font, anchor='mm')
+        if not items:
+            draw.text((420, y + WEEK_ROW_HEIGHT // 2), '待补 · 衣橱里还没备好这套',
+                      fill=(122, 116, 104, 150), font=meta_font, anchor='mm')
+
+        # 右侧幸运元素小印章
+        elements = (day.get('lucky_elements') or [])[:2]
+        for e_idx, el in enumerate(elements):
+            ey = y + 30 + e_idx * 60
+            draw_seal(img, POSTER_WIDTH - 150, ey, 52, str(el), font=get_serif_font(26),
+                      fill=ELEMENT_TRADITIONAL_COLORS.get(str(el), SEAL_RED))
+            draw = ImageDraw.Draw(img)
+
+    # ---- 底部签名与日期 ----
+    footer_y = WEEK_ROWS_TOP + 7 * (WEEK_ROW_HEIGHT + WEEK_ROW_GAP) + 22
+    draw_meander(draw, 90, footer_y, POSTER_WIDTH - 180, unit=24, color=ANTIQUE_GOLD, line_width=2)
+    brand_font = get_serif_font(28)
+    draw.text((POSTER_WIDTH // 2, footer_y + 58), f"{signature} · 五行穿搭",
+              fill=INK, font=brand_font, anchor='mm')
+    slogan_font = get_serif_font(22)
+    draw.text((POSTER_WIDTH // 2, footer_y + 96), '弘扬传统文化 · 衣承五行',
+              fill=INK_GRAY, font=slogan_font, anchor='mm')
+
+    # ---- 纸面颗粒（最顶层做旧）----
+    grain = load_poster_asset('grain.png')
+    if grain is not None:
+        grain_rgba = Image.merge('RGBA', (grain, grain, grain, Image.new('L', grain.size, 12)))
+        img = Image.alpha_composite(img, grain_rgba)
+
+    return img.convert('RGB')
+
+
+def generate_week_poster_bytes(
+    days: List[Dict],
+    theme: str = 'wood',
+    username: str = '',
+    signature: str = '顺衣尚',
+    city: str = '',
+) -> bytes:
+    """一周穿搭海报出口（与 generate_poster 同样的 PNG 编码）"""
+    img = generate_week_poster(
+        days=days,
+        theme_name=theme,
+        username=username,
+        signature=signature,
+        city=city,
+    )
+    buf = BytesIO()
+    img.save(buf, format='PNG', quality=95)
+    buf.seek(0)
+    logger.info(f"一周海报生成成功: {len(days)} 天, 尺寸: {POSTER_WIDTH}x{POSTER_HEIGHT}")
+    return buf.getvalue()
+
+
 def generate_poster(
     layout: str = 'simple',
     title: str = '今日五行穿搭推荐',

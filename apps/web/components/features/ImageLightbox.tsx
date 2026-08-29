@@ -1,12 +1,18 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createPortal } from 'react-dom'
 
 interface ImageLightboxProps {
   imageUrl: string
   onClose: () => void
+  /** 图片替代文本（一周穿搭海报预览会传不同语境） */
+  alt?: string
+  /** 加载完成后的底部提示文案 */
+  caption?: string
+  /** 底部操作区（如「下载到本地」），不传则只展示图片 */
+  actions?: ReactNode
 }
 
 /**
@@ -19,7 +25,13 @@ interface ImageLightboxProps {
  * 4. 支持 ESC 键关闭
  * 5. 点击遮罩关闭
  */
-export function ImageLightbox({ imageUrl, onClose }: ImageLightboxProps) {
+export function ImageLightbox({
+  imageUrl,
+  onClose,
+  alt = '推荐单品高清图',
+  caption = '高清图已加载',
+  actions,
+}: ImageLightboxProps) {
   const [isLoaded, setIsLoaded] = useState(false)
   const [hasError, setHasError] = useState(false)
 
@@ -105,22 +117,25 @@ export function ImageLightbox({ imageUrl, onClose }: ImageLightboxProps) {
           {/* 图片 */}
           <motion.img
             src={imageUrl}
-            alt="推荐单品高清图"
+            alt={alt}
             className={`w-full h-full object-contain rounded-lg transition-opacity duration-500 ${
               isLoaded ? 'opacity-100' : 'opacity-0'
             }`}
             style={{ maxHeight: 'calc(90vh - 4rem)' }}
           />
 
-          {/* 图片信息 */}
+          {/* 图片信息与操作区 */}
           {isLoaded && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-black/50 backdrop-blur-sm rounded-full text-white/80 text-sm"
+              className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
             >
-              高清图已加载
+              {actions && <div className="flex items-center gap-2">{actions}</div>}
+              <div className="px-4 py-2 bg-black/50 backdrop-blur-sm rounded-full text-white/80 text-sm">
+                {caption}
+              </div>
             </motion.div>
           )}
         </motion.div>

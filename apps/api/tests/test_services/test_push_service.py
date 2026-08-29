@@ -208,3 +208,53 @@ class TestPushScheduler:
             mock_now.hour = 10
             mock_dt.now.return_value = mock_now
             await PushScheduler.schedule_diary_reminder()
+
+    @pytest.mark.asyncio
+    async def test_weekly_outfit_preview_off_window(self):
+        """非周日 / 非晚间窗口不查库、不推送"""
+        from apps.api.services.push_scheduler import PushScheduler
+
+        with patch("apps.api.services.push_scheduler.datetime") as mock_dt, \
+                patch("apps.api.services.push_scheduler.DatabasePool") as mock_pool:
+            mock_now = MagicMock()
+            mock_now.hour = 20
+            mock_now.weekday.return_value = 3  # 周三
+            mock_dt.now.return_value = mock_now
+            await PushScheduler.schedule_weekly_outfit_preview()
+        mock_pool.get_connection.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_weekly_outfit_preview_sends_once_per_week(self):
+        """周日 20-21 点：按本周一日期去重后发送预告推送"""
+        from datetime import date
+        from apps.api.services.push_scheduler import PushScheduler
+
+        sunday = date(2026, 8, 30)  # 周日
+        monday = date(2026, 8, 24)
+
+        mock_pool = MagicMock()
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.return_value = [(7,)]
+        mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
+        mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+        mock_pool.get_connection.return_value.__enter__ = MagicMock(return_value=mock_conn)
+        mock_pool.get_connection.return_value.__exit__ = MagicMock(return_value=False)
+
+        with patch("apps.api.services.push_scheduler.datetime") as mock_dt, \
+                patch("apps.api.services.push_scheduler.DatabasePool", mock_pool), \
+                patch("apps.api.services.push_scheduler.push_service") as mock_push:
+            mock_now = MagicMock()
+            mock_now.hour = 20
+            mock_now.weekday.return_value = 6
+            mock_now.date.return_value = sunday
+            mock_dt.now.return_value = mock_now
+            await PushScheduler.schedule_weekly_outfit_preview()
+
+        # 去重条件带上本周一，同一周不会重复推
+        params = mock_cursor.execute.call_args.args[1]
+        assert monday.isoformat() in params[0]
+        kwargs = mock_push.send_push.call_args.kwargs
+        assert kwargs["user_id"] == 7
+        assert kwargs["push_type"] == "weekly_outfit_preview"
+        assert kwargs["data"] == {"week_start": monday.isoformat(), "target": "#chat"}

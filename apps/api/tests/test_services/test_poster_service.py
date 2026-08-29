@@ -31,6 +31,9 @@ from apps.api.services.poster_service import (
     load_poster_asset,
     tint_ink_sheet,
     draw_soft_shadow,
+    generate_week_poster,
+    generate_week_poster_bytes,
+    _truncate,
 )
 
 
@@ -644,3 +647,86 @@ class TestPosterAssets:
             finally:
                 svc._ASSET_CACHE.clear()
         assert img.size == (POSTER_WIDTH, POSTER_HEIGHT)
+
+
+class TestWeekPoster:
+    """一周穿搭海报（generate_week_poster）"""
+
+    @staticmethod
+    def _make_days(count: int = 7, with_items: bool = True):
+        days = []
+        for i in range(count):
+            days.append({
+                'date': f'2026-08-{23 + i:02d}',
+                'weekday': ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][i % 7],
+                'weather': ['晴', '多云', '小雨', '阴', '大雨', '雾', '雪'][i % 7],
+                'temp_min': 12 + i,
+                'temp_max': 22 + i,
+                'lucky_elements': ['木', '火'] if i % 2 == 0 else ['水'],
+                'items': ([
+                    {'name': '浅色直筒长裤', 'category': '下装', 'primary_element': '木',
+                     'image_url': '/images/seed/pants.png'},
+                    {'name': '真丝衬衫', 'category': '上装', 'primary_element': '水'},
+                ] if with_items else []),
+            })
+        return days
+
+    def test_generate_success(self):
+        """7 天完整数据可生成正确尺寸"""
+        with patch("apps.api.services.poster_service.download_image", return_value=None):
+            img = generate_week_poster(days=self._make_days(), theme_name='wood')
+        assert img.size == (POSTER_WIDTH, POSTER_HEIGHT)
+        assert img.mode == 'RGB'
+
+    def test_generate_less_than_7_days_pads_rows(self):
+        """不足 7 天时仍按 7 行布局，不会越界报错"""
+        with patch("apps.api.services.poster_service.download_image", return_value=None):
+            img = generate_week_poster(days=self._make_days(3), theme_name='fire')
+        assert img.size == (POSTER_WIDTH, POSTER_HEIGHT)
+
+    def test_generate_empty_items_no_raise(self):
+        """当天没有成套单品时走占位文案，不抛异常"""
+        with patch("apps.api.services.poster_service.download_image", return_value=None):
+            img = generate_week_poster(days=self._make_days(7, with_items=False))
+        assert img.size == (POSTER_WIDTH, POSTER_HEIGHT)
+
+    def test_generate_empty_days_no_raise(self):
+        """空 days 也要能出图（前端异常兜底）"""
+        with patch("apps.api.services.poster_service.download_image", return_value=None):
+            img = generate_week_poster(days=[])
+        assert img.size == (POSTER_WIDTH, POSTER_HEIGHT)
+
+    def test_unknown_theme_falls_back(self):
+        """未知主题回落到 wood，不因 KeyError 崩"""
+        with patch("apps.api.services.poster_service.download_image", return_value=None):
+            img = generate_week_poster(days=self._make_days(2), theme_name='thunder')
+        assert img.size == (POSTER_WIDTH, POSTER_HEIGHT)
+
+    def test_thumb_cache_dedups_download(self):
+        """同一 image_url 跨天只下载一次"""
+        calls = []
+
+        def fake_download(url, timeout=15):
+            calls.append(url)
+            return None
+
+        days = self._make_days(7)
+        shared = '/images/seed/shared.png'
+        for d in days:
+            d['items'] = [{'name': '白T', 'category': '上装', 'image_url': shared}]
+        with patch("apps.api.services.poster_service.download_image", side_effect=fake_download):
+            generate_week_poster(days=days)
+        assert len(calls) == 1
+
+    def test_bytes_output_is_valid_png(self):
+        """出口函数返回可被 PIL 打开的 PNG 字节"""
+        with patch("apps.api.services.poster_service.download_image", return_value=None):
+            data = generate_week_poster_bytes(days=self._make_days(), username='小明', city='杭州')
+        assert data[:8] == b'\x89PNG\r\n\x1a\n'
+        opened = Image.open(BytesIO(data))
+        assert opened.size == (POSTER_WIDTH, POSTER_HEIGHT)
+
+    def test_truncate_helper(self):
+        assert _truncate('棉麻宽松长袖衬衫', 6) == '棉麻宽松长袖…'
+        assert _truncate('短袖', 6) == '短袖'
+        assert _truncate('', 6) == ''

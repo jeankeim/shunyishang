@@ -9,10 +9,11 @@ import asyncio
 import hashlib
 import logging
 from typing import AsyncGenerator, Optional, Dict, Any, List
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
 from psycopg2.extras import RealDictCursor
 
 from apps.api.schemas.request import RecommendRequest, WeatherInfo
@@ -692,6 +693,7 @@ async def remove_dislike(
 async def get_daily_outfit(
     batch_index: int = Query(0, ge=0, le=2, description="换一批批次 (0-2)"),
     city: Optional[str] = Query(None, max_length=20, description="前端定位城市（优先于用户设置）"),
+    scene: Optional[str] = Query(None, max_length=20, description="场景（商务/面试/约会...），命中时该场景元素单品加分"),
     current_user: dict = Depends(get_current_user),
 ):
     """
@@ -712,7 +714,10 @@ async def get_daily_outfit(
     today = date.today()
 
     # ── Redis 缓存 ──────────────────────────────────────────────────────────
-    cache_key = f"daily_outfit:{user_id}:{today.isoformat()}:{batch_index}:{city or 'default'}"
+    cache_key = (
+        f"daily_outfit:{user_id}:{today.isoformat()}:{batch_index}:"
+        f"{city or 'default'}:{scene or 'none'}"
+    )
     if settings.redis_enabled:
         try:
             cached = await cache.get(cache_key)
@@ -725,7 +730,9 @@ async def get_daily_outfit(
     # ── 调用核心服务 ────────────────────────────────────────────────────────
     from apps.api.services.daily_outfit_service import generate_daily_outfit
 
-    result = generate_daily_outfit(user_id, batch_index=batch_index, city_override=city)
+    result = generate_daily_outfit(
+        user_id, batch_index=batch_index, city_override=city, scene=scene
+    )
 
     # ── 写入缓存 ────────────────────────────────────────────────────────────
     if settings.redis_enabled:
@@ -738,6 +745,149 @@ async def get_daily_outfit(
             logger.info(f"[DailyOutfit] 结果已缓存 (TTL={ttl}s): {cache_key}")
         except Exception as e:
             logger.debug(f"[DailyOutfit] 缓存写入失败: {e}")
+
+    return result
+
+
+# ========== 一周穿搭日历 ==========
+
+
+def _seconds_until_end_of_day() -> int:
+    """当日剩余秒数（最少 10 分钟），用于「按天失效」的缓存 TTL"""
+    now = datetime.now()
+    end_of_day = datetime(now.year, now.month, now.day, 23, 59, 59)
+    return max(600, int((end_of_day - now).total_seconds()))
+
+
+@router.get(
+    "/recommend/week-outfit",
+    summary="一周穿搭日历",
+    description="基于 7 天天气预报与逐日运势生成一周成套穿搭，控制同一单品跨天不过度复用",
+)
+async def get_week_outfit(
+    city: Optional[str] = Query(None, max_length=20, description="前端定位城市（优先于用户设置）"),
+    target_date: Optional[str] = Query(
+        None,
+        alias="date",
+        max_length=10,
+        description="指定日期 YYYY-MM-DD（配合 batch_index 用于单日换一套）",
+    ),
+    batch_index: int = Query(0, ge=0, le=2, description="单日换一套批次 (0-2)"),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    未来 7 天穿搭日历
+
+    - 不带 date：返回整周 7 天成套方案（跨天复用上限生效）
+    - 带 date + batch_index：返回该日换一套后的整套方案，结构与每日穿搭一致
+    """
+    user_id = current_user["id"]
+    today = date.today()
+
+    single_day: Optional[date] = None
+    if target_date:
+        try:
+            single_day = date.fromisoformat(target_date)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="date 需为 YYYY-MM-DD 格式")
+        if single_day < today or (single_day - today).days > 6:
+            raise HTTPException(status_code=422, detail="只能查询今天起 7 天内的穿搭")
+
+    if single_day:
+        cache_key = (
+            f"week_outfit_day:{user_id}:{single_day.isoformat()}:"
+            f"{batch_index}:{city or 'default'}"
+        )
+    else:
+        monday = today - timedelta(days=today.weekday())
+        cache_key = f"week_outfit:{user_id}:{monday.isoformat()}:{city or 'default'}"
+
+    if settings.redis_enabled:
+        try:
+            cached = await cache.get(cache_key)
+            if cached:
+                logger.info(f"[WeekOutfit] 缓存命中: {cache_key}")
+                return cached
+        except Exception as e:
+            logger.debug(f"[WeekOutfit] 缓存读取失败: {e}")
+
+    from apps.api.services.daily_outfit_service import (
+        generate_week_day_outfit,
+        generate_week_outfit,
+    )
+
+    if single_day:
+        result = generate_week_day_outfit(
+            user_id, single_day, batch_index=batch_index, city_override=city
+        )
+    else:
+        result = generate_week_outfit(user_id, city_override=city)
+
+    if settings.redis_enabled:
+        ttl = _seconds_until_end_of_day()
+        try:
+            await cache.set(cache_key, result, ttl=ttl)
+            logger.info(f"[WeekOutfit] 结果已缓存 (TTL={ttl}s): {cache_key}")
+        except Exception as e:
+            logger.debug(f"[WeekOutfit] 缓存写入失败: {e}")
+
+    return result
+
+
+# ========== 场景急救搭配 ==========
+
+
+class SceneRescueRequest(BaseModel):
+    """场景急救搭配请求体"""
+    scene: str = Field(..., min_length=1, max_length=20, description="场景：面试/约会/商务/运动...")
+    city: Optional[str] = Field(None, max_length=20, description="前端定位城市（优先于用户设置）")
+
+
+@router.post(
+    "/recommend/scene-rescue",
+    summary="场景急救搭配",
+    description="选定场景后从自有衣橱秒出成套方案（纯规则打分，不调用 LLM）",
+)
+async def post_scene_rescue(
+    payload: SceneRescueRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    场景急救搭配
+
+    在通用打分之上叠加场景加成（场景主元素 +10 / 次元素 +5 / 风格得体 +2），
+    并给出基于场景要点与命中情况的规则文案，全程不消耗 LLM 配额。
+    """
+    from apps.api.services.daily_outfit_service import generate_scene_rescue
+    from packages.utils.wuxing_rules import SCENE_ELEMENT_MAP
+
+    scene = payload.scene.strip()
+    if scene not in SCENE_ELEMENT_MAP:
+        raise HTTPException(
+            status_code=422,
+            detail=f"未知场景：{scene}，可选 " + "/".join(SCENE_ELEMENT_MAP.keys()),
+        )
+
+    user_id = current_user["id"]
+    today = date.today()
+    cache_key = f"scene_rescue:{user_id}:{scene}:{today.isoformat()}:{payload.city or 'default'}"
+
+    if settings.redis_enabled:
+        try:
+            cached = await cache.get(cache_key)
+            if cached:
+                logger.info(f"[SceneRescue] 缓存命中: {cache_key}")
+                return cached
+        except Exception as e:
+            logger.debug(f"[SceneRescue] 缓存读取失败: {e}")
+
+    result = generate_scene_rescue(user_id, scene, city_override=payload.city)
+
+    if settings.redis_enabled:
+        try:
+            await cache.set(cache_key, result, ttl=_seconds_until_end_of_day())
+        except Exception as e:
+            logger.debug(f"[SceneRescue] 缓存写入失败: {e}")
 
     return result
 

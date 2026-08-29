@@ -1955,6 +1955,143 @@ export async function getDailyOutfit(batchIndex = 0, city?: string): Promise<Dai
 }
 
 // ============================================
+// 一周穿搭日历 / 场景急救 API
+// ============================================
+
+/** 一周日历中某一天的成套方案 */
+export interface WeekOutfitDay {
+  date: string
+  weekday: string
+  temp_min: number | null
+  temp_max: number | null
+  weather: string
+  lucky_elements: string[]
+  lucky_colors: string[]
+  outfit_items: DailyOutfitItem[]
+  completeness?: OutfitCompleteness
+  match_score: number
+  reasoning: string
+}
+
+/** 一周穿搭日历响应 */
+export interface WeekOutfit {
+  city: string
+  start_date: string
+  days: WeekOutfitDay[]
+  is_empty: boolean
+}
+
+/**
+ * 获取一周（7 天）穿搭日历
+ *
+ * 不传 targetDate 返回整周（跨天复用上限生效）；
+ * 传 targetDate + batchIndex 返回该日「换一套」的整套方案（结构同每日穿搭）。
+ */
+export async function getWeekOutfit(
+  city?: string,
+  targetDate?: string,
+  batchIndex = 0
+): Promise<WeekOutfit | DailyOutfit | null> {
+  try {
+    const params = new URLSearchParams()
+    if (city) params.append('city', city)
+    if (targetDate) {
+      params.append('date', targetDate)
+      if (batchIndex > 0) params.append('batch_index', String(batchIndex))
+    }
+    const queryStr = params.toString() ? `?${params.toString()}` : ''
+    const response = await fetch(`${getAPIBase()}/api/v1/recommend/week-outfit${queryStr}`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      console.error('[getWeekOutfit] 请求失败:', response.status)
+      return null
+    }
+    return response.json()
+  } catch (error) {
+    console.error('[getWeekOutfit] 异常:', error)
+    return null
+  }
+}
+
+/** 场景急救搭配响应（在每日穿搭基础上追加场景字段） */
+export interface SceneRescue extends DailyOutfit {
+  scene: string
+  scene_elements: { primary: string[]; secondary: string[] }
+  scene_advice: string
+}
+
+/**
+ * 场景急救搭配：从自有衣橱秒出成套方案（纯规则打分，不调用 LLM）
+ */
+export async function postSceneRescue(scene: string, city?: string): Promise<SceneRescue | null> {
+  try {
+    const response = await fetch(`${getAPIBase()}/api/v1/recommend/scene-rescue`, {
+      method: 'POST',
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scene, city: city || null }),
+    })
+    if (!response.ok) {
+      console.error('[postSceneRescue] 请求失败:', response.status)
+      return null
+    }
+    return response.json()
+  } catch (error) {
+    console.error('[postSceneRescue] 异常:', error)
+    return null
+  }
+}
+
+/** 周海报的单日数据（服务端只需渲染字段，缩略图由服务端下载） */
+export interface WeekPosterDay {
+  date: string
+  weekday: string
+  weather?: string
+  temp_min?: number | null
+  temp_max?: number | null
+  lucky_elements?: string[]
+  items: Array<{
+    name: string
+    category?: string
+    image_url?: string
+    primary_element?: string
+  }>
+}
+
+/**
+ * 生成一周穿搭海报（服务端 Pillow 渲染，返回 base64 PNG）
+ */
+export async function postWeekPoster(params: {
+  days: WeekPosterDay[]
+  theme?: string
+  username?: string
+  signature?: string
+  city?: string
+}): Promise<{ image: string; filename: string; size: number } | null> {
+  try {
+    const response = await fetch(`${getAPIBase()}/api/v1/poster/week`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        days: params.days,
+        theme: params.theme || 'wood',
+        username: params.username || '',
+        signature: params.signature || '顺衣尚',
+        city: params.city || '',
+      }),
+    })
+    if (!response.ok) {
+      console.error('[postWeekPoster] 请求失败:', response.status)
+      return null
+    }
+    return response.json()
+  } catch (error) {
+    console.error('[postWeekPoster] 异常:', error)
+    return null
+  }
+}
+
+// ============================================
 // 流年运势周报 API
 // ============================================
 

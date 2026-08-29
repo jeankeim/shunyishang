@@ -9,7 +9,7 @@
 import asyncio
 import json
 import logging
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 
 from apps.api.core.cache import cache
 from apps.api.core.database import DatabasePool
@@ -73,6 +73,7 @@ class PushScheduler:
         cls._tasks.append(asyncio.create_task(cls._fortune_push_loop()))
         cls._tasks.append(asyncio.create_task(cls._diary_reminder_loop()))
         cls._tasks.append(asyncio.create_task(cls._solar_term_reminder_loop()))
+        cls._tasks.append(asyncio.create_task(cls._weekly_outfit_preview_loop()))
 
     @classmethod
     async def stop(cls):
@@ -405,6 +406,72 @@ class PushScheduler:
             except Exception as e:
                 logger.error(
                     f"[PushScheduler] 发送节气提醒失败 user={user_id}: {e}"
+                )
+
+    # ------------------------------------------------------------------
+    # 一周穿搭预告（周日晚上提醒下周方案已就绪）
+    # ------------------------------------------------------------------
+
+    @classmethod
+    async def _weekly_outfit_preview_loop(cls):
+        """一周穿搭预告循环（每小时检查一次）"""
+        while cls._running:
+            try:
+                await cls.schedule_weekly_outfit_preview()
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"[PushScheduler] 一周穿搭预告异常: {e}")
+            await asyncio.sleep(3600)
+
+    @classmethod
+    async def schedule_weekly_outfit_preview(cls):
+        """
+        周日 20-21 点推送「下周穿搭已排好」
+
+        单条 SQL 完成「已启用 + 本周未推送」判定以消除 N+1，
+        去重靠 data 里写入的本周一日期（同一周只推一次）。
+        """
+        now = datetime.now()
+        if now.weekday() != 6 or not (20 <= now.hour <= 21):
+            return
+
+        monday = (now.date() - timedelta(days=now.weekday())).isoformat()
+
+        try:
+            with DatabasePool.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT ups.user_id
+                        FROM user_push_settings ups
+                        WHERE ups.enabled = TRUE
+                          AND NOT EXISTS (
+                              SELECT 1 FROM push_notifications pn
+                              WHERE pn.user_id = ups.user_id
+                                AND pn.type = 'weekly_outfit_preview'
+                                AND pn.data::text LIKE %s
+                          )
+                        """,
+                        [f'%{monday}%'],
+                    )
+                    rows = cur.fetchall()
+        except Exception as e:
+            logger.error(f"[PushScheduler] 查询一周穿搭预告用户失败: {e}")
+            return
+
+        for (user_id,) in rows:
+            try:
+                push_service.send_push(
+                    user_id=user_id,
+                    push_type="weekly_outfit_preview",
+                    title="下周穿搭已经排好了",
+                    body="7 天成套方案已按天气与运势备好，打开首页即可查看，也能一键记日记",
+                    data={"week_start": monday, "target": "#chat"},
+                )
+            except Exception as e:
+                logger.error(
+                    f"[PushScheduler] 发送一周穿搭预告失败 user={user_id}: {e}"
                 )
 
 

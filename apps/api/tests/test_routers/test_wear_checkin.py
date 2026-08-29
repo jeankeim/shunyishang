@@ -11,7 +11,7 @@
 """
 import pytest
 from unittest.mock import patch, MagicMock
-from datetime import datetime, date
+from datetime import datetime
 
 from apps.api.routers.auth import get_current_user
 from apps.api.schemas.diary import (
@@ -21,9 +21,11 @@ from apps.api.schemas.diary import (
     DiaryItemRequest,
 )
 from apps.api.services.diary_service import DiaryService
+from apps.api.core.time_utils import today_cn
 
 
-TODAY = date(2026, 8, 29)
+# 打卡写入的是「北京时间今日」，测试必须与生产共用同一取日逻辑，否则跨零点即失效
+TODAY = today_cn()
 
 
 @pytest.fixture

@@ -7,7 +7,7 @@
 
 import json
 import logging
-from datetime import date, datetime
+from datetime import date, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 from psycopg2.extras import RealDictCursor
@@ -17,7 +17,8 @@ from apps.api.core.database import DatabasePool
 from apps.api.services.user_service import get_user_bazi
 from apps.api.services.fortune_engine import calculate_daily_fortune
 from apps.api.services.preference_service import preference_service
-from packages.utils.wuxing_rules import ELEMENT_COLOR_MAP
+from packages.utils.scene_mapping import get_scene_preferred_styles
+from packages.utils.wuxing_rules import ELEMENT_COLOR_MAP, SCENE_ELEMENT_MAP
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +64,23 @@ OUTERWEAR_TEMP_THRESHOLD = 15
 # 配饰槽位单套上限（与 CATEGORY_MAX_PER_OUTFIT['配饰'] 对齐）
 ACCESSORY_SLOT_CAP = 2
 
+# ── 场景加成上限 ─────────────────────────────────────────────────────────────
+SCENE_BONUS_CAP = 12
+
+# ── 一周尺度跨天复用上限 ─────────────────────────────────────────────────────
+# 上装/配饰可高频复用，下装/裙装/鞋履/外套低频复用，避免「7 天同一件白 T」
+WEEK_REUSE_CAP: Dict[str, int] = {
+    "上装": 3,
+    "配饰": 3,
+    "下装": 2,
+    "裙装": 2,
+    "鞋履": 2,
+    "外套": 2,
+}
+WEEK_REUSE_DEFAULT_CAP = 2
+# 每复用一次该单品的降权分值（软降权，超出上限才硬约束）
+REUSE_PENALTY_PER_USE = 8
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 公共入口
@@ -72,14 +90,19 @@ def generate_daily_outfit(
     user_id: int,
     batch_index: int = 0,
     city_override: Optional[str] = None,
+    scene: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     生成每日智能穿搭建议
+
+    只负责「取实时天气组装上下文」，打分与选物交给 _build_outfit，
+    以便一周穿搭日历 / 场景急救等场景复用同一套选物逻辑。
 
     Args:
         user_id: 用户 ID
         batch_index: 换一批批次 (0-2)
         city_override: 前端定位城市（优先于用户设置）
+        scene: 场景 ID（商务/面试等），命中时该场景元素单品加分
 
     Returns:
         {
@@ -94,39 +117,95 @@ def generate_daily_outfit(
         }
     """
     today = date.today()
-    season = SEASON_MAP.get(today.month, "秋")
-
-    # ── 1. 用户八字 + 运势 ────────────────────────────────────────────────
-    user_bazi = get_user_bazi(user_id)
-    fortune = calculate_daily_fortune(user_bazi, today)
-
-    lucky_elements: List[str] = fortune.get("lucky_elements", {}).get("elements", [])
-    lucky_colors: List[str] = fortune.get("lucky_elements", {}).get("colors", [])
-    suggested_elements: List[str] = user_bazi.get("suggested_elements", [])
-    avoid_elements: List[str] = user_bazi.get("avoid_elements", [])
-    primary_lucky = lucky_elements[0] if lucky_elements else (suggested_elements[0] if suggested_elements else "土")
-
-    # ── 2. 天气（优先使用前端定位城市，确保与首页天气显示一致）───────────────
     city = city_override or _get_user_city(user_id)
     weather = _get_weather_sync(city)
-    temperature = weather.get("temperature", 22)
-    weather_desc = weather.get("weather", "晴")
-    weather_element = weather.get("element", "土")
+    user_bazi = get_user_bazi(user_id)
 
-    # ── 3. 用户偏好 ────────────────────────────────────────────────────────
-    user_prefs = {}
-    try:
-        user_prefs = preference_service.get_user_preferences(user_id)
-    except Exception as e:
-        logger.warning(f"[DailyOutfit] 偏好获取失败: {e}")
+    ctx = _build_context(
+        target_date=today,
+        city=city,
+        weather=weather,
+        user_bazi=user_bazi,
+        fortune=calculate_daily_fortune(user_bazi, today),
+        user_prefs=_get_user_prefs(user_id),
+        wardrobe_items=_query_wardrobe(user_id),
+        scene=scene,
+    )
+    return _build_outfit(user_id, ctx, batch_index=batch_index)
 
-    # ── 4. 查询衣橱 ────────────────────────────────────────────────────────
-    wardrobe_items = _query_wardrobe(user_id)
+
+def _build_context(
+    target_date: date,
+    city: str,
+    weather: Dict[str, Any],
+    user_bazi: Dict[str, Any],
+    fortune: Dict[str, Any],
+    user_prefs: Dict[str, Dict[str, float]],
+    wardrobe_items: List[Dict[str, Any]],
+    reuse_counts: Optional[Dict[int, int]] = None,
+    scene: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    组装单日穿搭上下文
+
+    把「依赖外部数据的部分」（八字、运势、天气、偏好、衣橱）收敛成一个纯数据字典，
+    使 _build_outfit 可被连续 7 天复用而无需重复查库。
+    """
+    lucky_elements: List[str] = fortune.get("lucky_elements", {}).get("elements", [])
+    lucky_colors: List[str] = fortune.get("lucky_elements", {}).get("colors", [])
+    return {
+        "date": target_date,
+        "city": city,
+        "weather": weather,
+        "fortune": fortune,
+        "temperature": weather.get("temperature", 22),
+        "weather_desc": weather.get("weather", "晴"),
+        "weather_element": weather.get("element", "土"),
+        "season": SEASON_MAP.get(target_date.month, "秋"),
+        "lucky_elements": lucky_elements,
+        "lucky_colors": lucky_colors,
+        "suggested_elements": user_bazi.get("suggested_elements", []),
+        "avoid_elements": user_bazi.get("avoid_elements", []),
+        "user_prefs": user_prefs,
+        "wardrobe_items": wardrobe_items,
+        "reuse_counts": reuse_counts,
+        "scene": scene,
+    }
+
+
+def _build_outfit(
+    user_id: int,
+    ctx: Dict[str, Any],
+    batch_index: int = 0,
+) -> Dict[str, Any]:
+    """
+    按上下文完成打分 + 槽位式成套选择，返回与每日穿搭同构的响应
+
+    ctx 中的 reuse_counts（若存在）会在选完后累加，用于一周尺度的跨天复用降权。
+    """
+    target_date: date = ctx["date"]
+    weather: Dict[str, Any] = ctx["weather"]
+    temperature = ctx["temperature"]
+    season = ctx["season"]
+    lucky_elements = ctx["lucky_elements"]
+    lucky_colors = ctx["lucky_colors"]
+    suggested_elements = ctx["suggested_elements"]
+    avoid_elements = ctx["avoid_elements"]
+    user_prefs = ctx["user_prefs"]
+    scene = ctx.get("scene")
+    primary_lucky = (
+        lucky_elements[0] if lucky_elements
+        else (suggested_elements[0] if suggested_elements else "土")
+    )
+
+    wardrobe_items = ctx["wardrobe_items"]
     if not wardrobe_items:
-        return _empty_result(primary_lucky, lucky_colors, weather, fortune, today)
+        return _empty_result(
+            primary_lucky, lucky_colors, weather, ctx.get("fortune", {}), target_date
+        )
 
-    # ── 5. 多维度评分 ──────────────────────────────────────────────────────
-    scored = []
+    # ── 多维度评分 ──────────────────────────────────────────────────────────
+    scored: List[Tuple[Dict[str, Any], int]] = []
     for item in wardrobe_items:
         score = _score_item(
             item=item,
@@ -135,24 +214,36 @@ def generate_daily_outfit(
             suggested_elements=suggested_elements,
             avoid_elements=avoid_elements,
             temperature=temperature,
-            weather_element=weather_element,
+            weather_element=ctx["weather_element"],
             season=season,
             user_prefs=user_prefs,
+            scene=scene,
         )
         scored.append((item, score))
 
     # 按分数降序
     scored.sort(key=lambda x: x[1], reverse=True)
 
-    # ── 6. 槽位式成套选择 ──────────────────────────────────────────────────
+    # ── 槽位式成套选择 ──────────────────────────────────────────────────────
     outfit_items, completeness = _select_complete_outfit(
-        scored, temperature=temperature, target_count=5, batch_index=batch_index
+        scored,
+        temperature=temperature,
+        target_count=5,
+        batch_index=batch_index,
+        reuse_counts=ctx.get("reuse_counts"),
     )
 
-    # ── 7. 构建响应 ────────────────────────────────────────────────────────
     if not outfit_items:
-        return _empty_result(primary_lucky, lucky_colors, weather, fortune, today)
+        return _empty_result(
+            primary_lucky, lucky_colors, weather, ctx.get("fortune", {}), target_date
+        )
 
+    # 一周尺度：把本天选中的单品计入复用账本，后续天数自动降权
+    reuse_counts = ctx.get("reuse_counts")
+    if reuse_counts is not None:
+        _bump_reuse_counts(reuse_counts, outfit_items)
+
+    # ── 构建响应 ────────────────────────────────────────────────────────────
     # 取选中物品的平均分的整数形式
     selected_scores = []
     for item, score in scored:
@@ -171,21 +262,254 @@ def generate_daily_outfit(
         "outfit_items": outfit_items,
         "reasoning": reasoning,
         "weather_summary": {
-            "city": city,
+            "city": ctx["city"],
             "temperature": temperature,
-            "weather": weather_desc,
-            "element": weather_element,
+            "weather": ctx["weather_desc"],
+            "element": ctx["weather_element"],
         },
         "fortune_summary": {
             "lucky_elements": lucky_elements,
             "lucky_colors": lucky_colors,
-            "overall_score": fortune.get("overall_score", 0),
+            "overall_score": ctx.get("fortune", {}).get("overall_score", 0),
         },
         "style_tip": style_tip,
         "match_score": min(avg_score, 100),
         "completeness": completeness,
-        "date": today.isoformat(),
+        "date": target_date.isoformat(),
     }
+
+
+def _get_user_prefs(user_id: int) -> Dict[str, Dict[str, float]]:
+    """获取用户偏好画像（失败降级为空偏好）"""
+    try:
+        return preference_service.get_user_preferences(user_id)
+    except Exception as e:
+        logger.warning(f"[DailyOutfit] 偏好获取失败: {e}")
+        return {}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 一周穿搭日历
+# ─────────────────────────────────────────────────────────────────────────────
+
+WEEKDAY_LABELS = ("周一", "周二", "周三", "周四", "周五", "周六", "周日")
+WEEK_DAYS = 7
+
+
+def generate_week_outfit(
+    user_id: int,
+    city_override: Optional[str] = None,
+    start_date: Optional[date] = None,
+) -> Dict[str, Any]:
+    """
+    生成一周（7 天）穿搭日历
+
+    与每日穿搭共用 _build_outfit，差异在于：
+    - 天气取自 7 天预报（含无 key 的季节兜底），逐天独立换算元素与温度
+    - 运势逐天用 calculate_daily_fortune 重算，幸运元素按天变化
+    - 八字 / 偏好 / 衣橱只查一次，7 天共享
+    - 跨天复用上限：上装与配饰最多 3 次，下装/裙装/鞋履/外套最多 2 次
+
+    Returns:
+        {city, start_date, days: [{date, weekday, temp_min, temp_max, weather,
+          lucky_elements, outfit_items, completeness, match_score, reasoning}],
+         is_empty}
+    """
+    start = start_date or date.today()
+    city = city_override or _get_user_city(user_id)
+    forecast = _get_forecast(city, WEEK_DAYS)
+    user_bazi = get_user_bazi(user_id)
+    user_prefs = _get_user_prefs(user_id)
+    wardrobe_items = _query_wardrobe(user_id)
+
+    # 7 天共享一份复用账本，由 _build_outfit 逐天累加
+    reuse_counts: Dict[int, int] = {}
+    fallback_weather: Optional[Dict[str, Any]] = None
+    days: List[Dict[str, Any]] = []
+
+    for index in range(WEEK_DAYS):
+        day = start + timedelta(days=index)
+        if index < len(forecast):
+            weather = _weather_from_forecast(forecast[index], city)
+        else:
+            # 预报缺天（如 API 只给 3 天）：用当日实时天气兜底，避免整周崩掉
+            if fallback_weather is None:
+                fallback_weather = _get_weather_sync(city)
+            weather = dict(fallback_weather)
+
+        ctx = _build_context(
+            target_date=day,
+            city=city,
+            weather=weather,
+            user_bazi=user_bazi,
+            fortune=calculate_daily_fortune(user_bazi, day),
+            user_prefs=user_prefs,
+            wardrobe_items=wardrobe_items,
+            reuse_counts=reuse_counts,
+        )
+        result = _build_outfit(user_id, ctx, batch_index=0)
+        days.append({
+            "date": day.isoformat(),
+            "weekday": WEEKDAY_LABELS[day.weekday()],
+            "temp_min": weather.get("temperature_min"),
+            "temp_max": weather.get("temperature_max"),
+            "weather": weather.get("weather", "晴"),
+            "lucky_elements": result["fortune_summary"]["lucky_elements"],
+            "lucky_colors": result["fortune_summary"]["lucky_colors"],
+            "outfit_items": result["outfit_items"],
+            "completeness": result["completeness"],
+            "match_score": result["match_score"],
+            "reasoning": result["reasoning"],
+        })
+
+    return {
+        "city": city,
+        "start_date": start.isoformat(),
+        "days": days,
+        "is_empty": not wardrobe_items,
+    }
+
+
+def generate_week_day_outfit(
+    user_id: int,
+    target_date: date,
+    batch_index: int = 0,
+    city_override: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    一周日历里某一天的「换一套」
+
+    不接入复用账本（单日换一套只影响当天展示），天气从预报中定位该日，
+    取不到时回退当日实时天气。响应结构与 /recommend/daily-outfit 完全一致。
+    """
+    city = city_override or _get_user_city(user_id)
+    today = date.today()
+    horizon = max(1, min((target_date - today).days + 1, WEEK_DAYS))
+    forecast = _get_forecast(city, horizon)
+    entry = next(
+        (d for d in forecast if d.get("date") == target_date.isoformat()), None
+    )
+    if entry is None and len(forecast) >= horizon:
+        # 预报日期与请求日对不上（如时区差异）时，按第 N 天位置取值
+        entry = forecast[horizon - 1]
+    weather = (
+        _weather_from_forecast(entry, city)
+        if entry else _get_weather_sync(city)
+    )
+    user_bazi = get_user_bazi(user_id)
+    ctx = _build_context(
+        target_date=target_date,
+        city=city,
+        weather=weather,
+        user_bazi=user_bazi,
+        fortune=calculate_daily_fortune(user_bazi, target_date),
+        user_prefs=_get_user_prefs(user_id),
+        wardrobe_items=_query_wardrobe(user_id),
+    )
+    return _build_outfit(user_id, ctx, batch_index=batch_index)
+
+
+def generate_scene_rescue(
+    user_id: int,
+    scene: str,
+    city_override: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    场景急救搭配：在当日成套穿搭基础上叠加场景加成，纯规则不调 LLM
+
+    直接复用 generate_daily_outfit(scene=...)，因此成套结构（核心位/鞋履/外套/配饰）
+    与 completeness 语义完全一致，额外返回 scene / scene_advice。
+    """
+    result = generate_daily_outfit(
+        user_id, batch_index=0, city_override=city_override, scene=scene
+    )
+
+    mapping = SCENE_ELEMENT_MAP.get(scene, {})
+    items = result["outfit_items"]
+    matched = sum(
+        1 for i in items
+        if {i.get("primary_element"), i.get("secondary_element")}
+        & set(mapping.get("primary", []) + mapping.get("secondary", []))
+    )
+    result["scene"] = scene
+    result["scene_elements"] = {
+        "primary": mapping.get("primary", []),
+        "secondary": mapping.get("secondary", []),
+    }
+    result["scene_advice"] = _build_scene_advice(
+        scene, items, matched, result["weather_summary"].get("temperature", 22)
+    )
+    return result
+
+
+def _build_scene_advice(
+    scene: str,
+    items: List[Dict[str, Any]],
+    matched: int,
+    temperature: float,
+) -> str:
+    """场景急救文案：场景要点 + 命中件数 + 缺口提示（规则生成，不作吉凶断言）"""
+    mapping = SCENE_ELEMENT_MAP.get(scene, {})
+    desc = mapping.get("desc") or "得体舒适"
+    primary = mapping.get("primary") or []
+
+    parts = [f"{scene}讲究{desc}"]
+    if primary:
+        parts.append(f"优先{'、'.join(primary)}属性")
+    if not items:
+        parts.append("衣橱暂无适配单品，可先补一件基础款")
+    else:
+        parts.append(f"这套 {len(items)} 件里 {matched} 件踩中场景元素")
+        if matched == 0:
+            parts.append("缺的元素下次入手时可留意")
+    if temperature <= OUTERWEAR_TEMP_THRESHOLD:
+        parts.append("别忘了留一件外套")
+    return "，".join(parts) + "。"
+
+
+def _get_forecast(city: str, days: int) -> List[Dict[str, Any]]:
+    """取多日天气预报（失败返回空列表，由调用方兜底）"""
+    try:
+        from packages.utils.weather_forecast import get_destination_weather
+        forecast = get_destination_weather(city, days)
+        return forecast or []
+    except Exception as e:
+        logger.warning(f"[WeekOutfit] 多日天气获取失败: {e}")
+        return []
+
+
+def _weather_from_forecast(entry: Dict[str, Any], city: str) -> Dict[str, Any]:
+    """把某一日预报转成与 _get_weather_sync 同构的天气字典"""
+    try:
+        temp_max = int(entry.get("temperature_max", 25))
+    except (TypeError, ValueError):
+        temp_max = 25
+    try:
+        temp_min = int(entry.get("temperature_min", 15))
+    except (TypeError, ValueError):
+        temp_min = 15
+    weather_desc = entry.get("weather_desc") or "晴"
+    temperature = (temp_max + temp_min) / 2
+    return {
+        "city": city,
+        "temperature": int(temperature),
+        "temperature_max": temp_max,
+        "temperature_min": temp_min,
+        "weather": weather_desc,
+        "humidity": entry.get("humidity", 60),
+        "element": _element_by_weather(weather_desc, int(temperature)),
+    }
+
+
+def _element_by_weather(weather_desc: str, temperature: int) -> str:
+    """天气描述 → 五行（与每日穿搭口径一致，导入异常时兜底为土）"""
+    try:
+        from apps.api.routers.weather import get_element_by_weather
+        element, _ = get_element_by_weather(weather_desc, temperature)
+        return element
+    except Exception as e:
+        logger.debug(f"[WeekOutfit] 天气五行映射失败: {e}")
+        return "土"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -202,6 +526,7 @@ def _score_item(
     weather_element: str,
     season: str,
     user_prefs: Dict[str, Dict[str, float]],
+    scene: Optional[str] = None,
 ) -> int:
     """
     多维度评分 (0-100)
@@ -212,6 +537,7 @@ def _score_item(
     - 季节匹配 15%
     - 用户偏好 20%
     - 穿搭新鲜度 10% (wear_count 低的加分)
+    - 场景加成 ≤12  (透传 scene 时的额外分，总量仍 clamp 100)
     """
     primary = item.get("primary_element") or ""
     secondary = item.get("secondary_element") or ""
@@ -276,8 +602,48 @@ def _score_item(
         color_bonus += 3
     color_bonus = min(8, color_bonus)
 
-    total = wuxing_score + weather_score + season_score + pref_score + freshness + color_bonus
+    # ── 场景加成 (0-12) ────────────────────────────────────────────────────
+    scene_bonus = _calc_scene_bonus(item, detail, scene)
+
+    total = (
+        wuxing_score + weather_score + season_score
+        + pref_score + freshness + color_bonus + scene_bonus
+    )
     return max(0, min(100, total))
+
+
+def _calc_scene_bonus(
+    item: Dict[str, Any],
+    detail: Any,
+    scene: Optional[str],
+) -> int:
+    """
+    场景加成 (0-12)
+
+    命中场景主元素 +10、次元素 +5（互斥取高），单品风格属于该场景适宜风格再 +2。
+    scene 为空或是未登记场景时返回 0（未知场景兜底为无加成，退化为通用打分）。
+    """
+    if not scene:
+        return 0
+    mapping = SCENE_ELEMENT_MAP.get(scene)
+    if not mapping:
+        return 0
+
+    item_elements = {e for e in (item.get("primary_element"), item.get("secondary_element")) if e}
+    bonus = 0
+    if item_elements & set(mapping.get("primary", [])):
+        bonus += 10
+    elif item_elements & set(mapping.get("secondary", [])):
+        bonus += 5
+
+    preferred_styles = get_scene_preferred_styles(scene)
+    if preferred_styles and isinstance(detail, dict):
+        style_info = detail.get("款式")
+        style = style_info.get("风格", "") if isinstance(style_info, dict) else ""
+        if style and style in preferred_styles:
+            bonus += 2
+
+    return min(SCENE_BONUS_CAP, bonus)
 
 
 def _calc_weather_score(item: Dict[str, Any], temperature: float) -> int:
@@ -405,12 +771,17 @@ def _select_complete_outfit(
     temperature: float,
     target_count: int = 5,
     batch_index: int = 0,
+    reuse_counts: Optional[Dict[int, int]] = None,
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     """
     槽位式成套选择，保证「核心位 + 鞋履 +（低温时）外套 + 配饰」结构完整
 
     换一批语义与旧实现一致：逐批模拟并排除前序批次已选物品，
     候选耗尽时回退复用已展示物品。
+
+    Args:
+        reuse_counts: {单品 id: 本周已用次数}，一周尺度传入以做跨天降权与上限约束，
+                      由调用方持有并在选中后累加
 
     Returns:
         (选中的物品列表, completeness 完整性摘要)
@@ -421,17 +792,45 @@ def _select_complete_outfit(
 
     for _ in range(batch_index + 1):
         selected, completeness = _pick_one_complete_batch(
-            scored, temperature, target_count, excluded_ids
+            scored, temperature, target_count, excluded_ids, reuse_counts
         )
         if not selected and excluded_ids:
             # 候选耗尽：回退复用已展示物品
             excluded_ids.clear()
             selected, completeness = _pick_one_complete_batch(
-                scored, temperature, target_count, excluded_ids
+                scored, temperature, target_count, excluded_ids, reuse_counts
             )
         excluded_ids.update(item["id"] for item in selected)
 
     return selected, completeness
+
+
+def _week_reuse_cap(category: str) -> int:
+    """该品类在一周内的复用次数上限"""
+    if category in WEEK_REUSE_CAP:
+        return WEEK_REUSE_CAP[category]
+    if category in ACCESSORY_CATEGORIES:
+        return WEEK_REUSE_CAP["配饰"]
+    return WEEK_REUSE_DEFAULT_CAP
+
+
+def _effective_score(item: Dict[str, Any], score: int, reuse_counts: Dict[int, int]) -> int:
+    """跨天已用单品按次数降权后的排序用分（不污染真实 match_score）"""
+    return score - REUSE_PENALTY_PER_USE * reuse_counts.get(item.get("id"), 0)
+
+
+def _reuse_exhausted(item: Dict[str, Any], reuse_counts: Dict[int, int]) -> bool:
+    """该单品本周已达到复用次数上限"""
+    category = item.get("category") or "其他"
+    return reuse_counts.get(item.get("id"), 0) >= _week_reuse_cap(category)
+
+
+def _bump_reuse_counts(reuse_counts: Dict[int, int], items: List[Dict[str, Any]]) -> None:
+    """选中后累计复用次数，供下一天降权"""
+    for it in items:
+        item_id = it.get("id")
+        if item_id is not None:
+            reuse_counts[item_id] = reuse_counts.get(item_id, 0) + 1
 
 
 def _pick_one_complete_batch(
@@ -439,12 +838,20 @@ def _pick_one_complete_batch(
     temperature: float,
     target_count: int,
     excluded_ids: set,
+    reuse_counts: Optional[Dict[int, int]] = None,
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     """按槽位取物：核心位 → 鞋履 → 外套（低温）→ 配饰 → 按分数补齐"""
     # 本批可用候选（已按分数降序，scored 由调用方排序）
     pool = [(item, score) for item, score in scored if item.get("id") not in excluded_ids]
     if not pool:
         return [], _empty_completeness()
+    if reuse_counts:
+        # 本周已穿过的往后排，让同类候选在 7 天内轮换
+        pool = sorted(
+            pool,
+            key=lambda x: _effective_score(x[0], x[1], reuse_counts),
+            reverse=True,
+        )
 
     used_ids: set = set()
     selected: List[Dict[str, Any]] = []
@@ -452,10 +859,15 @@ def _pick_one_complete_batch(
     # 衣橱层面已有的品类：品类完全缺货时跳过槽位（记入 missing），
     # 仅因换一批被排除时才回落全局次优
     stocked_categories = {item.get("category") or "其他" for item, _ in scored}
+    # 高温天禁止任何槽位（含补齐与全局回落）捡外套
+    hot_blocked: Tuple[str, ...] = (
+        OUTER_CATEGORIES if temperature > OUTERWEAR_TEMP_THRESHOLD else ()
+    )
 
     def _first_available(
         categories: Tuple[str, ...] = (),
         blocked: Tuple[str, ...] = (),
+        respect_reuse: bool = True,
     ) -> Optional[tuple]:
         """取分数最高、未入选、未超品类上限的物品；categories 非空时限定品类"""
         for item, score in pool:
@@ -467,6 +879,8 @@ def _pick_one_complete_batch(
             if category in blocked:
                 continue
             if category_count.get(category, 0) >= CATEGORY_MAX_PER_OUTFIT.get(category, 1):
+                continue
+            if respect_reuse and reuse_counts and _reuse_exhausted(item, reuse_counts):
                 continue
             return item, score
         return None
@@ -482,12 +896,17 @@ def _pick_one_complete_batch(
         """
         if categories and not (set(categories) & stocked_categories):
             return
+        # 高温天任何槽位都不该捡到外套（外套位本身只在低温时开启，故不会误伤）
+        blocked = tuple(blocked) + hot_blocked
         for slot_index in range(slot_cap):
             if len(selected) >= target_count:
                 return
             picked = _first_available(categories, blocked)
             if picked is None and slot_index == 0:
-                picked = _first_available((), blocked)
+                # 回落全局次优；遵守复用上限，衣橱过小不足以凑齐一套时才打破
+                picked = _first_available((), blocked) or _first_available(
+                    (), blocked, respect_reuse=False
+                )
             if picked is None:
                 return
             item, score = picked
@@ -518,8 +937,7 @@ def _pick_one_complete_batch(
     _take(ACCESSORY_CATEGORIES, slot_cap=ACCESSORY_SLOT_CAP)
 
     # ── 剩余名额按分数补齐（高温时不补外套，避免热天出外套）──────────────
-    fill_blocked = OUTER_CATEGORIES if temperature > OUTERWEAR_TEMP_THRESHOLD else ()
-    _take((), slot_cap=max(0, target_count - len(selected)), blocked=fill_blocked)
+    _take((), slot_cap=max(0, target_count - len(selected)))
 
     return selected, _build_completeness(scored, selected, temperature)
 

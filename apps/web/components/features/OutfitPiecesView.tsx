@@ -12,6 +12,7 @@ import { motion } from 'framer-motion'
 import { Shirt, Plus } from 'lucide-react'
 import type { DailyOutfitItem } from '@/lib/api'
 import { getWuxingConfig } from '@/lib/wuxing-config'
+import { getImageUrl } from '@/lib/image'
 
 /** 品类 → 槽位小标（饰品/文玩统一归入配饰位） */
 const SLOT_LABELS: Record<string, string> = {
@@ -102,7 +103,7 @@ export function OutfitPieceCard({ item, index, size, onClick }: OutfitPieceCardP
         {item.image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={item.image_url}
+            src={getImageUrl(item.image_url)}
             alt={item.name}
             className="w-full h-full object-cover"
             loading="lazy"

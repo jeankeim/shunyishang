@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { RefreshCw, Sun, CloudSun, Sparkles, Shirt, Dices, Check } from 'lucide-react'
+import { RefreshCw, Sun, CloudSun, Sparkles, Shirt, Dices, Check, Ambulance } from 'lucide-react'
 import { getDailyOutfit, getLearningSignals, type DailyOutfit, type DailyOutfitItem } from '@/lib/api'
 import { logOutfitAsDiary, hasTodayDiary, loggedFlagKey } from '@/lib/outfit-diary'
 import { requestChatInputAutofill } from '@/lib/chatAutofill'
@@ -10,6 +10,7 @@ import { toast } from '@/components/ui/Toast'
 import { ItemDetailModal } from './ItemDetailModal'
 import { OutfitRoulette } from './OutfitRoulette'
 import { OutfitPiecesView } from './OutfitPiecesView'
+import { SceneRescueModal } from './SceneRescueModal'
 
 /** 五行元素标签颜色映射 */
 const ELEMENT_COLORS: Record<string, string> = {
@@ -36,6 +37,7 @@ export function DailyOutfitCard({ isAuthenticated, city }: DailyOutfitCardProps)
   const [error, setError] = useState(false)
   const [isPaused, setIsPaused] = useState(false) // 鼠标悬停时暂停自动轮换
   const [showRoulette, setShowRoulette] = useState(false)
+  const [showRescue, setShowRescue] = useState(false)
   const [logging, setLogging] = useState(false)
   const [logged, setLogged] = useState(false)
   const [learningNote, setLearningNote] = useState<string | null>(null)
@@ -221,6 +223,15 @@ export function DailyOutfitCard({ isAuthenticated, city }: DailyOutfitCardProps)
                 {data.match_score}分
               </span>
             )}
+            {/* 场景急救 */}
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setShowRescue(true)}
+              className="w-7 h-7 rounded-lg bg-[var(--brand-surface)] flex items-center justify-center hover:bg-[var(--brand-surface-active)] transition-colors"
+              aria-label="场景急救搭配"
+            >
+              <Ambulance className="w-3.5 h-3.5 text-[var(--brand-subtle)]" />
+            </motion.button>
             {/* 搭配盲盒 */}
             <motion.button
               whileTap={{ scale: 0.9 }}
@@ -365,6 +376,11 @@ export function DailyOutfitCard({ isAuthenticated, city }: DailyOutfitCardProps)
       {/* 搭配盲盒弹窗 */}
       <AnimatePresence>
         {showRoulette && <OutfitRoulette open={showRoulette} onClose={() => setShowRoulette(false)} />}
+      </AnimatePresence>
+
+      {/* 场景急救弹窗 */}
+      <AnimatePresence>
+        {showRescue && <SceneRescueModal open={showRescue} onClose={() => setShowRescue(false)} city={city} />}
       </AnimatePresence>
     </>
   )
