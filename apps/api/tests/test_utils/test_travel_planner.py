@@ -865,3 +865,74 @@ class TestPlanTravelOutfitsExtra:
         all_items = [item for day in optimized for item in day.get("items", [])]
         unique_ids = set(item["id"] for item in all_items)
         assert len(unique_ids) <= 5
+
+
+class TestDailyCategoryBudget:
+    """用户反馈截图回归：出差第2天5件里3顶帽子+1个戒指、没有裤子
+
+    1. 点缀类（配饰/饰品/文玩）每天合计上限 1 件
+    2. 首轮选择件数不超过 max_per_day（原 bug：新品类先 append 后 break 导致超编）
+    3. 候选池新品耗尽时，放宽复用间隔补齐上装/下装（宁可重复穿，不要全是配饰）
+    """
+
+    # 模拟"双路召回"后的行程候选池：核心品类少、帽子/戒指类配饰多
+    ACCENT_HEAVY_POOL = [
+        {"id": 1, "name": "荧光绿运动速干T恤", "category": "上装", "primary_element": "木",
+         "wuxing_score": 0.8, "final_score": 0.72, "functionality": ["透气"]},
+        {"id": 2, "name": "白色商务衬衫", "category": "上装", "primary_element": "木",
+         "wuxing_score": 0.75, "final_score": 0.7, "functionality": ["抗皱"]},
+        {"id": 3, "name": "黑色西裤", "category": "下装", "primary_element": "水",
+         "wuxing_score": 0.8, "final_score": 0.7, "functionality": ["百搭"]},
+        {"id": 4, "name": "乐福鞋", "category": "鞋履", "primary_element": "木",
+         "wuxing_score": 0.7, "final_score": 0.68, "functionality": ["舒适"]},
+        {"id": 5, "name": "橄榄绿色简约棒球帽", "category": "配饰", "primary_element": "木",
+         "wuxing_score": 0.7, "final_score": 0.7, "functionality": ["防晒"]},
+        {"id": 6, "name": "青碧色雅致棒球帽", "category": "配饰", "primary_element": "木",
+         "wuxing_score": 0.7, "final_score": 0.7, "functionality": ["防晒"]},
+        {"id": 7, "name": "草木绿色摩登鸭舌帽", "category": "配饰", "primary_element": "木",
+         "wuxing_score": 0.7, "final_score": 0.7, "functionality": ["防晒"]},
+        {"id": 8, "name": "墨绿色玉石戒指", "category": "饰品", "primary_element": "木",
+         "wuxing_score": 0.75, "final_score": 0.7, "functionality": ["百搭"]},
+        {"id": 9, "name": "薄款防晒外套", "category": "外套", "primary_element": "水",
+         "wuxing_score": 0.6, "final_score": 0.65, "functionality": ["防晒"]},
+        {"id": 10, "name": "薄荷绿短裤", "category": "下装", "primary_element": "木",
+         "wuxing_score": 0.7, "final_score": 0.68, "functionality": ["透气"]},
+    ]
+
+    def _plan_2day_trip(self):
+        weather = [
+            {"date": "2026-08-30", "temperature_max": 32, "temperature_min": 24,
+             "weather_desc": "阵雨", "humidity": 80, "wind_level": 2},
+            {"date": "2026-08-31", "temperature_max": 32, "temperature_min": 24,
+             "weather_desc": "阵雨", "humidity": 80, "wind_level": 2},
+        ]
+        return plan_travel_outfits(
+            {"suggested_elements": ["木", "水"]},
+            weather, 2, ["出差", "出差"], "中", self.ACCENT_HEAVY_POOL,
+        )
+
+    def test_accent_capped_per_day(self):
+        plan = self._plan_2day_trip()
+        for day in plan["days"]:
+            accents = [it for it in day["items"] if it["category"] in ("配饰", "饰品", "文玩")]
+            assert len(accents) <= 1, f"第{day['day']}天点缀类超限: {[a['name'] for a in accents]}"
+
+    def test_day_has_top_and_bottom(self):
+        """每一天必须有上装（或裙装）和下装（或裙装），不允许全是配饰"""
+        plan = self._plan_2day_trip()
+        for day in plan["days"]:
+            cats = {it["category"] for it in day["items"]}
+            assert cats & {"上装", "裙装", "外套"}, f"第{day['day']}天无上装"
+            assert cats & {"下装", "裙装"}, f"第{day['day']}天无下装"
+
+    def test_no_duplicate_items_within_day(self):
+        plan = self._plan_2day_trip()
+        for day in plan["days"]:
+            ids = [it["id"] for it in day["items"]]
+            assert len(ids) == len(set(ids))
+
+    def test_first_pass_respects_max_per_day(self):
+        """总件数不应无限膨胀（首轮4件 + 完整性兜底最多补2件核心品类）"""
+        plan = self._plan_2day_trip()
+        for day in plan["days"]:
+            assert len(day["items"]) <= 6

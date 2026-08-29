@@ -43,6 +43,15 @@ CATEGORY_REUSE_INTERVAL: Dict[str, int] = {
 # 复用惩罚强度：未用过物品 vs 已用过物品的分数差距
 FRESH_ITEM_BONUS = 0.3  # 未使用过的物品获得额外加分，强制优先选新物品
 
+# 每日品类预算（用户反馈截图：出差第2天5件里3顶帽子+1个戒指，没有裤子）
+# 点缀类每天合计上限：双路召回会让配饰大量进入行程候选池，不加上限会挤占核心品类
+ACCENT_DAY_CATEGORIES = {"配饰", "饰品", "文玩"}
+MAX_ACCENT_PER_DAY = 1
+# 非点缀类每天上限（默认1件；上装放宽到2件支持内外搭）
+CATEGORY_DAY_CAPS: Dict[str, int] = {
+    "上装": 2,
+}
+
 
 # ============================================================
 # 核心函数
@@ -498,11 +507,16 @@ def _select_items_for_day(
     # 按综合评分降序
     scored_items.sort(key=lambda x: x["score"], reverse=True)
 
-    # 选择不同类别的物品，优先选高分
-    selected = []
-    selected_categories = set()
+    # 按每日品类预算选物（修复原逻辑两个 bug：
+    # 1. 同类溢出把剩余名额全部灌同品类 → 一天3顶帽子；
+    # 2. 新品类先 append 后 break → 实际件数超出 max_per_day）
+    selected: List[Dict] = []
+    cat_counts: Dict[str, int] = {}
+    accent_count = 0
 
     for scored in scored_items:
+        if len(selected) >= max_per_day:
+            break
         item = scored["item"]
         category = item.get("category", "")
         item_id = item.get("id", item.get("name", ""))
@@ -518,17 +532,49 @@ def _select_items_for_day(
                 if day_idx - last_day < reuse_interval:
                     continue
 
-        # 每个类别最多选1件（除非还有余量）
-        if category in selected_categories:
-            if len(selected) < max_per_day:
-                selected.append(_format_item_output(item, scored))
+        # 品类预算约束：点缀类每天合计 MAX_ACCENT_PER_DAY 件，其余每类默认 1 件
+        if category in ACCENT_DAY_CATEGORIES:
+            if accent_count >= MAX_ACCENT_PER_DAY:
+                continue
+        elif cat_counts.get(category, 0) >= CATEGORY_DAY_CAPS.get(category, 1):
             continue
 
         selected.append(_format_item_output(item, scored))
-        selected_categories.add(category)
+        cat_counts[category] = cat_counts.get(category, 0) + 1
+        if category in ACCENT_DAY_CATEGORIES:
+            accent_count += 1
 
-        if len(selected) >= max_per_day:
-            break
+    # 完整性兜底：核心品类缺失时放宽复用间隔补齐（候选池新品耗尽时，
+    # 宁可重复穿第1天的裤子/上衣，也不要给出一天全是帽子戒指的搭配）
+    selected_ids = {it.get("id", it.get("name", "")) for it in selected}
+    selected_cats = {it.get("category", "") for it in selected}
+
+    def _pick_for(cats: set) -> Optional[Tuple[Dict, Dict]]:
+        """从评分结果中取该组品类下分数最高的一件（忽略复用间隔，内衣除外）"""
+        for scored in scored_items:
+            item = scored["item"]
+            if item.get("category", "") not in cats:
+                continue
+            item_id = item.get("id", item.get("name", ""))
+            if item_id in selected_ids:
+                continue
+            if item.get("category", "") in CATEGORY_REUSE_INTERVAL and \
+                    CATEGORY_REUSE_INTERVAL[item.get("category", "")] == -1:
+                continue
+            return item, scored
+        return None
+
+    if not (selected_cats & {"上装", "裙装"}):
+        picked = _pick_for({"上装", "裙装", "外套"})
+        if picked:
+            item, scored = picked
+            selected.append(_format_item_output(item, scored))
+            selected_ids.add(item.get("id", item.get("name", "")))
+    if not (selected_cats & {"下装", "裙装"}):
+        picked = _pick_for({"下装", "裙装"})
+        if picked:
+            item, scored = picked
+            selected.append(_format_item_output(item, scored))
 
     return selected
 
