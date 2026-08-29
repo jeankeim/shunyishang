@@ -3,7 +3,7 @@
 
 验证不同批次（batch_index=0/1/2）的推荐物品完全不重合：
 1. 推荐引擎 score_and_rank_items 的批次选择（确定性模拟 + 显式排除）
-2. 每日穿搭 _select_diverse_items 的批次选择
+2. 每日穿搭 _select_complete_outfit 的批次选择
 3. 各种场景：不同天气、不同风格偏好、候选不足回退、确定性复现
 
 测试数据集：make_test_items() 构造跨品类/跨五行/跨厚度的候选集，
@@ -231,11 +231,11 @@ class TestBatchDedupScenarios:
 
 
 # ============================================================
-# 3. 每日穿搭 _select_diverse_items 批次去重
+# 3. 每日穿搭 _select_complete_outfit 批次去重
 # ============================================================
 
 class TestDailyOutfitBatchDedup:
-    """daily_outfit_service._select_diverse_items 批次间物品不重合"""
+    """daily_outfit_service._select_complete_outfit 批次间物品不重合"""
 
     @staticmethod
     def _make_scored(n: int = 20) -> list:
@@ -250,16 +250,19 @@ class TestDailyOutfitBatchDedup:
                 "primary_element": ELEMENT_CYCLE[i % 5],
             }
             scored.append((item, 100 - i))
+        scored.sort(key=lambda x: x[1], reverse=True)
         return scored
 
     def test_daily_batches_disjoint(self):
         """批次 0/1/2 两两不重合"""
-        from apps.api.services.daily_outfit_service import _select_diverse_items
+        from apps.api.services.daily_outfit_service import _select_complete_outfit
 
         scored = self._make_scored(24)
         ids = []
         for b in range(3):
-            selected = _select_diverse_items(scored, target_count=5, batch_index=b)
+            selected, _ = _select_complete_outfit(
+                scored, temperature=12, target_count=5, batch_index=b
+            )
             assert len(selected) == 5
             ids.append({it["id"] for it in selected})
 
@@ -270,12 +273,14 @@ class TestDailyOutfitBatchDedup:
     def test_daily_category_limit_respected(self):
         """各批次仍遵守品类上限（上装/下装/外套等每类1件，配饰2件）"""
         from apps.api.services.daily_outfit_service import (
-            _select_diverse_items, CATEGORY_MAX_PER_OUTFIT,
+            _select_complete_outfit, CATEGORY_MAX_PER_OUTFIT,
         )
 
         scored = self._make_scored(24)
         for b in range(3):
-            selected = _select_diverse_items(scored, target_count=5, batch_index=b)
+            selected, _ = _select_complete_outfit(
+                scored, temperature=12, target_count=5, batch_index=b
+            )
             counts = {}
             for it in selected:
                 counts[it["category"]] = counts.get(it["category"], 0) + 1
@@ -285,17 +290,23 @@ class TestDailyOutfitBatchDedup:
 
     def test_daily_insufficient_fallback(self):
         """候选耗尽时回退复用已展示物品（不返回空）"""
-        from apps.api.services.daily_outfit_service import _select_diverse_items
+        from apps.api.services.daily_outfit_service import _select_complete_outfit
 
         scored = self._make_scored(5)  # 仅 5 件，batch 2 时候选耗尽
-        selected = _select_diverse_items(scored, target_count=5, batch_index=2)
+        selected, _ = _select_complete_outfit(
+            scored, temperature=12, target_count=5, batch_index=2
+        )
         assert len(selected) > 0, "候选耗尽回退不应返回空"
 
-    def test_daily_batch0_unchanged(self):
-        """batch_index=0 选择最高分组合（首批体验不变）"""
-        from apps.api.services.daily_outfit_service import _select_diverse_items
+    def test_daily_batch0_slot_structure(self):
+        """batch_index=0 按槽位取物：每槽取本品类最高分（不再等于全局前 5）"""
+        from apps.api.services.daily_outfit_service import _select_complete_outfit
 
         scored = self._make_scored(24)
-        selected = _select_diverse_items(scored, target_count=5, batch_index=0)
-        # 前 5 件评分最高且品类互不冲突（上装/下装/裙装/外套/鞋履），应原样入选
-        assert [it["id"] for it in selected] == [1, 2, 3, 4, 5]
+        selected, comp = _select_complete_outfit(
+            scored, temperature=12, target_count=5, batch_index=0
+        )
+        # 品类循环：id1上装/id2下装/id3裙装/id4外套/id5鞋履/id6配饰
+        assert [it["id"] for it in selected] == [1, 2, 5, 4, 6]
+        assert comp["missing"] == []
+

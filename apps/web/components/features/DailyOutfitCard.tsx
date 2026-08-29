@@ -3,12 +3,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { RefreshCw, Sun, CloudSun, Sparkles, Shirt, Dices, Check } from 'lucide-react'
-import { getDailyOutfit, type DailyOutfit, type DailyOutfitItem } from '@/lib/api'
+import { getDailyOutfit, getLearningSignals, type DailyOutfit, type DailyOutfitItem } from '@/lib/api'
 import { logOutfitAsDiary, hasTodayDiary, loggedFlagKey } from '@/lib/outfit-diary'
+import { requestChatInputAutofill } from '@/lib/chatAutofill'
 import { toast } from '@/components/ui/Toast'
-import { WUXING_CONFIG, type WuxingElement } from '@/lib/wuxing-config'
 import { ItemDetailModal } from './ItemDetailModal'
 import { OutfitRoulette } from './OutfitRoulette'
+import { OutfitPiecesView } from './OutfitPiecesView'
 
 /** 五行元素标签颜色映射 */
 const ELEMENT_COLORS: Record<string, string> = {
@@ -37,6 +38,7 @@ export function DailyOutfitCard({ isAuthenticated, city }: DailyOutfitCardProps)
   const [showRoulette, setShowRoulette] = useState(false)
   const [logging, setLogging] = useState(false)
   const [logged, setLogged] = useState(false)
+  const [learningNote, setLearningNote] = useState<string | null>(null)
 
   const MAX_BATCH = 5 // 增加到 5 批，更多变化
 
@@ -99,6 +101,21 @@ export function DailyOutfitCard({ isAuthenticated, city }: DailyOutfitCardProps)
     }
   }, [isAuthenticated])
 
+  // 学习信号显性化：近 30 天有穿着记录时，在推荐理由尾部说明推荐已在学习
+  useEffect(() => {
+    if (!isAuthenticated) return
+    let cancelled = false
+    getLearningSignals()
+      .then((signals) => {
+        if (cancelled || !signals) return
+        if (signals.wear_checkin_count_30d > 0) {
+          setLearningNote(`（已学习你近 ${signals.window_days} 天 ${signals.wear_checkin_count_30d} 次穿着）`)
+        }
+      })
+      .catch(() => { /* 只作展示，失败不影响推荐理由 */ })
+    return () => { cancelled = true }
+  }, [isAuthenticated])
+
   /** 「今天就穿它」：当前整套搭配一键生成今日穿搭日记 */
   async function handleWearOutfit() {
     if (!data?.outfit_items?.length || logging) return
@@ -129,6 +146,12 @@ export function DailyOutfitCard({ isAuthenticated, city }: DailyOutfitCardProps)
     } finally {
       setLogging(false)
     }
+  }
+
+  /** 「衣橱缺 · 点这里补」：带上幸运元素语境跳推荐（不引入心愿单） */
+  function handleFillMissing(category: string, luckyElement?: string) {
+    requestChatInputAutofill(`推荐一件${luckyElement ? luckyElement + '属性的' : ''}${category}`)
+    window.location.hash = '#chat'
   }
 
   if (!isAuthenticated) return null
@@ -223,12 +246,15 @@ export function DailyOutfitCard({ isAuthenticated, city }: DailyOutfitCardProps)
         {/* 运势摘要条 */}
         <div className="mx-4 mb-3 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--brand-surface)]/60 border border-[var(--brand-border)]/60">
           <Sun className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-          <p className="text-xs text-[var(--brand-body)] leading-relaxed flex-1 line-clamp-1">
+          <p className={`text-xs text-[var(--brand-body)] leading-relaxed flex-1 ${learningNote ? 'line-clamp-2' : 'line-clamp-1'}`}>
             {data.reasoning}
+            {learningNote && (
+              <span className="text-[var(--brand-subtle)]">{learningNote}</span>
+            )}
           </p>
         </div>
 
-        {/* 衣物卡片列表 */}
+        {/* 成套单品：按槽位顺序渲染 + 衣橱缺口占位 */}
         {items.length > 0 ? (
           <div className="px-4 pb-3">
             <AnimatePresence mode="wait">
@@ -238,16 +264,14 @@ export function DailyOutfitCard({ isAuthenticated, city }: DailyOutfitCardProps)
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.25 }}
-                className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-hide"
               >
-                {items.map((item, idx) => (
-                  <OutfitItemCard
-                    key={item.id}
-                    item={item}
-                    index={idx}
-                    onClick={() => setSelectedItem(item)}
-                  />
-                ))}
+                <OutfitPiecesView
+                  items={items}
+                  missing={data.completeness?.missing ?? []}
+                  luckyElement={fortune.lucky_elements?.[0]}
+                  onSelectItem={setSelectedItem}
+                  onFillMissing={handleFillMissing}
+                />
               </motion.div>
             </AnimatePresence>
           </div>
@@ -343,68 +367,5 @@ export function DailyOutfitCard({ isAuthenticated, city }: DailyOutfitCardProps)
         {showRoulette && <OutfitRoulette open={showRoulette} onClose={() => setShowRoulette(false)} />}
       </AnimatePresence>
     </>
-  )
-}
-
-// ── 单个衣物卡片 ─────────────────────────────────────────────────────────────
-
-interface OutfitItemCardProps {
-  item: DailyOutfitItem
-  index: number
-  onClick: () => void
-}
-
-function OutfitItemCard({ item, index, onClick }: OutfitItemCardProps) {
-  const elemColor = item.primary_element ? ELEMENT_COLORS[item.primary_element] : '#ccc'
-
-  return (
-    <motion.button
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay: index * 0.06, duration: 0.2 }}
-      whileTap={{ scale: 0.96 }}
-      onClick={onClick}
-      className="flex-shrink-0 w-[100px] rounded-xl border border-[var(--brand-border)]/60 bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow text-left"
-    >
-      {/* 图片 */}
-      <div className="w-full h-[100px] bg-[var(--brand-surface)] relative overflow-hidden">
-        {item.image_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={item.image_url}
-            alt={item.name}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Shirt className="w-8 h-8 text-[var(--brand-subtle)]/40" />
-          </div>
-        )}
-        {/* 五行标签 */}
-        {item.primary_element && (
-          <div
-            className="absolute top-1.5 left-1.5 text-[9px] px-1.5 py-0.5 rounded-full text-white font-medium"
-            style={{ backgroundColor: elemColor }}
-          >
-            {item.primary_element}
-          </div>
-        )}
-        {/* 收藏标记 */}
-        {item.is_favorite && (
-          <div className="absolute top-1.5 right-1.5 text-xs">♥</div>
-        )}
-      </div>
-
-      {/* 信息 */}
-      <div className="p-2">
-        <p className="text-xs font-medium text-[var(--brand-heading)] line-clamp-1 leading-tight">
-          {item.name}
-        </p>
-        {item.category && (
-          <p className="text-[10px] text-[var(--brand-subtle)] mt-0.5">{item.category}</p>
-        )}
-      </div>
-    </motion.button>
   )
 }

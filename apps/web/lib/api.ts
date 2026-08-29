@@ -1898,6 +1898,16 @@ export interface DailyOutfitItem {
   match_score: number
 }
 
+/** 成套完整性（槽位式选择的缺口标记） */
+export interface OutfitCompleteness {
+  has_top: boolean
+  has_bottom_or_dress: boolean
+  has_shoes: boolean
+  has_accessory: boolean
+  /** 衣橱里根本没有的品类，前端渲染「衣橱缺 · 点这里补」占位 */
+  missing: string[]
+}
+
 /** 每日智能穿搭建议 */
 export interface DailyOutfit {
   outfit_items: DailyOutfitItem[]
@@ -1916,6 +1926,7 @@ export interface DailyOutfit {
   style_tip: string
   match_score: number
   date: string
+  completeness?: OutfitCompleteness
 }
 
 /**
@@ -2035,11 +2046,27 @@ export interface PreferenceDimension {
   has_data: boolean
 }
 
+/** 近 N 天学习量变化最大的维度 */
+export interface LearningSignalDimension {
+  key: string
+  label: string
+  delta: number
+}
+
+/** 穿搭数据反哺推荐的学习信号 */
+export interface LearningSignals {
+  diary_count_30d: number
+  wear_checkin_count_30d: number
+  top_changed_dimensions: LearningSignalDimension[]
+  window_days: number
+}
+
 /** 用户偏好画像 */
 export interface PreferenceSummary {
   dimensions: PreferenceDimension[]
   overall_score: number  // 0~1 系统了解度
   feedback_count: number
+  learning_signals?: LearningSignals
 }
 
 /**
@@ -2064,6 +2091,24 @@ export async function getPreferenceSummary(): Promise<PreferenceSummary | null> 
 // ============================================
 // 衣橱智能分析 API
 // ============================================
+
+/** 学习信号短期缓存：首页与衣橱页共用同一端点，避免重复请求 */
+let learningSignalsCache: { data: LearningSignals | null; at: number } | null = null
+const LEARNING_SIGNALS_TTL = 5 * 60 * 1000
+
+/**
+ * 获取近 30 天学习信号（复用 preference-summary 端点，带 5 分钟缓存）
+ */
+export async function getLearningSignals(): Promise<LearningSignals | null> {
+  const now = Date.now()
+  if (learningSignalsCache && now - learningSignalsCache.at < LEARNING_SIGNALS_TTL) {
+    return learningSignalsCache.data
+  }
+  const summary = await getPreferenceSummary()
+  const data = summary?.learning_signals ?? null
+  learningSignalsCache = { data, at: now }
+  return data
+}
 
 /** 频率分析物品 */
 export interface FreqItem {
@@ -2154,6 +2199,74 @@ export async function getWardrobeAnalytics(): Promise<WardrobeAnalytics | null> 
     return response.json()
   } catch (error) {
     console.error('[getWardrobeAnalytics] 异常:', error)
+    return null
+  }
+}
+
+/** 五行平衡单行状态（忌神行超上限同用 surplus） */
+export type ElementBalanceStatus = 'deficient' | 'surplus' | 'balanced'
+
+/** 五行平衡单行 */
+export interface ElementBalanceEntry {
+  element: string
+  count: number
+  actual_pct: number
+  target_pct: number
+  gap_pct: number
+  status: ElementBalanceStatus
+}
+
+/** 补运建议里的公共库单品 */
+export interface SuggestionItem {
+  item_code: string
+  name: string
+  category: string
+  primary_element?: string
+  color?: string
+  image_url?: string
+  element_role?: 'primary' | 'secondary'
+}
+
+/** 补运建议（取缺口最大的 1-2 行） */
+export interface ElementAdvice {
+  element: string
+  headline: string
+  gap_pct: number
+  want: {
+    category: string
+    colors: string[]
+    seasons: string[]
+  }
+  items: SuggestionItem[]
+}
+
+/** 五行衣橱平衡仪表盘响应 */
+export interface ElementBalance {
+  elements: ElementBalanceEntry[]
+  lucky_elements: string[]
+  avoid_elements: string[]
+  advice: ElementAdvice[]
+  total_items: number
+  is_empty: boolean
+  temperature?: number | null
+  season: string
+}
+
+/**
+ * 获取五行衣橱平衡仪表盘（实际占比 vs 命理目标参考口径）
+ */
+export async function getElementBalance(): Promise<ElementBalance | null> {
+  try {
+    const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/element-balance`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      console.error('[getElementBalance] 请求失败:', response.status)
+      return null
+    }
+    return response.json()
+  } catch (error) {
+    console.error('[getElementBalance] 异常:', error)
     return null
   }
 }

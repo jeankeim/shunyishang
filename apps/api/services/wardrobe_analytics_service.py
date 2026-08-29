@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from psycopg2.extras import RealDictCursor
 
 from apps.api.core.database import DatabasePool
+from packages.utils.wuxing_rules import ELEMENT_COLOR_MAP
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,13 @@ LOW_FREQ_DAYS_THRESHOLD = 90      # 90天未穿且次数少视为低频
 LOW_FREQ_WEAR_COUNT_MAX = 3       # 低频次上限
 REDUNDANCY_MIN_ITEMS = 3          # 同品类同五行冗余阈值
 HIGH_FREQ_MULTIPLIER = 1.5       # 高频：wear_count >= 品类均值 * 1.5
+
+# 月份 → 季节（与每日成套推荐保持同一口径）
+SEASON_MAP_BY_MONTH = {
+    1: "冬", 2: "冬", 3: "春", 4: "春", 5: "春",
+    6: "夏", 7: "夏", 8: "夏", 9: "秋", 10: "秋", 11: "秋", 12: "冬",
+}
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────────
@@ -162,6 +170,303 @@ def get_idle_items(user_id: int) -> List[Dict[str, Any]]:
         reverse=True,
     )
     return idle_items
+
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# 五行衣橱平衡（占比 vs 命理目标参考口径）
+# ─────────────────────────────────────────────────────────────────────────────────
+
+ELEMENTS = ("金", "木", "水", "火", "土")
+
+# 参考口径：第一喜用 40%、第二喜用 25%、其余三行均分 35%；忌神单品占比上限 10%
+LUCKY_TARGET_TIERS = (40.0, 25.0)
+LUCKY_REMAINING_PCT = 35.0
+AVOID_TARGET_CAP = 10.0
+# 缺口小于该值视为已平衡，不出补运建议
+GAP_MIN_PCT = 3.0
+# 建议单品取件数
+ADVICE_ITEM_LIMIT = 3
+
+
+def get_element_balance(
+    user_id: int,
+    city: Optional[str] = None,
+    gender: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    五行衣橱平衡仪表盘
+
+    实际占比：primary_element 计 1.0、secondary_element 计 0.5，归一化为百分比。
+    目标占比：用户八字喜用神第一 40% / 第二 25% / 其余三行均分 35%，
+             忌神行以 10% 为目标上限（超出即 surplus）。
+    无八字时目标为五行均分 20%（兜底参考口径）。
+
+    返回:
+    {
+        "elements": [{element, count, actual_pct, target_pct, gap_pct, status}],
+        "lucky_elements": [...], "avoid_elements": [...],
+        "advice": [{element, headline, want: {category, colors, seasons}, items: [...]}],
+        "total_items": int, "is_empty": bool,
+    }
+
+    注：目标占比是自定义参考口径，文案表述为传统文化参考与搭配建议，不作吉凶断言。
+    """
+    wardrobe = _query_wardrobe(user_id)
+    bazi = _get_bazi_safe(user_id)
+    lucky_elements = [e for e in (bazi.get("suggested_elements") or []) if e in ELEMENTS]
+    avoid_elements = [e for e in (bazi.get("avoid_elements") or []) if e in ELEMENTS]
+
+    targets = _compute_target_pcts(lucky_elements, avoid_elements)
+    weights, counts = _accumulate_element_weights(wardrobe)
+    total_weight = sum(weights.values())
+
+    elements: List[Dict[str, Any]] = []
+    for elem in ELEMENTS:
+        actual_pct = round(weights[elem] / total_weight * 100, 1) if total_weight else 0.0
+        target_pct = targets[elem]
+        gap_pct = round(target_pct - actual_pct, 1)
+        elements.append({
+            "element": elem,
+            "count": counts[elem],
+            "actual_pct": actual_pct,
+            "target_pct": target_pct,
+            "gap_pct": gap_pct,
+            "status": _element_status(elem, actual_pct, target_pct, gap_pct, avoid_elements),
+        })
+
+    season = SEASON_MAP_BY_MONTH[date.today().month]
+    temperature = _current_temperature(city)
+
+    advice: List[Dict[str, Any]] = []
+    if wardrobe:
+        deficient = [e for e in elements if e["gap_pct"] >= GAP_MIN_PCT]
+        deficient.sort(key=lambda e: e["gap_pct"], reverse=True)
+        for entry in deficient[:2]:
+            elem = entry["element"]
+            want_category = _pick_want_category(wardrobe, elem)
+            want = {
+                "category": want_category,
+                "colors": ELEMENT_COLOR_MAP.get(elem, [])[:3],
+                "seasons": [season],
+            }
+            advice.append({
+                "element": elem,
+                "headline": (
+                    f"{elem}属性单品偏少（参考缺口 {entry['gap_pct']:.0f}%）· "
+                    f"可补 1-2 件{want_category}"
+                ),
+                "gap_pct": entry["gap_pct"],
+                "want": want,
+                "items": _query_suggestion_items(
+                    elem, season, temperature, wardrobe, gender, want_category
+                ),
+            })
+
+    return {
+        "elements": elements,
+        "lucky_elements": lucky_elements,
+        "avoid_elements": avoid_elements,
+        "advice": advice,
+        "total_items": len(wardrobe),
+        "is_empty": not wardrobe,
+        "temperature": temperature,
+        "season": season,
+    }
+
+
+def _get_bazi_safe(user_id: int) -> Dict[str, Any]:
+    """读取八字喜用/忌神，失败按未录入处理（目标回落均分）"""
+    try:
+        from apps.api.services.user_service import get_user_bazi
+        return get_user_bazi(user_id) or {}
+    except Exception as e:
+        logger.debug(f"[ElementBalance] 八字获取失败: {e}")
+        return {}
+
+
+def _compute_target_pcts(
+    lucky_elements: List[str],
+    avoid_elements: List[str],
+) -> Dict[str, float]:
+    """目标占比：第一喜用 40% / 第二喜用 25% / 其余三行均分 35%；忌神压到 10% 上限
+
+    喜用神多于两个时，第三及以后按「其余行」档参与均分（参考口径只看前两档）。
+    """
+    if not lucky_elements:
+        targets = {e: 20.0 for e in ELEMENTS}
+    else:
+        top_two = lucky_elements[:2]
+        others = [e for e in ELEMENTS if e not in top_two]
+        targets = {e: 0.0 for e in ELEMENTS}
+        for idx, elem in enumerate(top_two):
+            targets[elem] = LUCKY_TARGET_TIERS[idx]
+        if others:
+            share = round(LUCKY_REMAINING_PCT / len(others), 1)
+            for elem in others:
+                targets[elem] = share
+    for elem in avoid_elements:
+        targets[elem] = min(targets[elem], AVOID_TARGET_CAP)
+    return targets
+
+
+def _accumulate_element_weights(
+    wardrobe: List[Dict],
+) -> Tuple[Dict[str, float], Dict[str, int]]:
+    """主五行计 1.0、次五行计 0.5；count 为命中该五行的件数"""
+    weights = {e: 0.0 for e in ELEMENTS}
+    counts = {e: 0 for e in ELEMENTS}
+    for item in wardrobe:
+        primary = item.get("primary_element")
+        secondary = item.get("secondary_element")
+        hit = False
+        if primary in weights:
+            weights[primary] += 1.0
+            hit = True
+        if secondary in weights:
+            weights[secondary] += 0.5
+            hit = True
+        if hit:
+            if primary in weights:
+                counts[primary] += 1
+            if secondary in weights and secondary != primary:
+                counts[secondary] += 1
+    return weights, counts
+
+
+def _element_status(
+    elem: str,
+    actual_pct: float,
+    target_pct: float,
+    gap_pct: float,
+    avoid_elements: List[str],
+) -> str:
+    """缺口/超出/适中判定；忌神行只看是否超过上限"""
+    if elem in avoid_elements:
+        return "surplus" if actual_pct > AVOID_TARGET_CAP else "balanced"
+    if gap_pct >= GAP_MIN_PCT:
+        return "deficient"
+    if gap_pct <= -GAP_MIN_PCT:
+        return "surplus"
+    return "balanced"
+
+
+def _pick_want_category(wardrobe: List[Dict], elem: str) -> str:
+    """在该行件数最少的核心品类上给建议（并列时按品类顺序取第一个）"""
+    key_categories = ("上装", "下装", "外套", "鞋履", "配饰")
+    elem_count: Dict[str, int] = {c: 0 for c in key_categories}
+    for item in wardrobe:
+        cat = item.get("category") or ""
+        if cat not in elem_count:
+            continue
+        if item.get("primary_element") == elem or item.get("secondary_element") == elem:
+            elem_count[cat] += 1
+    return min(elem_count, key=lambda c: (elem_count[c], key_categories.index(c)))
+
+
+def _current_temperature(city: Optional[str]) -> Optional[int]:
+    """当日气温均值（天气源失败返回 None，调用方按不限温度处理）"""
+    try:
+        from packages.utils.weather_forecast import get_destination_weather
+        forecast = get_destination_weather(city or "杭州", 1)
+        if forecast:
+            day = forecast[0]
+            hi = day.get("temperature_max")
+            lo = day.get("temperature_min")
+            if hi is not None and lo is not None:
+                return int((int(hi) + int(lo)) / 2)
+    except Exception as e:
+        logger.debug(f"[ElementBalance] 天气获取失败: {e}")
+    return None
+
+
+def _query_suggestion_items(
+    elem: str,
+    season: str,
+    temperature: Optional[int],
+    wardrobe: List[Dict],
+    gender: Optional[str] = None,
+    category: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """
+    从公共库 items 取该五行、当季、厚度匹配的单品（站内商品，无外链）
+
+    五行命中为硬条件（主/次皆可），品类与季节、厚度均为软优先：
+    优先主五行命中 + 缺口品类，不足 3 件时再放开季节限制补齐。
+    """
+    owned_codes = [i.get("item_code") for i in wardrobe if i.get("item_code")]
+    preferred_thickness: List[str] = []
+    if temperature is not None:
+        if temperature >= 24:
+            preferred_thickness = ["轻薄", "极薄"]
+        elif temperature <= 12:
+            preferred_thickness = ["适中", "中厚", "厚重"]
+
+    # 条件与参数严格按拼接顺序成对构造，避免占位符错位
+    where = ["(primary_element = %s OR secondary_element = %s)"]
+    where_params: List[Any] = [elem, elem]
+    if gender:
+        where.append("(gender = %s OR gender = '中性' OR gender IS NULL OR gender = '')")
+        where_params.append(gender)
+    where.append("item_code <> ALL(%s)")
+    where_params.append(owned_codes)
+
+    # 季节条件始终放在 WHERE 末尾：补齐查询时整段去掉即可，参数同步截断
+    season_param = json.dumps([season], ensure_ascii=False)
+    order_params: List[Any] = [elem, category or "", preferred_thickness, ADVICE_ITEM_LIMIT * 2]
+
+    def _build_sql(with_season: bool) -> str:
+        conditions = list(where)
+        if with_season:
+            conditions.append("COALESCE(applicable_seasons, '[]'::jsonb) @> %s::jsonb")
+        return f"""
+            SELECT item_code, name, category, primary_element, secondary_element,
+                   color, thickness_level, image_url, thumbnail_url
+            FROM items
+            WHERE {' AND '.join(conditions)}
+            ORDER BY
+                CASE WHEN primary_element = %s THEN 0 ELSE 1 END,
+                CASE WHEN category = %s THEN 0 ELSE 1 END,
+                CASE WHEN thickness_level = ANY(%s) THEN 0 ELSE 1 END,
+                energy_intensity DESC NULLS LAST,
+                item_code
+            LIMIT %s
+        """
+
+    rows = _fetch_items(_build_sql(True), where_params + [season_param] + order_params)
+
+    # 当季不足则放开季节补齐（衣橱建议宁缺毋滥，但不希望面板出现空列表）
+    if len(rows) < ADVICE_ITEM_LIMIT:
+        seen = {r.get("item_code") for r in rows}
+        fill_params = where_params + order_params
+        for r in _fetch_items(_build_sql(False), fill_params):
+            if r.get("item_code") not in seen:
+                rows.append(r)
+                seen.add(r.get("item_code"))
+
+    return [
+        {
+            "item_code": r.get("item_code"),
+            "name": r.get("name", ""),
+            "category": r.get("category", ""),
+            "primary_element": r.get("primary_element"),
+            "color": r.get("color"),
+            "image_url": r.get("image_url") or r.get("thumbnail_url"),
+            "element_role": "primary" if r.get("primary_element") == elem else "secondary",
+        }
+        for r in rows[:ADVICE_ITEM_LIMIT]
+    ]
+
+
+def _fetch_items(sql: str, params: List[Any]) -> List[Dict[str, Any]]:
+    """公共库单品查询（失败返回空列表，不影响主面板）"""
+    try:
+        with DatabasePool.get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(sql, params)
+                return [dict(row) for row in cur.fetchall()]
+    except Exception as e:
+        logger.warning(f"[ElementBalance] 公共库单品查询失败: {e}")
+        return []
 
 
 # ─────────────────────────────────────────────────────────────────────────────────

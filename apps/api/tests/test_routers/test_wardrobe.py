@@ -424,3 +424,146 @@ class TestFeedback:
             assert response.status_code == 200
         finally:
             test_app.dependency_overrides.clear()
+
+
+class TestElementBalance:
+    """五行衣橱平衡仪表盘端点"""
+
+    @pytest.mark.asyncio
+    async def test_no_auth(self, async_client):
+        response = await async_client.get("/api/v1/wardrobe/element-balance")
+        assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_success_passes_city_and_gender(self, async_client, auth_headers, test_app, mock_user):
+        """透传定位城市与性别给出入服务"""
+        mock_user["preferred_city"] = "杭州"
+        mock_user["gender"] = "女"
+        payload = {"elements": [], "advice": [], "is_empty": True}
+        with patch(
+            "apps.api.services.wardrobe_analytics_service.get_element_balance",
+            return_value=payload,
+        ) as mocked:
+            test_app.dependency_overrides[get_current_user] = lambda: mock_user
+            try:
+                response = await async_client.get(
+                    "/api/v1/wardrobe/element-balance", headers=auth_headers
+                )
+            finally:
+                test_app.dependency_overrides.clear()
+
+        assert response.status_code == 200
+        assert response.json() == payload
+        assert mocked.call_args.args[0] == 1
+        assert mocked.call_args.kwargs == {"city": "杭州", "gender": "女"}
+
+    @pytest.mark.asyncio
+    async def test_cache_hit_skips_service(self, async_client, auth_headers, test_app, mock_user):
+        """Redis 可用且命中缓存时不再计算"""
+        from apps.api.core.config import settings
+
+        cached = {"elements": [], "advice": [], "cached": True}
+        mock_cache = MagicMock()
+        mock_cache.get_sync.return_value = cached
+        with patch("apps.api.core.cache.cache", mock_cache), \
+                patch("apps.api.services.wardrobe_analytics_service.get_element_balance") as mocked:
+            test_app.dependency_overrides[get_current_user] = lambda: mock_user
+            original = settings.redis_enabled
+            settings.redis_enabled = True
+            try:
+                response = await async_client.get(
+                    "/api/v1/wardrobe/element-balance", headers=auth_headers
+                )
+            finally:
+                settings.redis_enabled = original
+                test_app.dependency_overrides.clear()
+
+        assert response.status_code == 200
+        assert response.json()["cached"] is True
+        mocked.assert_not_called()
+        mock_cache.get_sync.assert_called_once_with("wardrobe_element_balance:1")
+
+
+class TestLearningSignals:
+    """批次一 1.3：穿搭数据反哺显性化的学习信号聚合"""
+
+    def test_aggregation_and_dimension_ranking(self, mock_db_pool):
+        """日记套数/穿着件次正确；维度按学习量变化绝对值降序取前 3，delta=0 被过滤"""
+        from apps.api.routers.wardrobe import _query_learning_signals
+
+        cursor = mock_db_pool["cursor"]
+        cursor.fetchone.return_value = {"diary_count": 5, "wear_count": 12}
+        cursor.fetchall.return_value = [
+            {"pref_type": "color", "recent": 12, "prior": 4},
+            {"pref_type": "element", "recent": 3, "prior": 3},
+            {"pref_type": "style", "recent": 1, "prior": 9},
+            {"pref_type": "category", "recent": 6, "prior": 5},
+            {"pref_type": "material", "recent": 4, "prior": 0},
+        ]
+
+        signals = _query_learning_signals(1)
+
+        assert signals["diary_count_30d"] == 5
+        assert signals["wear_checkin_count_30d"] == 12
+        assert signals["window_days"] == 30
+        assert [d["label"] for d in signals["top_changed_dimensions"]] == ["颜色", "风格", "材质"]
+        assert [d["delta"] for d in signals["top_changed_dimensions"]] == [8, -8, 4]
+        # 两次查询：日记聚合 + 偏好维度变化，窗口天数走参数而非拼接
+        assert cursor.execute.call_count == 2
+        assert 30 in cursor.execute.call_args_list[1].args[1]
+
+    def test_zero_records(self, mock_db_pool):
+        """零记录时全部为 0（前端据此不渲染学习说明）"""
+        from apps.api.routers.wardrobe import _query_learning_signals
+
+        cursor = mock_db_pool["cursor"]
+        cursor.fetchone.return_value = {"diary_count": 0, "wear_count": 0}
+        cursor.fetchall.return_value = []
+
+        assert _query_learning_signals(1) == {
+            "diary_count_30d": 0,
+            "wear_checkin_count_30d": 0,
+            "top_changed_dimensions": [],
+            "window_days": 30,
+        }
+
+    def test_db_failure_degrades_to_zero(self, mock_db_pool):
+        """查询异常不抛出，回落零值结构"""
+        from apps.api.routers.wardrobe import _query_learning_signals
+
+        mock_db_pool["cursor"].execute.side_effect = RuntimeError("db down")
+        signals = _query_learning_signals(1)
+        assert signals["diary_count_30d"] == 0
+        assert signals["top_changed_dimensions"] == []
+
+    @pytest.mark.asyncio
+    async def test_preference_summary_exposes_signals(
+        self, async_client, auth_headers, test_app, mock_user
+    ):
+        """preference-summary 响应新增 learning_signals（不新建端点）"""
+        prefs = {"color": {"红色": 8, "黑色": -3}}
+        signals = {
+            "diary_count_30d": 2,
+            "wear_checkin_count_30d": 7,
+            "top_changed_dimensions": [{"key": "color", "label": "颜色", "delta": 5}],
+            "window_days": 30,
+        }
+        with patch(
+            "apps.api.services.preference_service.preference_service.get_user_preferences",
+            return_value=prefs,
+        ), patch(
+            "apps.api.routers.wardrobe._query_learning_signals",
+            return_value=signals,
+        ):
+            test_app.dependency_overrides[get_current_user] = lambda: mock_user
+            try:
+                response = await async_client.get(
+                    "/api/v1/wardrobe/preference-summary", headers=auth_headers
+                )
+            finally:
+                test_app.dependency_overrides.clear()
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["learning_signals"] == signals
+        assert body["dimensions"][0]["key"] == "color"

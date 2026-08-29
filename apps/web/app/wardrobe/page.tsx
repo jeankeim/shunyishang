@@ -14,6 +14,8 @@ import { EmptyState, SkeletonList, ConfirmDialog } from '@/components/ui'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { WardrobeInsights } from '@/components/features/WardrobeInsights'
 import { IdleItemsCard } from '@/components/features/IdleItemsCard'
+import { WuxingBalancePanel } from '@/components/features/WuxingBalancePanel'
+import { PreferenceLearningBar } from '@/components/features/PreferenceLearningBar'
 import { WardrobeCabinet } from '@/components/features/WardrobeCabinet'
 import { WardrobeItemViewer } from '@/components/features/WardrobeItemViewer'
 import { IDLE_BADGE_MIN_DAYS, idleBadgeClass } from '@/lib/wardrobe-display'
@@ -309,6 +311,19 @@ export default function WardrobePage() {
           </div>
         </div>
       </motion.div>
+
+      {/* 五行平衡仪表盘 + 偏好学习显性化（洞察区首位） */}
+      {total > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.18 }}
+          className="mb-6 space-y-3 md:mb-8"
+        >
+          <WuxingBalancePanel />
+          <PreferenceLearningBar />
+        </motion.div>
+      )}
 
       {/* 衣橱智能洞察面板 */}
       {total > 0 && (

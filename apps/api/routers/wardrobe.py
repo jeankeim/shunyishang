@@ -61,6 +61,20 @@ MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 MAX_BATCH_SIZE = 5  # 批量上传每批上限
 
 
+# ========== 缓存失效 ==========
+
+def _invalidate_wardrobe_insight_cache(user_id: int) -> None:
+    """衣橱增删改后失效依赖衣橱构成的洞察缓存（五行平衡仪表盘）"""
+    try:
+        from apps.api.core.config import settings
+        if not settings.redis_enabled:
+            return
+        from apps.api.core.cache import cache as redis_cache
+        redis_cache.delete_sync(f"wardrobe_element_balance:{user_id}")
+    except Exception as e:
+        logger.debug(f"[Cache] 衣橱洞察缓存失效失败: {e}")
+
+
 # ========== 请求模型 ==========
 
 class AITaggingPreview(BaseModel):
@@ -483,6 +497,7 @@ async def add_wardrobe_item(
                 row = _insert_wardrobe_item(cur, user_id, insert_data)
                 conn.commit()
         
+        _invalidate_wardrobe_insight_cache(int(user_id))
         return WardrobeItemResponse(**row)
         
     except Exception as e:
@@ -735,6 +750,8 @@ async def batch_add_wardrobe_items(
         )
 
     logger.info(f"[批量上传] 用户 {user_id} 入库完成: 成功 {len(created)} 件, 失败 {len(failed)} 件")
+    if created:
+        _invalidate_wardrobe_insight_cache(int(user_id))
     return BatchAddItemsResponse(created=created, failed=failed)
 
 
@@ -1026,6 +1043,7 @@ async def update_wardrobe_item(
             detail="衣物不存在或无权访问"
         )
     
+    _invalidate_wardrobe_insight_cache(int(user_id))
     return WardrobeItemResponse(**dict(row))
 
 
@@ -1060,6 +1078,7 @@ async def delete_wardrobe_item(
             detail="衣物不存在或无权访问"
         )
     
+    _invalidate_wardrobe_insight_cache(int(user_id))
     return {"message": "删除成功"}
 
 
@@ -1519,6 +1538,7 @@ async def get_preference_summary(
     - dimensions: 6个维度的摘要（维度名、标签、偏好度分数、top3偏好项）
     - overall_score: 总体偏好学习深度（0~1，越高表示系统越了解用户）
     - feedback_count: 总反馈次数
+    - learning_signals: 近 30 天学习信号（日记套数/穿着件次/变化最大的维度）
     """
     user_id = user.get("id") or user.get("user_id")
     if not user_id:
@@ -1579,7 +1599,75 @@ async def get_preference_summary(
         "dimensions": dimensions,
         "overall_score": overall_score,
         "feedback_count": total_feedback,
+        "learning_signals": _query_learning_signals(int(user_id)),
     }
+
+
+# 偏好学习显性化窗口（天）
+LEARNING_WINDOW_DAYS = 30
+
+
+def _query_learning_signals(user_id: int) -> dict:
+    """
+    近 30 天的学习信号：让用户看到「穿搭数据正在反哺推荐」
+
+    - diary_count_30d：近 30 天记录的穿搭日记套数
+    - wear_checkin_count_30d：近 30 天记录的穿着件次（日记关联衣物，含「穿了它」打卡）
+    - top_changed_dimensions：学习量变化最大的维度（近 30 天 vs 前 30 天的权重绝对值差，近似口径）
+    """
+    signals = {
+        "diary_count_30d": 0,
+        "wear_checkin_count_30d": 0,
+        "top_changed_dimensions": [],
+        "window_days": LEARNING_WINDOW_DAYS,
+    }
+    try:
+        with DatabasePool.get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    SELECT COUNT(DISTINCT od.id)::int AS diary_count,
+                           COUNT(doi.id)::int AS wear_count
+                    FROM outfit_diaries od
+                    LEFT JOIN diary_outfit_items doi ON doi.diary_id = od.id
+                    WHERE od.user_id = %s
+                      AND od.diary_date >= CURRENT_DATE - (%s || ' days')::interval
+                    """,
+                    [user_id, LEARNING_WINDOW_DAYS],
+                )
+                row = cur.fetchone() or {}
+                signals["diary_count_30d"] = row.get("diary_count") or 0
+                signals["wear_checkin_count_30d"] = row.get("wear_count") or 0
+
+                cur.execute(
+                    """
+                    SELECT pref_type,
+                           SUM(CASE WHEN updated_at >= NOW() - (%s || ' days')::interval
+                                    THEN ABS(weight) ELSE 0 END)::int AS recent,
+                           SUM(CASE WHEN updated_at >= NOW() - ((%s * 2) || ' days')::interval
+                                     AND updated_at < NOW() - (%s || ' days')::interval
+                                    THEN ABS(weight) ELSE 0 END)::int AS prior
+                    FROM user_preferences
+                    WHERE user_id = %s
+                    GROUP BY pref_type
+                    """,
+                    [LEARNING_WINDOW_DAYS, LEARNING_WINDOW_DAYS, LEARNING_WINDOW_DAYS, user_id],
+                )
+                deltas = [
+                    {
+                        "key": r["pref_type"],
+                        "label": (PREFERENCE_DIMENSIONS.get(r["pref_type"]) or {}).get("label", r["pref_type"]),
+                        "delta": int(r["recent"] or 0) - int(r["prior"] or 0),
+                    }
+                    for r in cur.fetchall()
+                ]
+                deltas = [d for d in deltas if d["delta"] != 0]
+                deltas.sort(key=lambda d: abs(d["delta"]), reverse=True)
+                signals["top_changed_dimensions"] = deltas[:3]
+    except Exception as e:
+        # 学习信号只作展示，查询失败不影响偏好画像主流程
+        logger.debug(f"[Preference] 学习信号聚合失败: {e}")
+    return signals
 
 
 # ========== 衣橱智能分析 ==========
@@ -1650,3 +1738,51 @@ async def get_idle_items(
         "total_count": len(items),
         "message": f"你有 {len(items)} 件衣物已经很久没穿了，考虑让它们找到新主人 🌱" if items else "你的衣橱管理得很好，没有长期闲置物品 ✨",
     }
+
+
+@router.get("/element-balance")
+async def get_element_balance(
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    五行衣橱平衡仪表盘
+
+    统计衣橱五行实际占比（主五计 1.0、次五计 0.5），与命理目标参考口径
+    （第一喜用 40% / 第二喜用 25% / 其余均分 35%，忌神上限 10%）对比给出缺口，
+    并按缺口从公共库推荐当季单品。
+
+    注：目标占比为传统文化参考口径，用于搭配建议，不构成任何吉凶断言。
+    """
+    from apps.api.services.wardrobe_analytics_service import get_element_balance as _balance
+    from apps.api.core.config import settings as _settings
+
+    user_id = current_user.get("id") or current_user.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="用户未登录")
+
+    cache_key = f"wardrobe_element_balance:{user_id}"
+    use_cache = bool(_settings.redis_enabled)
+    if use_cache:
+        try:
+            from apps.api.core.cache import cache as redis_cache
+            cached = redis_cache.get_sync(cache_key)
+            if cached:
+                return cached
+        except Exception:
+            pass
+
+    result = _balance(
+        int(user_id),
+        city=current_user.get("preferred_city"),
+        gender=current_user.get("gender"),
+    )
+
+    # 衣橱构成变化不频繁，缓存 1 小时（增删改衣物时主动清键）
+    if use_cache:
+        try:
+            from apps.api.core.cache import cache as redis_cache
+            redis_cache.set_sync(cache_key, result, ttl=3600)
+        except Exception:
+            pass
+
+    return result

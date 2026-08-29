@@ -8,7 +8,7 @@
 import json
 import logging
 from datetime import date, datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from psycopg2.extras import RealDictCursor
 
@@ -43,10 +43,25 @@ CATEGORY_MAX_PER_OUTFIT = {
     "鞋履": 1,
 }
 
+# ── 成套槽位品类归组 ─────────────────────────────────────────────────────────
+TOP_CATEGORIES = ("上装",)
+BOTTOM_CATEGORIES = ("下装",)
+DRESS_CATEGORIES = ("裙装",)
+# 一件式品类：本身已含上下身，计入完整性判定（裙装另参与核心位比较）
+ONE_PIECE_CATEGORIES = ("裙装", "套装")
+SHOE_CATEGORIES = ("鞋履",)
+OUTER_CATEGORIES = ("外套",)
+ACCESSORY_CATEGORIES = ("配饰", "饰品", "文玩")
+
 # ── 温度 → 厚度适配 ──────────────────────────────────────────────────────────
 THICKNESS_HOT = {"轻薄", "极薄"}        # >=28°C
 THICKNESS_MILD = {"轻薄", "适中"}       # 15-27°C
 THICKNESS_COLD = {"适中", "中厚", "厚重"}  # <=14°C
+
+# 低于该温度才保留外套槽位
+OUTERWEAR_TEMP_THRESHOLD = 15
+# 配饰槽位单套上限（与 CATEGORY_MAX_PER_OUTFIT['配饰'] 对齐）
+ACCESSORY_SLOT_CAP = 2
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -74,6 +89,8 @@ def generate_daily_outfit(
             "fortune_summary": {...},
             "style_tip": "...",
             "match_score": int,
+            "completeness": {"has_top", "has_bottom_or_dress", "has_shoes",
+                             "has_accessory", "missing": [...]},
         }
     """
     today = date.today()
@@ -127,17 +144,16 @@ def generate_daily_outfit(
     # 按分数降序
     scored.sort(key=lambda x: x[1], reverse=True)
 
-    # ── 6. 品类多样性选择 ──────────────────────────────────────────────────
-    outfit_items = _select_diverse_items(scored, target_count=5, batch_index=batch_index)
+    # ── 6. 槽位式成套选择 ──────────────────────────────────────────────────
+    outfit_items, completeness = _select_complete_outfit(
+        scored, temperature=temperature, target_count=5, batch_index=batch_index
+    )
 
     # ── 7. 构建响应 ────────────────────────────────────────────────────────
     if not outfit_items:
         return _empty_result(primary_lucky, lucky_colors, weather, fortune, today)
 
-    total_score = sum(s for _, s in scored if any(
-        o.get("id") == _["id"] for o in outfit_items for _ in [o]
-    ))
-    # 简化：取选中物品的平均分的整数形式
+    # 取选中物品的平均分的整数形式
     selected_scores = []
     for item, score in scored:
         if any(o.get("id") == item.get("id") for o in outfit_items):
@@ -167,6 +183,7 @@ def generate_daily_outfit(
         },
         "style_tip": style_tip,
         "match_score": min(avg_score, 100),
+        "completeness": completeness,
         "date": today.isoformat(),
     }
 
@@ -380,66 +397,185 @@ def _calc_preference_score(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 品类多样性选择
+# 槽位式成套选择
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _select_diverse_items(
+def _select_complete_outfit(
     scored: List[tuple],
+    temperature: float,
     target_count: int = 5,
     batch_index: int = 0,
-) -> List[Dict[str, Any]]:
+) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     """
-    从评分结果中选择品类多样化的物品
+    槽位式成套选择，保证「核心位 + 鞋履 +（低温时）外套 + 配饰」结构完整
 
-    策略：
-    - 每个品类不超过 CATEGORY_MAX_PER_OUTFIT 限制
-    - 优先确保 上装+下装 或 裙装 的核心搭配
-    - 配饰/鞋履作为补充
-    - 换一批：逐批模拟并排除前序批次已选物品，保证批次间不重合；
-      候选耗尽时回退复用已展示物品
+    换一批语义与旧实现一致：逐批模拟并排除前序批次已选物品，
+    候选耗尽时回退复用已展示物品。
+
+    Returns:
+        (选中的物品列表, completeness 完整性摘要)
     """
     excluded_ids: set = set()
     selected: List[Dict[str, Any]] = []
+    completeness = _empty_completeness()
 
     for _ in range(batch_index + 1):
-        selected = _pick_one_batch(scored, target_count, excluded_ids)
+        selected, completeness = _pick_one_complete_batch(
+            scored, temperature, target_count, excluded_ids
+        )
         if not selected and excluded_ids:
             # 候选耗尽：回退复用已展示物品
             excluded_ids.clear()
-            selected = _pick_one_batch(scored, target_count, excluded_ids)
+            selected, completeness = _pick_one_complete_batch(
+                scored, temperature, target_count, excluded_ids
+            )
         excluded_ids.update(item["id"] for item in selected)
 
-    return selected
+    return selected, completeness
 
 
-def _pick_one_batch(
+def _pick_one_complete_batch(
     scored: List[tuple],
+    temperature: float,
     target_count: int,
     excluded_ids: set,
-) -> List[Dict[str, Any]]:
-    """从评分结果中选出一批物品（跳过已排除 id，遵守品类限制）"""
+) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    """按槽位取物：核心位 → 鞋履 → 外套（低温）→ 配饰 → 按分数补齐"""
+    # 本批可用候选（已按分数降序，scored 由调用方排序）
+    pool = [(item, score) for item, score in scored if item.get("id") not in excluded_ids]
+    if not pool:
+        return [], _empty_completeness()
+
+    used_ids: set = set()
     selected: List[Dict[str, Any]] = []
     category_count: Dict[str, int] = {}
+    # 衣橱层面已有的品类：品类完全缺货时跳过槽位（记入 missing），
+    # 仅因换一批被排除时才回落全局次优
+    stocked_categories = {item.get("category") or "其他" for item, _ in scored}
 
-    for item, score in scored:
-        if item.get("id") in excluded_ids:
-            continue
+    def _first_available(
+        categories: Tuple[str, ...] = (),
+        blocked: Tuple[str, ...] = (),
+    ) -> Optional[tuple]:
+        """取分数最高、未入选、未超品类上限的物品；categories 非空时限定品类"""
+        for item, score in pool:
+            if item.get("id") in used_ids:
+                continue
+            category = item.get("category") or "其他"
+            if categories and category not in categories:
+                continue
+            if category in blocked:
+                continue
+            if category_count.get(category, 0) >= CATEGORY_MAX_PER_OUTFIT.get(category, 1):
+                continue
+            return item, score
+        return None
 
-        category = item.get("category") or "其他"
-        current = category_count.get(category, 0)
-        max_allowed = CATEGORY_MAX_PER_OUTFIT.get(category, 1)
+    def _take(
+        categories: Tuple[str, ...],
+        slot_cap: int = 1,
+        blocked: Tuple[str, ...] = (),
+    ) -> None:
+        """
+        占用一个槽位：品类内优先，品类本轮无候选则回落全局次优。
+        回落只发生在槽位的第一件（避免配饰第二件抢走其他品类名额）。
+        """
+        if categories and not (set(categories) & stocked_categories):
+            return
+        for slot_index in range(slot_cap):
+            if len(selected) >= target_count:
+                return
+            picked = _first_available(categories, blocked)
+            if picked is None and slot_index == 0:
+                picked = _first_available((), blocked)
+            if picked is None:
+                return
+            item, score = picked
+            category = item.get("category") or "其他"
+            selected.append(_format_item(item, score))
+            used_ids.add(item.get("id"))
+            category_count[category] = category_count.get(category, 0) + 1
 
-        if current >= max_allowed:
-            continue
+    # ── 核心位：裙装套 vs 上装+下装套 ──────────────────────────────────────
+    dress = _first_available(DRESS_CATEGORIES)
+    top = _first_available(TOP_CATEGORIES)
+    bottom = _first_available(BOTTOM_CATEGORIES)
+    if dress and (not top or not bottom or dress[1] > top[1] + bottom[1]):
+        # 裙装最高分占优：走裙装套，免下装位
+        _take(DRESS_CATEGORIES)
+    else:
+        _take(TOP_CATEGORIES)
+        _take(BOTTOM_CATEGORIES)
 
-        payload = _format_item(item, score)
-        selected.append(payload)
-        category_count[category] = current + 1
+    # ── 鞋履位：必出 ───────────────────────────────────────────────────────
+    _take(SHOE_CATEGORIES)
 
-        if len(selected) >= target_count:
-            break
+    # ── 外套位：仅低温时保留槽 ─────────────────────────────────────────────
+    if temperature <= OUTERWEAR_TEMP_THRESHOLD:
+        _take(OUTER_CATEGORIES)
 
-    return selected
+    # ── 配饰位：有则出 1-2 件 ──────────────────────────────────────────────
+    _take(ACCESSORY_CATEGORIES, slot_cap=ACCESSORY_SLOT_CAP)
+
+    # ── 剩余名额按分数补齐（高温时不补外套，避免热天出外套）──────────────
+    fill_blocked = OUTER_CATEGORIES if temperature > OUTERWEAR_TEMP_THRESHOLD else ()
+    _take((), slot_cap=max(0, target_count - len(selected)), blocked=fill_blocked)
+
+    return selected, _build_completeness(scored, selected, temperature)
+
+
+def _build_completeness(
+    scored: List[tuple],
+    selected: List[Dict[str, Any]],
+    temperature: float,
+) -> Dict[str, Any]:
+    """
+    成套完整性摘要：missing 只登记「衣橱根本没有该品类」的缺口，
+    因换一批排除导致的本轮临时缺位不算衣橱缺失。
+    """
+    categories = {item.get("category") or "" for item in selected}
+
+    def _has(group: Tuple[str, ...]) -> bool:
+        return bool(categories & set(group))
+
+    def _stocked(group: Tuple[str, ...]) -> bool:
+        return any((item.get("category") or "") in group for item, _ in scored)
+
+    has_top = _has(TOP_CATEGORIES) or _has(ONE_PIECE_CATEGORIES)
+    has_bottom_or_dress = _has(BOTTOM_CATEGORIES) or _has(ONE_PIECE_CATEGORIES)
+    has_shoes = _has(SHOE_CATEGORIES)
+    has_accessory = _has(ACCESSORY_CATEGORIES)
+
+    missing: List[str] = []
+    if not has_top and not _stocked(TOP_CATEGORIES):
+        missing.append("上装")
+    if not has_bottom_or_dress and not _stocked(BOTTOM_CATEGORIES + DRESS_CATEGORIES):
+        missing.append("下装")
+    if not has_shoes and not _stocked(SHOE_CATEGORIES):
+        missing.append("鞋履")
+    if temperature <= OUTERWEAR_TEMP_THRESHOLD and not _has(OUTER_CATEGORIES) and not _stocked(OUTER_CATEGORIES):
+        missing.append("外套")
+    if not has_accessory and not _stocked(ACCESSORY_CATEGORIES):
+        missing.append("配饰")
+
+    return {
+        "has_top": has_top,
+        "has_bottom_or_dress": has_bottom_or_dress,
+        "has_shoes": has_shoes,
+        "has_accessory": has_accessory,
+        "missing": missing,
+    }
+
+
+def _empty_completeness() -> Dict[str, Any]:
+    """无候选时的完整性摘要（全部未覆盖，无缺口清单）"""
+    return {
+        "has_top": False,
+        "has_bottom_or_dress": False,
+        "has_shoes": False,
+        "has_accessory": False,
+        "missing": [],
+    }
 
 
 def _format_item(item: Dict[str, Any], score: int) -> Dict[str, Any]:
@@ -633,5 +769,12 @@ def _empty_result(
         },
         "style_tip": f"五行属{primary_lucky}的单品可提升今日运势",
         "match_score": 0,
+        "completeness": {
+            "has_top": False,
+            "has_bottom_or_dress": False,
+            "has_shoes": False,
+            "has_accessory": False,
+            "missing": ["上装", "下装", "鞋履", "配饰"],
+        },
         "date": today.isoformat(),
     }
