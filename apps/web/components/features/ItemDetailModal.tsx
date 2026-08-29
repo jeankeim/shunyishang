@@ -10,13 +10,19 @@ import { getImageUrl } from '@/lib/image'
 interface ItemDetailModalProps {
   item: RecommendItem
   onClose: () => void
+  /**
+   * 可选的底部反馈操作栏（喜欢/不喜欢/撤销等）。
+   * 由调用方（推荐卡片）注入，使反馈仅在「点开大图后」可操作；
+   * 不传则弹窗仅展示详情（如每日穿搭复用场景）。
+   */
+  feedbackSlot?: React.ReactNode
 }
 
 /**
  * 物品详情弹窗组件
  * 展示推荐物品的高清图片、基本信息、五行属性、适用场景等详细信息
  */
-export function ItemDetailModal({ item, onClose }: ItemDetailModalProps) {
+export function ItemDetailModal({ item, onClose, feedbackSlot }: ItemDetailModalProps) {
   const config = getWuxingConfig(item.primary_element)
   const fullImageUrl = getImageUrl(item.image_url)
   const attrs = item.attributes_detail || {}
@@ -251,8 +257,15 @@ export function ItemDetailModal({ item, onClose }: ItemDetailModalProps) {
             )}
           </div>
 
-          {/* 底部安全区（移动端） */}
-          <div className="h-6 md:hidden" />
+          {/* 底部反馈操作栏（仅推荐卡片注入时出现，随内容滚动吸底） */}
+          {feedbackSlot && (
+            <div className="sticky bottom-0 z-20 mt-2 border-t border-stone-100 bg-white/95 backdrop-blur-sm px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:rounded-b-2xl">
+              {feedbackSlot}
+            </div>
+          )}
+
+          {/* 底部安全区（移动端，无反馈栏时保留） */}
+          {!feedbackSlot && <div className="h-6 md:hidden" />}
         </motion.div>
       </motion.div>
     </AnimatePresence>,

@@ -7,8 +7,9 @@ import { submitFeedback, cancelFeedback, reportBehavior, WardrobeSimilarItem } f
 import { getWuxingConfig } from '@/lib/wuxing-config'
 import { getImageUrl } from '@/lib/image'
 import { useUserStore } from '@/store/user'
+import { cn } from '@/lib/utils'
 import { ItemDetailModal } from './ItemDetailModal'
-import { WardrobeSimilarSheet } from './WardrobeSimilarSheet'
+import { WardrobeSimilarInline } from './WardrobeSimilarInline'
 
 interface RecommendCardProps {
   item: RecommendItem
@@ -39,15 +40,14 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
   const [imageError, setImageError] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
-  // 图片覆盖层交互状态
-  const [showOverlay, setShowOverlay] = useState(false)
+  // 反馈覆盖层交互状态（喜欢/不喜欢已移入放大详情弹窗的操作栏）
   const [showReasons, setShowReasons] = useState(false)
   const [feedbackAnimation, setFeedbackAnimation] = useState<'like' | 'dislike' | null>(null)
   // 点踩多选状态
   const [selectedReasons, setSelectedReasons] = useState<string[]>([])
   const [submitError, setSubmitError] = useState<string | null>(null)
-  // 衣橱相似款面板
-  const [showSimilarSheet, setShowSimilarSheet] = useState(false)
+  // 衣橱相似款内联展开（点「找相似」后卡片就地展开，无遮罩）
+  const [showSimilarInline, setShowSimilarInline] = useState(false)
   const dwellTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hasReportedView = useRef(false)
   const hasReportedDwell = useRef(false)
@@ -89,10 +89,10 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
     setShowDetails(!showDetails)
   }
 
-  // 点击图片 → 显示反馈覆盖层（已反馈时显示撤销选项）
+  // 点击卡片图片 → 打开放大详情弹窗（喜欢/不喜欢在弹窗内操作）
   const handleImageTap = () => {
     reportBehavior(undefined, item.item_id || item.item_code || '', 'image_click')
-    setShowOverlay(true)
+    setShowDetailModal(true)
     setShowReasons(false)
     setSelectedReasons([])
     setSubmitError(null)
@@ -114,11 +114,8 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
       setFeedback('like')
       setFeedbackAnimation('like')
       onFeedback?.('like')
-      // 动画后关闭覆盖层
-      setTimeout(() => {
-        setShowOverlay(false)
-        setFeedbackAnimation(null)
-      }, 800)
+      // 动画后清除成功态（弹窗保持打开，操作栏切到「已喜欢 + 撤销」）
+      setTimeout(() => setFeedbackAnimation(null), 800)
     } catch (error) {
       console.error('反馈提交失败:', error)
       setSubmitError(error instanceof Error ? error.message : '提交失败，请重试')
@@ -160,7 +157,6 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
       setFeedbackAnimation('dislike')
       onFeedback?.('dislike')
       setTimeout(() => {
-        setShowOverlay(false)
         setShowReasons(false)
         setFeedbackAnimation(null)
       }, 800)
@@ -179,7 +175,6 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
     try {
       await cancelFeedback(item.item_code || '', item.item_id)
       setFeedback(null)
-      setShowOverlay(false)
       setShowReasons(false)
       setSelectedReasons([])
     } catch (error) {
@@ -207,15 +202,119 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
       image_url: similar.image_url || undefined,
       source: 'wardrobe',
     }, similar)
-    setShowSimilarSheet(false)
+    setShowSimilarInline(false)
   }
+
+  // 放大详情弹窗底部的反馈操作栏：喜欢/不喜欢 → 点踩原因多选 → 已反馈可撤销
+  // （反馈仅在点开大图后可操作，符合"点击放大后才有效"的交互预期）
+  const feedbackBar = (
+    <div>
+      {feedbackAnimation ? (
+        <motion.div
+          initial={{ scale: 0.85, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="flex items-center justify-center gap-2 py-1 text-sm text-stone-600"
+        >
+          <span className="text-2xl">{feedbackAnimation === 'like' ? '❤️' : '👋'}</span>
+          {feedbackAnimation === 'like' ? '已喜欢' : '已标记不喜欢'}
+        </motion.div>
+      ) : feedback ? (
+        <div className="flex items-center justify-between gap-3">
+          <span className="flex items-center gap-2 text-sm text-stone-600">
+            <span className="text-lg">{feedback === 'like' ? '❤️' : '👎'}</span>
+            {feedback === 'like' ? '已喜欢' : '已标记不喜欢'}
+          </span>
+          <button
+            onClick={handleUndoFeedback}
+            disabled={isSubmitting}
+            className="px-4 py-1.5 rounded-full text-xs font-medium text-stone-600 bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all"
+          >
+            撤销
+          </button>
+        </div>
+      ) : !showReasons ? (
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleLike}
+            disabled={isSubmitting}
+            className="flex flex-1 items-center justify-center gap-1.5 py-2.5 rounded-xl bg-rose-50 text-rose-500 border border-rose-100 text-sm font-medium hover:bg-rose-100 active:scale-95 transition-all"
+            aria-label="喜欢这个推荐"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+            喜欢
+          </button>
+          <button
+            onClick={handleDislikeTap}
+            disabled={isSubmitting}
+            className="flex flex-1 items-center justify-center gap-1.5 py-2.5 rounded-xl bg-stone-50 text-stone-500 border border-stone-200 text-sm font-medium hover:bg-stone-100 active:scale-95 transition-all"
+            aria-label="不喜欢这个推荐"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" />
+            </svg>
+            不喜欢
+          </button>
+        </div>
+      ) : (
+        <div>
+          <p className="text-xs text-stone-500 font-medium mb-2">不喜欢的原因？（可多选）</p>
+          <div className="flex flex-wrap gap-1.5">
+            {DISLIKE_REASONS.map((r) => {
+              const isSelected = selectedReasons.includes(r.value)
+              return (
+                <button
+                  key={r.value}
+                  onClick={() => toggleReason(r.value)}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all active:scale-95 ring-1 ${
+                    isSelected
+                      ? `${r.color} text-white shadow-md ${r.ring} scale-105`
+                      : 'bg-stone-100 text-stone-500 ring-stone-200 hover:bg-stone-200'
+                  }`}
+                >
+                  {isSelected ? '✓ ' : ''}{r.label}
+                </button>
+              )
+            })}
+          </div>
+          <div className="flex items-center justify-end gap-3 mt-2.5">
+            <button
+              onClick={() => setShowReasons(false)}
+              className="text-xs text-stone-400 hover:text-stone-600 transition-colors"
+            >
+              返回
+            </button>
+            <button
+              onClick={handleDislikeConfirm}
+              disabled={selectedReasons.length === 0 || isSubmitting}
+              className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
+                selectedReasons.length > 0 && !isSubmitting
+                  ? 'bg-stone-800 text-white hover:bg-stone-700 active:scale-95'
+                  : 'bg-stone-100 text-stone-300 cursor-not-allowed'
+              }`}
+            >
+              {isSubmitting ? '提交中…' : `确认${selectedReasons.length > 0 ? `(${selectedReasons.length})` : ''}`}
+            </button>
+          </div>
+          {submitError && (
+            <p className="text-[10px] text-red-500 mt-1.5">{submitError}</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1, duration: 0.3 }}
-      className="bg-card rounded-xl border hover:shadow-lg transition-shadow overflow-hidden"
+      className={cn(
+        'bg-card rounded-xl border hover:shadow-lg transition-shadow overflow-hidden',
+        // 「找相似」展开时卡片横跨整行，为相似款列表腾出清晰空间
+        showSimilarInline && 'col-span-2',
+      )}
     >
       {/* ===== 图片区域 + 反馈覆盖层 ===== */}
       <div className="relative">
@@ -231,27 +330,17 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
             }`}>
               {item.is_anchor ? '🎯 指定' : isFromWardrobe ? '🏠 自有' : '📚 公共库'}
             </div>
-            {/* 放大查看按钮 */}
-            <button
-              onClick={(e) => { e.stopPropagation(); setShowDetailModal(true) }}
-              className="absolute top-2 right-2 z-10 w-7 h-7 bg-black/30 backdrop-blur-sm rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-black/50 transition-all"
-              aria-label="查看大图"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-              </svg>
-            </button>
-            {/* 找相似：灵感库单品→衣橱同款/类似款原位替换 */}
+            {/* 找相似：灵感库单品→衣橱同款/类似款原位替换（整图点击已用于放大，此角标独立触发） */}
             {canFindSimilar && (
               <button
-                onClick={(e) => { e.stopPropagation(); setShowSimilarSheet(true) }}
+                onClick={(e) => { e.stopPropagation(); setShowSimilarInline((v) => !v) }}
                 className="absolute bottom-2 left-2 z-10 flex items-center gap-1 px-2 py-1 rounded-full bg-black/35 backdrop-blur-sm text-[10px] font-medium text-white/90 hover:bg-emerald-500/85 active:scale-95 transition-all"
                 aria-label="在衣橱中找相似单品"
               >
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
-                找相似
+                {showSimilarInline ? '收起' : '找相似'}
               </button>
             )}
             {/* 已反馈标记 */}
@@ -277,14 +366,14 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
             {/* 找相似（无图占位区同样提供入口） */}
             {canFindSimilar && (
               <button
-                onClick={(e) => { e.stopPropagation(); setShowSimilarSheet(true) }}
+                onClick={(e) => { e.stopPropagation(); setShowSimilarInline((v) => !v) }}
                 className="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-1 rounded-full bg-black/35 backdrop-blur-sm text-[10px] font-medium text-white/90 hover:bg-emerald-500/85 active:scale-95 transition-all"
                 aria-label="在衣橱中找相似单品"
               >
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
-                找相似
+                {showSimilarInline ? '收起' : '找相似'}
               </button>
             )}
             {feedback && (
@@ -295,168 +384,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
           </div>
         )}
 
-        {/* ===== 反馈覆盖层 ===== */}
-        <AnimatePresence>
-          {showOverlay && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="absolute inset-0 z-20 bg-black/50 backdrop-blur-[2px] flex flex-col items-center justify-center"
-              onClick={() => { setShowOverlay(false); setShowReasons(false) }}
-            >
-              {/* 已反馈状态：显示撤销选项 */}
-              {feedback && !feedbackAnimation ? (
-                <motion.div
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 22 }}
-                  className="flex flex-col items-center gap-3"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <span className="text-2xl">{feedback === 'like' ? '❤️' : '👎'}</span>
-                  <p className="text-xs text-white/80">
-                    {feedback === 'like' ? '已喜欢' : '已标记不喜欢'}
-                  </p>
-                  <button
-                    onClick={handleUndoFeedback}
-                    disabled={isSubmitting}
-                    className="px-4 py-1.5 rounded-full text-[11px] font-medium text-white/90 bg-white/20 hover:bg-white/30 active:scale-95 transition-all border border-white/30"
-                  >
-                    撤销
-                  </button>
-                </motion.div>
-              ) : !showReasons ? (
-                /* 未反馈：点赞/点踩 图标按钮 */
-                <motion.div
-                  initial={{ scale: 0.85, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 22 }}
-                  className="flex items-center gap-5"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {/* 小爱心 - 点赞（空心→实心动画） */}
-                  <button
-                    onClick={handleLike}
-                    disabled={isSubmitting}
-                    className="flex flex-col items-center gap-1 group"
-                    aria-label="喜欢这个推荐"
-                  >
-                    <div className="w-11 h-11 rounded-full bg-white/90 shadow-md flex items-center justify-center group-hover:scale-105 group-active:scale-90 transition-transform">
-                      <motion.svg
-                        className="w-5 h-5 text-rose-400"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                        initial={false}
-                        animate={isSubmitting ? { scale: [1, 1.3, 1] } : {}}
-                        transition={{ duration: 0.3 }}
-                      >
-                        <motion.path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                          initial={{ fill: 'rgba(255,255,255,0)' }}
-                          animate={isSubmitting ? { fill: 'rgba(244,63,94,1)' } : { fill: 'rgba(255,255,255,0)' }}
-                          transition={{ duration: 0.4, ease: 'easeInOut' }}
-                        />
-                      </motion.svg>
-                    </div>
-                    <span className="text-[11px] text-white/85 font-medium">喜欢</span>
-                  </button>
-
-                  {/* 点踩 */}
-                  <button
-                    onClick={handleDislikeTap}
-                    disabled={isSubmitting}
-                    className="flex flex-col items-center gap-1 group"
-                    aria-label="不喜欢这个推荐"
-                  >
-                    <div className="w-11 h-11 rounded-full bg-white/90 shadow-md flex items-center justify-center group-hover:scale-105 group-active:scale-90 transition-transform">
-                      <svg className="w-5 h-5 text-stone-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" />
-                      </svg>
-                    </div>
-                    <span className="text-[11px] text-white/85 font-medium">不喜欢</span>
-                  </button>
-                </motion.div>
-              ) : (
-                /* 点踩原因多选器 */
-                <motion.div
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 24 }}
-                  className="flex flex-col items-center gap-1.5 px-4"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <p className="text-xs text-white/85 font-medium mb-0.5">不喜欢的原因？（可多选）</p>
-                  <div className="flex flex-wrap justify-center gap-1.5 max-w-[220px]">
-                    {DISLIKE_REASONS.map((r) => {
-                      const isSelected = selectedReasons.includes(r.value)
-                      return (
-                        <button
-                          key={r.value}
-                          onClick={() => toggleReason(r.value)}
-                          className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all active:scale-95 ring-1 ${
-                            isSelected
-                              ? `${r.color} text-white shadow-md ${r.ring} scale-105`
-                              : 'bg-white/15 text-white/70 ring-white/20 hover:bg-white/25'
-                          }`}
-                        >
-                          {isSelected ? '✓ ' : ''}{r.label}
-                        </button>
-                      )
-                    })}
-                  </div>
-                  <div className="flex items-center gap-3 mt-2">
-                    <button
-                      onClick={() => setShowReasons(false)}
-                      className="text-[11px] text-white/50 hover:text-white/80 transition-colors"
-                    >
-                      返回
-                    </button>
-                    <button
-                      onClick={handleDislikeConfirm}
-                      disabled={selectedReasons.length === 0 || isSubmitting}
-                      className={`px-3.5 py-1 rounded-full text-[11px] font-medium transition-all ${
-                        selectedReasons.length > 0 && !isSubmitting
-                          ? 'bg-white/90 text-stone-700 shadow-sm hover:bg-white active:scale-95'
-                          : 'bg-white/10 text-white/30 cursor-not-allowed'
-                      }`}
-                    >
-                      {isSubmitting ? '提交中…' : `确认${selectedReasons.length > 0 ? `(${selectedReasons.length})` : ''}`}
-                    </button>
-                  </div>
-                  {submitError && (
-                    <p className="text-[10px] text-red-300 mt-1.5">{submitError}</p>
-                  )}
-                </motion.div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* 反馈成功动画 */}
-        <AnimatePresence>
-          {feedbackAnimation && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none"
-            >
-              <motion.div
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: [0, 1.2, 1], opacity: 1 }}
-                transition={{ duration: 0.4, ease: 'easeOut' }}
-                className="text-4xl"
-              >
-                {feedbackAnimation === 'like' ? '❤️' : '👋'}
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* 反馈覆盖层已移除：喜欢/不喜欢改到点开大图后的详情弹窗操作栏内进行 */}
       </div>
 
       {/* ===== 文字信息区域 ===== */}
@@ -596,24 +524,24 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
         )}
       </div>
 
-      {/* 物品详情弹窗 */}
+      {/* 衣橱相似款：点「找相似」后卡片就地横跨整行展开，无遮罩、页面不变暗 */}
+      {canFindSimilar && showSimilarInline && (
+        <WardrobeSimilarInline
+          sourceItemCode={item.item_code}
+          sourceItemName={item.name}
+          sourceItemCategory={item.category}
+          onSelect={handleReplaceSimilar}
+          onNavigateToWardrobe={onNavigateToWardrobe}
+          onCollapse={() => setShowSimilarInline(false)}
+        />
+      )}
+
+      {/* 物品详情弹窗（点卡片图放大进入，喜欢/不喜欢在底部操作栏内） */}
       {showDetailModal && (
         <ItemDetailModal
           item={item}
           onClose={() => setShowDetailModal(false)}
-        />
-      )}
-
-      {/* 衣橱相似款面板（底部滑出） */}
-      {canFindSimilar && (
-        <WardrobeSimilarSheet
-          open={showSimilarSheet}
-          sourceItemCode={item.item_code}
-          sourceItemName={item.name}
-          sourceItemCategory={item.category}
-          onClose={() => setShowSimilarSheet(false)}
-          onSelect={handleReplaceSimilar}
-          onNavigateToWardrobe={onNavigateToWardrobe}
+          feedbackSlot={feedbackBar}
         />
       )}
     </motion.div>

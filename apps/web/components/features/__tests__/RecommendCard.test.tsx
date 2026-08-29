@@ -113,7 +113,7 @@ describe('RecommendCard', () => {
     expect(screen.getByText('🌱')).toBeInTheDocument()
   })
 
-  it('should call onFeedback when like button is clicked via image overlay', async () => {
+  it('should call onFeedback when like button is clicked via detail modal', async () => {
     const onFeedback = vi.fn()
     render(<RecommendCard item={mockItem} index={0} onFeedback={onFeedback} />)
     
@@ -153,7 +153,7 @@ describe('RecommendCard', () => {
     expect(screen.getAllByText('70%').length).toBeGreaterThan(0)
   })
 
-  it('should show overlay with like/dislike when image is clicked', () => {
+  it('should show like/dislike in detail modal when image is clicked', () => {
     render(<RecommendCard item={mockItem} index={0} />)
     
     const imageDiv = document.querySelector('[style*="example.com"]')
@@ -173,25 +173,39 @@ describe('RecommendCard', () => {
     expect(screen.queryByText('场景适配')).not.toBeInTheDocument()
   })
 
-  it('should show undo option after feedback is given', async () => {
+  it('should open detail modal when card image is clicked (no on-card overlay)', () => {
     render(<RecommendCard item={mockItem} index={0} />)
-    
-    // 点击图片显示覆盖层
+
+    // 卡片上不再有独立的「查看大图」放大镜按钮
+    expect(screen.queryByLabelText('查看大图')).not.toBeInTheDocument()
+    // 未点图前，反馈按钮不在卡片上
+    expect(screen.queryByLabelText('喜欢这个推荐')).not.toBeInTheDocument()
+
+    // 点击图片 → 打开放大详情弹窗（弹窗含「综合匹配度」与反馈栏）
     const imageDiv = document.querySelector('[style*="example.com"]')
     fireEvent.click(imageDiv!)
-    
+    expect(screen.getByText('综合匹配度')).toBeInTheDocument()
+    expect(screen.getByLabelText('喜欢这个推荐')).toBeInTheDocument()
+  })
+
+  it('should show undo option after feedback is given (in detail modal)', async () => {
+    render(<RecommendCard item={mockItem} index={0} />)
+
+    // 点击图片 → 打开放大详情弹窗，反馈操作栏在弹窗内
+    const imageDiv = document.querySelector('[style*="example.com"]')
+    fireEvent.click(imageDiv!)
+
     const likeBtn = screen.getByLabelText('喜欢这个推荐')
     fireEvent.click(likeBtn)
-    
-    // 等待反馈提交完成，覆盖层关闭
+
+    // 提交成功后：喜欢按钮消失，短暂动画后切到「已喜欢 + 撤销」
     await waitFor(() => {
       expect(screen.queryByLabelText('喜欢这个推荐')).not.toBeInTheDocument()
-    })
-    
-    // 再次点击图片，应显示撤销选项
-    fireEvent.click(imageDiv!)
+    }, { timeout: 1500 })
+    await waitFor(() => {
+      expect(screen.getByText('撤销')).toBeInTheDocument()
+    }, { timeout: 1500 })
     expect(screen.getByText('已喜欢')).toBeInTheDocument()
-    expect(screen.getByText('撤销')).toBeInTheDocument()
   })
 
   it('should show dislike reasons with multi-select when dislike button is clicked', () => {
