@@ -263,75 +263,49 @@ export default function WardrobePage() {
             </motion.p>
           </div>
           
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-          <motion.button
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleAddNew}
-            className="relative group px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl bg-gradient-to-r from-stone-800 to-stone-700 text-white font-medium shadow-xl shadow-stone-300/30 overflow-hidden touch-feedback w-full sm:w-auto"
-          >
-            <span className="relative z-10 flex items-center justify-center gap-2 text-sm md:text-base">
-              <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          {/* 操作区：一行三等分紧凑按钮，主操作深绿、次操作白底暖描边，与柜体风格一致 */}
+          <div className="grid w-full grid-cols-3 gap-2 sm:w-auto sm:gap-3">
+            <motion.button
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={handleAddNew}
+              className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-[var(--brand-heading)] px-3 text-xs font-medium text-white shadow-sm transition-opacity hover:opacity-90 touch-feedback sm:px-5 sm:text-sm"
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               添加衣物
-            </span>
-            <motion.div
-              className="absolute inset-0 bg-gradient-to-r from-amber-500 to-orange-500"
-              initial={{ x: '100%' }}
-              whileHover={{ x: 0 }}
-              transition={{ duration: 0.3 }}
-            />
-          </motion.button>
+            </motion.button>
 
-          <motion.button
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.25 }}
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setIsBatchModalOpen(true)}
-            className="relative group px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl bg-gradient-to-r from-rose-500 to-pink-500 text-white font-medium shadow-xl shadow-rose-300/30 overflow-hidden touch-feedback w-full sm:w-auto"
-          >
-            <span className="relative z-10 flex items-center justify-center gap-2 text-sm md:text-base">
-              <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <motion.button
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => setIsBatchModalOpen(true)}
+              className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-stone-300/70 bg-white/80 px-3 text-xs font-medium text-[#5C4B3A] shadow-sm transition-colors hover:bg-white touch-feedback sm:px-5 sm:text-sm"
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0-12l-4 4m4-4l4 4" />
               </svg>
               批量上传
-            </span>
-            <motion.div
-              className="absolute inset-0 bg-gradient-to-r from-pink-400 to-rose-400"
-              initial={{ x: '100%' }}
-              whileHover={{ x: 0 }}
-              transition={{ duration: 0.3 }}
-            />
-          </motion.button>
+            </motion.button>
 
-          <motion.button
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setShowRoulette(true)}
-            className="relative group px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl bg-gradient-to-r from-violet-500 to-indigo-500 text-white font-medium shadow-xl shadow-violet-300/30 overflow-hidden touch-feedback w-full sm:w-auto"
-          >
-            <span className="relative z-10 flex items-center justify-center gap-2 text-sm md:text-base">
-              <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <motion.button
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => setShowRoulette(true)}
+              className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-stone-300/70 bg-white/80 px-3 text-xs font-medium text-[#5C4B3A] shadow-sm transition-colors hover:bg-white touch-feedback sm:px-5 sm:text-sm"
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
               </svg>
               搭配盲盒
-            </span>
-            <motion.div
-              className="absolute inset-0 bg-gradient-to-r from-indigo-400 to-violet-400"
-              initial={{ x: '100%' }}
-              whileHover={{ x: 0 }}
-              transition={{ duration: 0.3 }}
-            />
-          </motion.button>
+            </motion.button>
           </div>
         </div>
       </motion.div>
