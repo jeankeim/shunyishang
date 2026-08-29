@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { RefreshCw, Sun, CloudSun, Sparkles, Shirt, Dices, Check } from 'lucide-react'
-import { getDailyOutfit, getDiaries, type DailyOutfit, type DailyOutfitItem } from '@/lib/api'
-import { logOutfitAsDiary, todayISO } from '@/lib/outfit-diary'
+import { getDailyOutfit, type DailyOutfit, type DailyOutfitItem } from '@/lib/api'
+import { logOutfitAsDiary, hasTodayDiary, loggedFlagKey } from '@/lib/outfit-diary'
 import { toast } from '@/components/ui/Toast'
 import { WUXING_CONFIG, type WuxingElement } from '@/lib/wuxing-config'
 import { ItemDetailModal } from './ItemDetailModal'
@@ -81,39 +81,45 @@ export function DailyOutfitCard({ isAuthenticated, city }: DailyOutfitCardProps)
     return () => clearInterval(timer)
   }, [isAuthenticated, batchIndex, refreshing, isPaused])
 
-  // 当日是否已通过「今天就穿它」记录（localStorage 标记跨刷新保持）
-  // 标记仅作即时回显；挂载时向服务端核对：日记被删除则清除过期标记，恢复可记状态
+  // 今日是否已有穿搭日记：本地标记只作首帧回显，挂载时向服务端核对
+  // 日记被删 → 清除过期标记恢复可记；手动写日记/衣物打卡生成的日记 → 按钮同步转为已记入
   useEffect(() => {
-    const today = todayISO()
-    if (localStorage.getItem(`outfit_logged_${today}`) !== '1') return
-    setLogged(true)
     if (!isAuthenticated) return
-    getDiaries({ date_from: today, date_to: today, size: 1 })
-      .then((res) => {
-        const exists = (res?.total ?? res?.diaries?.length ?? 0) > 0
-        if (exists) {
-          setLogged(true)
-        } else {
-          localStorage.removeItem(`outfit_logged_${today}`)
-          setLogged(false)
-        }
+    setLogged(localStorage.getItem(loggedFlagKey()) === '1')
+    let cancelled = false
+    hasTodayDiary()
+      .then((exists) => {
+        if (cancelled || exists === null) return // 查询失败回退本地标记，不阻断主流程
+        setLogged(exists)
+        if (exists) localStorage.setItem(loggedFlagKey(), '1')
+        else localStorage.removeItem(loggedFlagKey())
       })
-      .catch(() => setLogged(true)) // 核对失败回退信任本地标记，不阻断主流程
+    return () => {
+      cancelled = true
+    }
   }, [isAuthenticated])
 
   /** 「今天就穿它」：当前整套搭配一键生成今日穿搭日记 */
   async function handleWearOutfit() {
     if (!data?.outfit_items?.length || logging) return
+    // 今日已有日记则不重复记入（一天一本日记，重复关联会让穿着次数虚增），只提醒并跳转
+    if (logged) {
+      toast.info('今日已记入穿搭日记，去日记里看看或继续补充')
+      window.location.hash = '#diary'
+      return
+    }
     setLogging(true)
     try {
       const res = await logOutfitAsDiary(
         data.outfit_items.map((i) => ({ id: i.id, category: i.category }))
       )
       if (res.ok) {
-        localStorage.setItem(`outfit_logged_${todayISO()}`, '1')
+        localStorage.setItem(loggedFlagKey(), '1')
         setLogged(true)
         toast.success('已生成今日穿搭日记，拍照完善它')
       } else if (res.reason === 'exists') {
+        localStorage.setItem(loggedFlagKey(), '1')
+        setLogged(true)
         toast.info('今日已有穿搭日记，去日记里看看吧')
       } else {
         toast.error(res.message || '记录失败，请稍后重试')
@@ -293,16 +299,16 @@ export function DailyOutfitCard({ isAuthenticated, city }: DailyOutfitCardProps)
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={handleWearOutfit}
-              disabled={logging || logged}
+              disabled={logging}
               className={`w-full py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
                 logged
-                  ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                  ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100'
                   : 'bg-gradient-to-r from-[var(--wuxing-wood)] to-[var(--wuxing-water)] text-white shadow-sm hover:opacity-95 disabled:opacity-60'
               }`}
             >
               {logged ? (
                 <>
-                  <Check className="w-4 h-4" /> 已记入今日穿搭
+                  <Check className="w-4 h-4" /> 今日已记入 · 去日记
                 </>
               ) : logging ? (
                 '记录中...'

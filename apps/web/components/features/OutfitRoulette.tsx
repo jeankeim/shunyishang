@@ -12,7 +12,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Dices, X, Check, Shirt, Loader2 } from 'lucide-react'
 import { getWardrobeItems, type WardrobeItem } from '@/lib/api'
-import { logOutfitAsDiary, todayISO } from '@/lib/outfit-diary'
+import { logOutfitAsDiary, hasTodayDiary, loggedFlagKey } from '@/lib/outfit-diary'
 import { toast } from '@/components/ui/Toast'
 
 /** 五行标签配色（与 DailyOutfitCard 保持一致） */
@@ -135,10 +135,20 @@ export function OutfitRoulette({ open, onClose }: OutfitRouletteProps) {
     }
   }, [open])
 
-  // 当日已记录过则直接显示「已记录」
+  // 打开时核对「今日是否已记入」：本地标记只作首帧回显，最终以服务端为准
+  // （日记被删、或今日日记来自手动记录/衣物打卡，本地标记都不知道）
   useEffect(() => {
-    if (open) {
-      setLogged(localStorage.getItem(`outfit_logged_${todayISO()}`) === '1')
+    if (!open) return
+    setLogged(localStorage.getItem(loggedFlagKey()) === '1')
+    let cancelled = false
+    hasTodayDiary().then((exists) => {
+      if (cancelled || exists === null) return // 查询失败：保留本地标记，不阻断
+      setLogged(exists)
+      if (exists) localStorage.setItem(loggedFlagKey(), '1')
+      else localStorage.removeItem(loggedFlagKey())
+    })
+    return () => {
+      cancelled = true
     }
   }, [open])
 
@@ -169,14 +179,24 @@ export function OutfitRoulette({ open, onClose }: OutfitRouletteProps) {
 
   const handleLog = useCallback(async () => {
     if (!result || logging) return
+    // 今日已有日记则不重复记入：一天只能有一本日记，重复关联会让穿着次数虚增。
+    // 按钮保持可点，退化成提醒 + 带用户去日记页补充
+    if (logged) {
+      toast.info('今日已记入穿搭日记，去日记里看看或继续补充')
+      window.location.hash = '#diary'
+      onClose()
+      return
+    }
     setLogging(true)
     try {
       const res = await logOutfitAsDiary(result.map((i) => ({ id: i.id, category: i.category })))
       if (res.ok) {
-        localStorage.setItem(`outfit_logged_${todayISO()}`, '1')
+        localStorage.setItem(loggedFlagKey(), '1')
         setLogged(true)
         toast.success('已记入今日穿搭日记')
       } else if (res.reason === 'exists') {
+        localStorage.setItem(loggedFlagKey(), '1')
+        setLogged(true)
         toast.info('今日已有穿搭日记，去日记里看看吧')
       } else {
         toast.error(res.message || '记录失败，请稍后重试')
@@ -187,7 +207,7 @@ export function OutfitRoulette({ open, onClose }: OutfitRouletteProps) {
     } finally {
       setLogging(false)
     }
-  }, [result, logging, onClose])
+  }, [result, logging, logged, onClose])
 
   if (!open) return null
 
@@ -302,12 +322,16 @@ export function OutfitRoulette({ open, onClose }: OutfitRouletteProps) {
               </button>
               <button
                 onClick={handleLog}
-                disabled={logging || logged}
-                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-[var(--wuxing-wood)] to-[var(--wuxing-water)] text-white text-sm font-medium shadow-sm disabled:opacity-60 flex items-center justify-center gap-1"
+                disabled={logging}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-1 transition-colors ${
+                  logged
+                    ? 'border border-[var(--brand-border)] bg-[var(--brand-surface)] text-[var(--brand-subtle)] hover:bg-[var(--brand-border)]/40'
+                    : 'bg-gradient-to-r from-[var(--wuxing-wood)] to-[var(--wuxing-water)] text-white shadow-sm hover:opacity-95 disabled:opacity-60'
+                }`}
               >
                 {logged ? (
                   <>
-                    <Check className="w-3.5 h-3.5" /> 已记入今日
+                    <Check className="w-3.5 h-3.5" /> 今日已记入 · 去日记
                   </>
                 ) : logging ? (
                   '记录中...'
