@@ -18,7 +18,10 @@ from pydantic import BaseModel, Field
 from psycopg2.extras import RealDictCursor
 
 from apps.api.core.database import DatabasePool
+from apps.api.core.time_utils import today_cn
 from apps.api.routers.auth import get_current_user
+from apps.api.schemas.diary import CreateDiaryRequest, DiaryItemRequest
+from apps.api.services.diary_service import diary_service
 from apps.api.schemas.wardrobe import (
     AITaggingResult,
     WardrobeItemCreate,
@@ -1058,6 +1061,171 @@ async def delete_wardrobe_item(
         )
     
     return {"message": "删除成功"}
+
+
+# ========== 穿着打卡接口 ==========
+
+def _get_item_wear_stats(item_id: int, user_id: int) -> dict:
+    """读取衣物最新穿着统计"""
+    with DatabasePool.get_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT wear_count, last_worn_date
+                FROM user_wardrobe WHERE id = %s AND user_id = %s
+                """,
+                [item_id, user_id],
+            )
+            row = cur.fetchone()
+    return {
+        "wear_count": row["wear_count"] or 0,
+        "last_worn_date": row["last_worn_date"].isoformat() if row and row["last_worn_date"] else None,
+    }
+
+
+def _notify_diary_written(user_id: int) -> None:
+    """打卡产生日记后的副作用：自动签到（幂等，失败仅记日志）"""
+    try:
+        from apps.api.routers.diary import _auto_checkin_via_diary
+        _auto_checkin_via_diary(user_id)
+    except Exception as e:
+        logger.warning(f"[WearCheckin] 自动打卡失败（不影响打卡主流程）: {e}")
+
+
+@router.post("/items/{item_id}/wear")
+async def wear_wardrobe_item(
+    item_id: int,
+    user: dict = Depends(get_current_user)
+):
+    """
+    「穿了它」穿着打卡
+
+    wear_count 唯一写入通路 = 日记关联衣物：
+    - 今日无日记 → 创建今日日记并关联该衣物
+    - 今日有日记 → 追加关联该衣物
+    - 今日日记已含该衣物 → 幂等返回 already_logged=true
+    """
+    user_id = user.get("id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户未登录"
+        )
+
+    # 校验衣物归属且活跃
+    with DatabasePool.get_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT id, category FROM user_wardrobe
+                WHERE id = %s AND user_id = %s AND is_active = TRUE
+                """,
+                [item_id, user_id],
+            )
+            item = cur.fetchone()
+    if not item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="衣物不存在或无权访问"
+        )
+
+    today = today_cn()
+    diary_item = DiaryItemRequest(
+        item_source="wardrobe",
+        wardrobe_item_id=item_id,
+        category=item["category"],
+    )
+
+    try:
+        existing = diary_service.get_diaries(user_id, 1, 1, None, today, today)
+        diary = existing.diaries[0] if existing and existing.diaries else None
+
+        if diary is None:
+            created = diary_service.create_diary(
+                user_id,
+                CreateDiaryRequest(diary_date=today, items=[diary_item]),
+            )
+            diary_id = created.id
+        else:
+            # 幂等：今日日记已记录过这件衣物
+            if any(it.wardrobe_item_id == item_id for it in diary.items):
+                stats = _get_item_wear_stats(item_id, user_id)
+                return {
+                    "diary_id": diary.id,
+                    "already_logged": True,
+                    **stats,
+                }
+            diary_service.add_item_to_diary(diary.id, user_id, diary_item)
+            diary_id = diary.id
+    except Exception as e:
+        if "unique" in str(e).lower() or "duplicate" in str(e).lower():
+            # 并发创建今日日记：降级为追加
+            existing = diary_service.get_diaries(user_id, 1, 1, None, today, today)
+            if existing and existing.diaries:
+                diary_service.add_item_to_diary(existing.diaries[0].id, user_id, diary_item)
+                stats = _get_item_wear_stats(item_id, user_id)
+                return {"diary_id": existing.diaries[0].id, "already_logged": False, **stats}
+        logger.error(f"[WearCheckin] 打卡失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="打卡失败，请稍后重试"
+        )
+
+    _notify_diary_written(user_id)
+    stats = _get_item_wear_stats(item_id, user_id)
+    return {"diary_id": diary_id, "already_logged": False, **stats}
+
+
+@router.delete("/items/{item_id}/wear")
+async def unwear_wardrobe_item(
+    item_id: int,
+    user: dict = Depends(get_current_user)
+):
+    """
+    撤销今日「穿了它」打卡
+
+    从今日日记移除该衣物（计数自动回退）；
+    若日记移除后无任何衣物与照片，则一并清理该空日记
+    """
+    user_id = user.get("id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户未登录"
+        )
+
+    today = today_cn()
+    existing = diary_service.get_diaries(user_id, 1, 1, None, today, today)
+    diary = existing.diaries[0] if existing and existing.diaries else None
+    if diary is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="今日没有可撤销的打卡记录"
+        )
+
+    target = next((it for it in diary.items if it.wardrobe_item_id == item_id), None)
+    if target is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="今日日记中未记录这件衣物"
+        )
+
+    diary_service.remove_item_from_diary(diary.id, user_id, target.id)
+
+    # 空日记清理：无衣物、无照片、无备注/心情/评分
+    remaining = diary_service.get_diary_by_id(diary.id, user_id)
+    if (
+        remaining
+        and not remaining.items
+        and not remaining.image_urls
+        and not remaining.notes
+        and remaining.mood is None
+        and remaining.rating is None
+    ):
+        diary_service.delete_diary(remaining.id, user_id)
+
+    stats = _get_item_wear_stats(item_id, user_id)
+    return {"cancelled": True, **stats}
 
 
 @router.get("/stats")

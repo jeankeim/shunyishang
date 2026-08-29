@@ -57,10 +57,65 @@ class DiaryService:
                 # 关联衣物
                 if data.items:
                     DiaryService._insert_diary_items(cur, row['id'], data.items)
+                    DiaryService._adjust_wardrobe_wear(
+                        cur, user_id,
+                        DiaryService._wardrobe_ids_from_items(data.items),
+                        delta=1,
+                    )
 
                 conn.commit()
 
         return DiaryService._build_diary_response(row, user_id)
+
+    @staticmethod
+    def _wardrobe_ids_from_items(items: List[DiaryItemRequest]) -> List[int]:
+        """提取关联衣物中的衣橱物品 ID 列表"""
+        return [
+            it.wardrobe_item_id for it in items
+            if it.item_source == 'wardrobe' and it.wardrobe_item_id
+        ]
+
+    @staticmethod
+    def _adjust_wardrobe_wear(cur, user_id: int, wardrobe_item_ids: List[int], delta: int) -> None:
+        """
+        日记关联衣物时对称更新衣橱穿着统计
+
+        - wear_count 增量维护（+1/-1，下限 0），历史数据不回溯
+        - last_worn_date 从剩余日记关联重算（无关联则置 NULL）
+        需在同一事务、关联行已插入/删除后调用
+        """
+        for wid in wardrobe_item_ids:
+            if delta > 0:
+                cur.execute(
+                    """
+                    UPDATE user_wardrobe
+                    SET wear_count = COALESCE(wear_count, 0) + %s
+                    WHERE id = %s AND user_id = %s
+                    """,
+                    [delta, wid, user_id],
+                )
+            else:
+                cur.execute(
+                    """
+                    UPDATE user_wardrobe
+                    SET wear_count = GREATEST(COALESCE(wear_count, 0) - %s, 0)
+                    WHERE id = %s AND user_id = %s
+                    """,
+                    [-delta, wid, user_id],
+                )
+            cur.execute(
+                """
+                UPDATE user_wardrobe uw
+                SET last_worn_date = (
+                    SELECT MAX(d.diary_date)
+                    FROM diary_outfit_items doi
+                    JOIN outfit_diaries d ON d.id = doi.diary_id
+                    WHERE doi.wardrobe_item_id = uw.id AND d.user_id = %s
+                )
+                WHERE uw.id = %s AND uw.user_id = %s
+                """,
+                [user_id, wid, user_id],
+            )
 
     @staticmethod
     def _insert_diary_items(cur, diary_id: int, items: List[DiaryItemRequest]):
@@ -182,12 +237,24 @@ class DiaryService:
 
     @staticmethod
     def delete_diary(diary_id: int, user_id: int) -> bool:
-        """删除日记"""
+        """删除日记（同步回退关联衣物的穿着计数）"""
+        items_query = """
+            SELECT wardrobe_item_id FROM diary_outfit_items
+            WHERE diary_id = %s AND item_source = 'wardrobe' AND wardrobe_item_id IS NOT NULL
+        """
         query = "DELETE FROM outfit_diaries WHERE id = %s AND user_id = %s"
         with DatabasePool.get_connection() as conn:
-            with conn.cursor() as cur:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                # 先取关联的衣橱衣物（删除后级联清空，无法再查）
+                cur.execute(items_query, [diary_id])
+                wardrobe_ids = [row['wardrobe_item_id'] for row in cur.fetchall()]
+
                 cur.execute(query, [diary_id, user_id])
                 affected = cur.rowcount
+
+                if affected and wardrobe_ids:
+                    DiaryService._adjust_wardrobe_wear(cur, user_id, wardrobe_ids, delta=-1)
+
                 conn.commit()
         return affected > 0
 
@@ -320,24 +387,49 @@ class DiaryService:
                     item_data.notes,
                 ])
                 row = cur.fetchone()
+
+                # 衣橱衣物追加进日记 = 一次穿着记录
+                if item_data.item_source == 'wardrobe' and item_data.wardrobe_item_id:
+                    DiaryService._adjust_wardrobe_wear(
+                        cur, user_id, [item_data.wardrobe_item_id], delta=1
+                    )
+
                 conn.commit()
 
         return DiaryOutfitItemResponse(**dict(row))
 
     @staticmethod
     def remove_item_from_diary(diary_id: int, user_id: int, item_id: int) -> bool:
-        """从日记移除衣物"""
+        """从日记移除衣物（同步回退穿着计数）"""
         check_query = "SELECT id FROM outfit_diaries WHERE id = %s AND user_id = %s"
+        lookup_query = """
+            SELECT item_source, wardrobe_item_id
+            FROM diary_outfit_items WHERE id = %s AND diary_id = %s
+        """
         delete_query = "DELETE FROM diary_outfit_items WHERE id = %s AND diary_id = %s"
 
         with DatabasePool.get_connection() as conn:
-            with conn.cursor() as cur:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(check_query, [diary_id, user_id])
                 if not cur.fetchone():
                     return False
 
+                cur.execute(lookup_query, [item_id, diary_id])
+                removed_row = cur.fetchone()
+
                 cur.execute(delete_query, [item_id, diary_id])
                 affected = cur.rowcount
+
+                if (
+                    affected
+                    and removed_row
+                    and removed_row['item_source'] == 'wardrobe'
+                    and removed_row['wardrobe_item_id']
+                ):
+                    DiaryService._adjust_wardrobe_wear(
+                        cur, user_id, [removed_row['wardrobe_item_id']], delta=-1
+                    )
+
                 conn.commit()
         return affected > 0
 

@@ -2,10 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { RefreshCw, Sun, CloudSun, Sparkles, Shirt } from 'lucide-react'
-import { getDailyOutfit, type DailyOutfit, type DailyOutfitItem } from '@/lib/api'
+import { RefreshCw, Sun, CloudSun, Sparkles, Shirt, Dices, Check } from 'lucide-react'
+import { getDailyOutfit, getDiaries, type DailyOutfit, type DailyOutfitItem } from '@/lib/api'
+import { logOutfitAsDiary, todayISO } from '@/lib/outfit-diary'
+import { toast } from '@/components/ui/Toast'
 import { WUXING_CONFIG, type WuxingElement } from '@/lib/wuxing-config'
 import { ItemDetailModal } from './ItemDetailModal'
+import { OutfitRoulette } from './OutfitRoulette'
 
 /** 五行元素标签颜色映射 */
 const ELEMENT_COLORS: Record<string, string> = {
@@ -31,6 +34,9 @@ export function DailyOutfitCard({ isAuthenticated, city }: DailyOutfitCardProps)
   const [selectedItem, setSelectedItem] = useState<DailyOutfitItem | null>(null)
   const [error, setError] = useState(false)
   const [isPaused, setIsPaused] = useState(false) // 鼠标悬停时暂停自动轮换
+  const [showRoulette, setShowRoulette] = useState(false)
+  const [logging, setLogging] = useState(false)
+  const [logged, setLogged] = useState(false)
 
   const MAX_BATCH = 5 // 增加到 5 批，更多变化
 
@@ -74,6 +80,50 @@ export function DailyOutfitCard({ isAuthenticated, city }: DailyOutfitCardProps)
     }, 30000) // 30 秒
     return () => clearInterval(timer)
   }, [isAuthenticated, batchIndex, refreshing, isPaused])
+
+  // 当日是否已通过「今天就穿它」记录（localStorage 标记跨刷新保持）
+  // 标记仅作即时回显；挂载时向服务端核对：日记被删除则清除过期标记，恢复可记状态
+  useEffect(() => {
+    const today = todayISO()
+    if (localStorage.getItem(`outfit_logged_${today}`) !== '1') return
+    setLogged(true)
+    if (!isAuthenticated) return
+    getDiaries({ date_from: today, date_to: today, size: 1 })
+      .then((res) => {
+        const exists = (res?.total ?? res?.diaries?.length ?? 0) > 0
+        if (exists) {
+          setLogged(true)
+        } else {
+          localStorage.removeItem(`outfit_logged_${today}`)
+          setLogged(false)
+        }
+      })
+      .catch(() => setLogged(true)) // 核对失败回退信任本地标记，不阻断主流程
+  }, [isAuthenticated])
+
+  /** 「今天就穿它」：当前整套搭配一键生成今日穿搭日记 */
+  async function handleWearOutfit() {
+    if (!data?.outfit_items?.length || logging) return
+    setLogging(true)
+    try {
+      const res = await logOutfitAsDiary(
+        data.outfit_items.map((i) => ({ id: i.id, category: i.category }))
+      )
+      if (res.ok) {
+        localStorage.setItem(`outfit_logged_${todayISO()}`, '1')
+        setLogged(true)
+        toast.success('已生成今日穿搭日记，拍照完善它')
+      } else if (res.reason === 'exists') {
+        toast.info('今日已有穿搭日记，去日记里看看吧')
+      } else {
+        toast.error(res.message || '记录失败，请稍后重试')
+        return
+      }
+      window.location.hash = '#diary'
+    } finally {
+      setLogging(false)
+    }
+  }
 
   if (!isAuthenticated) return null
 
@@ -142,6 +192,15 @@ export function DailyOutfitCard({ isAuthenticated, city }: DailyOutfitCardProps)
                 {data.match_score}分
               </span>
             )}
+            {/* 搭配盲盒 */}
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setShowRoulette(true)}
+              className="w-7 h-7 rounded-lg bg-[var(--brand-surface)] flex items-center justify-center hover:bg-[var(--brand-surface-active)] transition-colors"
+              aria-label="搭配盲盒"
+            >
+              <Dices className="w-3.5 h-3.5 text-[var(--brand-subtle)]" />
+            </motion.button>
             {/* 换一批 */}
             <motion.button
               whileTap={{ scale: 0.9, rotate: 180 }}
@@ -227,6 +286,34 @@ export function DailyOutfitCard({ isAuthenticated, city }: DailyOutfitCardProps)
             )}
           </div>
         )}
+
+        {/* 「今天就穿它」：整套一键生成今日穿搭日记 */}
+        {items.length > 0 && (
+          <div className="px-4 pb-4">
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={handleWearOutfit}
+              disabled={logging || logged}
+              className={`w-full py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                logged
+                  ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                  : 'bg-gradient-to-r from-[var(--wuxing-wood)] to-[var(--wuxing-water)] text-white shadow-sm hover:opacity-95 disabled:opacity-60'
+              }`}
+            >
+              {logged ? (
+                <>
+                  <Check className="w-4 h-4" /> 已记入今日穿搭
+                </>
+              ) : logging ? (
+                '记录中...'
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" /> 今天就穿它
+                </>
+              )}
+            </motion.button>
+          </div>
+        )}
       </motion.div>
 
       {/* 物品详情弹窗（复用现有组件） */}
@@ -244,6 +331,11 @@ export function DailyOutfitCard({ isAuthenticated, city }: DailyOutfitCardProps)
           onClose={() => setSelectedItem(null)}
         />
       )}
+
+      {/* 搭配盲盒弹窗 */}
+      <AnimatePresence>
+        {showRoulette && <OutfitRoulette open={showRoulette} onClose={() => setShowRoulette(false)} />}
+      </AnimatePresence>
     </>
   )
 }

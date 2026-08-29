@@ -36,7 +36,7 @@ function DrawerItem({ item, index, onSelect }: { item: WardrobeItem; index: numb
       transition={{ delay: reduced ? 0 : Math.min(index * 0.025, 0.3), duration: 0.24, ease: 'easeOut' }}
       whileTap={{ scale: 0.95 }}
       aria-label={`放大查看 ${item.name}`}
-      className="group relative w-[calc(25%-9px)] overflow-hidden rounded-lg border border-stone-200/70 bg-white shadow-sm transition-shadow hover:shadow-md sm:w-[calc(16.666%-10px)]"
+      className="group relative w-[calc(25%-9px)] overflow-hidden rounded-lg border border-stone-200/70 bg-white shadow-sm transition-shadow hover:shadow-md sm:w-[calc(16.666%-10px)] lg:w-[calc(12.5%-10.5px)] xl:w-[calc(10%-10.8px)]"
     >
       <div className="relative aspect-[3/4] w-full overflow-hidden">
         {imageUrl ? (
@@ -203,7 +203,7 @@ export function WardrobeCabinet({ items, filtered = false, categoryAvail, onSele
   }, [groups.length])
 
   return (
-    <div className="mx-auto w-full max-w-[520px] rounded-2xl border border-stone-300/70 bg-gradient-to-b from-[#F6F2EC] to-[#EAE2D6] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_18px_36px_-24px_rgba(87,75,62,0.45)] sm:p-3">
+    <div className="w-full rounded-2xl border border-stone-300/70 bg-gradient-to-b from-[#F6F2EC] to-[#EAE2D6] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_18px_36px_-24px_rgba(87,75,62,0.45)] md:rounded-3xl sm:p-3">
       <div className="mb-2 flex items-center justify-between px-1">
         <span className="text-[10px] uppercase tracking-[0.2em] text-[#6F5D4B]/70">按品类分格收纳</span>
         <span className="text-[10px] tabular-nums text-[#6F5D4B]/70">共 {items.length} 件</span>

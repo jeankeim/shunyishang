@@ -747,6 +747,51 @@ export async function getWardrobeFilterStats(params?: {
   return response.json()
 }
 
+/** 穿着打卡响应 */
+export interface WearCheckinResponse {
+  diary_id: number
+  already_logged: boolean
+  wear_count: number
+  last_worn_date: string | null
+}
+
+/** 撤销打卡响应 */
+export interface UnwearResponse {
+  cancelled: boolean
+  wear_count: number
+  last_worn_date: string | null
+}
+
+/**
+ * 「穿了它」穿着打卡：自动创建/追加今日穿搭日记并累计穿着次数
+ */
+export async function wearItem(itemId: number): Promise<WearCheckinResponse> {
+  const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/items/${itemId}/wear`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => null)
+    throw new Error(error?.detail || '打卡失败')
+  }
+  return response.json()
+}
+
+/**
+ * 撤销今日「穿了它」打卡（计数回退，空日记自动清理）
+ */
+export async function unwearItem(itemId: number): Promise<UnwearResponse> {
+  const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/items/${itemId}/wear`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => null)
+    throw new Error(error?.detail || '撤销失败')
+  }
+  return response.json()
+}
+
 /**
  * 添加衣物到衣橱
  */

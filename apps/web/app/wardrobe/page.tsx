@@ -13,7 +13,6 @@ import { getImageUrl } from '@/lib/image'
 import { EmptyState, SkeletonList, ConfirmDialog } from '@/components/ui'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { WardrobeInsights } from '@/components/features/WardrobeInsights'
-import { WuxingBaguaChart } from '@/components/features/WuxingBaguaChart'
 import { IdleItemsCard } from '@/components/features/IdleItemsCard'
 import { WardrobeCabinet } from '@/components/features/WardrobeCabinet'
 import { WardrobeItemViewer } from '@/components/features/WardrobeItemViewer'
@@ -21,6 +20,7 @@ import { IDLE_BADGE_MIN_DAYS, idleBadgeClass } from '@/lib/wardrobe-display'
 
 const AddWardrobeModal = lazy(() => import('@/components/features/AddWardrobeModal').then(m => ({ default: m.AddWardrobeModal })))
 const BatchUploadModal = lazy(() => import('@/components/features/BatchUploadModal'))
+const OutfitRoulette = lazy(() => import('@/components/features/OutfitRoulette').then(m => ({ default: m.OutfitRoulette })))
 
 // 五行数据配置 - 春分优化版
 const WUXING_THEME: Record<string, { color: string; gradient: string; symbol: string; pattern: string }> = {
@@ -69,13 +69,14 @@ function toFetchParams(f: WardrobeFilters) {
 // 闲置徽标阈值与分级配色见 @/lib/wardrobe-display（柜体抽屉视图与网格视图共用）
 
 export default function WardrobePage() {
-  const { items, total, elementStats, isLoading, fetchItems, deleteItem } = useWardrobeStore()
+  const { items, total, isLoading, fetchItems, deleteItem } = useWardrobeStore()
   const { isAuthenticated } = useUserStore()
   
   const [filters, setFilters] = useState<WardrobeFilters>({ ...EMPTY_FILTERS })
   const [filterStats, setFilterStats] = useState<WardrobeFilterStats | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false)
+  const [showRoulette, setShowRoulette] = useState(false)
   const [editItem, setEditItem] = useState<WardrobeItem | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
@@ -308,77 +309,30 @@ export default function WardrobePage() {
               transition={{ duration: 0.3 }}
             />
           </motion.button>
+
+          <motion.button
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowRoulette(true)}
+            className="relative group px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl bg-gradient-to-r from-violet-500 to-indigo-500 text-white font-medium shadow-xl shadow-violet-300/30 overflow-hidden touch-feedback w-full sm:w-auto"
+          >
+            <span className="relative z-10 flex items-center justify-center gap-2 text-sm md:text-base">
+              <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+              </svg>
+              搭配盲盒
+            </span>
+            <motion.div
+              className="absolute inset-0 bg-gradient-to-r from-indigo-400 to-violet-400"
+              initial={{ x: '100%' }}
+              whileHover={{ x: 0 }}
+              transition={{ duration: 0.3 }}
+            />
+          </motion.button>
           </div>
-        </div>
-      </motion.div>
-
-      {/* 五行能量分布图 - 移动端优化 */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
-        className="mb-6 md:mb-8 p-4 md:p-6 bg-white/70 backdrop-blur-xl rounded-2xl md:rounded-3xl border border-white/50 shadow-xl shadow-stone-200/20"
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xs md:text-sm font-medium text-stone-500 uppercase tracking-wider">五行能量分布 · 八卦图</h3>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setViewMode('cabinet')}
-              title="柜体抽屉视图"
-              aria-label="柜体抽屉视图"
-              className={`p-2 rounded-lg transition-all touch-feedback ${viewMode === 'cabinet' ? 'bg-[var(--brand-heading)] text-white shadow-sm' : 'text-[var(--brand-subtle)] hover:text-[var(--brand-heading)] hover:bg-[var(--brand-surface)]'}`}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5h16v5H4zM4 14h16v5H4zM10 7.5h4M10 16.5h4" />
-              </svg>
-            </button>
-            <button
-              onClick={() => setViewMode('flow')}
-              title="平铺视图"
-              aria-label="平铺视图"
-              className={`p-2 rounded-lg transition-all touch-feedback ${viewMode === 'flow' ? 'bg-[var(--brand-heading)] text-white shadow-sm' : 'text-[var(--brand-subtle)] hover:text-[var(--brand-heading)] hover:bg-[var(--brand-surface)]'}`}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <button
-              onClick={() => setViewMode('grid')}
-              title="网格视图"
-              aria-label="网格视图"
-              className={`p-2 rounded-lg transition-all touch-feedback ${viewMode === 'grid' ? 'bg-[var(--brand-heading)] text-white shadow-sm' : 'text-[var(--brand-subtle)] hover:text-[var(--brand-heading)] hover:bg-[var(--brand-surface)]'}`}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* 道家五行八卦图 - 点击节点按五行筛选 */}
-        <WuxingBaguaChart
-          elementStats={elementStats}
-          total={total}
-          filterElement={filters.element}
-          onFilter={(el) => {
-            // 八卦图内部已处理 toggle（激活中再点传 null），这里直接写入状态
-            const next = { ...filters, element: el }
-            setFilters(next)
-            fetchItems(toFetchParams(next))
-            refreshStats(next)
-          }}
-        />
-
-        {/* 图例说明 */}
-        <div className="mt-3 flex items-center justify-center gap-4 text-[11px] text-[var(--brand-subtle)]">
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block w-4 h-0 border-t" style={{ borderColor: 'var(--wuxing-wood)', opacity: 0.6 }} />
-            外环相生
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block w-4 h-0 border-t border-dashed" style={{ borderColor: 'var(--brand-subtle)' }} />
-            内星相克
-          </span>
         </div>
       </motion.div>
 
@@ -412,30 +366,63 @@ export default function WardrobePage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.28 }}
-          className="mb-6 md:mb-8 p-3 md:p-4 bg-white/70 backdrop-blur-xl rounded-2xl md:rounded-3xl border border-white/50 shadow-xl shadow-stone-200/20"
+          className="mb-6 md:mb-8 rounded-2xl md:rounded-3xl border border-stone-300/70 bg-gradient-to-b from-[#F6F2EC] to-[#EAE2D6] p-3 md:p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_18px_36px_-24px_rgba(87,75,62,0.45)]"
         >
-          <div className="flex items-center justify-between mb-2 gap-2">
-            <h3 className="text-xs md:text-sm font-medium text-stone-500 uppercase tracking-wider">智能筛选 · 多维分类</h3>
-            <div className="flex items-center gap-3">
+          <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 px-1">
+            <h3 className="text-[10px] md:text-[11px] uppercase tracking-[0.2em] text-[#6F5D4B]/70">智能筛选 · 多维分类</h3>
+            <div className="flex items-center gap-2.5">
               {filterStats && (
-                <span className="text-[11px] text-[var(--brand-subtle)] tabular-nums whitespace-nowrap">
+                <span className="text-[11px] text-[#6F5D4B]/70 tabular-nums whitespace-nowrap">
                   命中 <span className="font-semibold text-[var(--brand-heading)]">{filterStats.matched}</span> / {filterStats.total} 件
                 </span>
               )}
               {hasActiveFilter && (
                 <button
                   onClick={clearFilters}
-                  className="text-xs text-[var(--brand-subtle)] hover:text-[var(--brand-heading)] transition-colors touch-feedback whitespace-nowrap"
+                  className="text-xs text-[#6F5D4B]/70 underline underline-offset-2 hover:text-[var(--brand-heading)] transition-colors touch-feedback whitespace-nowrap"
                 >
                   清除筛选
                 </button>
               )}
+              {/* 视图切换（柜体抽屉 / 平铺 / 网格） */}
+              <div className="flex items-center gap-0.5 rounded-lg border border-stone-200/80 bg-white/80 p-0.5">
+                <button
+                  onClick={() => setViewMode('cabinet')}
+                  title="柜体抽屉视图"
+                  aria-label="柜体抽屉视图"
+                  className={`p-1.5 rounded-md transition-all touch-feedback ${viewMode === 'cabinet' ? 'bg-[var(--brand-heading)] text-white shadow-sm' : 'text-[#6F5D4B]/60 hover:text-[var(--brand-heading)]'}`}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5h16v5H4zM4 14h16v5H4zM10 7.5h4M10 16.5h4" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setViewMode('flow')}
+                  title="平铺视图"
+                  aria-label="平铺视图"
+                  className={`p-1.5 rounded-md transition-all touch-feedback ${viewMode === 'flow' ? 'bg-[var(--brand-heading)] text-white shadow-sm' : 'text-[#6F5D4B]/60 hover:text-[var(--brand-heading)]'}`}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setViewMode('grid')}
+                  title="网格视图"
+                  aria-label="网格视图"
+                  className={`p-1.5 rounded-md transition-all touch-feedback ${viewMode === 'grid' ? 'bg-[var(--brand-heading)] text-white shadow-sm' : 'text-[#6F5D4B]/60 hover:text-[var(--brand-heading)]'}`}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 rounded-xl border border-stone-200/70 bg-white/70 p-2.5 md:p-3">
             {FILTER_DIMENSIONS.map((dim) => (
               <div key={dim.key} className="flex items-center gap-2">
-                <span className="w-10 shrink-0 text-[11px] text-[var(--brand-subtle)]">{dim.label}</span>
+                <span className="w-10 shrink-0 text-[11px] text-[#6F5D4B]/70" style={{ fontFamily: 'serif' }}>{dim.label}</span>
                 <div className="flex gap-1.5 overflow-x-auto scrollbar-hide py-0.5">
                   {dim.options.map((opt) => {
                     const active = filters[dim.key] === opt
@@ -449,8 +436,8 @@ export default function WardrobePage() {
                           active
                             ? 'text-white shadow-sm font-medium'
                             : count === 0
-                              ? 'bg-[var(--brand-bg)]/40 text-[var(--brand-subtle)]/50 hover:bg-[var(--brand-surface)]'
-                              : 'bg-[var(--brand-bg)]/60 text-[var(--brand-subtle)] hover:text-[var(--brand-heading)] hover:bg-[var(--brand-surface)]'
+                              ? 'bg-white/40 text-[#6F5D4B]/40'
+                              : 'bg-white/80 border border-stone-200/70 text-[#5C4B3A] hover:bg-white hover:text-[var(--brand-heading)]'
                         }`}
                         style={active ? { backgroundColor: elemColor || 'var(--brand-heading)' } : undefined}
                       >
@@ -713,6 +700,11 @@ export default function WardrobePage() {
         }}
         deleting={deletingId !== null}
       />
+
+      {/* 搭配盲盒（衣橱页工具栏入口） */}
+      <Suspense fallback={null}>
+        <OutfitRoulette open={showRoulette} onClose={() => setShowRoulette(false)} />
+      </Suspense>
 
       {/* 删除确认弹窗 */}
       <ConfirmDialog

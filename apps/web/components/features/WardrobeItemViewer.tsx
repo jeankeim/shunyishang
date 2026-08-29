@@ -3,9 +3,12 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createPortal } from 'react-dom'
-import type { WardrobeItem } from '@/lib/api'
+import { Shirt, Undo2 } from 'lucide-react'
+import { wearItem, unwearItem, type WardrobeItem } from '@/lib/api'
 import { getWuxingConfig } from '@/lib/wuxing-config'
 import { getImageUrl } from '@/lib/image'
+import { todayISO } from '@/lib/outfit-diary'
+import { toast } from '@/components/ui/Toast'
 import { IDLE_BADGE_MIN_DAYS, idleBadgeClass } from '@/lib/wardrobe-display'
 
 interface WardrobeItemViewerProps {
@@ -41,11 +44,19 @@ export function WardrobeItemViewer({ item, onClose, onEdit, onDelete, deleting }
   // createPortal 依赖 document，跳过服务端渲染首帧；组件本身常驻挂载以保留退场动画
   const [mounted, setMounted] = useState(false)
 
+  // 穿着统计本地态：打卡/撤销后即时刷新，不依赖衣橱列表重新拉取
+  const [wearCount, setWearCount] = useState(0)
+  const [lastWorn, setLastWorn] = useState<string | null>(null)
+  const [wearing, setWearing] = useState(false)
+  const [unwearing, setUnwearing] = useState(false)
+
   useEffect(() => setMounted(true), [])
 
   useEffect(() => {
     if (!item) return
     setFitCover(false)
+    setWearCount(item.wear_count ?? 0)
+    setLastWorn(item.last_worn_date ? item.last_worn_date.slice(0, 10) : null)
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
     }
@@ -57,6 +68,44 @@ export function WardrobeItemViewer({ item, onClose, onEdit, onDelete, deleting }
       document.body.style.overflow = prevOverflow
     }
   }, [item, onClose])
+
+  /** 「穿了它」：打卡并记入今日穿搭日记 */
+  async function handleWear() {
+    if (!item || wearing) return
+    setWearing(true)
+    try {
+      const res = await wearItem(item.id)
+      setWearCount(res.wear_count)
+      setLastWorn(res.last_worn_date ? res.last_worn_date.slice(0, 10) : null)
+      if (res.already_logged) {
+        toast.info('今日已记录过这件衣物')
+      } else {
+        toast.success('已打卡，记入今日穿搭日记')
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : '打卡失败')
+    } finally {
+      setWearing(false)
+    }
+  }
+
+  /** 撤销今日打卡（计数回退） */
+  async function handleUnwear() {
+    if (!item || unwearing) return
+    setUnwearing(true)
+    try {
+      const res = await unwearItem(item.id)
+      setWearCount(res.wear_count)
+      setLastWorn(res.last_worn_date ? res.last_worn_date.slice(0, 10) : null)
+      toast.success('已撤销今日打卡')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : '撤销失败')
+    } finally {
+      setUnwearing(false)
+    }
+  }
+
+  const wornToday = lastWorn === todayISO()
 
   const config = item ? getWuxingConfig(item.primary_element) : null
   const imageUrl = item?.image_url ? getImageUrl(item.image_url) : null
@@ -182,9 +231,9 @@ export function WardrobeItemViewer({ item, onClose, onEdit, onDelete, deleting }
 
               <div className="mt-3 flex items-center gap-4 text-[11px] text-[var(--brand-subtle)]">
                 <span>
-                  穿着 <span className="font-semibold text-[var(--brand-heading)]">{item.wear_count}</span> 次
+                  穿着 <span className="font-semibold text-[var(--brand-heading)]">{wearCount}</span> 次
                 </span>
-                {item.last_worn_date && <span>最近穿着 {item.last_worn_date.slice(0, 10)}</span>}
+                {lastWorn && <span>最近穿着 {lastWorn}</span>}
                 {item.is_favorite && <span className="text-rose-500">♥ 已收藏</span>}
               </div>
 
@@ -193,6 +242,32 @@ export function WardrobeItemViewer({ item, onClose, onEdit, onDelete, deleting }
                   {item.notes}
                 </p>
               )}
+
+              {/* 穿着打卡：今天穿了这件 → 记入今日穿搭日记，穿过后支持撤销 */}
+              <div className="mt-4 flex gap-2 border-t border-stone-100 pt-3">
+                {wornToday ? (
+                  <button
+                    type="button"
+                    disabled={unwearing}
+                    onClick={handleUnwear}
+                    className="flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100 disabled:opacity-50"
+                  >
+                    <Undo2 className="h-4 w-4" />
+                    {unwearing ? '撤销中…' : '已穿 · 点击撤销'}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={wearing}
+                    onClick={handleWear}
+                    className="flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl text-sm font-bold text-white shadow-sm transition-opacity disabled:opacity-50"
+                    style={{ background: `linear-gradient(135deg, ${config.gradientFrom}, ${config.gradientTo})` }}
+                  >
+                    <Shirt className="h-4 w-4" />
+                    {wearing ? '打卡中…' : '穿了它'}
+                  </button>
+                )}
+              </div>
 
               {/* 操作：把柜体/网格里靠 hover 才可见的入口收进放大层 */}
               {(onEdit || onDelete) && (

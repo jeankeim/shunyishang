@@ -202,7 +202,7 @@ class TestDiaryService:
         assert result.wardrobe_item_id == 5
 
     def test_remove_item_from_diary(self, mock_db):
-        """测试从日记移除衣物"""
+        """测试从日记移除衣物（含穿着计数回退联动）"""
         from apps.api.services.diary_service import DiaryService
 
         call_count = [0]
@@ -210,11 +210,20 @@ class TestDiaryService:
         def side_effect(*args, **kwargs):
             call_count[0] += 1
             if call_count[0] == 1:
+                # 验证日记归属
                 mock_db["cursor"].fetchone.return_value = {"id": 1}
             elif call_count[0] == 2:
+                # 查询被移除的关联行
+                mock_db["cursor"].fetchone.return_value = {
+                    "item_source": "wardrobe", "wardrobe_item_id": 5,
+                }
+            elif call_count[0] == 3:
+                # 删除关联行
                 mock_db["cursor"].rowcount = 1
 
         mock_db["cursor"].execute.side_effect = side_effect
 
         result = DiaryService.remove_item_from_diary(1, 1, 1)
         assert result is True
+        # 衣橱衣物移除后应触发穿着计数回退（额外 2 条 UPDATE）
+        assert call_count[0] == 5
