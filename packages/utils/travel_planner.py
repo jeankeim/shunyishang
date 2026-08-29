@@ -545,6 +545,8 @@ def _format_item_output(item: Dict, scored: Dict) -> Dict:
         "name": item.get("name", ""),
         "category": item.get("category", ""),
         "primary_element": item.get("primary_element", ""),
+        # 每日衣物图片直接展示在对应天下方（用户反馈），格式化时不可丢失
+        "image_url": item.get("image_url"),
         "final_score": round(max(0.0, min(1.0, match)), 3),
         "scene_score": round(max(0.0, min(1.0, scored["scene_score"])), 3),
         "wuxing_score": round(max(0.0, min(1.0, scored["wuxing_score"])), 3),

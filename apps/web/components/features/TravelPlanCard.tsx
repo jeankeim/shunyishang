@@ -7,7 +7,8 @@ interface DailyPlan {
   day: number
   scene: string
   sub_scene?: string
-  weather: {
+  // 未确认出行日期时后端置为 null，前端不渲染温度（避免 "~°C" 残留）
+  weather?: {
     date?: string
     weather_desc?: string
     temperature_max?: number
@@ -160,9 +161,11 @@ export function TravelPlanCard({ data, onImageClick }: TravelPlanCardProps) {
                     <span className="text-sm font-medium text-stone-700">
                       {plan.scene}{plan.sub_scene ? `·${plan.sub_scene}` : ''}
                     </span>
-                    <span className="text-xs text-stone-500 ml-2">
-                      {plan.weather?.weather_desc} {plan.weather?.temperature_min}~{plan.weather?.temperature_max}°C
-                    </span>
+                    {plan.weather?.weather_desc && (
+                      <span className="text-xs text-stone-500 ml-2">
+                        {plan.weather.weather_desc} {plan.weather.temperature_min}~{plan.weather.temperature_max}°C
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -210,9 +213,13 @@ export function TravelPlanCard({ data, onImageClick }: TravelPlanCardProps) {
                               </button>
                             )}
                             <div className="px-2.5 py-2">
+                              {/* 名称独占一行减少截断（用户反馈），分数移至品类行右侧 */}
                               <div className="flex items-center gap-1.5">
                                 <div className={`shrink-0 w-1.5 h-4 rounded-full bg-gradient-to-b ${ELEMENT_COLORS[item.primary_element] || 'from-stone-200 to-stone-300'}`} />
-                                <p className="flex-1 min-w-0 text-xs font-medium text-stone-700 truncate">{item.name}</p>
+                                <p className="flex-1 min-w-0 text-xs font-medium text-stone-700 truncate" title={item.name}>{item.name}</p>
+                              </div>
+                              <div className="flex items-center justify-between gap-1 mt-0.5">
+                                <p className="min-w-0 truncate text-[10px] text-stone-400">{item.category} · {item.primary_element}</p>
                                 {item.final_score !== undefined && (
                                   <span
                                     className="shrink-0 text-[11px] font-semibold text-amber-600 cursor-help"
@@ -222,7 +229,6 @@ export function TravelPlanCard({ data, onImageClick }: TravelPlanCardProps) {
                                   </span>
                                 )}
                               </div>
-                              <p className="text-[10px] text-stone-400 mt-0.5">{item.category} · {item.primary_element}</p>
                             </div>
                           </div>
                         ))}

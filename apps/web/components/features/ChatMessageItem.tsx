@@ -109,8 +109,8 @@ export function ChatMessageItem({
         isUser ? 'bg-transparent' : 'bg-gradient-to-r from-amber-50/60 to-orange-50/40 rounded-lg border border-amber-200/30'
       )}
     >
-      {/* 头像 */}
-      <div className="shrink-0">
+      {/* 头像：移动端隐藏 AI 头像，让正文/标签/卡片直接顶到消息左缘（用户反馈：与 AI 位置对齐且不遮挡）；桌面端保留 */}
+      <div className={cn('shrink-0', !isUser && 'hidden md:block')}>
         <div
           className={cn(
             'h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium',
@@ -123,8 +123,8 @@ export function ChatMessageItem({
         </div>
       </div>
 
-      {/* 移动端：整列内容左移与 AI 头像左缘对齐（正文/推荐理由/卡片一致），充分利用窄屏宽度（用户反馈）；桌面端保持原缩进 */}
-      <div className={cn('flex-1 space-y-3 min-w-0', !isUser && '-ml-12 md:ml-0')}>
+      {/* 移动端头像已隐藏，内容列自然与消息左缘对齐，无需负边距 */}
+      <div className="flex-1 space-y-3 min-w-0">
         <div className="font-medium">{isUser ? '' : ''}</div>
 
         {/* 五行标签 */}
@@ -221,7 +221,7 @@ export function ChatMessageItem({
             {/* 行程规划场景下每日图片已在 TravelPlanCard 内按天展示，底部不再重复聚合网格 */}
             {!message.metadata?.travelPlan && (
             <>
-            {/* 移动端对齐由外层内容列统一处理（-ml-12） */}
+            {/* 移动端对齐由头像隐藏统一处理 */}
             <div className="space-y-3">
             {/* 整体搭配标题：强调这是一套可执行的搭配而非单品罗列 */}
             <div className="flex items-center justify-between gap-2 pt-2">
