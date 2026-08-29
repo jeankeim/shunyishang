@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { ChatMessageItem } from '../ChatMessageItem'
+import { useChatStore } from '@/store/chat'
 
 vi.mock('framer-motion', () => ({
   motion: {
@@ -11,6 +12,11 @@ vi.mock('framer-motion', () => ({
 
 vi.mock('lucide-react', () => ({
   Sparkles: () => <span data-testid="sparkles-icon" />,
+  // ChatMessageItem 引入 Toast 单例，Toast 依赖以下图标
+  CheckCircle: () => <span data-testid="check-circle" />,
+  AlertCircle: () => <span data-testid="alert-circle" />,
+  Info: () => <span data-testid="info-icon" />,
+  X: () => <span data-testid="x-icon" />,
 }))
 
 vi.mock('../RecommendCard', () => ({
@@ -154,6 +160,50 @@ describe('ChatMessageItem', () => {
     }
     render(<ChatMessageItem message={message as any} />)
     expect(screen.getByText('生成分享海报')).toBeInTheDocument()
+  })
+
+  it('should NOT render wardrobe navigate button (去衣橱试搭已彻底移除)', () => {
+    const message = {
+      id: '8b',
+      role: 'assistant',
+      content: 'Recommendation',
+      type: 'done',
+      metadata: {
+        items: [{ name: 'T恤', item_code: 'item1' }],
+      },
+    }
+    render(<ChatMessageItem message={message as any} onNavigateToWardrobe={() => {}} />)
+    expect(screen.queryByText('去衣橱试搭')).not.toBeInTheDocument()
+  })
+
+  it('should render wardrobe-sourced card after slot replaced (store replaceMessageItem)', () => {
+    useChatStore.setState({
+      conversations: [{
+        id: 'conv_test', title: 't', createdAt: 0, updatedAt: 0,
+        messages: [{
+          id: 'msg_rep', role: 'assistant', content: 'x', type: 'done', createdAt: 0,
+          metadata: { items: [{ name: 'T恤', item_code: 'item1', category: '上装', primary_element: '木', final_score: 0.9 }] },
+        }],
+      }],
+      currentConversationId: 'conv_test',
+    })
+    // 模拟一次衣橱相似款原位替换
+    useChatStore.getState().replaceMessageItem('conv_test', 'msg_rep', 'item1', {
+      item_code: 'wardrobe-101', name: '米白T恤', category: '上装', primary_element: '木', final_score: 0.9, source: 'wardrobe',
+    })
+    const replacedItem = useChatStore.getState().conversations[0].messages[0].metadata!.items![0]
+    const message = {
+      id: 'msg_rep',
+      role: 'assistant',
+      content: 'x',
+      type: 'done',
+      metadata: { items: [replacedItem] },
+    }
+    render(<ChatMessageItem message={message as any} />)
+    // 替换后槽位保留、来源变为衣橱（卡片 key 用新 item_code）
+    expect(screen.getByTestId('recommend-card-wardrobe-101')).toBeInTheDocument()
+    expect(screen.getByText('米白T恤')).toBeInTheDocument()
+    useChatStore.setState({ conversations: [], currentConversationId: null, currentConversation: null })
   })
 
   it('should open poster when button is clicked', () => {

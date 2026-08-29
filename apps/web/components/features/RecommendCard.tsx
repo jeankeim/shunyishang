@@ -3,10 +3,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { RecommendItem } from '@/types'
-import { submitFeedback, cancelFeedback, reportBehavior } from '@/lib/api'
+import { submitFeedback, cancelFeedback, reportBehavior, WardrobeSimilarItem } from '@/lib/api'
 import { getWuxingConfig } from '@/lib/wuxing-config'
 import { getImageUrl } from '@/lib/image'
+import { useUserStore } from '@/store/user'
 import { ItemDetailModal } from './ItemDetailModal'
+import { WardrobeSimilarSheet } from './WardrobeSimilarSheet'
 
 interface RecommendCardProps {
   item: RecommendItem
@@ -16,6 +18,10 @@ interface RecommendCardProps {
   onImageClick?: (imageUrl: string) => void
   /** 是否显示卡片底部推荐理由小字（搭配页仅对最相关1-2张显示，避免雷同重复） */
   showReason?: boolean
+  /** 衣橱相似款替换（灵感库单品→用户衣橱同款/类似款，原位替换到推荐网格） */
+  onReplaceItem?: (oldItem: RecommendItem, newItem: RecommendItem, similar: WardrobeSimilarItem) => void
+  /** 相似款面板空态「去衣橱添加」导流 */
+  onNavigateToWardrobe?: () => void
 }
 
 // 点踩原因配置：五行传统色系（低饱和、雅致）
@@ -27,7 +33,7 @@ const DISLIKE_REASONS = [
   { value: 'other', label: '其他', color: 'bg-[#5A5A5A]', ring: 'ring-[#5A5A5A]/30' },       // 墨灰
 ]
 
-export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick, showReason = true }: RecommendCardProps) {
+export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick, showReason = true, onReplaceItem, onNavigateToWardrobe }: RecommendCardProps) {
   const [feedback, setFeedback] = useState<'like' | 'dislike' | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [imageError, setImageError] = useState(false)
@@ -40,10 +46,13 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
   // 点踩多选状态
   const [selectedReasons, setSelectedReasons] = useState<string[]>([])
   const [submitError, setSubmitError] = useState<string | null>(null)
+  // 衣橱相似款面板
+  const [showSimilarSheet, setShowSimilarSheet] = useState(false)
   const dwellTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hasReportedView = useRef(false)
   const hasReportedDwell = useRef(false)
   const config = getWuxingConfig(item.primary_element)
+  const isAuthenticated = useUserStore((s) => s.isAuthenticated)
 
   // 行为埋点：卡片曝光（view）
   useEffect(() => {
@@ -182,6 +191,25 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
 
   const isFromWardrobe = item.source === 'wardrobe'
 
+  // 「找相似」仅对灵感库（公共库）单品 + 已登录用户展示：衣橱模式/未登录无替换意义
+  const canFindSimilar = !isFromWardrobe && !!onReplaceItem && isAuthenticated && !!item.item_code
+
+  // 相似款面板点「替换」→ 构造衣橱单品并原位替换（保留槽位分数，清掉公共库推荐理由）
+  const handleReplaceSimilar = (similar: WardrobeSimilarItem) => {
+    onReplaceItem?.(item, {
+      item_code: `wardrobe-${similar.id}`,
+      item_id: similar.id,
+      name: similar.name,
+      category: similar.category,
+      primary_element: similar.primary_element || item.primary_element,
+      secondary_element: similar.secondary_element ?? undefined,
+      final_score: item.final_score,
+      image_url: similar.image_url || undefined,
+      source: 'wardrobe',
+    }, similar)
+    setShowSimilarSheet(false)
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -213,6 +241,19 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
               </svg>
             </button>
+            {/* 找相似：灵感库单品→衣橱同款/类似款原位替换 */}
+            {canFindSimilar && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowSimilarSheet(true) }}
+                className="absolute bottom-2 left-2 z-10 flex items-center gap-1 px-2 py-1 rounded-full bg-black/35 backdrop-blur-sm text-[10px] font-medium text-white/90 hover:bg-emerald-500/85 active:scale-95 transition-all"
+                aria-label="在衣橱中找相似单品"
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                找相似
+              </button>
+            )}
             {/* 已反馈标记 */}
             {feedback && (
               <div className="absolute bottom-2 right-2 z-10">
@@ -233,6 +274,19 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
             }`}>
               {item.is_anchor ? '🎯 指定' : isFromWardrobe ? '🏠 自有' : '📚 公共库'}
             </div>
+            {/* 找相似（无图占位区同样提供入口） */}
+            {canFindSimilar && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowSimilarSheet(true) }}
+                className="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-1 rounded-full bg-black/35 backdrop-blur-sm text-[10px] font-medium text-white/90 hover:bg-emerald-500/85 active:scale-95 transition-all"
+                aria-label="在衣橱中找相似单品"
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                找相似
+              </button>
+            )}
             {feedback && (
               <div className="absolute bottom-2 right-2">
                 <span className="text-sm">{feedback === 'like' ? '❤️' : '👎'}</span>
@@ -547,6 +601,19 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
         <ItemDetailModal
           item={item}
           onClose={() => setShowDetailModal(false)}
+        />
+      )}
+
+      {/* 衣橱相似款面板（底部滑出） */}
+      {canFindSimilar && (
+        <WardrobeSimilarSheet
+          open={showSimilarSheet}
+          sourceItemCode={item.item_code}
+          sourceItemName={item.name}
+          sourceItemCategory={item.category}
+          onClose={() => setShowSimilarSheet(false)}
+          onSelect={handleReplaceSimilar}
+          onNavigateToWardrobe={onNavigateToWardrobe}
         />
       )}
     </motion.div>

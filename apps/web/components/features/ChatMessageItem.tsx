@@ -10,6 +10,9 @@ import { ImageLightbox } from './ImageLightbox'
 import { cn } from '@/lib/utils'
 import { Sparkles } from 'lucide-react'
 import { useUserStore } from '@/store/user'
+import { useChatStore } from '@/store/chat'
+import { toast } from '@/components/ui/Toast'
+import type { WardrobeSimilarItem } from '@/lib/api'
 
 const ELEMENT_EMOJI: Record<string, string> = {
   '金': '⚪', '木': '🟢', '水': '🔵', '火': '🔴', '土': '🟡',
@@ -73,6 +76,30 @@ export function ChatMessageItem({
         .slice(0, 2)
     )
   }, [message.metadata?.items])
+
+  // 衣橱相似款替换：记录本条消息内被替换的槽位（key=新 item_code），支持一键撤销
+  const [replacedMap, setReplacedMap] = useState<Record<string, { old: RecommendItem; similar?: WardrobeSimilarItem }>>({})
+  const currentConversationId = useChatStore((s) => s.currentConversationId)
+  const replaceMessageItem = useChatStore((s) => s.replaceMessageItem)
+
+  const handleReplaceItem = (oldItem: RecommendItem, newItem: RecommendItem, similar: WardrobeSimilarItem) => {
+    if (!currentConversationId) return
+    replaceMessageItem(currentConversationId, message.id, oldItem.item_code, newItem)
+    setReplacedMap((prev) => ({ ...prev, [newItem.item_code]: { old: oldItem, similar } }))
+    toast.success(`已替换为衣橱单品「${newItem.name}」`)
+  }
+
+  const handleUndoReplace = (newCode: string) => {
+    const entry = replacedMap[newCode]
+    if (!entry || !currentConversationId) return
+    replaceMessageItem(currentConversationId, message.id, newCode, entry.old)
+    setReplacedMap((prev) => {
+      const next = { ...prev }
+      delete next[newCode]
+      return next
+    })
+    toast.success('已恢复原推荐单品')
+  }
 
   // 当海报弹窗打开时，滚动到顶部
   useEffect(() => {
@@ -261,9 +288,25 @@ export function ChatMessageItem({
                   index={index} 
                   onImageClick={(imageUrl) => setSelectedImage(imageUrl)}
                   showReason={topReasonItems.has(item)}
+                  onReplaceItem={handleReplaceItem}
+                  onNavigateToWardrobe={onNavigateToWardrobe}
                 />
               ))}
             </div>
+            {/* 替换撤销条：本次对话里被衣橱相似款替换掉的槽位可一键恢复 */}
+            {Object.keys(replacedMap).length > 0 && (
+              <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-emerald-50/80 border border-emerald-100">
+                <span className="text-[11px] text-emerald-700">
+                  🏠 已用衣橱相似款替换 {Object.keys(replacedMap).length} 件
+                </span>
+                <button
+                  onClick={() => Object.keys(replacedMap).forEach(handleUndoReplace)}
+                  className="shrink-0 text-[11px] font-medium text-emerald-600 hover:text-emerald-800 transition-colors"
+                >
+                  全部撤销
+                </button>
+              </div>
+            )}
             </div>
             </>
             )}
@@ -288,17 +331,6 @@ export function ChatMessageItem({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
                   换一批
-                </button>
-              )}
-
-              {/* 衣橱交叉入口：推荐结果→衣橱，解决新用户找不到衣橱的问题 */}
-              {onNavigateToWardrobe && (
-                <button
-                  onClick={onNavigateToWardrobe}
-                  className="flex items-center gap-2 px-5 py-3 bg-white border border-stone-200 text-stone-700 rounded-xl font-medium hover:bg-stone-50 transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5"
-                >
-                  <span aria-hidden="true">👗</span>
-                  去衣橱试搭
                 </button>
               )}
             </div>

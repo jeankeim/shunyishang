@@ -1045,6 +1045,41 @@ export async function cancelFeedback(itemCode: string, itemId?: number): Promise
   }
 }
 
+// ========== 衣橱相似款接口 ==========
+
+export interface WardrobeSimilarItem {
+  id: number
+  name: string
+  category: string
+  image_url?: string | null
+  primary_element?: string | null
+  secondary_element?: string | null
+  similarity: number
+}
+
+export interface WardrobeSimilarResponse {
+  source_item: { item_code: string; name: string; category: string }
+  items: WardrobeSimilarItem[]
+}
+
+/**
+ * 查找用户衣橱中与灵感库单品相似的衣物（向量检索，同款/类似款替换）
+ */
+export async function getWardrobeSimilar(itemCode: string): Promise<WardrobeSimilarResponse> {
+  const params = new URLSearchParams({ item_code: itemCode })
+  const response = await fetch(`${getAPIBase()}/api/v1/recommend/wardrobe-similar?${params}`, {
+    headers: getAuthHeaders(),
+    signal: AbortSignal.timeout(10000),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.detail || '相似款查询失败')
+  }
+
+  return response.json()
+}
+
 // ========== 日记接口 ==========
 
 export interface CreateDiaryRequest {

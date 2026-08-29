@@ -740,3 +740,98 @@ async def get_daily_outfit(
             logger.debug(f"[DailyOutfit] 缓存写入失败: {e}")
 
     return result
+
+
+# ============================================================
+# 衣橱相似款（灵感库单品 → 用户衣橱中的相似/同款）
+# ============================================================
+
+@router.get(
+    "/recommend/wardrobe-similar",
+    summary="查找用户衣橱中与灵感库单品相似的衣物",
+    description="用灵感库单品的 embedding 直接对 User 衣橱做 pgvector 余弦相似度检索（同品类），不消耗 LLM 配额",
+)
+async def get_wardrobe_similar(
+    item_code: str = Query(..., min_length=1, max_length=20, description="灵感库单品编码"),
+    limit: int = Query(3, ge=1, le=5, description="最多返回件数"),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    衣橱相似款检索
+
+    **核心逻辑**:
+    1. 取灵感库单品的 embedding 与品类（items 表）
+    2. 向量对向量检索用户衣橱（user_wardrobe），限定同品类 + 相似度阈值 0.6
+    3. 无相似款时返回空列表，由前端展示空状态引导
+
+    纯 pgvector 计算（几十毫秒级），不经过 LLM，无配额消耗。
+    """
+    user_id = current_user["id"]
+
+    SIMILARITY_THRESHOLD = 0.6  # 低于该相似度宁可不展示（宁缺毋滥）
+
+    try:
+        with DatabasePool.get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                # 1. 源单品（必须存在且有 embedding）
+                cur.execute(
+                    """
+                    SELECT item_code, name, category, embedding
+                    FROM items
+                    WHERE item_code = %s
+                    """,
+                    (item_code,),
+                )
+                src = cur.fetchone()
+                if not src:
+                    raise HTTPException(status_code=404, detail="单品不存在")
+                if not src.get("embedding"):
+                    return {"source_item": {"item_code": item_code, "name": src["name"], "category": src["category"]}, "items": []}
+
+                # 2. 衣橱同品类向量检索
+                cur.execute(
+                    """
+                    SELECT w.id, w.name, w.category, w.image_url,
+                           w.primary_element, w.secondary_element,
+                           1 - (w.embedding <=> %(emb)s::vector) AS similarity
+                    FROM user_wardrobe w
+                    WHERE w.user_id = %(user_id)s
+                      AND w.is_active = TRUE
+                      AND w.embedding IS NOT NULL
+                      AND w.category = %(category)s
+                      AND 1 - (w.embedding <=> %(emb)s::vector) >= %(threshold)s
+                    ORDER BY w.embedding <=> %(emb)s::vector
+                    LIMIT %(limit)s
+                    """,
+                    {
+                        "emb": src["embedding"] if isinstance(src["embedding"], str) else str(src["embedding"]),
+                        "user_id": user_id,
+                        "category": src["category"],
+                        "threshold": SIMILARITY_THRESHOLD,
+                        "limit": limit,
+                    },
+                )
+                rows = cur.fetchall()
+
+        items = [
+            {
+                "id": row["id"],
+                "name": row["name"],
+                "category": row["category"],
+                "image_url": row["image_url"],
+                "primary_element": row["primary_element"],
+                "secondary_element": row.get("secondary_element"),
+                "similarity": round(float(row["similarity"]), 3),
+            }
+            for row in rows
+        ]
+        logger.info(f"[衣橱相似款] item={item_code}, user={user_id}, 命中 {len(items)} 件")
+        return {
+            "source_item": {"item_code": item_code, "name": src["name"], "category": src["category"]},
+            "items": items,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[衣橱相似款] 检索失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="相似款检索失败")

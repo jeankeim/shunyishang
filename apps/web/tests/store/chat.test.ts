@@ -231,6 +231,72 @@ describe('useChatStore', () => {
     })
   })
 
+  describe('replaceMessageItem', () => {
+    const makeMessage = (): ChatMessage => ({
+      id: 'msg1',
+      role: 'assistant',
+      content: '推荐结果',
+      createdAt: Date.now(),
+      metadata: {
+        items: [
+          { item_code: 'TC001', name: '白色衬衫', category: '上装', primary_element: '金', final_score: 0.9 },
+          { item_code: 'SH002', name: '黑色皮鞋', category: '鞋履', primary_element: '水', final_score: 0.8 },
+        ],
+      },
+    })
+
+    it('should replace the matched item in place, keeping others untouched', () => {
+      const convId = useChatStore.getState().createConversation()
+      useChatStore.getState().addMessage(convId, makeMessage())
+
+      useChatStore.getState().replaceMessageItem(convId, 'msg1', 'TC001', {
+        item_code: 'wardrobe-101',
+        item_id: 101,
+        name: '米白衬衫',
+        category: '上装',
+        primary_element: '金',
+        final_score: 0.9,
+        source: 'wardrobe',
+      })
+
+      const items = useChatStore.getState().conversations[0].messages[0].metadata!.items as any[]
+      expect(items).toHaveLength(2)
+      expect(items[0].item_code).toBe('wardrobe-101')
+      expect(items[0].name).toBe('米白衬衫')
+      expect(items[0].source).toBe('wardrobe')
+      // 其他槽位不受影响
+      expect(items[1].item_code).toBe('SH002')
+    })
+
+    it('should be reversible (undo by replacing back)', () => {
+      const convId = useChatStore.getState().createConversation()
+      const original = makeMessage().metadata!.items![0]
+      useChatStore.getState().addMessage(convId, makeMessage())
+
+      const store = useChatStore.getState()
+      store.replaceMessageItem(convId, 'msg1', 'TC001', {
+        item_code: 'wardrobe-101', name: '米白衬衫', category: '上装', primary_element: '金', final_score: 0.9, source: 'wardrobe',
+      })
+      useChatStore.getState().replaceMessageItem(convId, 'msg1', 'wardrobe-101', original as any)
+
+      const items = useChatStore.getState().conversations[0].messages[0].metadata!.items as any[]
+      expect(items[0].item_code).toBe('TC001')
+      expect(items[0].name).toBe('白色衬衫')
+    })
+
+    it('should be no-op when item_code does not match', () => {
+      const convId = useChatStore.getState().createConversation()
+      useChatStore.getState().addMessage(convId, makeMessage())
+
+      useChatStore.getState().replaceMessageItem(convId, 'msg1', 'NOPE', {
+        item_code: 'wardrobe-999', name: 'X', category: '上装', primary_element: '金', final_score: 0.5,
+      })
+
+      const items = useChatStore.getState().conversations[0].messages[0].metadata!.items as any[]
+      expect(items.map((i) => i.item_code)).toEqual(['TC001', 'SH002'])
+    })
+  })
+
   describe('setUserBazi', () => {
     it('should set user bazi', () => {
       const bazi = {

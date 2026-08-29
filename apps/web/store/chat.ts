@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { ChatMessage, Conversation, BaziInput } from '@/types'
+import { ChatMessage, Conversation, BaziInput, RecommendItem } from '@/types'
 
 export interface RadarData {
   currentData: Record<string, number>   // 八字五行分布（百分比）
@@ -57,6 +57,7 @@ interface ChatState {
   updateMessage: (conversationId: string, messageId: string, updates: Partial<ChatMessage>) => void
   appendMessageContent: (conversationId: string, messageId: string, token: string) => void
   mergeMessageMetadata: (conversationId: string, messageId: string, metadata: Partial<ChatMessage['metadata']>) => void
+  replaceMessageItem: (conversationId: string, messageId: string, oldItemCode: string, newItem: RecommendItem) => void
   setUserBazi: (bazi: BaziInput | null) => void
   setIsLoading: (loading: boolean) => void
   setRadarData: (data: RadarData) => void
@@ -174,6 +175,30 @@ export const useChatStore = create<ChatState>()(
                       ? { ...msg, metadata: { ...msg.metadata, ...metadata } }
                       : msg
                   ),
+                }
+              : conv
+          )
+          return {
+            conversations: updatedConversations,
+            currentConversation:
+              updatedConversations.find((c) => c.id === state.currentConversationId) || null,
+          }
+        })
+      },
+
+      replaceMessageItem: (conversationId, messageId, oldItemCode, newItem) => {
+        set((state) => {
+          const updatedConversations = state.conversations.map((conv) =>
+            conv.id === conversationId
+              ? {
+                  ...conv,
+                  messages: conv.messages.map((msg) => {
+                    if (msg.id !== messageId || !msg.metadata?.items) return msg
+                    const items = (msg.metadata.items as RecommendItem[]).map((it) =>
+                      it.item_code === oldItemCode ? newItem : it
+                    )
+                    return { ...msg, metadata: { ...msg.metadata, items } }
+                  }),
                 }
               : conv
           )
