@@ -141,3 +141,72 @@ class TestTravelIntentGating:
         """回归保障：既有旅行用例不受门控影响"""
         result = extract_context_by_rules("去三亚玩5天")
         assert result["travel_days"] == 5
+
+
+class TestNumericDateSignalAndTravelAlignment:
+    """用户反馈截图回归：
+    1. "8.30，8.31" 数字月日不被识别 → 明确给了日期仍提示"未提供具体出行日期"
+    2. 出差两天第2天被泛化成"旅行"（规则映射 main_scene=旅行, sub=商务出差）
+    3. 天气预报未按实际出发日期对齐
+    """
+
+    def test_numeric_month_day_recognized_as_date(self):
+        assert has_date_signal("8.30，8.31去武汉出差两天怎么穿") is True
+        assert has_date_signal("8/30去武汉出差") is True
+        result = extract_context_by_rules("8.30，8.31去武汉出差两天怎么穿")
+        assert result["travel_date_confirmed"] is True
+
+    def test_decimal_values_not_mistaken_as_date(self):
+        """温度/时长等小数不应误判为日期信号"""
+        assert has_date_signal("运动3.5小时穿什么") is False
+        assert has_date_signal("武汉气温36.5度穿什么") is False
+
+    def test_business_trip_days_not_generalized_to_travel(self):
+        from packages.ai_agents.nodes import _build_travel_scenes
+
+        scenes = _build_travel_scenes(
+            {"scene": "出差", "user_input": "8.30，8.31去武汉出差两天怎么穿"}, 2
+        )
+        assert scenes == ["出差", "出差"]
+
+    def test_non_travel_panel_scene_keeps_travel_main(self):
+        """面板场景非旅行类时，其余天仍用规则提取的旅行主场景（原多样化策略）"""
+        from packages.ai_agents.nodes import _build_travel_scenes
+
+        scenes = _build_travel_scenes(
+            {"scene": "通勤", "user_input": "下周去三亚旅行4天"}, 2
+        )
+        assert scenes == ["通勤", "旅行"]
+
+    def test_forecast_aligned_to_explicit_month_day(self):
+        from datetime import date, timedelta
+
+        from packages.ai_agents.nodes import _align_forecast_to_travel
+
+        today = date.today()
+        forecast = [{"date": (today + timedelta(days=i)).isoformat()} for i in range(7)]
+        tmr = today + timedelta(days=1)
+        got = _align_forecast_to_travel(forecast, f"{tmr.month}.{tmr.day}去武汉出差两天", 2)
+        assert [f["date"] for f in got] == [tmr.isoformat(), (tmr + timedelta(days=1)).isoformat()]
+
+    def test_forecast_relative_signal_starts_from_today(self):
+        """相对表述（明天/下周）无法精确对齐月日，维持从今天起截取"""
+        from datetime import date, timedelta
+
+        from packages.ai_agents.nodes import _align_forecast_to_travel
+
+        today = date.today()
+        forecast = [{"date": (today + timedelta(days=i)).isoformat()} for i in range(7)]
+        got = _align_forecast_to_travel(forecast, "明天去上海出差3天", 3)
+        assert [f["date"] for f in got] == [forecast[i]["date"] for i in range(3)]
+
+    def test_forecast_beyond_coverage_returns_empty(self):
+        """出行日期超出预报覆盖范围时不给出错误预判"""
+        from datetime import date, timedelta
+
+        from packages.ai_agents.nodes import _align_forecast_to_travel
+
+        today = date.today()
+        forecast = [{"date": (today + timedelta(days=i)).isoformat()} for i in range(7)]
+        got = _align_forecast_to_travel(forecast, "10.15去北京出差两天", 2)
+        assert got == []

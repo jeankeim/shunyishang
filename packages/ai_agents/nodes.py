@@ -4,6 +4,7 @@ LangGraph Agent 节点函数
 """
 
 import os
+import re
 import time
 import json
 import hashlib
@@ -938,10 +939,20 @@ def _generate_travel_plan(
         # 仅有地点+天数（如"北京三天行程"）时缺乏时间维度，天气预报不准确，
         # 不强行生成（用户反馈 #4）
         travel_date_confirmed = state.get("travel_date_confirmed", False)
+        weather_note = None
         if travel_date_confirmed:
-            weather_forecast = get_destination_weather(destination, travel_days)
+            full_forecast = get_destination_weather(destination, 7)
+            # 按 Query 中的具体月日（如 8.30）对齐预报起点，避免拿"今天"的预报冒充出行当天
+            weather_forecast = _align_forecast_to_travel(
+                full_forecast, state.get("user_input", ""), travel_days
+            )
+            if not weather_forecast:
+                # 出行日期超出预报可覆盖范围（约7天），不给出不准确的预判
+                travel_date_confirmed = False
+                weather_note = "出行日期超出天气预报范围，暂未生成天气预判，建议出发前查看目的地天气"
         else:
             weather_forecast = []
+            weather_note = "未提供具体出行日期，暂未生成天气预判，建议出发前查看目的地天气"
             logger.info(
                 f"[旅行规划] 未提供明确出行日期，跳过 {destination} 天气预判"
             )
@@ -994,7 +1005,7 @@ def _generate_travel_plan(
                 cats = [it.get("category", "") for it in day.get("items", [])]
                 day["weather"] = None
                 day["notes"] = (
-                    f"第{day.get('day')}天，{scene_text}，出行日期未确认，请出发前关注目的地天气。"
+                    f"第{day.get('day')}天，{scene_text}，暂无目的地天气预判，请出发前关注目的地天气。"
                     + (f"推荐{len(cats)}件：{'、'.join(cats)}。" if cats else "")
                 )
         
@@ -1040,9 +1051,9 @@ def _generate_travel_plan(
                 "luggage_score": luggage_score,
             },
             "weather_forecast": weather_forecast,
-            # 未提供明确出行日期时不做天气预判，前端据此展示提示（用户反馈 #4）
+            # 未提供明确出行日期/超出预报范围时不做天气预判，前端据此展示提示（用户反馈 #4）
             "weather_confirmed": travel_date_confirmed,
-            "weather_note": None if travel_date_confirmed else "未提供具体出行日期，暂未生成天气预判，建议出发前查看目的地天气",
+            "weather_note": weather_note,
             "wuxing_analysis": {
                 "target_elements": target_elements,
                 "weather_elements": weather_elements,
@@ -1207,6 +1218,11 @@ def _build_travel_scenes(state: AgentState, travel_days: int) -> List[str]:
     from packages.utils.scene_mapper import extract_scene_multidimensional
     travel_scene_data = extract_scene_multidimensional(user_input)
     travel_main_scene = travel_scene_data.get("main_scene", "旅行")
+    # 规则映射把"出差"归为"旅行"的子场景（main=旅行, sub=商务出差），
+    # 直接取 main 会把出差行程泛化成"旅行"（用户反馈：出差两天第2天变旅行）；
+    # Query 提取出的场景本身是具体旅行场景时优先采用
+    if travel_main_scene == "旅行" and panel_scene in ("出差", "度假", "户外探险"):
+        travel_main_scene = panel_scene
     
     scenes = []
     for day in range(travel_days):
@@ -1218,6 +1234,51 @@ def _build_travel_scenes(state: AgentState, travel_days: int) -> List[str]:
             scenes.append(travel_main_scene)
     
     return scenes
+
+
+def _align_forecast_to_travel(forecast: List[Dict], user_input: str, travel_days: int) -> List[Dict]:
+    """
+    将天气预报对齐到实际出行日期（用户反馈：说"8.30，8.31"仍拿"今天"起的预报，日期错位）
+
+    解析 Query 中的具体月日（如 8.30 / 8/30 / 8月30日），从预报中截取该日期起
+    travel_days 天的片段：
+    - 无法解析具体月日（"明天/下周"等相对表述）时维持现状，从今天起截取
+    - 出行日期超出预报可覆盖范围（约7天）时返回空列表，由调用方提示出发前自查
+    """
+    if not forecast:
+        return []
+
+    from datetime import date, timedelta
+
+    m = re.search(
+        r"(?<![\d.])(\d{1,2})[./月](\d{1,2})[日号]?(?!\s*(?:度|℃|小时|分钟|点|折|倍|年|月))",
+        user_input or "",
+    )
+    if not m:
+        return forecast[:travel_days]
+    month, day = int(m.group(1)), int(m.group(2))
+    if not (1 <= month <= 12 and 1 <= day <= 31):
+        return forecast[:travel_days]
+
+    today = date.today()
+    try:
+        start = date(today.year, month, day)
+    except ValueError:
+        return forecast[:travel_days]
+    if start < today - timedelta(days=1):
+        # 如 12 月说"1.2去出差"，按次年理解
+        try:
+            start = date(today.year + 1, month, day)
+        except ValueError:
+            return forecast[:travel_days]
+
+    start_iso = start.isoformat()
+    for i, f in enumerate(forecast):
+        if f.get("date") == start_iso:
+            return forecast[i:i + travel_days]
+
+    logger.info(f"[旅行规划] 出行日期 {start_iso} 超出天气预报可覆盖范围，跳过天气预判")
+    return []
 
 
 # 全局模型单例
