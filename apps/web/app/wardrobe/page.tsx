@@ -15,6 +15,9 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { WardrobeInsights } from '@/components/features/WardrobeInsights'
 import { WuxingBaguaChart } from '@/components/features/WuxingBaguaChart'
 import { IdleItemsCard } from '@/components/features/IdleItemsCard'
+import { WardrobeCabinet } from '@/components/features/WardrobeCabinet'
+import { WardrobeItemViewer } from '@/components/features/WardrobeItemViewer'
+import { IDLE_BADGE_MIN_DAYS, idleBadgeClass } from '@/lib/wardrobe-display'
 
 const AddWardrobeModal = lazy(() => import('@/components/features/AddWardrobeModal').then(m => ({ default: m.AddWardrobeModal })))
 const BatchUploadModal = lazy(() => import('@/components/features/BatchUploadModal'))
@@ -63,14 +66,7 @@ function toFetchParams(f: WardrobeFilters) {
   return params
 }
 
-// 闲置徽标展示阈值与分级配色（与 WardrobeInsights 低频/冗余色板一致）
-const IDLE_BADGE_MIN_DAYS = 30
-
-function idleBadgeClass(days: number): string {
-  if (days >= 180) return 'bg-[#C75B5B]/85'
-  if (days >= 90) return 'bg-[#B89B5E]/85'
-  return 'bg-stone-500/70'
-}
+// 闲置徽标阈值与分级配色见 @/lib/wardrobe-display（柜体抽屉视图与网格视图共用）
 
 export default function WardrobePage() {
   const { items, total, elementStats, isLoading, fetchItems, deleteItem } = useWardrobeStore()
@@ -83,7 +79,10 @@ export default function WardrobePage() {
   const [editItem, setEditItem] = useState<WardrobeItem | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
-  const [viewMode, setViewMode] = useState<'grid' | 'flow'>('flow')
+  // cabinet = 品类抽屉柜（默认）；grid / flow = 平铺网格
+  const [viewMode, setViewMode] = useState<'cabinet' | 'grid' | 'flow'>('cabinet')
+  // 放大查看的衣物（柜体抽屉与网格卡片点击共用）
+  const [zoomItem, setZoomItem] = useState<WardrobeItem | null>(null)
   
   // 判断是否移动端
   const isMobile = useMediaQuery('(max-width: 768px)')
@@ -324,7 +323,19 @@ export default function WardrobePage() {
           <h3 className="text-xs md:text-sm font-medium text-stone-500 uppercase tracking-wider">五行能量分布 · 八卦图</h3>
           <div className="flex gap-2">
             <button
+              onClick={() => setViewMode('cabinet')}
+              title="柜体抽屉视图"
+              aria-label="柜体抽屉视图"
+              className={`p-2 rounded-lg transition-all touch-feedback ${viewMode === 'cabinet' ? 'bg-[var(--brand-heading)] text-white shadow-sm' : 'text-[var(--brand-subtle)] hover:text-[var(--brand-heading)] hover:bg-[var(--brand-surface)]'}`}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5h16v5H4zM4 14h16v5H4zM10 7.5h4M10 16.5h4" />
+              </svg>
+            </button>
+            <button
               onClick={() => setViewMode('flow')}
+              title="平铺视图"
+              aria-label="平铺视图"
               className={`p-2 rounded-lg transition-all touch-feedback ${viewMode === 'flow' ? 'bg-[var(--brand-heading)] text-white shadow-sm' : 'text-[var(--brand-subtle)] hover:text-[var(--brand-heading)] hover:bg-[var(--brand-surface)]'}`}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -333,6 +344,8 @@ export default function WardrobePage() {
             </button>
             <button
               onClick={() => setViewMode('grid')}
+              title="网格视图"
+              aria-label="网格视图"
               className={`p-2 rounded-lg transition-all touch-feedback ${viewMode === 'grid' ? 'bg-[var(--brand-heading)] text-white shadow-sm' : 'text-[var(--brand-subtle)] hover:text-[var(--brand-heading)] hover:bg-[var(--brand-surface)]'}`}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -490,6 +503,14 @@ export default function WardrobePage() {
               </button>
             </div>
           )
+        ) : viewMode === 'cabinet' ? (
+          /* 品类抽屉柜：一柜多格，把手刻品类与实时件数，点一格摊开该品类 */
+          <WardrobeCabinet
+            items={items}
+            filtered={hasActiveFilter}
+            categoryAvail={filterStats?.facets?.category}
+            onSelect={setZoomItem}
+          />
         ) : (
           <div className={viewMode === 'grid' 
             ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
@@ -508,7 +529,17 @@ export default function WardrobePage() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ delay: index * 0.03, duration: 0.3 }}
-                    className={`group relative overflow-hidden rounded-3xl bg-white shadow-sm hover:shadow-xl transition-all duration-500 ${
+                    onClick={() => setZoomItem(item)}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`放大查看 ${item.name}`}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        setZoomItem(item)
+                      }
+                    }}
+                    className={`group relative cursor-pointer overflow-hidden rounded-3xl bg-white shadow-sm hover:shadow-xl transition-all duration-500 ${
                       viewMode === 'flow' ? 'aspect-[4/3]' : 'aspect-[3/4]'
                     }`}
                   >
@@ -531,7 +562,7 @@ export default function WardrobePage() {
                       <motion.button
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
-                        onClick={() => { setEditItem(item); setIsModalOpen(true) }}
+                        onClick={(e) => { e.stopPropagation(); setEditItem(item); setIsModalOpen(true) }}
                         className="p-2 rounded-xl bg-white/90 backdrop-blur-md shadow-lg text-stone-500 hover:text-blue-600 hover:bg-blue-50 transition-all"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -541,7 +572,7 @@ export default function WardrobePage() {
                       <motion.button
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
-                        onClick={() => handleDelete(item.id)}
+                        onClick={(e) => { e.stopPropagation(); handleDelete(item.id) }}
                         disabled={deletingId === item.id}
                         className="p-2 rounded-xl bg-white/90 backdrop-blur-md shadow-lg text-stone-500 hover:text-rose-600 hover:bg-rose-50 transition-all"
                       >
@@ -666,6 +697,22 @@ export default function WardrobePage() {
                 isEmptyWardrobe={wardrobeEmpty}
               />
             </Suspense>
+
+      {/* 衣物放大查看层（柜体抽屉与网格卡片共用） */}
+      <WardrobeItemViewer
+        item={zoomItem}
+        onClose={() => setZoomItem(null)}
+        onEdit={(it) => {
+          setZoomItem(null)
+          setEditItem(it)
+          setIsModalOpen(true)
+        }}
+        onDelete={(id) => {
+          setZoomItem(null)
+          handleDelete(id)
+        }}
+        deleting={deletingId !== null}
+      />
 
       {/* 删除确认弹窗 */}
       <ConfirmDialog
