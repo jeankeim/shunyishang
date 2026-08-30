@@ -204,7 +204,8 @@ _INTENT_PROMPT_TEMPLATE = """你是一位穿搭意图理解专家。请从用户
 
 ### 2. 五行意图（仅当用户明确提及五行指令时提取）
 - elements_add: 用户要求补/加强的五行，可选值：{wuxing_enum}
-  触发词：缺X、补X、旺X、想要X、需要X、多穿X
+  触发词：缺 X、补 X、旺 X、想要 X、需要 X、多穿 X、X 属性、X 元素
+  示例："火属性"→["火"]、"木元素"→["木"]、"补水"→["水"]
 - elements_avoid: 用户要求回避的五行，可选值：{wuxing_enum}
   触发词：忌X、不要X、别穿X、少穿X、避开X
 - xiyong: 用户自述喜用神，可选值：{wuxing_enum}
