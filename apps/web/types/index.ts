@@ -95,6 +95,8 @@ export interface DiaryOutfitItem {
   name?: string
   image_url?: string
   primary_element?: string
+  /** 衣橱单品上写的「它的故事」（只读，用户在衣橱里维护） */
+  wardrobe_notes?: string
   created_at: string
 }
 

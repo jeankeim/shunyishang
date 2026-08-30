@@ -649,6 +649,7 @@ export interface AddWardrobeItemRequest {
   functionality?: string[]
   thickness_level?: string
   energy_intensity?: number
+  notes?: string
 }
 
 export interface UpdateWardrobeItemRequest {
@@ -658,6 +659,8 @@ export interface UpdateWardrobeItemRequest {
   secondary_element?: string
   attributes_detail?: Record<string, any>
   image_url?: string
+  /** 它的故事（100 字内，传空字符串表示清空） */
+  notes?: string | null
 }
 
 export interface FeedbackRequest {
@@ -2445,6 +2448,347 @@ export async function getIdleItems(): Promise<IdleItemsResponse | null> {
     return response.json()
   } catch (error) {
     console.error('[getIdleItems] 异常:', error)
+    return null
+  }
+}
+
+// ============================================================
+// 断舍离三态（捐 / 卖 / 丢）
+// ============================================================
+
+/** 断舍离处理动作 */
+export type DeclutterAction = 'donate' | 'sell' | 'discard'
+
+/** 处理衣物响应 */
+export interface DeclutterResult {
+  item_id: number
+  action: DeclutterAction
+  action_label: string
+  is_active: boolean
+  /** true 表示此前已处理过、本次为改判 */
+  updated: boolean
+}
+
+/** 战报卡里的已处理清单条目（撤销入口） */
+export interface DeclutterProcessedItem {
+  id: number
+  name: string
+  category: string
+  image_url?: string | null
+  primary_element?: string | null
+  action: DeclutterAction
+  action_label: string
+  acted_date?: string | null
+  idle_days_at_action?: number | null
+}
+
+/** 断舍离年度战报 */
+export interface DeclutterReport {
+  year: number
+  total_processed: number
+  by_action: Array<{ action: DeclutterAction; label: string; count: number }>
+  released_count: number
+  max_idle_days: number | null
+  element_breakdown: Array<{ element: string; count: number }>
+  avoided_purchase_count: number
+  processed_items: DeclutterProcessedItem[]
+  summary: string
+}
+
+/**
+ * 标记衣物已处理（捐 / 卖 / 丢），衣物移出活跃衣橱
+ */
+export async function declutterWardrobeItem(
+  itemId: number,
+  action: DeclutterAction,
+  note?: string,
+): Promise<DeclutterResult> {
+  const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/items/${itemId}/declutter`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({ action, note: note || undefined }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.detail || '处理衣物失败')
+  }
+
+  return response.json()
+}
+
+/**
+ * 撤销断舍离处理，衣物回到活跃衣橱
+ */
+export async function undoDeclutterWardrobeItem(itemId: number): Promise<void> {
+  const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/items/${itemId}/declutter`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.detail || '撤销失败')
+  }
+}
+
+/**
+ * 获取断舍离年度战报
+ */
+export async function getDeclutterReport(year?: number): Promise<DeclutterReport | null> {
+  try {
+    const query = year ? `?year=${year}` : ''
+    const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/declutter-report${query}`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      console.error('[getDeclutterReport] 请求失败:', response.status)
+      return null
+    }
+    return response.json()
+  } catch (error) {
+    console.error('[getDeclutterReport] 异常:', error)
+    return null
+  }
+}
+
+// ============================================================
+// 衣橱年度报告（批次三 3.2，个人备案版完全免费）
+// ============================================================
+
+/** 年度报告里的单品事实 */
+export interface WardrobeReportItem {
+  id: number
+  name: string
+  category?: string | null
+  image_url?: string | null
+  primary_element?: string | null
+  /** 最常穿的那件：今年出现次数 */
+  wear_times?: number
+  /** 最久未动的那件：累计穿着次数 */
+  wear_count?: number
+  last_worn?: string | null
+  idle_days?: number | null
+}
+
+/** 年度报告事实数据（数字全部来自后端 SQL 聚合） */
+export interface WardrobeReportStats {
+  year: number
+  total_items: number
+  new_this_year: number
+  ever_worn_items: number
+  favorite_items: number
+  diary_count: number
+  worn_this_year: number
+  top_occasion?: string | null
+  top_worn_item?: WardrobeReportItem | null
+  idle_item?: WardrobeReportItem | null
+  lucky_element?: string | null
+  lucky_element_times: number
+  element_weights: Array<{ element: string; times: number }>
+  element_source?: string
+  monthly_elements: Array<{
+    month: number
+    label: string
+    elements: Record<string, number>
+    dominant?: string | null
+  }>
+  declutter: { total_processed: number; max_idle_days?: number | null; summary: string }
+  is_empty: boolean
+}
+
+/** 报告文案（LLM 生成，失败时后端降级为规则文案） */
+export interface WardrobeReportNarrative {
+  title: string
+  overall: string
+  top_item: string
+  idle_item: string
+  element_story: string
+  trend: string
+  advice: string
+}
+
+export interface WardrobeReportContent {
+  year: number
+  stats: WardrobeReportStats
+  narrative: WardrobeReportNarrative
+}
+
+export interface WardrobeReport {
+  id: number
+  year: number
+  title: string
+  content: WardrobeReportContent
+  summary?: string | null
+  /** pending=生成中 / ready=可查看 / failed=失败 */
+  status: string
+  generated: boolean
+  updated_at: string
+}
+
+export interface WardrobeReportQuota {
+  year: number
+  used: number
+  limit: number
+  remaining: number
+}
+
+/**
+ * 获取衣橱年度报告（report 为 null 表示该年还没生成过）
+ */
+export async function getWardrobeReport(
+  year?: number,
+): Promise<{ year: number; report: WardrobeReport | null; quota: WardrobeReportQuota } | null> {
+  try {
+    const query = year ? `?year=${year}` : ''
+    const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/report${query}`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      console.error('[getWardrobeReport] 请求失败:', response.status)
+      return null
+    }
+    return response.json()
+  } catch (error) {
+    console.error('[getWardrobeReport] 异常:', error)
+    return null
+  }
+}
+
+/**
+ * 提交衣橱年度报告生成任务并轮询结果（异步任务，最长等待 120 秒）
+ *
+ * 任务结果只有报告本体，generated / updated_at 要等回查 GET /report 才有，故排除在外。
+ */
+export async function generateWardrobeReport(
+  year?: number,
+): Promise<Omit<WardrobeReport, 'generated' | 'updated_at'>> {
+  const query = year ? `?year=${year}` : ''
+  const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/report${query}`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ detail: '生成报告失败' }))
+    throw new Error(err.detail || '生成报告失败')
+  }
+  const { task_id } = await response.json()
+  return pollTaskResult(task_id)
+}
+
+// ============================================================
+// 换季开柜仪式（批次三 3.3）
+// ============================================================
+
+/** 开柜清单里的一件单品 */
+export interface RitualItem {
+  id: number
+  name: string
+  category?: string | null
+  image_url?: string | null
+  primary_element?: string | null
+  thickness_level?: string | null
+  seasons: string[]
+  wear_count: number
+  /** 上次上身日期；从没穿过为 null（此时闲置天数按入橱时间算） */
+  last_worn?: string | null
+  idle_days?: number | null
+}
+
+/** 节气信息（日期一律 ISO 字符串，由后端算好） */
+export interface RitualSolarTerm {
+  name: string
+  date?: string | null
+  element: string
+  description: string
+  outfit_hint: string
+  season: string
+  days_until?: number | null
+}
+
+export interface SolarTermRitual {
+  /** 本次仪式参照的节气（通常是下一节气） */
+  solar_term: RitualSolarTerm | null
+  /** 当前所处的节气 */
+  current_term: { name: string; date: string; season?: string | null } | null
+  next_season: string
+  /** 下一季适配的厚度档位 */
+  expected_thickness: string[]
+  /** 下一节气是否真的跨季（跨季＝开柜仪式，季中＝常规检查） */
+  is_season_boundary: boolean
+  store_away: { items: RitualItem[]; total: number; reason: string }
+  take_out: { items: RitualItem[]; total: number; reason: string }
+  yi_ji: {
+    advice: string
+    gap_elements: Array<{ element?: string | null; headline?: string | null }>
+  }
+  has_action: boolean
+}
+
+/**
+ * 获取换季开柜仪式（后端按自然日缓存，失败静默返回 null）
+ */
+export async function getSolarTermRitual(): Promise<SolarTermRitual | null> {
+  try {
+    const response = await fetch(`${getAPIBase()}/api/v1/wardrobe/solar-term-ritual`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      console.error('[getSolarTermRitual] 请求失败:', response.status)
+      return null
+    }
+    return response.json()
+  } catch (error) {
+    console.error('[getSolarTermRitual] 异常:', error)
+    return null
+  }
+}
+
+/** 通用海报入参（服务端 Pillow 渲染） */
+export interface PosterBase64Params {
+  layout?: string
+  title: string
+  items: Array<Record<string, unknown>>
+  xiyong_elements?: string[]
+  theme?: string
+  quote?: string
+  signature?: string
+  scene?: string
+  username?: string
+}
+
+/**
+ * 生成海报并取回 base64 PNG（复用后端既有 /poster/generate-base64）
+ */
+export async function postPosterBase64(
+  params: PosterBase64Params,
+): Promise<{ image: string; filename: string; size: number } | null> {
+  try {
+    const response = await fetch(`${getAPIBase()}/api/v1/poster/generate-base64`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({
+        layout: params.layout || 'wuxing',
+        title: params.title,
+        items: params.items,
+        xiyong_elements: params.xiyong_elements || [],
+        theme: params.theme || 'wood',
+        quote: params.quote || '',
+        signature: params.signature || '顺衣尚',
+        scene: params.scene || '',
+        username: params.username || '',
+      }),
+    })
+    if (!response.ok) {
+      console.error('[postPosterBase64] 请求失败:', response.status)
+      return null
+    }
+    return response.json()
+  } catch (error) {
+    console.error('[postPosterBase64] 异常:', error)
     return null
   }
 }

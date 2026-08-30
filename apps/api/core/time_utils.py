@@ -21,3 +21,14 @@ def today_cn() -> date:
 def now_cn() -> datetime:
     """当前北京时间（带时区信息的 datetime）"""
     return datetime.now(CN_TZ)
+
+
+def seconds_until_end_of_day_cn(min_ttl: int = 600) -> int:
+    """
+    距北京时间今日 23:59:59 的秒数，用于"按自然日失效"的缓存 TTL。
+
+    min_ttl 兜底：临近午夜时不给 0 秒，否则缓存写了等于没写。
+    """
+    now = datetime.now(CN_TZ)
+    end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=0)
+    return max(min_ttl, int((end_of_day - now).total_seconds()))

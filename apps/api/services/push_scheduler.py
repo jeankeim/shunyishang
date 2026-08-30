@@ -394,13 +394,14 @@ class PushScheduler:
                 push_service.send_push(
                     user_id=user_id,
                     push_type="solar_term",
-                    title=f"节气换装提醒 · {term_name}",
+                    title=f"换季开柜仪式 · {term_name}",
                     body=body[:100],
                     data={
                         "solar_term": term_name,
                         "term_date": upcoming["date"].isoformat(),
                         "element": upcoming["element"],
                         "days_until": upcoming["days_until"],
+                        "target": "#wardrobe",
                     },
                 )
             except Exception as e:

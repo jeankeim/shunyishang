@@ -155,4 +155,20 @@ describe('DiaryDetail', () => {
     expect(screen.getAllByText('水').length).toBeGreaterThan(0)
     expect(screen.getByText('金')).toBeInTheDocument()
   })
+
+  it('衣橱单品写过故事时在关联衣物区一起展示', () => {
+    const diary: OutfitDiary = {
+      ...mockDiary,
+      items: [{ ...mockItem1, wardrobe_notes: '毕业旅行买的' }, mockItem2],
+    }
+    render(<DiaryDetail diary={diary} />)
+    expect(screen.getByText('毕业旅行买的')).toBeInTheDocument()
+  })
+
+  it('没写故事与公共库单品都不占位', () => {
+    render(<DiaryDetail diary={mockDiary} />)
+    // 卡片内只有名称与五行标，没有多余的故事段
+    expect(screen.getByText('白色T恤').parentElement?.textContent).toBe('白色T恤金')
+    expect(screen.getByText('牛仔裤').parentElement?.textContent).toBe('牛仔裤水')
+  })
 })

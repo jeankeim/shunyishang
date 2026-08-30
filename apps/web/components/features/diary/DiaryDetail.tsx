@@ -244,6 +244,12 @@ export function DiaryDetail({ diary, onEdit, onDelete, onTriggerReview, onBack }
                   {item.primary_element && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600">{item.primary_element}</span>
                   )}
+                  {/* 单品故事：衣橱里为这件写的备注，翻日记时一起被想起 */}
+                  {item.wardrobe_notes && (
+                    <p className="mt-1 text-[10px] leading-snug text-amber-700/80 line-clamp-2" title={item.wardrobe_notes}>
+                      {item.wardrobe_notes}
+                    </p>
+                  )}
                 </div>
               </div>
             ))}

@@ -4,7 +4,7 @@
  * 原先这些定义散落在 app/wardrobe/page.tsx 内部，柜体抽屉视图（WardrobeCabinet）
  * 与网格视图都要用到，抽出来避免两处色板 / 品类顺序漂移。
  */
-import type { WardrobeItem } from './api'
+import type { DeclutterAction, WardrobeItem } from './api'
 
 /** 闲置徽标展示阈值与分级配色（与 WardrobeInsights 低频/冗余色板一致） */
 export const IDLE_BADGE_MIN_DAYS = 30
@@ -48,4 +48,36 @@ export function groupWardrobeByCategory(items: WardrobeItem[]): { category: stri
   return Object.keys(buckets)
     .sort((a, b) => rank(a) - rank(b))
     .map((category) => ({ category, items: buckets[category] }))
+}
+
+/** 断舍离三态配置（顺序即按钮顺序），暖色描边小键与柜体设计语言一致 */
+export interface DeclutterOption {
+  action: DeclutterAction
+  /** 小键上的单字 */
+  label: string
+  /** 二次确认标题里的说法 */
+  title: string
+  /** 成功提示与战报里的动作名 */
+  doneLabel: string
+  color: string
+  confirmText: string
+}
+
+export const DECLUTTER_OPTIONS: DeclutterOption[] = [
+  { action: 'donate', label: '捐', title: '让它找新主人', doneLabel: '捐赠', color: '#3DA35D', confirmText: '确认捐赠' },
+  { action: 'sell', label: '卖', title: '挂出去转让', doneLabel: '转让', color: '#B89B5E', confirmText: '确认转让' },
+  { action: 'discard', label: '丢', title: '正式告别', doneLabel: '舍弃', color: '#9A8F84', confirmText: '确认舍弃' },
+]
+
+export function getDeclutterOption(action: DeclutterAction) {
+  return DECLUTTER_OPTIONS.find(o => o.action === action) || DECLUTTER_OPTIONS[0]
+}
+
+/** 衣物活跃态变化（断舍离 / 撤销）后广播，衣橱页与战报卡据此刷新 */
+export const WARDROBE_ACTIVE_CHANGED = 'wardrobe-active-changed'
+
+export function notifyWardrobeActiveChanged() {
+  if (typeof document !== 'undefined') {
+    document.dispatchEvent(new CustomEvent(WARDROBE_ACTIVE_CHANGED))
+  }
 }

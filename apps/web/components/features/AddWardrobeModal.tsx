@@ -38,6 +38,8 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
   // 基础信息（简化：name 由 description 自动填充）
   const [description, setDescription] = useState('')  // 衣物描述，同时也作为名称
   const [imageUrl, setImageUrlState] = useState('')
+  // 它的故事（可选，100 字内，与后端 schema 一致）
+  const [story, setStory] = useState('')
   
   // 包装 setImageUrl 以追踪调用
   const setImageUrl = useCallback((url: string) => {
@@ -65,6 +67,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
     if (editItem) {
       setDescription(editItem.name || '')  // 编辑模式下，name 作为 description
       setImageUrl(editItem.image_url || '')
+      setStory(editItem.notes || '')
       setLocalImage(null)
       // 从 editItem 构建 analysis（支持新字段）
       const attrs = editItem.attributes_detail || {}
@@ -110,6 +113,7 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
     // console.log('[AddWardrobeModal] resetForm 被调用 - 调用栈:', new Error().stack?.split('\n').slice(2, 5).join(' | '))
     setDescription('')
     setImageUrl('')
+    setStory('')
     setLocalImage(null)
     setAnalysis(null)
     clearTaggingPreview()
@@ -225,6 +229,8 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
         functionality: analysis.functionality,
         thickness_level: analysis.thickness_level,
         energy_intensity: analysis.energy_intensity,
+        // 它的故事：编辑模式下传空字符串即清空（新增时空串后端会落 NULL）
+        notes: story.trim(),
         // attributes_detail 与后端新结构对齐
         attributes_detail: {
           颜色: {
@@ -787,6 +793,23 @@ export function AddWardrobeModal({ isOpen, onClose, onSuccess, editItem }: AddWa
               }}
             />
           </div>
+        </div>
+
+        {/* 它的故事（可选） */}
+        <div className="p-4 bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border border-amber-100">
+          <h3 className="font-medium text-[var(--brand-body)] mb-1 flex items-center gap-2">
+            <span>📖</span> 它的故事
+            <span className="text-xs font-normal text-[var(--brand-subtle)]">（可不填）</span>
+          </h3>
+          <textarea
+            value={story}
+            onChange={(e) => setStory(e.target.value)}
+            maxLength={100}
+            rows={2}
+            placeholder="毕业旅行买的、妈妈送的第一件大衣…以后翻到会想起这一天"
+            className="w-full px-3 py-2 rounded-xl border border-amber-200 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all outline-none resize-none text-[var(--brand-heading)] text-base md:text-sm placeholder:text-[var(--brand-subtle)]"
+          />
+          <p className="mt-1 text-right text-xs text-[var(--brand-subtle)]">{story.trim().length}/100</p>
         </div>
 
         {/* 操作按钮 */}

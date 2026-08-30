@@ -461,7 +461,8 @@ class DiaryService:
                    doi.category, doi.notes, doi.created_at,
                    COALESCE(uw.name, si.name) as name,
                    COALESCE(uw.image_url, si.image_url) as image_url,
-                   COALESCE(uw.primary_element, si.primary_element) as primary_element
+                   COALESCE(uw.primary_element, si.primary_element) as primary_element,
+                   uw.notes as wardrobe_notes
             FROM diary_outfit_items doi
             LEFT JOIN user_wardrobe uw ON doi.wardrobe_item_id = uw.id
             LEFT JOIN items si ON doi.seed_item_code = si.item_code

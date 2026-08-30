@@ -13,12 +13,15 @@ import { getImageUrl } from '@/lib/image'
 import { EmptyState, SkeletonList, ConfirmDialog } from '@/components/ui'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { WardrobeInsights } from '@/components/features/WardrobeInsights'
+import { SolarTermRitualCard, type RitualFilterPatch } from '@/components/features/SolarTermRitualCard'
 import { IdleItemsCard } from '@/components/features/IdleItemsCard'
 import { WuxingBalancePanel } from '@/components/features/WuxingBalancePanel'
 import { PreferenceLearningBar } from '@/components/features/PreferenceLearningBar'
 import { WardrobeCabinet } from '@/components/features/WardrobeCabinet'
 import { WardrobeItemViewer } from '@/components/features/WardrobeItemViewer'
-import { IDLE_BADGE_MIN_DAYS, idleBadgeClass } from '@/lib/wardrobe-display'
+import { DeclutterReportCard } from '@/components/features/DeclutterReportCard'
+import { WardrobeAnnualReportCard } from '@/components/features/WardrobeAnnualReportCard'
+import { IDLE_BADGE_MIN_DAYS, idleBadgeClass, WARDROBE_ACTIVE_CHANGED } from '@/lib/wardrobe-display'
 
 const AddWardrobeModal = lazy(() => import('@/components/features/AddWardrobeModal').then(m => ({ default: m.AddWardrobeModal })))
 const BatchUploadModal = lazy(() => import('@/components/features/BatchUploadModal'))
@@ -113,6 +116,17 @@ export default function WardrobePage() {
     refreshStats(next)
   }
 
+  // 断舍离处理 / 撤销会改变活跃衣橱，列表与筛选计数随之刷新
+  useEffect(() => {
+    const handler = () => {
+      fetchItems(toFetchParams(filters))
+      refreshStats(filters)
+    }
+    document.addEventListener(WARDROBE_ACTIVE_CHANGED, handler)
+    return () => document.removeEventListener(WARDROBE_ACTIVE_CHANGED, handler)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, fetchItems])
+
   const clearFilters = () => {
     setFilters({ ...EMPTY_FILTERS })
     fetchItems()
@@ -120,6 +134,22 @@ export default function WardrobePage() {
   }
 
   const hasActiveFilter = (Object.values(filters) as (string | null)[]).some(Boolean)
+
+  /**
+   * 开柜仪式的「按清单筛选」：条件直接写进既有筛选栏（整组替换，避免与旧条件叠加
+   * 出空结果），再滚到列表区。
+   */
+  const applyRitualFilter = (patch: RitualFilterPatch) => {
+    const next = { ...EMPTY_FILTERS, ...patch }
+    setFilters(next)
+    fetchItems(toFetchParams(next))
+    refreshStats(next)
+    const el = document.getElementById('wardrobe-filter')
+    // jsdom 没有 scrollIntoView，测试环境里静默跳过
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
 
   // 衣橱是否真的为空（区别于筛选无结果）：优先用统计接口总数判定
   const wardrobeEmpty = filterStats ? filterStats.total === 0 : (!hasActiveFilter && total === 0)
@@ -312,6 +342,18 @@ export default function WardrobePage() {
         </div>
       </motion.div>
 
+      {/* 换季开柜仪式（衣橱页顶部，以下一个节气为参照） */}
+      {total > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.16 }}
+          className="mb-6 md:mb-8"
+        >
+          <SolarTermRitualCard onApplyFilter={applyRitualFilter} />
+        </motion.div>
+      )}
+
       {/* 五行平衡仪表盘 + 偏好学习显性化（洞察区首位） */}
       {total > 0 && (
         <motion.div
@@ -349,9 +391,30 @@ export default function WardrobePage() {
         </motion.div>
       )}
 
+      {/* 断舍离年度战报（有处理记录时才出现） */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.27 }}
+        className="mb-6 md:mb-8"
+      >
+        <DeclutterReportCard />
+      </motion.div>
+
+      {/* 衣橱年度报告（免费，每年可生成 3 次） */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.275 }}
+        className="mb-6 md:mb-8"
+      >
+        <WardrobeAnnualReportCard />
+      </motion.div>
+
       {/* 多维智能筛选栏 */}
       {total > 0 && (
         <motion.div
+          id="wardrobe-filter"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.28 }}
@@ -686,6 +749,10 @@ export default function WardrobePage() {
         onDelete={(id) => {
           setZoomItem(null)
           handleDelete(id)
+        }}
+        onNotesSaved={(id, notes) => {
+          // 放大层拿的是列表快照，故事保存后同步回快照，关闭再开不会退回旧文案
+          setZoomItem((prev) => (prev && prev.id === id ? { ...prev, notes: notes ?? undefined } : prev))
         }}
         deleting={deletingId !== null}
       />

@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from psycopg2.extras import RealDictCursor
 
 from apps.api.core.database import DatabasePool
+from apps.api.core.time_utils import CN_TZ, today_cn
 from packages.utils.wuxing_rules import ELEMENT_COLOR_MAP
 
 logger = logging.getLogger(__name__)
@@ -170,6 +171,141 @@ def get_idle_items(user_id: int) -> List[Dict[str, Any]]:
         reverse=True,
     )
     return idle_items
+
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# 断舍离战报（捐 / 卖 / 丢 三态处理记录）
+# ─────────────────────────────────────────────────────────────────────────────────
+
+# 三态顺序即前端展示顺序
+DECLUTTER_ACTIONS = ("donate", "sell", "discard")
+DECLUTTER_ACTION_LABELS = {
+    "donate": "捐赠",
+    "sell": "转让",
+    "discard": "舍弃",
+}
+
+# 战报卡里的已处理清单上限（撤销入口，一年处理几十件足够覆盖）
+DECLUTTER_DETAIL_LIMIT = 30
+
+
+def get_declutter_report(user_id: int, year: Optional[int] = None) -> Dict[str, Any]:
+    """
+    断舍离年度战报
+
+    统计当年处理掉的闲置衣物：三态分布、从活跃衣橱释放的件数、处理时最久
+    闲置天数、五行构成，并折算为「相当于少买 N 件」。
+
+    站内无价格字段，不做任何金额换算。
+    """
+    target_year = int(year) if year else today_cn().year
+    rows = _fetch_declutter_rows(user_id, target_year)
+
+    counts = {action: 0 for action in DECLUTTER_ACTIONS}
+    element_counts: Dict[str, int] = {}
+    released = 0
+    max_idle_days: Optional[int] = None
+    processed_items: List[Dict[str, Any]] = []
+
+    for row in rows:
+        action = row.get("action")
+        if action in counts:
+            counts[action] += 1
+        # 撤销会把记录与 is_active 一并回滚，此处仅统计仍停用的（真正让出的位置）
+        if not row.get("is_active"):
+            released += 1
+
+        element = row.get("primary_element")
+        if element:
+            element_counts[element] = element_counts.get(element, 0) + 1
+
+        acted = _to_cn_date(row.get("acted_at"))
+        worn_or_owned = _parse_date(row.get("last_worn_date")) or _parse_date(row.get("owned_since"))
+        idle_at_action: Optional[int] = None
+        if acted and worn_or_owned:
+            idle_at_action = max(0, (acted - worn_or_owned).days)
+            max_idle_days = (
+                idle_at_action if max_idle_days is None else max(max_idle_days, idle_at_action)
+            )
+
+        if len(processed_items) < DECLUTTER_DETAIL_LIMIT:
+            processed_items.append({
+                "id": row.get("id"),
+                "name": row.get("name") or "",
+                "category": row.get("category") or "",
+                "image_url": row.get("image_url"),
+                "primary_element": element,
+                "action": action,
+                "action_label": DECLUTTER_ACTION_LABELS.get(action or "", ""),
+                "acted_date": acted.isoformat() if acted else None,
+                "idle_days_at_action": idle_at_action,
+            })
+
+    total = len(rows)
+    return {
+        "year": target_year,
+        "total_processed": total,
+        "by_action": [
+            {"action": action, "label": DECLUTTER_ACTION_LABELS[action], "count": counts[action]}
+            for action in DECLUTTER_ACTIONS
+        ],
+        "released_count": released,
+        "max_idle_days": max_idle_days,
+        "element_breakdown": sorted(
+            ({"element": elem, "count": cnt} for elem, cnt in element_counts.items()),
+            key=lambda x: x["count"],
+            reverse=True,
+        ),
+        "avoided_purchase_count": total,
+        "processed_items": processed_items,
+        "summary": _build_declutter_summary(target_year, total, counts, max_idle_days),
+    }
+
+
+def _fetch_declutter_rows(user_id: int, year: int) -> List[Dict[str, Any]]:
+    """取某年（北京时间口径）的断舍离处理记录 + 对应衣物快照字段"""
+    query = """
+        SELECT a.action,
+               a.created_at AS acted_at,
+               w.id,
+               w.name,
+               w.category,
+               w.image_url,
+               w.primary_element,
+               w.is_active,
+               w.last_worn_date,
+               w.created_at AS owned_since
+        FROM wardrobe_item_actions a
+        JOIN user_wardrobe w ON w.id = a.wardrobe_item_id
+        WHERE a.user_id = %s
+          AND EXTRACT(YEAR FROM a.created_at AT TIME ZONE 'Asia/Shanghai') = %s
+        ORDER BY a.created_at DESC
+    """
+    try:
+        with DatabasePool.get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(query, [user_id, year])
+                return [dict(row) for row in cur.fetchall()]
+    except Exception as e:
+        logger.error(f"[Declutter] 断舍离记录查询失败: {e}")
+        return []
+
+
+def _build_declutter_summary(
+    year: int,
+    total: int,
+    counts: Dict[str, int],
+    max_idle_days: Optional[int],
+) -> str:
+    """战报一句话文案（无价格字段，只折算件数）"""
+    if total == 0:
+        return f"{year} 年还没有处理过闲置衣物，可以从上面的闲置提醒开始 🌱"
+    main_action = max(counts, key=lambda k: counts[k])
+    parts = [f"{year} 年你处理了 {total} 件衣物，以{DECLUTTER_ACTION_LABELS[main_action]}为主"]
+    if max_idle_days:
+        parts.append(f"最久的一件已闲置 {max_idle_days} 天")
+    parts.append(f"相当于少买 {total} 件")
+    return "，".join(parts)
 
 
 # ─────────────────────────────────────────────────────────────────────────────────
@@ -961,6 +1097,13 @@ def _parse_date(val) -> Optional[date]:
             except ValueError:
                 continue
     return None
+
+
+def _to_cn_date(val) -> Optional[date]:
+    """TIMESTAMPTZ / datetime → 北京时间自然日（无时区信息时按本地日期）"""
+    if isinstance(val, datetime):
+        return val.astimezone(CN_TZ).date() if val.tzinfo else val.date()
+    return _parse_date(val)
 
 
 def _extract_color(attributes_detail) -> Optional[str]:

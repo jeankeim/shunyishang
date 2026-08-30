@@ -328,7 +328,7 @@ def _insert_wardrobe_item(cur, user_id: int, data: dict) -> dict:
         data: 必含 item_code/name/category/image_url/primary_element/secondary_element/
               attributes_detail(dict)/is_custom/embedding/gender/applicable_weather/
               applicable_seasons/temperature_range/functionality/thickness_level/
-              energy_intensity/style/color/material
+              energy_intensity/style/color/material，可选 notes（它的故事）
 
     Returns:
         dict: RETURNING 行数据
@@ -340,8 +340,8 @@ def _insert_wardrobe_item(cur, user_id: int, data: dict) -> dict:
             is_custom, embedding,
             gender, applicable_weather, applicable_seasons,
             temperature_range, functionality, thickness_level, energy_intensity,
-            style, color, material
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            style, color, material, notes
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING {_WARDROBE_RETURNING_FIELDS}
     """
 
@@ -366,6 +366,7 @@ def _insert_wardrobe_item(cur, user_id: int, data: dict) -> dict:
         data.get("style"),
         data.get("color"),
         data.get("material"),
+        data.get("notes"),
     ]
 
     cur.execute(query, params)
@@ -490,6 +491,8 @@ async def add_wardrobe_item(
             "style": style,
             "color": color,
             "material": material,
+            # 它的故事（可选，100 字内由 schema 校验）
+            "notes": (request.notes or "").strip() or None,
         }
         
         with DatabasePool.get_connection() as conn:
@@ -1009,6 +1012,10 @@ async def update_wardrobe_item(
     if request.image_url is not None:
         updates.append("image_url = %s")
         params.append(request.image_url)
+    if request.notes is not None:
+        # 传空字符串视为清空故事，落库统一用 NULL
+        updates.append("notes = %s")
+        params.append(request.notes.strip() or None)
     
     if not updates:
         raise HTTPException(
@@ -1245,6 +1252,280 @@ async def unwear_wardrobe_item(
 
     stats = _get_item_wear_stats(item_id, user_id)
     return {"cancelled": True, **stats}
+
+
+# ========== 断舍离三态接口 ==========
+
+DECLUTTER_ACTION_LABELS = {"donate": "捐赠", "sell": "转让", "discard": "舍弃"}
+
+
+class DeclutterRequest(BaseModel):
+    """断舍离处理请求"""
+    action: str = Field(..., description="处理动作: donate=捐赠 / sell=转让 / discard=舍弃")
+    note: Optional[str] = Field(None, max_length=100, description="一句话备注（可选）")
+
+
+@router.post("/items/{item_id}/declutter")
+async def declutter_wardrobe_item(
+    item_id: int,
+    request: DeclutterRequest,
+    user: dict = Depends(get_current_user)
+):
+    """
+    标记衣物已处理（捐 / 卖 / 丢）并移出活跃衣橱
+
+    - 不删 user_wardrobe 行，仅置 is_active = FALSE，历史日记引用完整保留
+    - 幂等：同一件衣物重复提交只更新动作与备注（改判），不产生多条记录
+    - 可随时用 DELETE /items/{id}/declutter 撤销
+    """
+    user_id = user.get("id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户未登录"
+        )
+    if request.action not in DECLUTTER_ACTION_LABELS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="处理动作只能是 donate / sell / discard"
+        )
+
+    existing_action: Optional[str] = None
+    owned: Optional[dict] = None
+    with DatabasePool.get_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # 归属校验：不限 is_active，已停用（含普通删除）的衣物同样允许改判处理方式
+            cur.execute(
+                "SELECT id FROM user_wardrobe WHERE id = %s AND user_id = %s",
+                [item_id, user_id],
+            )
+            owned = cur.fetchone()
+            if owned:
+                cur.execute(
+                    "SELECT action FROM wardrobe_item_actions WHERE user_id = %s AND wardrobe_item_id = %s",
+                    [user_id, item_id],
+                )
+                prior = cur.fetchone()
+                existing_action = prior["action"] if prior else None
+                cur.execute(
+                    """
+                    INSERT INTO wardrobe_item_actions (user_id, wardrobe_item_id, action, note)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (user_id, wardrobe_item_id)
+                    DO UPDATE SET action = EXCLUDED.action, note = EXCLUDED.note, created_at = NOW()
+                    """,
+                    [user_id, item_id, request.action, request.note],
+                )
+                cur.execute(
+                    """
+                    UPDATE user_wardrobe
+                    SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = %s AND user_id = %s
+                    """,
+                    [item_id, user_id],
+                )
+            conn.commit()
+
+    if not owned:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="衣物不存在或无权访问"
+        )
+
+    _invalidate_wardrobe_insight_cache(int(user_id))
+    return {
+        "item_id": item_id,
+        "action": request.action,
+        "action_label": DECLUTTER_ACTION_LABELS[request.action],
+        "is_active": False,
+        "updated": existing_action is not None,
+    }
+
+
+@router.delete("/items/{item_id}/declutter")
+async def undo_declutter_wardrobe_item(
+    item_id: int,
+    user: dict = Depends(get_current_user)
+):
+    """撤销断舍离处理，衣物回到活跃衣橱（每日成套 / 盲盒 / 列表随之恢复）"""
+    user_id = user.get("id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户未登录"
+        )
+
+    restored = False
+    with DatabasePool.get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id FROM wardrobe_item_actions WHERE user_id = %s AND wardrobe_item_id = %s",
+                [user_id, item_id],
+            )
+            if cur.fetchone():
+                cur.execute(
+                    "DELETE FROM wardrobe_item_actions WHERE user_id = %s AND wardrobe_item_id = %s",
+                    [user_id, item_id],
+                )
+                cur.execute(
+                    """
+                    UPDATE user_wardrobe
+                    SET is_active = TRUE, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = %s AND user_id = %s
+                    """,
+                    [item_id, user_id],
+                )
+                restored = True
+            conn.commit()
+
+    if not restored:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="这件衣物没有被标记处理"
+        )
+
+    _invalidate_wardrobe_insight_cache(int(user_id))
+    return {"item_id": item_id, "is_active": True}
+
+
+@router.get("/declutter-report")
+async def get_declutter_report_api(
+    year: Optional[int] = Query(None, ge=2000, le=2100, description="战报年份，默认当年"),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    断舍离年度战报
+
+    按三态统计当年处理的闲置衣物：处理件数、释放件数、最久闲置天数、五行构成，
+    并折算「相当于少买 N 件」（站内无价格字段，不做金额换算）。
+    """
+    from apps.api.services.wardrobe_analytics_service import get_declutter_report as _report
+
+    user_id = current_user.get("id") or current_user.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="用户未登录")
+
+    return _report(int(user_id), year)
+
+
+# ========== 衣橱年度报告 ==========
+
+
+@router.post("/report", status_code=202)
+async def generate_wardrobe_report(
+    year: Optional[int] = Query(None, ge=2000, le=2100, description="报告年份，默认当年"),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    提交衣橱年度报告生成任务（异步，通过 GET /tasks/{task_id} 查询结果）
+
+    报告完全免费，但一次生成要跑一次 LLM 文案，故与年度运势报告同样限每年 3 次。
+    同一年重复生成会覆盖当年那份报告的内容。
+    """
+    from apps.api.services import task_service
+    from apps.api.services.wardrobe_report_service import (
+        WARDROBE_REPORT_YEARLY_LIMIT,
+        wardrobe_report_service,
+    )
+
+    user_id = current_user.get("id") or current_user.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="用户未登录")
+    user_id = int(user_id)
+    target_year = int(year) if year else today_cn().year
+
+    # 额度检查与自增在同一条 upsert 里完成，返回空表示已达上限
+    if not wardrobe_report_service.acquire_quota(user_id, target_year):
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                f"{target_year} 年衣橱报告最多生成 {WARDROBE_REPORT_YEARLY_LIMIT} 次，"
+                "您已达上限，可直接查看已生成的报告"
+            ),
+        )
+
+    try:
+        task_id = task_service.create_task(
+            user_id=user_id,
+            task_type="wardrobe_report",
+            payload={"year": target_year},
+        )
+    except Exception as e:
+        # 入队失败要把额度还回去，否则用户白白消耗一次机会
+        wardrobe_report_service.release_quota(user_id, target_year)
+        logger.error(f"[WardrobeReport] 任务入队失败: {e}")
+        raise HTTPException(status_code=503, detail="报告生成任务提交失败，请稍后重试")
+
+    return {"task_id": task_id, "status": "pending", "year": target_year}
+
+
+@router.get("/report")
+async def get_wardrobe_report_api(
+    year: Optional[int] = Query(None, ge=2000, le=2100, description="报告年份，默认当年"),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    获取衣橱年度报告
+
+    report 为 null 表示该年还没生成过；quota 用于按钮文案（每年 3 次上限）。
+    """
+    from apps.api.services.wardrobe_report_service import wardrobe_report_service
+
+    user_id = current_user.get("id") or current_user.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="用户未登录")
+    target_year = int(year) if year else today_cn().year
+
+    return {
+        "year": target_year,
+        "report": wardrobe_report_service.get_report(int(user_id), target_year),
+        "quota": wardrobe_report_service.get_quota(int(user_id), target_year),
+    }
+
+
+@router.get("/solar-term-ritual")
+async def get_solar_term_ritual(
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    换季开柜仪式
+
+    以下一个节气为参照给出两张清单：该收（下一季用不到且厚度不搭）、
+    该拿（下一季能穿却近 90 天没上身），并附节气宜忌与衣橱五行缺口元素。
+
+    结果按自然日缓存（一天之内节气与衣橱判定都不变）。
+    """
+    from apps.api.core.config import settings as _settings
+    from apps.api.core.time_utils import seconds_until_end_of_day_cn
+    from apps.api.services.solar_term_service import solar_term_service
+
+    user_id = current_user.get("id") or current_user.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="用户未登录")
+    user_id = int(user_id)
+
+    today = today_cn()
+    cache_key = f"wardrobe_solar_ritual:{user_id}:{today.isoformat()}"
+    use_cache = bool(_settings.redis_enabled)
+    if use_cache:
+        try:
+            from apps.api.core.cache import cache as redis_cache
+            cached = redis_cache.get_sync(cache_key)
+            if cached:
+                return cached
+        except Exception:
+            pass
+
+    result = solar_term_service.get_wardrobe_ritual(user_id, today=today)
+
+    if use_cache:
+        try:
+            from apps.api.core.cache import cache as redis_cache
+            redis_cache.set_sync(cache_key, result, ttl=seconds_until_end_of_day_cn())
+        except Exception:
+            pass
+
+    return result
 
 
 @router.get("/stats")

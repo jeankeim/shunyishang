@@ -36,6 +36,7 @@ import {
 import { getImageUrl } from '@/lib/image'
 import { hasTodayDiary, logOutfitAsDiary, loggedFlagKey, todayISO } from '@/lib/outfit-diary'
 import { getWuxingConfig } from '@/lib/wuxing-config'
+import { ELEMENT_THEME_MAP } from '@/lib/poster-templates'
 import { requestChatInputAutofill } from '@/lib/chatAutofill'
 import { toast } from '@/components/ui/Toast'
 import { useUserStore } from '@/store/user'
@@ -75,8 +76,7 @@ function shortDate(iso: string): string {
 
 /** 喜用元素 → 海报五行主题 */
 function elementToTheme(element: string): string {
-  const map: Record<string, string> = { 木: 'wood', 火: 'fire', 土: 'earth', 金: 'metal', 水: 'water' }
-  return map[element] || 'wood'
+  return ELEMENT_THEME_MAP[element] || 'wood'
 }
 
 interface WeeklyOutfitCalendarProps {

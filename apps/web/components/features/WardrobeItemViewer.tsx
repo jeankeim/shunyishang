@@ -1,15 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createPortal } from 'react-dom'
 import { Shirt, Undo2 } from 'lucide-react'
-import { wearItem, unwearItem, type WardrobeItem } from '@/lib/api'
+import { wearItem, unwearItem, updateWardrobeItem, type WardrobeItem } from '@/lib/api'
 import { getWuxingConfig } from '@/lib/wuxing-config'
 import { getImageUrl } from '@/lib/image'
 import { todayISO } from '@/lib/outfit-diary'
 import { toast } from '@/components/ui/Toast'
 import { IDLE_BADGE_MIN_DAYS, idleBadgeClass } from '@/lib/wardrobe-display'
+
+/** 它的故事字数上限（与后端 schema 一致） */
+const NOTES_MAX = 100
 
 interface WardrobeItemViewerProps {
   item: WardrobeItem | null
@@ -18,6 +21,8 @@ interface WardrobeItemViewerProps {
   onDelete?: (itemId: number) => void
   /** 删除请求进行中（用于按钮态与二次确认由调用方决定） */
   deleting?: boolean
+  /** 故事保存成功后回调，供上层同步数据源（放大层 item 多为列表快照） */
+  onNotesSaved?: (itemId: number, notes: string | null) => void
 }
 
 /** 把 items 里的属性拼成展示用的标签组（缺项自动跳过） */
@@ -39,7 +44,7 @@ function buildTags(item: WardrobeItem): string[] {
  * 图片默认 contain（保证整件可见），点按图片切成 cover（铺满看清质感/纹样）。
  * 移动端底部抽屉式、桌面居中卡片，动画只走 transform/opacity。
  */
-export function WardrobeItemViewer({ item, onClose, onEdit, onDelete, deleting }: WardrobeItemViewerProps) {
+export function WardrobeItemViewer({ item, onClose, onEdit, onDelete, deleting, onNotesSaved }: WardrobeItemViewerProps) {
   const [fitCover, setFitCover] = useState(false)
   // createPortal 依赖 document，跳过服务端渲染首帧；组件本身常驻挂载以保留退场动画
   const [mounted, setMounted] = useState(false)
@@ -50,6 +55,15 @@ export function WardrobeItemViewer({ item, onClose, onEdit, onDelete, deleting }
   const [wearing, setWearing] = useState(false)
   const [unwearing, setUnwearing] = useState(false)
 
+  // 它的故事本地态：点击进入编辑、失焦保存；草稿单独留存，保存失败时不必重打
+  const [story, setStory] = useState<string | null>(null)
+  const [editingStory, setEditingStory] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [savingStory, setSavingStory] = useState(false)
+  const draftRef = useRef<string | null>(null)
+  // 供 window keydown 判断当前是否在写故事（闭包里拿不到最新 state）
+  const editingRef = useRef(false)
+
   useEffect(() => setMounted(true), [])
 
   useEffect(() => {
@@ -57,8 +71,20 @@ export function WardrobeItemViewer({ item, onClose, onEdit, onDelete, deleting }
     setFitCover(false)
     setWearCount(item.wear_count ?? 0)
     setLastWorn(item.last_worn_date ? item.last_worn_date.slice(0, 10) : null)
+    setStory(item.notes?.trim() || null)
+    setEditingStory(false)
+    setDraft('')
+    draftRef.current = null
+    editingRef.current = false
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key !== 'Escape') return
+      // 正在写故事时，Esc 只退回展示态，不关掉整个放大层
+      if (editingRef.current) {
+        editingRef.current = false
+        setEditingStory(false)
+        return
+      }
+      onClose()
     }
     window.addEventListener('keydown', handleKey)
     const prevOverflow = document.body.style.overflow
@@ -102,6 +128,37 @@ export function WardrobeItemViewer({ item, onClose, onEdit, onDelete, deleting }
       toast.error(e instanceof Error ? e.message : '撤销失败')
     } finally {
       setUnwearing(false)
+    }
+  }
+
+  /** 进入故事编辑态（有未保存成功的草稿则还原） */
+  function startEditStory() {
+    setDraft(draftRef.current ?? story ?? '')
+    editingRef.current = true
+    setEditingStory(true)
+  }
+
+  /** 失焦即保存：内容未变则静默退出，清空走同一个 PATCH */
+  async function handleSaveStory() {
+    if (!item || !editingRef.current) return
+    editingRef.current = false
+    setEditingStory(false)
+    const next = draft.trim()
+    if (next === (story || '')) return
+    setSavingStory(true)
+    try {
+      const updated = await updateWardrobeItem(item.id, { notes: next })
+      const saved = updated.notes?.trim() || null
+      setStory(saved)
+      draftRef.current = null
+      onNotesSaved?.(item.id, saved)
+      toast.success(next ? '故事已记下' : '故事已清空')
+    } catch (e) {
+      // 草稿留在 draftRef，再次点击进入可接着改
+      draftRef.current = draft
+      toast.error(e instanceof Error ? e.message : '故事保存失败，点击可重试')
+    } finally {
+      setSavingStory(false)
     }
   }
 
@@ -237,11 +294,45 @@ export function WardrobeItemViewer({ item, onClose, onEdit, onDelete, deleting }
                 {item.is_favorite && <span className="text-rose-500">♥ 已收藏</span>}
               </div>
 
-              {item.notes && (
-                <p className="mt-3 rounded-xl bg-stone-50 px-3 py-2 text-xs leading-relaxed text-stone-600">
-                  {item.notes}
-                </p>
-              )}
+              {/* 它的故事：点击进入编辑，失焦保存（100 字内，与后端 schema 对齐） */}
+              <div className="mt-3">
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-[10px] tracking-[0.18em] text-[var(--brand-subtle)]">它的故事</span>
+                  {editingStory && (
+                    <span className="text-[10px] text-stone-400">
+                      {savingStory ? '保存中…' : `${draft.trim().length}/${NOTES_MAX} · 点击别处即保存`}
+                    </span>
+                  )}
+                </div>
+                {editingStory ? (
+                  <textarea
+                    autoFocus
+                    value={draft}
+                    maxLength={NOTES_MAX}
+                    rows={3}
+                    aria-label="编辑它的故事"
+                    placeholder="它陪你去过哪里、为什么留下它…"
+                    onChange={(e) => {
+                      setDraft(e.target.value)
+                      draftRef.current = e.target.value
+                    }}
+                    onBlur={handleSaveStory}
+                    className="w-full resize-none rounded-xl bg-stone-50 px-3 py-2 text-xs leading-relaxed text-stone-700 ring-1 ring-amber-200 outline-none placeholder:text-stone-400"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={startEditStory}
+                    className={
+                      story
+                        ? 'block w-full rounded-xl bg-stone-50 px-3 py-2 text-left text-xs leading-relaxed text-stone-600 transition-colors hover:bg-stone-100'
+                        : 'block w-full rounded-xl border border-dashed border-stone-200 px-3 py-2 text-left text-xs leading-relaxed text-stone-400 transition-colors hover:border-stone-300 hover:text-stone-500'
+                    }
+                  >
+                    {story || '还没写点什么 · 它为什么在你衣橱里？'}
+                  </button>
+                )}
+              </div>
 
               {/* 穿着打卡：今天穿了这件 → 记入今日穿搭日记，穿过后支持撤销 */}
               <div className="mt-4 flex gap-2 border-t border-stone-100 pt-3">

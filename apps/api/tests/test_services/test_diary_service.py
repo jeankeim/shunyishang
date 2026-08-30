@@ -227,3 +227,57 @@ class TestDiaryService:
         assert result is True
         # 衣橱衣物移除后应触发穿着计数回退（额外 2 条 UPDATE）
         assert call_count[0] == 5
+
+
+class TestDiaryItemStory:
+    """日记关联衣物带出衣橱单品的「它的故事」（批次三 3.4）"""
+
+    @pytest.fixture
+    def mock_db(self):
+        """模拟数据库连接（与 TestDiaryService 同一套 patch 目标）"""
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
+        mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+        with patch("apps.api.services.diary_service.DatabasePool") as mock_pool:
+            mock_pool.get_connection.return_value.__enter__ = MagicMock(return_value=mock_conn)
+            mock_pool.get_connection.return_value.__exit__ = MagicMock(return_value=False)
+            yield {"conn": mock_conn, "cursor": mock_cursor}
+
+    ITEM_FIELDS = {
+        "id": 9, "diary_id": 1, "item_source": "wardrobe",
+        "wardrobe_item_id": 5, "seed_item_code": None, "category": "上装",
+        "notes": None, "name": "白衬衫", "image_url": None, "primary_element": "金",
+    }
+
+    def test_items_query_carries_wardrobe_notes(self, mock_db):
+        """关联衣物 SQL 带出 user_wardrobe.notes，响应字段可透传给前端"""
+        from apps.api.services.diary_service import DiaryService
+
+        mock_db["cursor"].fetchall.return_value = [
+            {**self.ITEM_FIELDS, "created_at": datetime(2026, 7, 1, 9, 0, 0),
+             "wardrobe_notes": "毕业旅行买的"},
+        ]
+
+        items = DiaryService._get_diary_items(1)
+
+        sql = " ".join(mock_db["cursor"].execute.call_args_list[0].args[0].split())
+        assert "uw.notes as wardrobe_notes" in sql
+        assert items[0].wardrobe_notes == "毕业旅行买的"
+
+    def test_seed_item_without_story(self, mock_db):
+        """公共库单品没有故事（LEFT JOIN 无行）→ 字段为 None，不影响响应构建"""
+        from apps.api.services.diary_service import DiaryService
+
+        seed_item = {
+            **self.ITEM_FIELDS,
+            "item_source": "seed", "wardrobe_item_id": None,
+            "seed_item_code": "item_001", "wardrobe_notes": None,
+            "created_at": datetime(2026, 7, 1, 9, 0, 0),
+        }
+        mock_db["cursor"].fetchall.return_value = [seed_item]
+
+        items = DiaryService._get_diary_items(1)
+
+        assert items[0].wardrobe_notes is None
+        assert items[0].seed_item_code == "item_001"

@@ -78,6 +78,7 @@ class WardrobeItemCreate(WardrobeItemBase):
     """创建衣橱物品请求"""
     item_code: Optional[str] = Field(None, max_length=20, description="公共库物品编码（引用时必填）")
     description: Optional[str] = Field(None, max_length=500, description="物品描述（AI打标时使用）")
+    notes: Optional[str] = Field(None, max_length=100, description="它的故事（用户手写备注，100 字内）")
 
 
 class WardrobeItemUpdate(BaseModel):
@@ -88,6 +89,7 @@ class WardrobeItemUpdate(BaseModel):
     secondary_element: Optional[str] = Field(None, max_length=10, description="次五行")
     attributes_detail: Optional[Dict[str, Any]] = Field(None, description="AI分析详情")
     image_url: Optional[str] = Field(None, max_length=500, description="图片URL")
+    notes: Optional[str] = Field(None, max_length=100, description="它的故事（传空字符串表示清空）")
 
 
 class WardrobeFilterStatsResponse(BaseModel):

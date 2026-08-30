@@ -33,8 +33,21 @@ def _handle_annual_report(user_id: int, payload: Dict[str, Any]) -> Dict[str, An
     return fortune_report_service.generate_annual_report(user_id, user_bazi, year)
 
 
+def _handle_wardrobe_report(user_id: int, payload: Dict[str, Any]) -> Dict[str, Any]:
+    from apps.api.services.wardrobe_report_service import wardrobe_report_service
+
+    year = payload["year"]
+    try:
+        return wardrobe_report_service.generate_report(user_id, year)
+    except Exception:
+        # 行停留在 pending 会让用户以为还在生成，显式标记失败（重试成功后会被覆盖）
+        wardrobe_report_service.mark_failed(user_id, year)
+        raise
+
+
 HANDLERS = {
     "annual_report": _handle_annual_report,
+    "wardrobe_report": _handle_wardrobe_report,
 }
 
 

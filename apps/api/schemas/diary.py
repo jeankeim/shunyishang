@@ -54,6 +54,8 @@ class DiaryOutfitItemResponse(BaseModel):
     name: Optional[str] = None
     image_url: Optional[str] = None
     primary_element: Optional[str] = None
+    # 衣橱单品的「它的故事」（用户在衣橱里写的备注，只读展示用）
+    wardrobe_notes: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
