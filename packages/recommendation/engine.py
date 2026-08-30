@@ -245,6 +245,7 @@ def _select_batch_items(
             body_type=user_body_type,
             target_elements=target_elements,
             scene=scene,
+            category_constraint=category_constraint,
         )
 
         # 10. 五行全不匹配降级
@@ -299,5 +300,5 @@ def _handle_wuxing_fallback(
 
     result = ensure_category_diversity(scored_items, top_k, rng=rng, category_constraint=category_constraint)
     # 降级路径也保障搭配完整性（无风格/体型/五行信息，因为全不匹配）
-    result = ensure_outfit_completeness(result, scored_items, top_k)
+    result = ensure_outfit_completeness(result, scored_items, top_k, category_constraint=category_constraint)
     return result

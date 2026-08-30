@@ -159,6 +159,7 @@ def ensure_outfit_completeness(
     body_type: str = None,
     target_elements: List[str] = None,
     scene: str = None,
+    category_constraint: Optional[List[str]] = None,
 ) -> List[Dict]:
     """
     搭配完整性保障 + 个性化保障
@@ -177,10 +178,16 @@ def ensure_outfit_completeness(
         style_preference: 用户风格偏好（用于个性化保障）
         body_type: 用户体型（用于体型匹配保障）
         target_elements: 喜用神五行列表（用于五行保障）
+        category_constraint: 用户指定的品类约束，存在时跳过搭配补全（尊重用户意图）
 
     Returns:
         搭配完整性优化后的物品列表
     """
+    # 用户已指定品类约束时，跳过搭配完整性补全（不对着干）
+    if category_constraint:
+        logger.info(f"[搭配完整性] 检测到品类约束 {category_constraint}，跳过搭配补全")
+        return items
+
     if len(items) < 3:
         return items
 
