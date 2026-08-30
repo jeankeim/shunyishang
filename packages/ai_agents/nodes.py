@@ -1877,6 +1877,11 @@ def generate_advice_node(state: AgentState) -> Dict:
     explicit_add = explicit_intent_data.get("add", [])
     explicit_ming = explicit_intent_data.get("ming", [])
     explicit_xiyong = explicit_intent_data.get("xiyong", [])
+    
+    # 关键：当有显式指令时，叙事中的"喜用神"应使用显式指令，而非八字喜用神
+    # 这样 LLM 生成的文案才会说"补土"而不是"喜用水、木"
+    narrative_xiyong = explicit_add if explicit_add else xiyong_elements
+    
     if explicit_xiyong:
         added_instruction += (
             f' 特别说明：用户自述其喜用神为【{"、".join(explicit_xiyong)}】（以用户自述为准，优先于本账号八字推算），'
@@ -1894,6 +1899,7 @@ def generate_advice_node(state: AgentState) -> Dict:
             f' 特别说明：用户明确要求补【{"、".join(explicit_add)}】元素，'
             f'这是最高优先级需求，推荐理由开头必须直接回应该需求，'
             f'并将其作为主推荐元素，不得降级为辅助加分或忽略。'
+            f'开头必须说"您要求补【{"、".join(explicit_add)}】"，不要说"根据您的八字，喜用【..."。'
         )
 
     # 锚点物品指令：用户显式指定单品，叙事必须围绕它讲搭配（支持多锚点）
@@ -1934,7 +1940,7 @@ def generate_advice_node(state: AgentState) -> Dict:
         scene=scene_display,
         weather_element=weather_display,
         target_elements="、".join(target_elements) if target_elements else "综合推荐",
-        xiyong_elements="、".join(xiyong_elements) if xiyong_elements else "无",
+        xiyong_elements="、".join(narrative_xiyong) if narrative_xiyong else "无",
         added_elements=added_elements_str or "无",
         added_instruction=added_instruction,
         boost_instruction=boost_instruction,
@@ -2099,6 +2105,11 @@ def generate_advice_stream(
     explicit_add = explicit_intent_data.get("add", [])
     explicit_ming = explicit_intent_data.get("ming", [])
     explicit_xiyong = explicit_intent_data.get("xiyong", [])
+    
+    # 关键：当有显式指令时，叙事中的"喜用神"应使用显式指令，而非八字喜用神
+    # 这样 LLM 生成的文案才会说"补土"而不是"喜用水、木"
+    narrative_xiyong = explicit_add if explicit_add else xiyong_elements
+    
     if explicit_xiyong:
         added_instruction += (
             f' 特别说明：用户自述其喜用神为【{"、".join(explicit_xiyong)}】（以用户自述为准，优先于本账号八字推算），'
@@ -2116,6 +2127,7 @@ def generate_advice_stream(
             f' 特别说明：用户明确要求补【{"、".join(explicit_add)}】元素，'
             f'这是最高优先级需求，推荐理由开头必须直接回应该需求，'
             f'并将其作为主推荐元素，不得降级为辅助加分或忽略。'
+            f'开头必须说"您要求补【{"、".join(explicit_add)}】"，不要说"根据您的八字，喜用【..."。'
         )
 
     # 锚点物品指令：用户显式指定单品，叙事必须围绕它讲搭配（支持多锚点）
@@ -2156,7 +2168,7 @@ def generate_advice_stream(
         scene=scene_display,
         weather_element=weather_display,
         target_elements="、".join(target_elements) if target_elements else "综合推荐",
-        xiyong_elements="、".join(xiyong_elements) if xiyong_elements else "无",
+        xiyong_elements="、".join(narrative_xiyong) if narrative_xiyong else "无",
         added_elements=added_elements_str or "无",
         added_instruction=added_instruction,
         boost_instruction=boost_instruction,
