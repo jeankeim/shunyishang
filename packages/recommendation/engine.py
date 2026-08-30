@@ -188,6 +188,7 @@ def score_and_rank_items(
         user_body_type=user_body_type,
         target_elements=target_elements,
         scene=scene,
+        category_constraint=category_constraint,
     )
 
     return {"scored_items": scored_items, "top_items": top_items}
@@ -202,6 +203,7 @@ def _select_batch_items(
     user_body_type: Optional[str],
     target_elements: List[str],
     scene: Optional[str],
+    category_constraint: Optional[List[str]] = None,
 ) -> List[Dict]:
     """
     批次选择：确定性模拟前序批次并显式排除已展示物品，保证批次间不重合
