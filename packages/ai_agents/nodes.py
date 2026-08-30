@@ -341,16 +341,26 @@ def analyze_intent_node(state: AgentState) -> Dict:
         for phrase in llm_intent.anchor_phrases:
             if phrase and phrase not in existing_phrases:
                 anchor_specs.append({"phrase": phrase, "element": None, "category": None})
+        
+    # 2.4.1 品类约束（新增维度，来自 LLM 意图层）- 必须在锚点过滤之前提取
+    category_constraint = llm_intent.categories if llm_intent and llm_intent.categories else None
+        
+    # 2.4.2 过滤锚点：移除与品类约束重复的锚点（防止"上装"被误当锚点排除同品类物品）
+    if category_constraint and anchor_specs:
+        original_count = len(anchor_specs)
+        anchor_specs = [s for s in anchor_specs if s.get("phrase") not in category_constraint]
+        if len(anchor_specs) < original_count:
+            removed = [s["phrase"] for s in anchor_specs if s.get("phrase") in category_constraint]
+            logger.info(f"[锚点过滤] 移除与品类约束重复的锚点：{removed}")
+        
     if anchor_specs:
         logger.info(
             f"[Agent] 检测到锚点单品: "
             f"{'、'.join(s['phrase'] for s in anchor_specs)}"
         )
-    
-    # 2.5 品类约束（新增维度，来自 LLM 意图层）
-    category_constraint = llm_intent.categories if llm_intent and llm_intent.categories else None
+        
     if category_constraint:
-        logger.info(f"[Agent] 检测到品类约束: {category_constraint}")
+        logger.info(f"[Agent] 检测到品类约束：{category_constraint}")
     
     # 3. Task 03: 提取场景（多维度识别）
     scene_data = extract_scene_multidimensional(user_input)
