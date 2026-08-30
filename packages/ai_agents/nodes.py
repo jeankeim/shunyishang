@@ -408,7 +408,8 @@ def analyze_intent_node(state: AgentState) -> Dict:
     # 4.2 流年运势增强：将流年幸运元素加入推荐五行（优先级低于喜用神）
     # 注意：target_elements 在 merge_recommendations 中已截断为最多 MAX_TARGET_ELEMENTS 个，
     # 流年元素只能填充剩余名额，不得突破上限，避免五行数量失控、评分被稀释。
-    if annual_luck_data:
+    # 关键：当用户有显式五行指令时，跳过流年增强（显式指令最高优先级）
+    if annual_luck_data and not explicit_intent["add"]:
         annual_lucky_elements = annual_luck_data.get("lucky_elements", [])
         avoid_elements = bazi_result.get("avoid_elements", []) if bazi_result else []
         for elem in annual_lucky_elements[:2]:  # 最多取前2个流年幸运元素
@@ -421,6 +422,8 @@ def analyze_intent_node(state: AgentState) -> Dict:
                 logger.info(f"[Agent] 流年增强: 添加流年幸运元素 {elem}")
             elif elem in avoid_elements:
                 logger.info(f"[Agent] 流年增强: 跳过忌神 {elem}（不纳入 target_elements）")
+    elif annual_luck_data and explicit_intent["add"]:
+        logger.info(f"[Agent] 流年增强：用户有显式指令 {explicit_intent['add']}，跳过流年增强")
     
     # 5. 生成搜索查询
     # 如果规则已足够，直接构建查询
