@@ -113,6 +113,7 @@ def call_llm_with_retry(
     stream: bool = False,
     max_retries: int = DEFAULT_MAX_RETRIES,
     include_usage: bool = False,
+    temperature: Optional[float] = None,
 ) -> Any:
     """
     带重试的 LLM 调用
@@ -126,6 +127,8 @@ def call_llm_with_retry(
         max_tokens: 最大 token 数
         stream: 是否流式
         max_retries: 最大重试次数
+        include_usage: 流式末尾是否追加 usage chunk
+        temperature: 采样温度（None 使用模型默认值，0 表示确定性输出）
     
     Returns:
         LLM 响应对象
@@ -147,10 +150,14 @@ def call_llm_with_retry(
                     **stream_kwargs,
                 )
             else:
+                call_kwargs: Dict = {}
+                if temperature is not None:
+                    call_kwargs["temperature"] = temperature
                 return client.chat.completions.create(
                     model=model,
                     messages=messages,
                     max_tokens=max_tokens,
+                    **call_kwargs,
                 )
         
         except (APITimeoutError, RateLimitError, APIError, TimeoutError, OSError) as e:
