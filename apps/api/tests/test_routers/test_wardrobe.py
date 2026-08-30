@@ -4,7 +4,7 @@
 """
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 from apps.api.routers.auth import get_current_user
 
@@ -567,3 +567,41 @@ class TestLearningSignals:
         body = response.json()
         assert body["learning_signals"] == signals
         assert body["dimensions"][0]["key"] == "color"
+
+
+class TestComputeIdleDays:
+    """闲置天数计算：DB 返回 date/datetime，缓存或 JSON 往返后是字符串，三种都要能算"""
+
+    def test_uses_last_worn_date_when_present(self):
+        from apps.api.routers.wardrobe import _compute_idle_days
+
+        row = {"last_worn_date": date.today() - timedelta(days=5), "created_at": datetime(2020, 1, 1)}
+        assert _compute_idle_days(row) == 5
+
+    def test_falls_back_to_created_at_datetime(self):
+        from apps.api.routers.wardrobe import _compute_idle_days
+
+        row = {"last_worn_date": None, "created_at": datetime(2026, 1, 1)}
+        assert _compute_idle_days(row) == (date.today() - date(2026, 1, 1)).days
+
+    def test_accepts_iso_strings(self):
+        """性能测试与缓存回源场景里日期是 ISO 字符串，不能把接口打成 500"""
+        from apps.api.routers.wardrobe import _compute_idle_days
+
+        assert _compute_idle_days({"last_worn_date": None, "created_at": "2025-01-01T00:00:00"}) \
+            == (date.today() - date(2025, 1, 1)).days
+        assert _compute_idle_days({"last_worn_date": "2026-01-01", "created_at": None}) \
+            == (date.today() - date(2026, 1, 1)).days
+
+    def test_returns_none_when_dates_missing_or_unparsable(self):
+        from apps.api.routers.wardrobe import _compute_idle_days
+
+        assert _compute_idle_days({"last_worn_date": None, "created_at": None}) is None
+        assert _compute_idle_days({"last_worn_date": None, "created_at": "not-a-date"}) is None
+        assert _compute_idle_days({}) is None
+
+    def test_never_negative_for_future_last_worn(self):
+        from apps.api.routers.wardrobe import _compute_idle_days
+
+        row = {"last_worn_date": date.today() + timedelta(days=3), "created_at": None}
+        assert _compute_idle_days(row) == 0

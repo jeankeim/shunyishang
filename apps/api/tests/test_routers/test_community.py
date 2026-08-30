@@ -9,6 +9,13 @@ from datetime import date, datetime
 
 from apps.api.routers.auth import get_current_user
 
+# 个人备案版广场（社区）功能已下线：apps/api/main.py 未注册 community.router，
+# 所有端点请求只会拿到 404，断言 200/401/400 的用例必然失败。
+# 保留用例本体，恢复路由注册后删掉这个标记即可重新纳入回归。
+community_disabled = pytest.mark.skip(
+    reason="个人备案版已下线广场功能（community.router 未注册），恢复路由后移除该标记"
+)
+
 
 @pytest.fixture
 def mock_user():
@@ -58,6 +65,7 @@ class TestHelperFunctions:
         assert result.content == "今日穿搭分享"
 
 
+@community_disabled
 class TestCreatePost:
     @pytest.mark.asyncio
     async def test_no_auth(self, async_client):
@@ -96,6 +104,7 @@ class TestCreatePost:
             test_app.dependency_overrides.clear()
 
 
+@community_disabled
 class TestListPosts:
     @pytest.mark.asyncio
     async def test_success(self, async_client, auth_headers, test_app, mock_db_pool, mock_user):
@@ -128,6 +137,7 @@ class TestListPosts:
             test_app.dependency_overrides.clear()
 
 
+@community_disabled
 class TestGetPost:
     @pytest.mark.asyncio
     async def test_found(self, async_client, auth_headers, test_app, mock_db_pool, mock_user):
@@ -154,6 +164,7 @@ class TestGetPost:
             test_app.dependency_overrides.clear()
 
 
+@community_disabled
 class TestDeletePost:
     @pytest.mark.asyncio
     async def test_success(self, async_client, auth_headers, test_app, mock_db_pool, mock_user):
@@ -180,6 +191,7 @@ class TestDeletePost:
             test_app.dependency_overrides.clear()
 
 
+@community_disabled
 class TestPostByDiary:
     @pytest.mark.asyncio
     async def test_found(self, async_client, auth_headers, test_app, mock_db_pool, mock_user):
@@ -219,6 +231,7 @@ class TestPostByDiary:
             test_app.dependency_overrides.clear()
 
 
+@community_disabled
 class TestToggleLike:
     @pytest.mark.asyncio
     async def test_like(self, async_client, auth_headers, test_app, mock_db_pool, mock_user):
@@ -259,6 +272,7 @@ class TestToggleLike:
             test_app.dependency_overrides.clear()
 
 
+@community_disabled
 class TestComments:
     @pytest.mark.asyncio
     async def test_list_comments(self, async_client, auth_headers, test_app, mock_db_pool, mock_user):

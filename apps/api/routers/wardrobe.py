@@ -9,7 +9,7 @@ import os
 import re
 import time
 import uuid
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 from pathlib import Path
 
@@ -266,12 +266,31 @@ COLOR_FAMILY_KEYWORDS = {
 }
 
 
+def _to_date(value: object) -> Optional[date]:
+    """把 date / datetime / ISO 字符串统一归一为 date，无法解析时返回 None
+
+    DB 直读时 last_worn_date 是 date、created_at 是 datetime，但经缓存或 JSON
+    往返后会是字符串，此处统一兜底，避免闲置天数计算把接口打成 500。
+    """
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value).date()
+        except ValueError:
+            return None
+    return None
+
+
 def _compute_idle_days(row: dict) -> Optional[int]:
     """计算闲置天数：以 last_worn_date 为基准，从未穿着则以 created_at 为基准"""
-    base = row.get("last_worn_date")
+    base = _to_date(row.get("last_worn_date"))
     if base is None:
-        created = row.get("created_at")
-        base = created.date() if created else None
+        base = _to_date(row.get("created_at"))
     if base is None:
         return None
     return max(0, (date.today() - base).days)
