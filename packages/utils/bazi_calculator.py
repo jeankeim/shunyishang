@@ -647,19 +647,26 @@ def merge_recommendations(
             f"剔除后喜用神={xiyong_elements}"
         )
 
-    # 1. 用户显式「补X」（最高优先级，可覆盖忌神）
-    for elem in explicit_add:
-        if elem not in elements:
-            elements.append(elem)
-            if elem in avoid_elements:
-                logger.warning(
-                    f"[merge_recommendations] 用户显式意图覆盖忌神: {elem} 提升进 target_elements"
-                )
-
-    # 2. 八字喜用神（预设，次优先级）
-    for elem in xiyong_elements:
-        if elem not in elements:
-            elements.append(elem)
+    # 1. 用户显式「补 X」（最高优先级，可覆盖忌神）
+    # 关键：当用户有显式五行指令时，完全覆盖八字喜用神，不合并
+    if explicit_add:
+        for elem in explicit_add:
+            if elem not in elements:
+                elements.append(elem)
+                if elem in avoid_elements:
+                    logger.warning(
+                        f"[merge_recommendations] 用户显式意图覆盖忌神：{elem} 提升进 target_elements"
+                    )
+        # 显式指令存在时，跳过八字喜用神（完全覆盖，不合并）
+        logger.info(
+            f"[merge_recommendations] 用户显式指令 {explicit_add} 覆盖八字喜用神 {xiyong_elements}，"
+            f"仅使用显式指令"
+        )
+    else:
+        # 2. 八字喜用神（预设，次优先级）- 仅在无显式指令时使用
+        for elem in xiyong_elements:
+            if elem not in elements:
+                elements.append(elem)
 
     # 3. 天气五行（不与喜用神冲突）
     if weather_element and weather_element not in elements:
