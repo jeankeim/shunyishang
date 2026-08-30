@@ -646,6 +646,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
                 scene=scene,
                 sub_scene=sub_scene,
                 category_constraint=category_constraint,
+                target_elements=target_elements,  # 新增：五行元素过滤
             )
             for item in public_items:
                 item["source"] = "public"
@@ -731,6 +732,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
                 scene=scene,  # 传入场景参数
                 sub_scene=sub_scene,  # 传入子场景
                 category_constraint=category_constraint,  # 传入品类约束
+                target_elements=target_elements,  # 新增：五行元素过滤
             )
             
             # 标记公共库物品
@@ -757,6 +759,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
             scene=scene,  # 传入场景参数
             sub_scene=sub_scene,  # 传入子场景
             category_constraint=category_constraint,  # 传入品类约束
+            target_elements=target_elements,  # 新增：五行元素过滤
         )
         
         # 标记来源
@@ -1453,9 +1456,10 @@ def _vector_search(
     scene: Optional[str] = None,  # 新增场景参数
     sub_scene: Optional[str] = None,  # 新增子场景参数
     category_constraint: Optional[List[str]] = None,  # 新增品类约束参数
+    target_elements: Optional[List[str]] = None,  # 新增五行元素过滤参数
 ) -> List[Dict]:
     """
-    向量搜索（支持性别过滤、天气过滤、场景过滤和品类约束）
+    向量搜索（支持性别过滤、天气过滤、场景过滤、品类约束和五行元素过滤）
     
     使用 pgvector 进行语义相似度搜索
     
@@ -1466,7 +1470,8 @@ def _vector_search(
         weather_info: 天气信息 {"temperature": int, "weather_desc": str}
         scene: 场景名称，用于过滤不合适的衣物
         sub_scene: 子场景名称，用于更精细的过滤
-        category_constraint: 品类约束列表（如["上装"]），为 None 时不限制
+        category_constraint: 品类约束列表（如 ["上装"]），为 None 时不限制
+        target_elements: 目标五行元素列表（如 ["金"]），为 None 时不限制
     """
     import numpy as np
     
@@ -1495,11 +1500,19 @@ def _vector_search(
                     category_placeholders = ",".join(["%s"] * len(category_constraint))
                     category_filter = f"AND category IN ({category_placeholders})"
                 
+                # 五行元素过滤（新增）- 当有显式五行指令时，只返回匹配元素的物品
+                element_filter = ""
+                if target_elements:
+                    element_placeholders = ",".join(["%s"] * len(target_elements))
+                    element_filter = f"AND (primary_element IN ({element_placeholders}) OR secondary_element IN ({element_placeholders}))"
+                
                 # 调试日志
                 if scene:
                     logger.info(f"[场景过滤] scene={scene}, filter={scene_filter}")
                 if category_constraint:
                     logger.info(f"[品类约束] categories={category_constraint}")
+                if target_elements:
+                    logger.info(f"[五行过滤] target_elements={target_elements}")
                 
                 sql = f"""
                     SELECT 
@@ -1516,14 +1529,20 @@ def _vector_search(
                     {f'AND ({weather_filter})' if weather_filter else ''}
                     {f'AND ({scene_filter})' if scene_filter else ''}
                     {category_filter}
+                    {element_filter}
                     ORDER BY embedding <=> %s::vector
                     LIMIT %s
                 """
                 vector_list = query_vector.tolist()
-                # 构建参数列表：向量 + 品类约束参数 + 向量 + limit
+                # 构建参数列表：向量 + 品类约束参数 + 五行元素参数 + 向量 + limit
                 sql_params = [vector_list]
                 if category_constraint:
                     sql_params.extend(category_constraint)
+                if target_elements:
+                    # primary_element IN 参数
+                    sql_params.extend(target_elements)
+                    # secondary_element IN 参数（重复一次）
+                    sql_params.extend(target_elements)
                 sql_params.extend([vector_list, limit])
                 cur.execute(sql, tuple(sql_params))
                 rows = cur.fetchall()
