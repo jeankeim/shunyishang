@@ -202,16 +202,35 @@ _INTENT_PROMPT_TEMPLATE = """你是一位穿搭意图理解专家。请从用户
 ### 1. 基础判断
 - is_fashion: 是否与穿搭/服装/配饰相关（true/false）
 
-### 2. 五行意图（仅当用户明确提及五行指令时提取）
-- elements_add: 用户要求补/加强的五行，可选值：{wuxing_enum}
-  触发词：缺 X、补 X、旺 X、想要 X、需要 X、多穿 X、X 属性、X 元素
-  示例："火属性"→["火"]、"木元素"→["木"]、"补水"→["水"]
-- elements_avoid: 用户要求回避的五行，可选值：{wuxing_enum}
-  触发词：忌X、不要X、别穿X、少穿X、避开X
-- xiyong: 用户自述喜用神，可选值：{wuxing_enum}
-  触发词：喜用神是X、用神为X
-- ming: 用户自述命主，可选值：{wuxing_enum}
-  触发词：X命人、日主X
+### 2. 五行意图（核心维度）
+**elements_add** - 用户要求补/加强的五行，可选值：{wuxing_enum}
+  触发模式（任一匹配即提取）：
+  - 动词式：缺 X、补 X、旺 X、想要 X、需要 X、要穿 X、想穿 X、多穿 X、来点 X、多点 X
+  - 状态式：X 弱、X 太弱
+  - 属性式：X 属性、X 元素（如"火属性"→["火"]、"木元素"→["木"]）
+  示例：
+    "推荐一件火属性的上装" → elements_add=["火"]
+    "五行缺金" → elements_add=["金"]
+    "想补木" → elements_add=["木"]
+    "今天穿什么" → elements_add=[]（无五行指令）
+
+**elements_avoid** - 用户要求回避的五行，可选值：{wuxing_enum}
+  触发模式：忌 X、不要 X、别穿 X、少穿 X、不想穿 X、避开 X、X 太多、X 太旺
+  示例：
+    "忌火" → elements_avoid=["火"]
+    "不要水" → elements_avoid=["水"]
+
+**xiyong** - 用户自述喜用神，可选值：{wuxing_enum}
+  触发模式：喜用神是 X、喜用神为 X、喜用神属 X、用神是 X、用神为 X、喜神是 X、喜用 X
+  示例：
+    "喜用神是火" → xiyong=["火"], elements_add=["火"]
+    "用神为金" → xiyong=["金"], elements_add=["金"]
+
+**ming** - 用户自述命主，可选值：{wuxing_enum}
+  触发模式：X 命人、X 命的、日主 X、日主属 X、日干 X、属 X 命
+  语义：补 X + 生 X 者（如"金命人"→补金 + 土，因土生金）
+  示例：
+    "金命人适合什么" → ming=["金"], elements_add=["金", "土"]
 
 ### 3. 品类约束（用户明确指定要/不要某类衣物时提取）
 - categories: 用户指定的品类，可选值：{category_enum}
