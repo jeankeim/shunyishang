@@ -759,6 +759,8 @@ def retrieve_items_node(state: AgentState) -> Dict:
     # 主路向量检索偏服装语义，配饰天然语义距离远，需辅路补充
     # 场景校验：若当前场景规则明确排除配饰/饰品类（如运动），跳过辅路召回，
     # 避免配饰绕过场景过滤漏入结果（bad case：健身场景推荐木戒指）
+    # 品类约束校验：若用户明确要求特定品类（如"上装"），跳过辅路召回，
+    # 避免配饰绕过品类约束漏入结果（bad case：要上装却返回戒指/手串）
     _accent_blocked_by_scene = False
     if scene and retrieval_mode in ("public", "hybrid") and target_elements:
         try:
@@ -770,6 +772,10 @@ def retrieve_items_node(state: AgentState) -> Dict:
                 logger.info(f"[配饰辅路] 场景「{scene}」排除配饰类，跳过辅路召回")
         except Exception:
             pass
+
+    if category_constraint:
+        logger.info(f"[配饰辅路] 检测到品类约束 {category_constraint}，跳过辅路召回")
+        _accent_blocked_by_scene = True
 
     if retrieval_mode in ("public", "hybrid") and target_elements and not _accent_blocked_by_scene:
         existing_ids = {item.get("item_code") for item in items}
