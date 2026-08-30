@@ -474,6 +474,7 @@ def infer_elements_from_text(text: str) -> IntentResult:
 EXPLICIT_ADD_PATTERNS: List[str] = [
     "缺{e}", "补{e}", "旺{e}", "想要{e}", "需要{e}", "要穿{e}", "想穿{e}",
     "多穿{e}", "来点{e}", "多点{e}", "{e}弱", "{e}太弱",
+    "{e}属性", "{e}元素",  # 新增：用户说"火属性/木元素"等
 ]
 
 # 显式「避/忌」指令模板：用户主动要求回避某五行
