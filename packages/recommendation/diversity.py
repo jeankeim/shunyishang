@@ -7,7 +7,7 @@
 
 import random
 import logging
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from packages.recommendation.config import (
     CATEGORY_LIMITS, DEFAULT_CATEGORY_LIMIT,
@@ -24,7 +24,12 @@ SHOE_CATEGORIES = {"鞋履"}                  # 足部覆盖
 OUTFIT_CORE_CATEGORIES = {"上装", "下装", "裙装", "外套", "鞋履"}  # 核心服装品类
 
 
-def ensure_category_diversity(items: List[Dict], limit: int, rng: random.Random = None) -> List[Dict]:
+def ensure_category_diversity(
+    items: List[Dict],
+    limit: int,
+    rng: random.Random = None,
+    category_constraint: Optional[List[str]] = None,
+) -> List[Dict]:
     """
     确保推荐结果包含不同分类的物品
 
@@ -39,10 +44,16 @@ def ensure_category_diversity(items: List[Dict], limit: int, rng: random.Random 
         items: 已排序的物品列表
         limit: 返回数量
         rng: 可选确定性随机源（换一批需要可复现的选择结果），缺省用全局 random
+        category_constraint: 用户指定的品类约束（如 ["上装"]），存在时跳过主动补全，尊重用户意图
 
     Returns:
         多样化后的物品列表
     """
+    # 用户已指定品类约束时，跳过主动品类补全（避免与用户意图对着干）
+    if category_constraint:
+        logger.info(f"[分类多样性] 检测到品类约束 {category_constraint}，跳过主动品类补全")
+        return items[:limit]
+
     # 防御性检查
     valid_items = [item for item in items if isinstance(item, dict)]
     if not valid_items:

@@ -49,6 +49,7 @@ from packages.recommendation.filters import (
     build_scene_filter as _build_scene_filter,
     build_gender_filter as _build_gender_filter,
 )
+from packages.recommendation.query_intent import understand_query, QueryIntent
 
 logger = logging.getLogger(__name__)
 
@@ -288,29 +289,69 @@ def analyze_intent_node(state: AgentState) -> Dict:
         except Exception as e:
             logger.warning(f"[Agent] 流年/大运计算失败: {e}")
     
-    # 2. 意图推断
+    # 2. 意图推断（LLM 主路径 + 规则备用）
+    # 2.0 LLM 意图理解（新增：泛化能力强，覆盖品类/风格/颜色否定等规则未覆盖维度）
+    llm_intent: Optional[QueryIntent] = None
+    try:
+        llm_intent = understand_query(user_input)
+        if llm_intent and not llm_intent.is_fashion:
+            # 非穿搭意图，直接返回错误（与原有 _is_fashion_intent 逻辑一致）
+            return {"error": "非穿搭意图", "retrieved_items": [], "item_sources": {}}
+    except Exception as e:
+        logger.warning(f"[Agent] LLM 意图理解失败，回退规则提取: {e}")
+    
+    # 2.1 规则推断（保留为安全网，显式五行指令以规则为准——确定性 > 概率性）
     intent_result = infer_elements_from_text(user_input)
-
-    # 2.0 LLM token 用量累加器（成本核算，随状态传递给后续节点/调用方）
+    
+    # 2.2 LLM token 用量累加器（成本核算，随状态传递给后续节点/调用方）
     usage_sink: Dict = {}
-
-    # 2.1 显式五行修正意图（用户实时意图，最高优先级，可覆盖八字预设）
+    
+    # 2.3 显式五行修正意图（用户实时意图，最高优先级，可覆盖八字预设）
+    # 规则优先：显式五行模板是确定性的，LLM 可能漏判或误判
     explicit_intent = extract_explicit_element_intent(user_input)
+    # LLM 补充：规则未覆盖的表达（如"我火旺该穿什么"），取并集
+    if llm_intent:
+        for elem in llm_intent.elements_add:
+            if elem not in explicit_intent["add"]:
+                explicit_intent["add"].append(elem)
+        for elem in llm_intent.elements_avoid:
+            if elem not in explicit_intent["avoid"]:
+                explicit_intent["avoid"].append(elem)
+        for elem in llm_intent.xiyong:
+            if elem not in explicit_intent.get("xiyong", []):
+                explicit_intent.setdefault("xiyong", []).append(elem)
+        for elem in llm_intent.ming:
+            if elem not in explicit_intent.get("ming", []):
+                explicit_intent.setdefault("ming", []).append(elem)
     if explicit_intent["add"] or explicit_intent["avoid"]:
         logger.info(f"[Agent] 检测到用户显式五行意图: {explicit_intent}")
-
-    # 2.2 锚点单品识别（用户显式指定某件单品，如「白衬衫和什么搭配」，支持多锚点）
+    
+    # 2.4 锚点单品识别（规则 + LLM 并集）
     anchor_specs = extract_anchor_specs(user_input)
+    if llm_intent and llm_intent.anchor_phrases:
+        # LLM 识别到的锚点短语，转为 anchor_specs 格式
+        existing_phrases = {s.get("phrase") for s in anchor_specs}
+        for phrase in llm_intent.anchor_phrases:
+            if phrase and phrase not in existing_phrases:
+                anchor_specs.append({"phrase": phrase, "element": None, "category": None})
     if anchor_specs:
         logger.info(
             f"[Agent] 检测到锚点单品: "
             f"{'、'.join(s['phrase'] for s in anchor_specs)}"
         )
-
-    # 3. Task 03: 提取场曷（多维度识别）
+    
+    # 2.5 品类约束（新增维度，来自 LLM 意图层）
+    category_constraint = llm_intent.categories if llm_intent and llm_intent.categories else None
+    if category_constraint:
+        logger.info(f"[Agent] 检测到品类约束: {category_constraint}")
+    
+    # 3. Task 03: 提取场景（多维度识别）
     scene_data = extract_scene_multidimensional(user_input)
     scene = state.get("scene") or scene_data.get("main_scene")
-    sub_scene = scene_data.get("sub_scene")  # 子场景
+    # LLM 补充：规则未识别到场景时，用 LLM 结果
+    if not scene and llm_intent and llm_intent.scene:
+        scene = llm_intent.scene
+    sub_scene = scene_data.get("sub_scene") or (llm_intent.sub_scene if llm_intent else None)  # 子场景
     emotion = scene_data.get("emotion")  # 情感倾向
     
     scene_result = get_scene_elements(scene) if scene else None
@@ -397,6 +438,7 @@ def analyze_intent_node(state: AgentState) -> Dict:
         "xiyong_elements": xiyong_elements,
         "added_elements": added_elements,
         "boost_elements": boost_elements,
+        "category_constraint": category_constraint,  # 用户指定的品类约束（新增）
         "search_query": search_query,
         "llm_token_usage": usage_sink or None,
     }
@@ -524,6 +566,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
     anchor_specs = state.get("anchor_specs") or (
         [anchor_spec] if anchor_spec else []
     )  # 多锚点列表（兼容单锚点字段）
+    category_constraint = state.get("category_constraint")  # 新增：品类约束
     
     if not search_query:
         return {"error": "搜索查询为空", "retrieved_items": [], "item_sources": {}}
@@ -585,6 +628,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
                 weather_info=weather_info,
                 scene=scene,
                 sub_scene=sub_scene,
+                category_constraint=category_constraint,
             )
             for item in public_items:
                 item["source"] = "public"
@@ -603,7 +647,8 @@ def retrieve_items_node(state: AgentState) -> Dict:
             query_embedding=query_embedding,  # 已经是 List[float]，无需 .tolist()
             target_elements=target_elements,
             weather_info=weather_info,
-            limit=50
+            limit=50,
+            category_constraint=category_constraint,  # 传入品类约束
         )
         
         # 调试日志：检查返回的 items
@@ -647,7 +692,8 @@ def retrieve_items_node(state: AgentState) -> Dict:
                     query_embedding=query_embedding,  # 已经是 List[float]，无需 .tolist()
                     target_elements=target_elements,
                     weather_info=weather_info,
-                    limit=top_k
+                    limit=top_k,
+                    category_constraint=category_constraint,  # 传入品类约束
                 )
                 
                 items.extend(wardrobe_items)
@@ -666,7 +712,8 @@ def retrieve_items_node(state: AgentState) -> Dict:
                 user_gender=user_gender,
                 weather_info=weather_info,
                 scene=scene,  # 传入场景参数
-                sub_scene=sub_scene  # 传入子场景
+                sub_scene=sub_scene,  # 传入子场景
+                category_constraint=category_constraint,  # 传入品类约束
             )
             
             # 标记公共库物品
@@ -691,7 +738,8 @@ def retrieve_items_node(state: AgentState) -> Dict:
             user_gender=user_gender,
             weather_info=weather_info,
             scene=scene,  # 传入场景参数
-            sub_scene=sub_scene  # 传入子场景
+            sub_scene=sub_scene,  # 传入子场景
+            category_constraint=category_constraint,  # 传入品类约束
         )
         
         # 标记来源
@@ -843,6 +891,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
         top_k=top_k,
         batch_index=batch_index,
         retrieval_mode=retrieval_mode,
+        category_constraint=category_constraint,
     )
     scored_items = engine_result["scored_items"]
     top_items = engine_result["top_items"]
@@ -1066,7 +1115,11 @@ def _generate_travel_plan(
         return None
 
 
-def _ensure_category_diversity(items: List[Dict], limit: int) -> List[Dict]:
+def _ensure_category_diversity(
+    items: List[Dict], 
+    limit: int,
+    category_constraint: Optional[List[str]] = None,  # 新增品类约束参数
+) -> List[Dict]:
     """
     确保推荐结果包含不同分类的物品（增强版）
     
@@ -1078,10 +1131,16 @@ def _ensure_category_diversity(items: List[Dict], limit: int) -> List[Dict]:
     Args:
         items: 已排序的物品列表
         limit: 返回数量
+        category_constraint: 品类约束列表（如["上装"]），存在时跳过主动补全
         
     Returns:
         List[Dict]: 多样化后的物品列表
     """
+    # 用户已指定品类约束时，跳过主动补全（尊重用户意图，不对着干）
+    if category_constraint:
+        logger.info(f"[分类多样性] 检测到品类约束 {category_constraint}，跳过主动补全")
+        return items[:limit]
+    
     result = []
     category_count = {}
     
@@ -1369,10 +1428,11 @@ def _vector_search(
     user_gender: Optional[str] = None,
     weather_info: Optional[Dict] = None,
     scene: Optional[str] = None,  # 新增场景参数
-    sub_scene: Optional[str] = None  # 新增子场景参数
+    sub_scene: Optional[str] = None,  # 新增子场景参数
+    category_constraint: Optional[List[str]] = None,  # 新增品类约束参数
 ) -> List[Dict]:
     """
-    向量搜索（支持性别过滤、天气过滤和场景过滤）
+    向量搜索（支持性别过滤、天气过滤、场景过滤和品类约束）
     
     使用 pgvector 进行语义相似度搜索
     
@@ -1383,6 +1443,7 @@ def _vector_search(
         weather_info: 天气信息 {"temperature": int, "weather_desc": str}
         scene: 场景名称，用于过滤不合适的衣物
         sub_scene: 子场景名称，用于更精细的过滤
+        category_constraint: 品类约束列表（如["上装"]），为 None 时不限制
     """
     import numpy as np
     
@@ -1404,9 +1465,18 @@ def _vector_search(
                 # 场景过滤逻辑（新增）
                 scene_filter = _build_scene_filter(scene, sub_scene)
                 
+                # 品类约束过滤（新增）
+                category_filter = ""
+                if category_constraint:
+                    # 构建品类 IN 子句，使用参数化查询防止 SQL 注入
+                    category_placeholders = ",".join(["%s"] * len(category_constraint))
+                    category_filter = f"AND category IN ({category_placeholders})"
+                
                 # 调试日志
                 if scene:
                     logger.info(f"[场景过滤] scene={scene}, filter={scene_filter}")
+                if category_constraint:
+                    logger.info(f"[品类约束] categories={category_constraint}")
                 
                 sql = f"""
                     SELECT 
@@ -1422,11 +1492,17 @@ def _vector_search(
                     {gender_filter}
                     {f'AND ({weather_filter})' if weather_filter else ''}
                     {f'AND ({scene_filter})' if scene_filter else ''}
+                    {category_filter}
                     ORDER BY embedding <=> %s::vector
                     LIMIT %s
                 """
                 vector_list = query_vector.tolist()
-                cur.execute(sql, (vector_list, vector_list, limit))
+                # 构建参数列表：向量 + 品类约束参数 + 向量 + limit
+                sql_params = [vector_list]
+                if category_constraint:
+                    sql_params.extend(category_constraint)
+                sql_params.extend([vector_list, limit])
+                cur.execute(sql, tuple(sql_params))
                 rows = cur.fetchall()
                 
                 for row in rows:
@@ -1813,6 +1889,15 @@ def generate_advice_node(state: AgentState) -> Dict:
             f'不得推荐或提及与锚点单品同类冲突的其他单品。'
         )
     
+    # 品类约束指令：用户指定品类时，叙事必须围绕该品类展开
+    category_constraint_data = state.get("category_constraint")
+    if category_constraint_data:
+        added_instruction += (
+            f' 品类约束：用户明确要求推荐【{"、".join(category_constraint_data)}】，'
+            f'推荐理由必须围绕该品类展开，不得提及或推荐其他品类的物品，'
+            f'不得说"还可以搭配下装/鞋履"等跨品类建议。'
+        )
+
     # 构建"辅助加分"指令（boost_elements：忌神但生喜用神，不可作为正面推荐）
     boost_elements_str = "、".join(boost_elements) if boost_elements else ""
     if boost_elements_str:
@@ -2026,6 +2111,15 @@ def generate_advice_stream(
             f'不得推荐或提及与锚点单品同类冲突的其他单品。'
         )
     
+    # 品类约束指令：用户指定品类时，叙事必须围绕该品类展开
+    category_constraint_data = state.get("category_constraint")
+    if category_constraint_data:
+        added_instruction += (
+            f' 品类约束：用户明确要求推荐【{"、".join(category_constraint_data)}】，'
+            f'推荐理由必须围绕该品类展开，不得提及或推荐其他品类的物品，'
+            f'不得说"还可以搭配下装/鞋履"等跨品类建议。'
+        )
+
     # 构建"辅助加分"指令（boost_elements：忌神但生喜用神，不可作为正面推荐）
     boost_elements_str = "、".join(boost_elements) if boost_elements else ""
     if boost_elements_str:

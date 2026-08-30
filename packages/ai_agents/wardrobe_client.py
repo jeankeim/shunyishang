@@ -115,7 +115,8 @@ class WardrobeClient:
         query_embedding: List[float],
         target_elements: Optional[List[str]] = None,
         weather_info: Optional[Dict] = None,
-        limit: int = 20
+        limit: int = 20,
+        category_constraint: Optional[List[str]] = None,  # 新增品类约束参数
     ) -> List[Dict]:
         """
         从用户衣橱进行向量搜索
@@ -128,6 +129,7 @@ class WardrobeClient:
             target_elements: 目标五行列表
             weather_info: 天气信息
             limit: 返回数量
+            category_constraint: 品类约束列表（如["上装"]），为 None 时不限制
         
         Returns:
             匹配的物品列表，每个物品带有 source='wardrobe' 标记
@@ -145,6 +147,14 @@ class WardrobeClient:
         weather_filter = self._build_wardrobe_weather_filter(weather_info)
         if weather_filter:
             conditions.append(weather_filter)
+        
+        # 品类约束过滤（新增）
+        if category_constraint:
+            # 使用参数化查询防止 SQL 注入
+            category_placeholders = ",".join([f"%(cat{i})s" for i in range(len(category_constraint))])
+            conditions.append(f"category IN ({category_placeholders})")
+            for i, cat in enumerate(category_constraint):
+                params[f"cat{i}"] = cat
         
         where_clause = " AND ".join(conditions)
         

@@ -65,6 +65,7 @@ def score_and_rank_items(
     top_k: int = 5,
     batch_index: int = 0,
     retrieval_mode: str = "public",
+    category_constraint: Optional[List[str]] = None,
 ) -> Dict:
     """
     推荐引擎核心：评分 → 过滤 → 排序 → 多样性 → 温度安全
@@ -229,7 +230,7 @@ def _select_batch_items(
 
         # 8. 多样性优化（种子化随机源：同一候选集下选择结果可复现）
         rng = random.Random(f"{seed_material}#batch{b}")
-        batch_items = ensure_category_diversity(pool, top_k, rng=rng)
+        batch_items = ensure_category_diversity(pool, top_k, rng=rng, category_constraint=category_constraint)
         batch_items = ensure_wuxing_diversity(batch_items, pool, top_k)
 
         # 9. 温度安全检查
@@ -246,7 +247,7 @@ def _select_batch_items(
 
         # 10. 五行全不匹配降级
         if all(item.get("wuxing_score", 0) == 0 for item in batch_items):
-            batch_items = _handle_wuxing_fallback(pool, top_k, rng=rng)
+            batch_items = _handle_wuxing_fallback(pool, top_k, rng=rng, category_constraint=category_constraint)
 
         excluded_keys.update(_canonical_item_key(it) for it in batch_items)
         top_items = batch_items
@@ -273,7 +274,12 @@ def _check_pref_relevance(user_prefs: Dict, items: List[Dict]) -> bool:
     return False
 
 
-def _handle_wuxing_fallback(scored_items: List[Dict], top_k: int, rng: Optional[random.Random] = None) -> List[Dict]:
+def _handle_wuxing_fallback(
+    scored_items: List[Dict],
+    top_k: int,
+    rng: Optional[random.Random] = None,
+    category_constraint: Optional[List[str]] = None,
+) -> List[Dict]:
     """五行全不匹配时的降级策略"""
     semantic_values = {item.get("semantic_score", 0.5) for item in scored_items}
     if len(semantic_values) <= 1:
@@ -289,7 +295,7 @@ def _handle_wuxing_fallback(scored_items: List[Dict], top_k: int, rng: Optional[
     else:
         scored_items.sort(key=lambda x: (x["semantic_score"], _canonical_item_key(x)), reverse=True)
 
-    result = ensure_category_diversity(scored_items, top_k, rng=rng)
+    result = ensure_category_diversity(scored_items, top_k, rng=rng, category_constraint=category_constraint)
     # 降级路径也保障搭配完整性（无风格/体型/五行信息，因为全不匹配）
     result = ensure_outfit_completeness(result, scored_items, top_k)
     return result
