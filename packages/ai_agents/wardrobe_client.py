@@ -116,7 +116,8 @@ class WardrobeClient:
         target_elements: Optional[List[str]] = None,
         weather_info: Optional[Dict] = None,
         limit: int = 20,
-        category_constraint: Optional[List[str]] = None,  # 新增品类约束参数
+        category_constraint: Optional[List[str]] = None,
+        explicit_elements: Optional[List[str]] = None,  # 显式五行指令（用户明确要求补X）
     ) -> List[Dict]:
         """
         从用户衣橱进行向量搜索
@@ -126,10 +127,11 @@ class WardrobeClient:
         Args:
             user_id: 用户ID（权限控制必需）
             query_embedding: 查询向量
-            target_elements: 目标五行列表
+            target_elements: 目标五行列表（含八字偏好，不用于衣橱硬过滤）
             weather_info: 天气信息
             limit: 返回数量
             category_constraint: 品类约束列表（如["上装"]），为 None 时不限制
+            explicit_elements: 显式五行指令（如用户说"推荐属木的裤子"），有值时强制过滤
         
         Returns:
             匹配的物品列表，每个物品带有 source='wardrobe' 标记
@@ -140,8 +142,17 @@ class WardrobeClient:
         conditions = ["user_id = %(user_id)s", "is_active = TRUE", "embedding IS NOT NULL"]
         params = {"user_id": user_id, "query_vector": query_vector.tolist(), "limit": limit}
         
-        # 注意：衣橱搜索不根据target_elements过滤，让后续打分阶段处理五行匹配
-        # 这样可以避免衣橱物品五行不匹配时返回空结果
+        # 显式五行指令过滤（最高优先级）
+        # 当用户明确说"推荐属木的裤子"时，必须只返回木属性衣物
+        # 注意：target_elements（八字偏好）不用于衣橱硬过滤，避免衣橱无匹配物品时返回空结果
+        if explicit_elements:
+            element_placeholders = ",".join([f"%(elem{i})s" for i in range(len(explicit_elements))])
+            conditions.append(
+                f"(primary_element IN ({element_placeholders}) OR secondary_element IN ({element_placeholders}))"
+            )
+            for i, elem in enumerate(explicit_elements):
+                params[f"elem{i}"] = elem
+            logger.info(f"[衣橱检索] 显式指令元素过滤: explicit_elements={explicit_elements}")
         
         # 天气过滤
         weather_filter = self._build_wardrobe_weather_filter(weather_info)

@@ -589,6 +589,8 @@ def retrieve_items_node(state: AgentState) -> Dict:
         [anchor_spec] if anchor_spec else []
     )  # 多锚点列表（兼容单锚点字段）
     category_constraint = state.get("category_constraint")  # 新增：品类约束
+    explicit_intent = state.get("explicit_intent") or {}  # 显式五行意图
+    explicit_elements = explicit_intent.get("add", [])  # 显式指令元素（用户明确要求补X）
     
     if not search_query:
         return {"error": "搜索查询为空", "retrieved_items": [], "item_sources": {}}
@@ -672,6 +674,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
             weather_info=weather_info,
             limit=50,
             category_constraint=category_constraint,  # 传入品类约束
+            explicit_elements=explicit_elements,  # 显式指令元素过滤
         )
         
         # 调试日志：检查返回的 items
@@ -717,6 +720,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
                     weather_info=weather_info,
                     limit=top_k,
                     category_constraint=category_constraint,  # 传入品类约束
+                    explicit_elements=explicit_elements,  # 显式指令元素过滤
                 )
                 
                 items.extend(wardrobe_items)
