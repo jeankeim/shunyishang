@@ -348,10 +348,12 @@ def analyze_intent_node(state: AgentState) -> Dict:
     # 2.4.2 过滤锚点：移除与品类约束重复的锚点（防止"上装"被误当锚点排除同品类物品）
     if category_constraint and anchor_specs:
         original_count = len(anchor_specs)
-        anchor_specs = [s for s in anchor_specs if s.get("phrase") not in category_constraint]
+        # 关键：检查锚点的 category（而非 phrase）是否与品类约束匹配
+        # 例如：用户说"裤子"，锚点 category="下装"，品类约束=['下装']，应过滤掉
+        anchor_specs = [s for s in anchor_specs if s.get("category") not in category_constraint]
         if len(anchor_specs) < original_count:
-            removed = [s["phrase"] for s in anchor_specs if s.get("phrase") in category_constraint]
-            logger.info(f"[锚点过滤] 移除与品类约束重复的锚点：{removed}")
+            removed_count = original_count - len(anchor_specs)
+            logger.info(f"[锚点过滤] 移除 {removed_count} 个与品类约束重复的锚点")
         
     if anchor_specs:
         logger.info(
