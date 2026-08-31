@@ -765,6 +765,10 @@ def retrieve_items_node(state: AgentState) -> Dict:
             target_elements=target_elements,  # 新增：五行元素过滤
         )
         
+        # 调试日志：查看向量检索返回的物品
+        if items:
+            logger.info(f"[向量检索] 返回 {len(items)} 件物品，前5件: {[(i.get('item_code'), i.get('name'), i.get('category')) for i in items[:5]]}")
+        
         # 标记来源
         for item in items:
             item["source"] = "public"
