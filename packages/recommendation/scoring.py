@@ -13,8 +13,10 @@ from packages.recommendation.config import (
     EXTREME_HOT_TEMP, HOT_TEMP, MILD_HOT_TEMP,
     EXTREME_COLD_TEMP, MILD_COLD_TEMP,
     get_effective_temperature,
-    WUXING_PRIMARY_SCORE, WUXING_SECONDARY_SCORE,
+    WUXING_PRIMARY_SCORE, WUXING_SECONDARY_SCORE, WUXING_DUAL_BONUS,
     WUXING_BOOST_PRIMARY, WUXING_BOOST_SECONDARY, WUXING_BOOST_MIN_CAP,
+    WUXING_AVOID_PRIMARY_PENALTY, WUXING_AVOID_SECONDARY_PENALTY,
+    WUXING_EXPLICIT_AVOID_PENALTY,
     ORNAMENT_BONUS, ORNAMENT_CATEGORIES,
     SCENE_MEDIATION_BONUS, ACCENT_CATEGORIES_FOR_MEDIATION,
     ROTATION_MAX_BONUS, ROTATION_DECAY_PER_WEAR,
@@ -35,25 +37,32 @@ def calculate_wuxing_score(
     item: Dict,
     target_elements: List[str],
     boost_elements: Optional[List[str]] = None,
+    avoid_elements: Optional[List[str]] = None,
+    explicit_avoid: Optional[List[str]] = None,
 ) -> float:
     """
     计算物品五行匹配分（归一化到 [0, 1.0]）
 
-    评分规则：
-    - primary_element 命中 target: +0.6
-    - secondary_element 命中 target: +0.3
-    - boost 元素（相生辅助）: +0.08/+0.04，但 cap 不超过 base 命中分
+    评分规则（双元素匹配增强版）：
+    - primary_element 命中 target: +0.55
+    - secondary_element 命中 target: +0.25
+    - 双向匹配奖励（primary + secondary 同时命中 target）: +0.10
+    - boost 元素（相生辅助）: +0.06/+0.03，但 cap 不超过 base 命中分
+    - 八字忌神惩罚: primary -0.25, secondary -0.15
+    - 用户显式回避惩罚: -0.40（硬禁忌）
     - 最终 min(1.0, score) 确保不超 1
 
     Args:
         item: 物品字典（含 primary_element, secondary_element）
         target_elements: 目标五行列表
         boost_elements: 相生辅助五行列表（忌神但生喜用神）
+        avoid_elements: 八字忌神列表（软禁忌，评分惩罚但不硬过滤）
+        explicit_avoid: 用户显式回避列表（硬禁忌，最强惩罚）
 
     Returns:
         [0.0, 1.0] 之间的五行匹配分
     """
-    if not target_elements:
+    if not target_elements and not avoid_elements and not explicit_avoid:
         return 0.0
 
     primary = item.get("primary_element", "")
@@ -61,15 +70,22 @@ def calculate_wuxing_score(
 
     score = 0.0
     base_target_score = 0.0
+    primary_hit = primary and primary in target_elements
+    secondary_hit = secondary and secondary in target_elements
 
-    if primary in target_elements:
+    # 1. 基础匹配分
+    if primary_hit:
         score += WUXING_PRIMARY_SCORE
         base_target_score += WUXING_PRIMARY_SCORE
-    if secondary and secondary in target_elements:
+    if secondary_hit:
         score += WUXING_SECONDARY_SCORE
         base_target_score += WUXING_SECONDARY_SCORE
 
-    # 相生加分（P2-62 上限约束：不超过 base 命中分）
+    # 2. 双向匹配奖励（核心增强：primary + secondary 同时命中 target）
+    if primary_hit and secondary_hit:
+        score += WUXING_DUAL_BONUS
+
+    # 3. 相生加分（P2-62 上限约束：不超过 base 命中分）
     if boost_elements:
         boost_raw = 0.0
         if primary in boost_elements:
@@ -79,7 +95,22 @@ def calculate_wuxing_score(
         boost_capped = min(boost_raw, max(base_target_score, WUXING_BOOST_MIN_CAP))
         score += boost_capped
 
-    return min(1.0, score)
+    # 4. 冲突惩罚（新增核心逻辑）
+    # 4a. 八字忌神（软禁忌）—— 评分惩罚但不硬过滤
+    if avoid_elements:
+        if primary and primary in avoid_elements:
+            score += WUXING_AVOID_PRIMARY_PENALTY      # -0.25
+        if secondary and secondary in avoid_elements:
+            score += WUXING_AVOID_SECONDARY_PENALTY    # -0.15
+
+    # 4b. 用户显式回避（硬禁忌）—— 最强惩罚
+    if explicit_avoid:
+        if primary and primary in explicit_avoid:
+            score += WUXING_EXPLICIT_AVOID_PENALTY     # -0.40
+        if secondary and secondary in explicit_avoid:
+            score += WUXING_EXPLICIT_AVOID_PENALTY     # -0.40
+
+    return max(0.0, min(1.0, score))
 
 
 def calculate_ornament_bonus(
@@ -498,6 +529,8 @@ def calculate_final_score(
     style_preference: Optional[str] = None,
     body_type: Optional[str] = None,
     behavior_score: float = 0.0,
+    avoid_elements: Optional[List[str]] = None,
+    explicit_avoid: Optional[List[str]] = None,
 ) -> Dict[str, float]:
     """
     计算物品的综合推荐分数
@@ -513,8 +546,12 @@ def calculate_final_score(
 
     semantic_score = item.get("semantic_score", 0.5)
 
-    # 五行分
-    wuxing_score = calculate_wuxing_score(item, target_elements, boost_elements)
+    # 五行分（含双元素匹配增强 + 冲突惩罚）
+    wuxing_score = calculate_wuxing_score(
+        item, target_elements, boost_elements,
+        avoid_elements=avoid_elements,
+        explicit_avoid=explicit_avoid,
+    )
 
     # 温度分
     temp_score = calculate_temp_score(item, weather_info)

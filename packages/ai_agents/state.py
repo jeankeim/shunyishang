@@ -49,6 +49,7 @@ class AgentState(TypedDict):
     xiyong_elements: List[str]          # 八字喜用神（纯八字，不含场景）
     added_elements: List[str]           # 场景/天气额外添加的五行
     boost_elements: List[str]           # 相生辅助五行（忌神但生喜用神，评分加分）
+    avoid_info: Dict                    # 忌神信息（explicit_avoid 硬禁忌 + bazi_avoid 软禁忌）
     category_constraint: Optional[List[str]]  # 用户指定的品类约束（如["上装"]），为 None 时不限制
     
     # === 检索层 ===
@@ -165,6 +166,7 @@ def create_initial_state(
         xiyong_elements=[],
         added_elements=[],
         boost_elements=[],
+        avoid_info={},
         category_constraint=None,
         search_query="",
         retrieved_items=[],

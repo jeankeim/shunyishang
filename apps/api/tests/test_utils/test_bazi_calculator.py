@@ -446,7 +446,7 @@ class TestMergeRecommendations:
             "suggested_elements": ["金", "水"],
             "avoid_elements": ["火"],
         }
-        result, boost = merge_recommendations(bazi, None, None)
+        result, boost, avoid_info = merge_recommendations(bazi, None, None)
         assert "金" in result
         assert "水" in result
 
@@ -456,7 +456,7 @@ class TestMergeRecommendations:
             "suggested_elements": ["金"],
             "avoid_elements": ["火"],
         }
-        result, boost = merge_recommendations(bazi, None, None, weather_element="水")
+        result, boost, avoid_info = merge_recommendations(bazi, None, None, weather_element="水")
         assert "金" in result
         assert "水" in result
 
@@ -466,7 +466,7 @@ class TestMergeRecommendations:
             "suggested_elements": ["金"],
             "avoid_elements": ["火"],
         }
-        result, boost = merge_recommendations(bazi, None, None, weather_element="火")
+        result, boost, avoid_info = merge_recommendations(bazi, None, None, weather_element="火")
         assert "金" in result
         assert "火" not in result  # 被忌神排除
 
@@ -477,7 +477,7 @@ class TestMergeRecommendations:
             "avoid_elements": ["火"],
         }
         scene = {"primary": ["水", "木"]}
-        result, boost = merge_recommendations(bazi, None, scene)
+        result, boost, avoid_info = merge_recommendations(bazi, None, scene)
         assert "金" in result
         assert "水" in result
         assert "木" in result
@@ -489,7 +489,7 @@ class TestMergeRecommendations:
             "avoid_elements": ["火"],
         }
         scene = {"primary": ["火", "水"]}
-        result, boost = merge_recommendations(bazi, None, scene)
+        result, boost, avoid_info = merge_recommendations(bazi, None, scene)
         assert "金" in result
         assert "水" in result
         assert "火" not in result  # 被忌神排除
@@ -504,7 +504,7 @@ class TestMergeRecommendations:
             "elements": ["木", "水"],
             "method": "rule",
         }
-        result, boost = merge_recommendations(bazi, intent, None)
+        result, boost, avoid_info = merge_recommendations(bazi, intent, None)
         assert "金" in result
         assert "木" in result
         assert "水" in result
@@ -519,13 +519,13 @@ class TestMergeRecommendations:
             "elements": ["木"],
             "method": "llm_needed",
         }
-        result, boost = merge_recommendations(bazi, intent, None)
+        result, boost, avoid_info = merge_recommendations(bazi, intent, None)
         assert "金" in result
         assert "木" not in result  # llm_needed不使用
 
     def test_all_none(self):
         """所有输入都为None"""
-        result, boost = merge_recommendations(None, None, None)
+        result, boost, avoid_info = merge_recommendations(None, None, None)
         assert result == []
         assert boost == []
 
@@ -540,7 +540,7 @@ class TestMergeRecommendations:
             "elements": ["土"],
             "method": "rule",
         }
-        result, boost = merge_recommendations(bazi, intent, scene, weather_element="土")
+        result, boost, avoid_info = merge_recommendations(bazi, intent, scene, weather_element="土")
         assert len(result) <= 3
 
     def test_dedup(self):
@@ -554,19 +554,19 @@ class TestMergeRecommendations:
             "elements": ["金"],
             "method": "rule",
         }
-        result, boost = merge_recommendations(bazi, intent, scene)
+        result, boost, avoid_info = merge_recommendations(bazi, intent, scene)
         assert result.count("金") == 1
         assert result.count("水") == 1
 
     def test_weather_without_bazi(self):
         """无八字时有天气"""
-        result, boost = merge_recommendations(None, None, None, weather_element="水")
+        result, boost, avoid_info = merge_recommendations(None, None, None, weather_element="水")
         assert "水" in result
 
     def test_scene_without_bazi(self):
         """无八字时有场景"""
         scene = {"primary": ["木", "火"]}
-        result, boost = merge_recommendations(None, None, scene)
+        result, boost, avoid_info = merge_recommendations(None, None, scene)
         assert "木" in result
         assert "火" in result
 
@@ -576,8 +576,39 @@ class TestMergeRecommendations:
             "elements": ["土"],
             "method": "rule",
         }
-        result, boost = merge_recommendations(None, intent, None)
+        result, boost, avoid_info = merge_recommendations(None, intent, None)
         assert "土" in result
+
+    def test_avoid_info_returns_bazi_avoid(self):
+        """三元组第三项：avoid_info.bazi_avoid 包含八字忌神（无显式指令时）"""
+        bazi = {
+            "suggested_elements": ["水"],
+            "avoid_elements": ["火", "土"],
+        }
+        result, boost, avoid_info = merge_recommendations(bazi, None, None)
+        assert "火" in avoid_info["bazi_avoid"]
+        assert "土" in avoid_info["bazi_avoid"]
+        assert avoid_info["explicit_avoid"] == []
+
+    def test_avoid_info_returns_explicit_avoid(self):
+        """三元组第三项：explicit_avoid 记录用户显式回避（硬禁忌）"""
+        bazi = {
+            "suggested_elements": ["水"],
+            "avoid_elements": ["火"],
+        }
+        explicit = {"add": [], "avoid": ["木"], "matched": []}
+        result, boost, avoid_info = merge_recommendations(
+            bazi, None, None, explicit_intent=explicit
+        )
+        assert "木" in avoid_info["explicit_avoid"]
+        # bazi_avoid 保留原八字忌神
+        assert "火" in avoid_info["bazi_avoid"]
+
+    def test_avoid_info_empty_when_no_bazi(self):
+        """无八字无显式时 avoid_info 双列表都为空"""
+        result, boost, avoid_info = merge_recommendations(None, None, None)
+        assert avoid_info["bazi_avoid"] == []
+        assert avoid_info["explicit_avoid"] == []
 
 
 # ============================================================
@@ -636,20 +667,21 @@ class TestExplicitIntentPriority:
             "avoid_elements": ["金"],
         }
         explicit = extract_explicit_element_intent("五行缺金")
-        result, boost = merge_recommendations(bazi, None, None, explicit_intent=explicit)
+        result, boost, avoid_info = merge_recommendations(bazi, None, None, explicit_intent=explicit)
         assert "金" in result  # 显式意图覆盖忌神
         assert result[0] == "金"  # 显式补的五行置于最前
 
     def test_explicit_add_takes_precedence_over_bazi(self):
-        """显式补X置于 target 最前（优先级高于八字喜用神）"""
+        """显式补X完全覆盖八字喜用神（不合并）"""
         bazi = {
             "suggested_elements": ["木", "水"],
             "avoid_elements": [],
         }
         explicit = {"add": ["土"], "avoid": [], "matched": []}
-        result, boost = merge_recommendations(bazi, None, None, explicit_intent=explicit)
+        result, boost, avoid_info = merge_recommendations(bazi, None, None, explicit_intent=explicit)
         assert result[0] == "土"
-        assert "木" in result and "水" in result
+        # 当前实现：显式指令存在时，完全覆盖八字喜用神（不合并）
+        assert result == ["土"]
 
     def test_explicit_avoid_removes_from_xiyong(self):
         """显式避X：从喜用神剔除并全局阻断"""
@@ -658,7 +690,7 @@ class TestExplicitIntentPriority:
             "avoid_elements": [],
         }
         explicit = {"add": [], "avoid": ["木"], "matched": []}
-        result, boost = merge_recommendations(bazi, None, None, explicit_intent=explicit)
+        result, boost, avoid_info = merge_recommendations(bazi, None, None, explicit_intent=explicit)
         assert "木" not in result
         assert "水" in result
         assert "木" not in boost
@@ -672,7 +704,7 @@ class TestExplicitIntentPriority:
         scene = {"primary": ["火", "土"]}
         intent = {"elements": ["火"], "method": "rule"}
         explicit = {"add": [], "avoid": ["火"], "matched": []}
-        result, boost = merge_recommendations(bazi, intent, scene, explicit_intent=explicit)
+        result, boost, avoid_info = merge_recommendations(bazi, intent, scene, explicit_intent=explicit)
         assert "火" not in result
         assert "火" not in boost  # 不进 boost（显式回避比忌神更强）
 
@@ -683,7 +715,7 @@ class TestExplicitIntentPriority:
             "avoid_elements": [],
         }
         explicit = {"add": [], "avoid": ["水"], "matched": []}
-        result, boost = merge_recommendations(
+        result, boost, avoid_info = merge_recommendations(
             bazi, None, None, weather_element="水", explicit_intent=explicit
         )
         assert "水" not in result
@@ -695,7 +727,7 @@ class TestExplicitIntentPriority:
             "avoid_elements": ["金"],
         }
         intent = {"elements": ["金"], "method": "rule"}
-        result, boost = merge_recommendations(bazi, intent, None)
+        result, boost, avoid_info = merge_recommendations(bazi, intent, None)
         assert "金" not in result  # 忌神不进 target
         assert "金" in boost  # 金生水，降级为 boost
         assert result == ["水", "木"]
@@ -744,7 +776,7 @@ class TestMingLordIntent:
             "avoid_elements": ["土", "金"],
         }
         explicit = extract_explicit_element_intent("金命人适合什么颜色")
-        result, boost = merge_recommendations(bazi, None, None, explicit_intent=explicit)
+        result, boost, avoid_info = merge_recommendations(bazi, None, None, explicit_intent=explicit)
         assert result[0] == "金"  # 命主五行置于最前，覆盖忌神
         assert "土" in result  # 生我者随同进 target
 
@@ -786,5 +818,5 @@ class TestXiyongDeclaration:
             "avoid_elements": ["土", "金"],
         }
         explicit = extract_explicit_element_intent("喜用神是火应该穿什么颜色")
-        result, boost = merge_recommendations(bazi, None, None, explicit_intent=explicit)
+        result, boost, avoid_info = merge_recommendations(bazi, None, None, explicit_intent=explicit)
         assert result[0] == "火"  # 用户自述喜用神置于最前，覆盖预设

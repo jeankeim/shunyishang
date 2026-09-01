@@ -85,11 +85,17 @@ WARDROBE_SCENE_WEIGHT_SHIFT = 0.10
 # ============================================================
 # 五行评分参数
 # ============================================================
-WUXING_PRIMARY_SCORE = 0.6       # 主五行命中 target
-WUXING_SECONDARY_SCORE = 0.3     # 次五行命中 target
-WUXING_BOOST_PRIMARY = 0.08      # 主五行命中 boost（相生辅助）
-WUXING_BOOST_SECONDARY = 0.04    # 次五行命中 boost
+WUXING_PRIMARY_SCORE = 0.55      # 主五行命中 target（略降，给双匹配留空间）
+WUXING_SECONDARY_SCORE = 0.25    # 次五行命中 target
+WUXING_DUAL_BONUS = 0.10         # primary + secondary 同时命中 target 的额外奖励
+WUXING_BOOST_PRIMARY = 0.06      # 主五行命中 boost（相生辅助）
+WUXING_BOOST_SECONDARY = 0.03    # 次五行命中 boost
 WUXING_BOOST_MIN_CAP = 0.05      # boost 加分最低上限（即使 base=0 也至少 cap 到此值）
+
+# 冲突惩罚参数（衣物元素与用户忌神/硬禁忌冲突时扣分）
+WUXING_AVOID_PRIMARY_PENALTY = -0.25     # primary 是八字忌神（软禁忌）
+WUXING_AVOID_SECONDARY_PENALTY = -0.15   # secondary 是八字忌神（软禁忌）
+WUXING_EXPLICIT_AVOID_PENALTY = -0.40    # 用户显式不要（硬禁忌），最强惩罚
 
 # 饰品/文玩五行补救加分（个人五行增强）
 ORNAMENT_BONUS = 0.06

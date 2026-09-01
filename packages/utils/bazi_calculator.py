@@ -591,7 +591,7 @@ def merge_recommendations(
     scene_result: Optional[Dict],
     weather_element: Optional[str] = None,
     explicit_intent: Optional[Dict[str, List[str]]] = None,
-) -> Tuple[List[str], List[str]]:
+) -> Tuple[List[str], List[str], Dict]:
     """
     合并多层推荐结果
 
@@ -617,9 +617,12 @@ def merge_recommendations(
         explicit_intent: 显式五行修正意图（extract_explicit_element_intent 输出）
 
     Returns:
-        Tuple[List[str], List[str]]: (target_elements, boost_elements)
+        Tuple[List[str], List[str], Dict]: (target_elements, boost_elements, avoid_info)
             - target_elements: 最终推荐五行列表（去重，最多3个）
             - boost_elements: 相生辅助五行（忌神但生喜用神，评分加分）
+            - avoid_info: 忌神信息（供评分引擎和 SQL 层使用）
+                - explicit_avoid: 用户显式回避（硬禁忌，SQL 层直接排除）
+                - bazi_avoid: 八字忌神（软禁忌，评分惩罚但不硬过滤）
     """
     elements = []
     boost_elements = []
@@ -714,4 +717,10 @@ def merge_recommendations(
     target = list(dict.fromkeys(elements))[:3]
     boost = list(dict.fromkeys(boost_elements))
 
-    return target, boost
+    # 构建 avoid_info（供评分引擎和 SQL 层使用）
+    avoid_info = {
+        "explicit_avoid": list(dict.fromkeys(explicit_avoid)),  # 硬禁忌（用户说的）
+        "bazi_avoid": list(dict.fromkeys(avoid_elements)),      # 软禁忌（八字忌神）
+    }
+
+    return target, boost, avoid_info

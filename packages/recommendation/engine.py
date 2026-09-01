@@ -66,6 +66,7 @@ def score_and_rank_items(
     batch_index: int = 0,
     retrieval_mode: str = "public",
     category_constraint: Optional[List[str]] = None,
+    avoid_info: Optional[Dict] = None,
 ) -> Dict:
     """
     推荐引擎核心：评分 → 过滤 → 排序 → 多样性 → 温度安全
@@ -142,7 +143,8 @@ def score_and_rank_items(
         # 行为加分
         behavior_score = calculate_behavior_score(item, behavior_prefs) if behavior_prefs else 0.0
 
-        # 综合评分
+        # 综合评分（含双元素匹配增强 + 冲突惩罚）
+        _avoid = avoid_info or {}
         scores = calculate_final_score(
             item=item,
             weights=weights,
@@ -159,6 +161,8 @@ def score_and_rank_items(
             style_preference=user_style_preference,
             body_type=user_body_type,
             behavior_score=behavior_score,
+            avoid_elements=_avoid.get("bazi_avoid"),
+            explicit_avoid=_avoid.get("explicit_avoid"),
         )
 
         scored_items.append({**item, **scores})

@@ -102,28 +102,28 @@ class TestWuxingScoring:
     """五行评分测试"""
 
     def test_primary_hit(self):
-        """主五行命中target得0.6"""
+        """主五行命中target得0.55"""
         from packages.recommendation.scoring import calculate_wuxing_score
 
         item = {"primary_element": "木", "secondary_element": None}
         score = calculate_wuxing_score(item, ["木"])
-        assert abs(score - 0.6) < 1e-9
+        assert abs(score - 0.55) < 1e-9
 
     def test_secondary_hit(self):
-        """次五行命中target得0.3"""
+        """次五行命中target得0.25"""
         from packages.recommendation.scoring import calculate_wuxing_score
 
         item = {"primary_element": "火", "secondary_element": "木"}
         score = calculate_wuxing_score(item, ["木"])
-        assert abs(score - 0.3) < 1e-9
+        assert abs(score - 0.25) < 1e-9
 
     def test_primary_and_secondary_hit(self):
-        """主+次五行都命中得0.9"""
+        """主+次五行都命中（完美双匹配）：0.55+0.25+0.10(dual_bonus)=0.90"""
         from packages.recommendation.scoring import calculate_wuxing_score
 
         item = {"primary_element": "木", "secondary_element": "水"}
         score = calculate_wuxing_score(item, ["木", "水"])
-        assert abs(score - 0.9) < 1e-9
+        assert abs(score - 0.90) < 1e-9
 
     def test_no_hit_returns_zero(self):
         """无命中得0"""
@@ -157,10 +157,10 @@ class TestWuxingScoring:
         from packages.recommendation.scoring import calculate_wuxing_score
 
         item = {"primary_element": "木", "secondary_element": "水"}
-        # 木命中target(0.6)，水在boost中
+        # 木命中target(0.55)，水在boost中(secondary +0.03)
         score = calculate_wuxing_score(item, ["木"], boost_elements=["水"])
-        # base=0.6, boost_raw=0.04(secondary), capped=min(0.04, 0.6)=0.04
-        assert abs(score - 0.64) < 1e-9
+        # base=0.55, boost_raw=0.03(secondary), capped=min(0.03, 0.55)=0.03
+        assert abs(score - 0.58) < 1e-9
 
     def test_score_never_exceeds_one(self):
         """五行分归一化不超1.0"""
@@ -205,6 +205,86 @@ class TestWuxingScoring:
         item4 = {"category": "配饰", "primary_element": "金"}
         bonus4 = calculate_ornament_bonus(item4, ["水"], scene_elements=None)
         assert bonus4 == 0.0  # 配饰不在ORNAMENT_CATEGORIES中，无个人增强
+
+    # ---------- 双元素匹配增强：DUAL_BONUS + 冲突惩罚 ----------
+
+    def test_dual_match_bonus_applied(self):
+        """完美双匹配：primary + secondary 同时命中 target 应额外 +0.10"""
+        from packages.recommendation.scoring import calculate_wuxing_score
+
+        item = {"primary_element": "木", "secondary_element": "水"}
+        # 无 dual_bonus 时 0.55+0.25=0.80；有 dual_bonus → 0.90
+        score = calculate_wuxing_score(item, ["木", "水"])
+        assert abs(score - 0.90) < 1e-9, "完美双匹配应为 0.55+0.25+0.10=0.90"
+
+    def test_single_hit_no_dual_bonus(self):
+        """仅 primary 命中（secondary 未命中）：无 dual_bonus"""
+        from packages.recommendation.scoring import calculate_wuxing_score
+
+        item = {"primary_element": "木", "secondary_element": "火"}
+        score = calculate_wuxing_score(item, ["木", "水"])
+        assert abs(score - 0.55) < 1e-9, "只有 primary 命中，无 dual_bonus"
+
+    def test_bazi_avoid_primary_penalty(self):
+        """primary 是八字忌神：软惩罚 -0.25"""
+        from packages.recommendation.scoring import calculate_wuxing_score
+
+        item = {"primary_element": "火", "secondary_element": None}
+        # 无 target 命中 + primary 是忌神 → 0 - 0.25 = -0.25，被 max(0) 兜底为 0
+        score = calculate_wuxing_score(item, ["木"], avoid_elements=["火"])
+        assert score == 0.0
+
+        # primary 命中 target 同时是忌神：0.55 - 0.25 = 0.30
+        item2 = {"primary_element": "木", "secondary_element": None}
+        score2 = calculate_wuxing_score(item2, ["木"], avoid_elements=["木"])
+        # 数据异常但可测：喜忌神同时命中 target 时，扣分仍生效（防御性）
+        assert abs(score2 - 0.30) < 1e-9
+
+    def test_bazi_avoid_secondary_penalty(self):
+        """secondary 是八字忌神：软惩罚 -0.15"""
+        from packages.recommendation.scoring import calculate_wuxing_score
+
+        item = {"primary_element": "木", "secondary_element": "火"}
+        # primary=木命中 target(0.55) + secondary=火 是忌神(-0.15) = 0.40
+        score = calculate_wuxing_score(item, ["木"], avoid_elements=["火"])
+        assert abs(score - 0.40) < 1e-9
+
+    def test_explicit_avoid_hard_penalty(self):
+        """用户显式回避（硬禁忌）：-0.40，惩罚更强"""
+        from packages.recommendation.scoring import calculate_wuxing_score
+
+        item = {"primary_element": "木", "secondary_element": None}
+        # primary 命中 target(0.55) 但用户显式不要木 → 0.55 - 0.40 = 0.15
+        score = calculate_wuxing_score(item, ["木"], explicit_avoid=["木"])
+        assert abs(score - 0.15) < 1e-9
+
+    def test_explicit_avoid_secondary_hard_penalty(self):
+        """显式禁忌命中 secondary：同样 -0.40"""
+        from packages.recommendation.scoring import calculate_wuxing_score
+
+        item = {"primary_element": "木", "secondary_element": "火"}
+        # primary=木命中 target(0.55) + secondary=火 是显式禁忌(-0.40) = 0.15
+        score = calculate_wuxing_score(item, ["木"], explicit_avoid=["火"])
+        assert abs(score - 0.15) < 1e-9
+
+    def test_dual_match_with_boost(self):
+        """完美双匹配 + boost 相生加分：0.55+0.25+0.10+boost，封顶1.0"""
+        from packages.recommendation.scoring import calculate_wuxing_score
+
+        item = {"primary_element": "木", "secondary_element": "水"}
+        # base=0.55+0.25=0.80, dual=+0.10 → 0.90
+        # 加 boost（假设 boost 未重叠）：boost_raw=0，score=0.90
+        score = calculate_wuxing_score(item, ["木", "水"], boost_elements=["金"])
+        assert abs(score - 0.90) < 1e-9
+
+    def test_conflict_both_primary_secondary_avoid(self):
+        """primary + secondary 都是忌神：双重扣分，被 max(0) 兜底"""
+        from packages.recommendation.scoring import calculate_wuxing_score
+
+        item = {"primary_element": "火", "secondary_element": "土"}
+        # 0 - 0.25 - 0.15 = -0.40 → 被 max(0) 兜底
+        score = calculate_wuxing_score(item, ["木"], avoid_elements=["火", "土"])
+        assert score == 0.0
 
 
 # ============================================================

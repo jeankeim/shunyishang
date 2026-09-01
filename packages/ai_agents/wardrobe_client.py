@@ -118,6 +118,7 @@ class WardrobeClient:
         limit: int = 20,
         category_constraint: Optional[List[str]] = None,
         explicit_elements: Optional[List[str]] = None,  # 显式五行指令（用户明确要求补X）
+        explicit_avoid: Optional[List[str]] = None,  # 硬禁忌（用户显式不要的元素）
     ) -> List[Dict]:
         """
         从用户衣橱进行向量搜索
@@ -132,6 +133,7 @@ class WardrobeClient:
             limit: 返回数量
             category_constraint: 品类约束列表（如["上装"]），为 None 时不限制
             explicit_elements: 显式五行指令（如用户说"推荐属木的裤子"），有值时强制过滤
+            explicit_avoid: 硬禁忌（如用户说"不要水"），SQL 层直接排除
         
         Returns:
             匹配的物品列表，每个物品带有 source='wardrobe' 标记
@@ -153,6 +155,17 @@ class WardrobeClient:
             for i, elem in enumerate(explicit_elements):
                 params[f"elem{i}"] = elem
             logger.info(f"[衣橱检索] 显式指令元素过滤: explicit_elements={explicit_elements}")
+        
+        # 硬禁忌过滤（用户显式不要的元素，primary 或 secondary 都不能有）
+        if explicit_avoid:
+            avoid_placeholders = ",".join([f"%(avoid{i})s" for i in range(len(explicit_avoid))])
+            conditions.append(
+                f"primary_element NOT IN ({avoid_placeholders}) "
+                f"AND (secondary_element IS NULL OR secondary_element NOT IN ({avoid_placeholders}))"
+            )
+            for i, elem in enumerate(explicit_avoid):
+                params[f"avoid{i}"] = elem
+            logger.info(f"[衣橱检索] 硬禁忌过滤: explicit_avoid={explicit_avoid}")
         
         # 天气过滤
         weather_filter = self._build_wardrobe_weather_filter(weather_info)

@@ -377,7 +377,7 @@ def analyze_intent_node(state: AgentState) -> Dict:
     
     # 4. 合并推荐五行（显式意图 + 八字 + 场景 + 意图 + 天气）
     weather_element = state.get("weather_element")
-    target_elements, boost_elements = merge_recommendations(
+    target_elements, boost_elements, avoid_info = merge_recommendations(
         bazi_result=bazi_result,
         intent_result=intent_result,
         scene_result=scene_result,
@@ -460,6 +460,7 @@ def analyze_intent_node(state: AgentState) -> Dict:
         "xiyong_elements": xiyong_elements,
         "added_elements": added_elements,
         "boost_elements": boost_elements,
+        "avoid_info": avoid_info,  # 忌神信息（硬禁忌 + 软禁忌）
         "category_constraint": category_constraint,  # 用户指定的品类约束（新增）
         "search_query": search_query,
         "llm_token_usage": usage_sink or None,
@@ -591,6 +592,8 @@ def retrieve_items_node(state: AgentState) -> Dict:
     category_constraint = state.get("category_constraint")  # 新增：品类约束
     explicit_intent = state.get("explicit_intent") or {}  # 显式五行意图
     explicit_elements = explicit_intent.get("add", [])  # 显式指令元素（用户明确要求补X）
+    avoid_info = state.get("avoid_info") or {}  # 忌神信息
+    explicit_avoid = avoid_info.get("explicit_avoid", [])  # 硬禁忌（用户显式不要）
     
     if not search_query:
         return {"error": "搜索查询为空", "retrieved_items": [], "item_sources": {}}
@@ -654,6 +657,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
                 sub_scene=sub_scene,
                 category_constraint=category_constraint,
                 target_elements=target_elements,  # 新增：五行元素过滤
+                explicit_avoid=explicit_avoid,  # 硬禁忌过滤
             )
             for item in public_items:
                 item["source"] = "public"
@@ -675,6 +679,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
             limit=50,
             category_constraint=category_constraint,  # 传入品类约束
             explicit_elements=explicit_elements,  # 显式指令元素过滤
+            explicit_avoid=explicit_avoid,  # 硬禁忌过滤
         )
         
         # 调试日志：检查返回的 items
@@ -721,6 +726,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
                     limit=top_k,
                     category_constraint=category_constraint,  # 传入品类约束
                     explicit_elements=explicit_elements,  # 显式指令元素过滤
+                    explicit_avoid=explicit_avoid,  # 硬禁忌过滤
                 )
                 
                 items.extend(wardrobe_items)
@@ -742,6 +748,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
                 sub_scene=sub_scene,  # 传入子场景
                 category_constraint=category_constraint,  # 传入品类约束
                 target_elements=target_elements,  # 新增：五行元素过滤
+                explicit_avoid=explicit_avoid,  # 硬禁忌过滤
             )
             
             # 标记公共库物品
@@ -769,6 +776,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
             sub_scene=sub_scene,  # 传入子场景
             category_constraint=category_constraint,  # 传入品类约束
             target_elements=target_elements,  # 新增：五行元素过滤
+            explicit_avoid=explicit_avoid,  # 硬禁忌过滤
         )
         
         # 调试日志：查看向量检索返回的物品
@@ -931,6 +939,7 @@ def retrieve_items_node(state: AgentState) -> Dict:
         batch_index=batch_index,
         retrieval_mode=retrieval_mode,
         category_constraint=category_constraint,
+        avoid_info=avoid_info,  # 忌神信息（硬禁忌 + 软禁忌）
     )
     scored_items = engine_result["scored_items"]
     top_items = engine_result["top_items"]
@@ -1470,9 +1479,10 @@ def _vector_search(
     sub_scene: Optional[str] = None,  # 新增子场景参数
     category_constraint: Optional[List[str]] = None,  # 新增品类约束参数
     target_elements: Optional[List[str]] = None,  # 新增五行元素过滤参数
+    explicit_avoid: Optional[List[str]] = None,  # 硬禁忌（用户显式不要的元素）
 ) -> List[Dict]:
     """
-    向量搜索（支持性别过滤、天气过滤、场景过滤、品类约束和五行元素过滤）
+    向量搜索（支持性别过滤、天气过滤、场景过滤、品类约束、五行元素过滤和硬禁忌过滤）
     
     使用 pgvector 进行语义相似度搜索
     
@@ -1485,6 +1495,7 @@ def _vector_search(
         sub_scene: 子场景名称，用于更精细的过滤
         category_constraint: 品类约束列表（如 ["上装"]），为 None 时不限制
         target_elements: 目标五行元素列表（如 ["金"]），为 None 时不限制
+        explicit_avoid: 硬禁忌元素列表（如 ["火"]），SQL 层直接排除
     """
     import numpy as np
     
@@ -1519,6 +1530,15 @@ def _vector_search(
                     element_placeholders = ",".join(["%s"] * len(target_elements))
                     element_filter = f"AND (primary_element IN ({element_placeholders}) OR secondary_element IN ({element_placeholders}))"
                 
+                # 硬禁忌过滤（用户显式不要的元素，SQL 层直接排除）
+                avoid_filter = ""
+                if explicit_avoid:
+                    avoid_placeholders = ",".join(["%s"] * len(explicit_avoid))
+                    avoid_filter = (
+                        f"AND primary_element NOT IN ({avoid_placeholders}) "
+                        f"AND (secondary_element IS NULL OR secondary_element NOT IN ({avoid_placeholders}))"
+                    )
+                
                 # 调试日志
                 if scene:
                     logger.info(f"[场景过滤] scene={scene}, filter={scene_filter}")
@@ -1526,6 +1546,8 @@ def _vector_search(
                     logger.info(f"[品类约束] categories={category_constraint}")
                 if target_elements:
                     logger.info(f"[五行过滤] target_elements={target_elements}")
+                if explicit_avoid:
+                    logger.info(f"[硬禁忌过滤] explicit_avoid={explicit_avoid}")
                 
                 sql = f"""
                     SELECT 
@@ -1543,11 +1565,12 @@ def _vector_search(
                     {f'AND ({scene_filter})' if scene_filter else ''}
                     {category_filter}
                     {element_filter}
+                    {avoid_filter}
                     ORDER BY embedding <=> %s::vector
                     LIMIT %s
                 """
                 vector_list = query_vector.tolist()
-                # 构建参数列表：向量 + 品类约束参数 + 五行元素参数 + 向量 + limit
+                # 构建参数列表：向量 + 品类约束参数 + 五行元素参数 + 硬禁忌参数 + 向量 + limit
                 sql_params = [vector_list]
                 if category_constraint:
                     sql_params.extend(category_constraint)
@@ -1556,6 +1579,10 @@ def _vector_search(
                     sql_params.extend(target_elements)
                     # secondary_element IN 参数（重复一次）
                     sql_params.extend(target_elements)
+                if explicit_avoid:
+                    # 硬禁忌参数：primary NOT IN + secondary NOT IN（各一份）
+                    sql_params.extend(explicit_avoid)
+                    sql_params.extend(explicit_avoid)
                 sql_params.extend([vector_list, limit])
                 cur.execute(sql, tuple(sql_params))
                 rows = cur.fetchall()
@@ -1837,13 +1864,21 @@ def generate_advice_node(state: AgentState) -> Dict:
             "final_response": {"reason": suggestion, "items": []}
         }
     
-    # 格式化物品列表
+    # 格式化物品列表（并标注完美双匹配：primary + secondary 同时命中 target）
     items_list = []
+    dual_match_items: List[str] = []
+    _target_set = set(target_elements or [])
     for item in retrieved_items:
+        _primary = item.get("primary_element", "")
+        _secondary = item.get("secondary_element") or ""
+        _is_dual = bool(_primary and _secondary and _primary in _target_set and _secondary in _target_set)
+        _tag = " ⭐完美双匹配" if _is_dual else ""
         items_list.append(
-            f"- {item['name']}（{item['category']}，五行：{item['primary_element']}"
-            f"{', ' + item['secondary_element'] if item['secondary_element'] else ''}）"
+            f"- {item['name']}（{item['category']}，五行：{_primary}"
+            f"{', ' + _secondary if _secondary else ''}）{_tag}"
         )
+        if _is_dual:
+            dual_match_items.append(item["name"])
     items_list_str = "\n".join(items_list)
     
     # 准备 Prompt
@@ -1966,6 +2001,17 @@ def generate_advice_node(state: AgentState) -> Dict:
     else:
         boost_instruction = '无辅助加分元素'
     
+    # 完美双匹配增强指令：当有物品 primary + secondary 同时命中 target 时，
+    # 推荐理由必须突出该物品为「双喜神之穿」，气场叠加、运势加持更强
+    if dual_match_items:
+        _dual_names_str = "、".join(f"【{n}】" for n in dual_match_items[:2])
+        added_instruction += (
+            f' 双匹配亮点（必须体现）：{_dual_names_str} 的主五行和次五行同时命喜用神，'
+            f'属于"完美双匹配"（搭配能量叠加），推荐时应优先突出此物品，'
+            f'用"双喜加持/五行与喜用完全呼应/能量场叠加"等表达点出其特殊性，'
+            f'让用户感知到这件单品的稀缺匹配度。'
+        )
+    
     prompt_template = load_prompt("generator.txt")
     prompt = prompt_template.format(
         user_input=effective_user_input,
@@ -2072,13 +2118,21 @@ def generate_advice_stream(
             yield "抱歉，暂未找到匹配的衣物，请尝试其他描述。"
         return
     
-    # 格式化物品列表
+    # 格式化物品列表（并标注完美双匹配：primary + secondary 同时命中 target）
     items_list = []
+    dual_match_items: List[str] = []
+    _target_set = set(target_elements or [])
     for item in retrieved_items:
+        _primary = item.get("primary_element", "")
+        _secondary = item.get("secondary_element") or ""
+        _is_dual = bool(_primary and _secondary and _primary in _target_set and _secondary in _target_set)
+        _tag = " ⭐完美双匹配" if _is_dual else ""
         items_list.append(
-            f"- {item['name']}（{item['category']}，五行：{item['primary_element']}"
-            f"{', ' + item['secondary_element'] if item['secondary_element'] else ''}）"
+            f"- {item['name']}（{item['category']}，五行：{_primary}"
+            f"{', ' + _secondary if _secondary else ''}）{_tag}"
         )
+        if _is_dual:
+            dual_match_items.append(item["name"])
     items_list_str = "\n".join(items_list)
     
     bazi_reasoning = bazi_result.get("reasoning", "无") if bazi_result else "无"
@@ -2194,6 +2248,17 @@ def generate_advice_stream(
     else:
         boost_instruction = '无辅助加分元素'
     
+    # 完美双匹配增强指令：当有物品 primary + secondary 同时命中 target 时，
+    # 推荐理由必须突出该物品为「双喜神之穿」，气场叠加、运势加持更强
+    if dual_match_items:
+        _dual_names_str = "、".join(f"【{n}】" for n in dual_match_items[:2])
+        added_instruction += (
+            f' 双匹配亮点（必须体现）：{_dual_names_str} 的主五行和次五行同时命喜用神，'
+            f'属于"完美双匹配"（搭配能量叠加），推荐时应优先突出此物品，'
+            f'用"双喜加持/五行与喜用完全呼应/能量场叠加"等表达点出其特殊性，'
+            f'让用户感知到这件单品的稀缺匹配度。'
+        )
+    
     prompt_template = load_prompt("generator.txt")
     prompt = prompt_template.format(
         user_input=effective_user_input,
@@ -2283,13 +2348,17 @@ def format_output_node(state: AgentState) -> Dict:
     
     # 构建物品列表
     items = []
+    _target_set_final = set(target_elements or [])
     for item in retrieved_items:
+        _p = item.get("primary_element", "")
+        _s = item.get("secondary_element") or ""
         items.append({
             "item_code": item.get("item_code", ""),
             "name": item.get("name", ""),
             "category": item.get("category", ""),
-            "primary_element": item.get("primary_element", ""),
-            "secondary_element": item.get("secondary_element"),
+            "primary_element": _p,
+            "secondary_element": _s,
+            "is_dual_match": bool(_p and _s and _p in _target_set_final and _s in _target_set_final),
             "final_score": round(item.get("final_score", 0), 3),
             "semantic_score": round(item.get("semantic_score", 0), 3),
             "wuxing_score": round(item.get("wuxing_score", 0), 3),
