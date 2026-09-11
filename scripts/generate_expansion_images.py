@@ -32,6 +32,8 @@ sys.path.insert(0, str(ROOT))
 import psycopg2
 import boto3
 from botocore.config import Config
+
+from db_connect import db_connect  # noqa: E402  带 idle-in-transaction 守卫，见 db_connect.py
 import dashscope
 from dashscope import ImageSynthesis
 
@@ -209,8 +211,8 @@ def main():
         items = items[:args.limit]
 
     r2_client = get_r2_client()
-    local_db = psycopg2.connect(LOCAL_DB)
-    remote_db = psycopg2.connect(get_prod_url(), connect_timeout=10)
+    local_db = db_connect(LOCAL_DB)
+    remote_db = db_connect(get_prod_url(), connect_timeout=10)
 
     # 断点续跑：跳过本地已有图的
     cur = local_db.cursor()

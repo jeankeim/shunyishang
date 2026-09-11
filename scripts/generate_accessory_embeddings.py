@@ -69,8 +69,9 @@ def main():
 
     import psycopg2
     from psycopg2.extras import RealDictCursor
+    from db_connect import db_connect  # 带 idle-in-transaction 守卫，见 db_connect.py
 
-    db_conn = psycopg2.connect(os.environ.get("DATABASE_URL"))
+    db_conn = db_connect(os.environ.get("DATABASE_URL"))
 
     # 查询所有 embedding 为 NULL 的饰品
     cur = db_conn.cursor(cursor_factory=RealDictCursor)
@@ -141,7 +142,7 @@ def main():
     print(f"\n完成: {success} 成功, {failed} 失败")
 
     # 验证
-    db_conn = psycopg2.connect(os.environ.get("DATABASE_URL"))
+    db_conn = db_connect(os.environ.get("DATABASE_URL"))
     cur = db_conn.cursor()
     cur.execute("""
         SELECT COUNT(*) FROM items

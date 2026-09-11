@@ -24,8 +24,11 @@ class Settings(BaseSettings):
     
     # === 数据库配置 ===
     database_url: str = "postgresql://wuxing_user:wuxing_password@localhost:5432/wuxing_db"
+    # 连接池上限（每个进程）。ThreadedConnectionPool 没有 SQLAlchemy 的 overflow 概念，
+    # 池耗尽时 getconn 会阻塞等待，因此这里就是真实硬上限，不要再按"可溢出"理解。
+    # 生产实例 max_connections 较小（基础系列小规格仅 50），多进程部署时总占用为
+    # 进程数 × 本值，调整前需按此式核算余量。
     database_pool_size: int = 10
-    database_max_overflow: int = 20
     
     # === 阿里百炼千问 LLM 配置 ===
     dashscope_api_key: str = ""

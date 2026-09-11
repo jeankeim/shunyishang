@@ -206,7 +206,8 @@ def main():
     print(f"待处理饰品: {len(all_items)} 件")
 
     import psycopg2
-    db_conn = psycopg2.connect(os.environ.get("DATABASE_URL"))
+    from db_connect import db_connect  # 带 idle-in-transaction 守卫，见 db_connect.py
+    db_conn = db_connect(os.environ.get("DATABASE_URL"))
 
     success = 0
     skipped = 0
@@ -280,7 +281,7 @@ def main():
     print(f"{'='*50}")
 
     # 验证
-    db_conn = psycopg2.connect(os.environ.get("DATABASE_URL"))
+    db_conn = db_connect(os.environ.get("DATABASE_URL"))
     cur = db_conn.cursor()
     cur.execute("SELECT COUNT(*) FROM items WHERE item_code >= 'ITEM_151' AND item_code <= 'ITEM_175' AND image_url IS NOT NULL")
     cnt = cur.fetchone()[0]

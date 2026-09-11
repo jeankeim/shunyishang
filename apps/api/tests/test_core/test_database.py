@@ -107,3 +107,39 @@ class TestDatabasePool:
 
         assert check_db_health() is True
         DatabasePool._pool = None
+
+
+class TestSessionGuard:
+    """连接级会话守卫
+
+    psycopg2 默认非 autocommit，事务中途异常/被 kill 而没走 rollback 时，服务端会话会
+    停在 idle in transaction；该参数默认为 0（永不超时），残留会话会既长期占用
+    max_connections，又钉住 xmin 让 autovacuum 无法回收死元组。守卫必须随连接一起建立，
+    不能依赖调用方自觉，因此用测试钉住。
+    """
+
+    def test_pool_passes_guard_on_connect(self):
+        from apps.api.core.database import _SESSION_GUARD
+
+        DatabasePool._pool = None
+        with patch("apps.api.core.database.ThreadedConnectionPool") as mock_ctor:
+            DatabasePool.init_pool()
+            kwargs = mock_ctor.call_args.kwargs
+            assert kwargs["options"] == _SESSION_GUARD
+            assert "idle_in_transaction_session_timeout" in kwargs["options"]
+            assert "tcp_keepalives_idle" in kwargs["options"]
+        DatabasePool._pool = None
+
+    def test_script_guard_matches_pool_guard(self):
+        """离线脚本的守卫常量必须与连接池一致，避免两处漂移"""
+        import importlib.util
+        from pathlib import Path
+
+        from apps.api.core.database import _SESSION_GUARD
+
+        script = Path(__file__).resolve().parents[4] / "scripts" / "db_connect.py"
+        assert script.exists(), f"缺少统一的脚本连接入口: {script}"
+        spec = importlib.util.spec_from_file_location("db_connect", script)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        assert mod.SESSION_GUARD == _SESSION_GUARD

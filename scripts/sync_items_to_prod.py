@@ -21,6 +21,8 @@ from pathlib import Path
 import psycopg2
 from psycopg2.extras import execute_values
 
+from db_connect import db_connect  # noqa: E402  带 idle-in-transaction 守卫，见 db_connect.py
+
 ROOT = Path(__file__).parent.parent
 
 LOCAL_DB = {
@@ -164,8 +166,8 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="只对比不写入")
     args = parser.parse_args()
 
-    local = psycopg2.connect(**LOCAL_DB)
-    remote = psycopg2.connect(get_prod_url(), connect_timeout=10)
+    local = db_connect(**LOCAL_DB)
+    remote = db_connect(get_prod_url(), connect_timeout=10)
 
     rows = fetch_local_items(local)
 

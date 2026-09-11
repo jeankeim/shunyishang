@@ -28,8 +28,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "scripts"))
 
 import psycopg2  # noqa: E402
+from db_connect import db_connect  # noqa: E402  带 idle-in-transaction 守卫，见 scripts/db_connect.py
 import oss2  # noqa: E402
 from dashscope import ImageSynthesis  # noqa: E402
 import dashscope  # noqa: E402
@@ -89,7 +91,7 @@ def load_env():
 
 
 def get_db_conn():
-    return psycopg2.connect(os.environ.get(
+    return db_connect(os.environ.get(
         "DATABASE_URL",
         "postgresql://wuxing_user:wuxing_password@localhost:5432/wuxing_db"
     ))

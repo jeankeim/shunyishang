@@ -23,6 +23,8 @@ sys.path.insert(0, str(ROOT))
 import psycopg2
 import boto3
 from botocore.config import Config
+
+from db_connect import db_connect  # noqa: E402  带 idle-in-transaction 守卫，见 db_connect.py
 from dashscope import ImageSynthesis
 import dashscope
 
@@ -51,7 +53,7 @@ def load_env():
 
 
 def get_db_conn():
-    return psycopg2.connect(os.environ.get(
+    return db_connect(os.environ.get(
         "DATABASE_URL",
         "postgresql://wuxing_user:wuxing_password@localhost:5432/wuxing_db"
     ))
