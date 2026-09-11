@@ -8,35 +8,27 @@ from apps.api.core.cache import RedisCache, get_cached, set_cached, delete_cache
 
 
 class TestRedisCacheDisabled:
-    """缓存未启用时的行为"""
+    """缓存未启用时的行为（asyncio_mode=auto，直接写 async 用例）"""
 
-    def test_get_disabled(self):
+    async def test_get_disabled(self):
         c = RedisCache()
         c.enabled = False
-        import asyncio
-        result = asyncio.get_event_loop().run_until_complete(c.get("key"))
-        assert result is None
+        assert await c.get("key") is None
 
-    def test_set_disabled(self):
+    async def test_set_disabled(self):
         c = RedisCache()
         c.enabled = False
-        import asyncio
-        result = asyncio.get_event_loop().run_until_complete(c.set("key", "val"))
-        assert result is False
+        assert await c.set("key", "val") is False
 
-    def test_delete_disabled(self):
+    async def test_delete_disabled(self):
         c = RedisCache()
         c.enabled = False
-        import asyncio
-        result = asyncio.get_event_loop().run_until_complete(c.delete("key"))
-        assert result is False
+        assert await c.delete("key") is False
 
-    def test_exists_disabled(self):
+    async def test_exists_disabled(self):
         c = RedisCache()
         c.enabled = False
-        import asyncio
-        result = asyncio.get_event_loop().run_until_complete(c.exists("key"))
-        assert result is False
+        assert await c.exists("key") is False
 
     def test_get_sync_disabled(self):
         c = RedisCache()

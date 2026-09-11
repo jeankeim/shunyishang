@@ -19,6 +19,7 @@ ROUTES = [
     ("/api/v1/admin/me", "get"),
     ("/api/v1/admin/dashboard", "get"),
     ("/api/v1/admin/bills", "get"),
+    ("/api/v1/admin/bills/items", "get"),
     ("/api/v1/admin/bills/sync", "post"),
     ("/api/v1/admin/llm-usage", "get"),
 ]
@@ -121,10 +122,54 @@ class TestAdminAccess:
             test_app.dependency_overrides.clear()
 
     @pytest.mark.asyncio
+    async def test_admin_bill_items_ok(self, async_client, test_app, admin_user, whitelist):
+        """管理员可访问计费项下钻明细"""
+        test_app.dependency_overrides[get_current_user] = lambda: admin_user
+        payload = {
+            "range": {"start": "2026-08-19", "end": "2026-09-18", "days": 31},
+            "has_detail": True,
+            "covered_days": 31,
+            "monthly_basis_days": 7,
+            "products": [
+                {
+                    "product_code": "rds",
+                    "product_name": "云数据库 RDS",
+                    "pretax_amount": 320.82,
+                    "items": [
+                        {
+                            "subscription_type": "PayAsYouGo", "instance_id": "rm-abc123",
+                            "instance_label": "rm-abc123", "billing_item": "RDS规格",
+                            "billing_item_code": "rds_class", "instance_spec": "pg.n2.2c.1m",
+                            "nick_name": "", "region": "华东1（杭州）", "list_price": "0.326",
+                            "list_price_unit": "元/小时", "usage_qty": 744, "usage_unit": "小时",
+                            "service_months": 0,
+                            "pretax_amount": 242.54, "payment_amount": 242.54,
+                            "deducted_by_coupons": 0, "bill_days": 31, "monthly_cost": 237.98,
+                            "percentage": 75.6,
+                        }
+                    ],
+                }
+            ],
+        }
+        try:
+            with patch("apps.api.services.aliyun_billing_service.get_bill_items", return_value=payload) as mocked:
+                response = await async_client.get("/api/v1/admin/bills/items?days=31")
+            assert response.status_code == 200
+            body = response.json()
+            assert body["has_detail"] is True
+            assert body["products"][0]["items"][0]["monthly_cost"] == 237.98
+            mocked.assert_called_once_with(31)
+        finally:
+            test_app.dependency_overrides.clear()
+
+    @pytest.mark.asyncio
     async def test_admin_bills_sync_ok(self, async_client, test_app, admin_user, whitelist):
         """管理员可手动同步账单"""
         test_app.dependency_overrides[get_current_user] = lambda: admin_user
-        payload = {"synced_days": 0, "synced_rows": 0, "errors": [], "synced_at": "2026-08-19"}
+        payload = {
+            "synced_days": 0, "synced_rows": 0, "synced_item_rows": 0,
+            "errors": [], "synced_at": "2026-08-19",
+        }
         try:
             with patch("apps.api.services.aliyun_billing_service.sync_bills", return_value=payload):
                 response = await async_client.post("/api/v1/admin/bills/sync")

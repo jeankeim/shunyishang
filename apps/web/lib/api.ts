@@ -2852,10 +2852,56 @@ export interface AdminBillsResponse {
   last_sync_at: string | null
 }
 
+/** 计费项下钻明细（一行 = 一个实例的一个计费项） */
+export interface BillItemDetail {
+  subscription_type: string
+  instance_id: string
+  /** 实例可读标识：优先别名，否则取 instance_id 中有辨识度的段（如 qwen-plus · input_token） */
+  instance_label: string
+  billing_item: string
+  billing_item_code: string
+  instance_spec: string
+  nick_name: string
+  region: string
+  list_price: string
+  list_price_unit: string
+  usage_qty: number
+  usage_unit: string
+  /** 预付费服务周期折算月数（入库时按「金额最大的一笔」归一，无法识别为 0） */
+  service_months: number
+  pretax_amount: number
+  payment_amount: number
+  deducted_by_coupons: number
+  /** 区间内实际出账天数，用于区分「每天必花」与「偶尔花」 */
+  bill_days: number
+  /** 按最近 monthly_basis_days 天用法折算的月成本；已停项与一次性跑批为 0 */
+  monthly_cost: number
+  percentage: number
+}
+
+/** 按产品分组的计费项明细 */
+export interface BillProductItems {
+  product_code: string
+  product_name: string
+  pretax_amount: number
+  items: BillItemDetail[]
+}
+
+/** 计费项下钻响应 */
+export interface AdminBillItemsResponse {
+  range: { start: string; end: string; days: number }
+  /** false = 明细表在该区间无数据（早于下钻功能上线的历史区间） */
+  has_detail: boolean
+  covered_days: number
+  monthly_basis_days: number
+  products: BillProductItems[]
+}
+
 /** 账单同步结果 */
 export interface BillSyncResponse {
   synced_days: number
   synced_rows: number
+  synced_item_rows: number
   errors: string[]
   synced_at: string
 }
@@ -2893,6 +2939,17 @@ export async function getAdminBills(days = 31): Promise<AdminBillsResponse> {
   })
   if (!response.ok) {
     throw new Error(await extractErrorMessage(response, '获取账单数据失败'))
+  }
+  return response.json()
+}
+
+/** 获取账单计费项下钻明细（展开产品行时按需拉取，一次返回全部产品） */
+export async function getAdminBillItems(days = 31): Promise<AdminBillItemsResponse> {
+  const response = await fetch(`${getAPIBase()}/api/v1/admin/bills/items?days=${days}`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) {
+    throw new Error(await extractErrorMessage(response, '获取计费项明细失败'))
   }
   return response.json()
 }

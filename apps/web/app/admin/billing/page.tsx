@@ -5,10 +5,11 @@
  *
  * 数据来源：后端每日 00:35 通过阿里云 BSS OpenAPI（QueryAccountBill 按天粒度）
  * 拉取全产品账单（ECS/RDS/OSS/CDN/百炼大模型等）落库，支持手动同步。
+ * 产品行可下钻到计费项（DescribeInstanceBill），定位到实例、单价与月均成本。
  * 注意：阿里云当天账单通常次日才出全，最新数据截至昨日。
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useState } from 'react'
 import {
   Bar,
   BarChart,
@@ -20,8 +21,11 @@ import {
 } from 'recharts'
 import {
   getAdminBills,
+  getAdminBillItems,
   syncAdminBills,
+  type AdminBillItemsResponse,
   type AdminBillsResponse,
+  type BillItemDetail,
 } from '@/lib/api'
 
 const RANGE_OPTIONS = [31, 90, 180]
@@ -40,6 +44,12 @@ const PRODUCT_SHORT_NAMES: Record<string, string> = {
   domain: '域名',
 }
 
+// 计费方式：包年包月是一次性支付（需按服务周期看），按量是每天发生
+const SUBSCRIPTION_LABELS: Record<string, string> = {
+  PayAsYouGo: '按量',
+  Subscription: '包年包月',
+}
+
 function formatMoney(n: number): string {
   return `¥${(n ?? 0).toFixed(2)}`
 }
@@ -51,6 +61,11 @@ export default function AdminBillingPage() {
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  // 计费项下钻：一次拉取全部产品明细，按展开的产品行展示
+  const [itemsData, setItemsData] = useState<AdminBillItemsResponse | null>(null)
+  const [itemsLoading, setItemsLoading] = useState(false)
+  const [itemsError, setItemsError] = useState('')
+  const [expanded, setExpanded] = useState<string | null>(null)
 
   const load = useCallback(async (d: number) => {
     setLoading(true)
@@ -69,6 +84,12 @@ export default function AdminBillingPage() {
     load(days)
   }, [days, load])
 
+  // 切换统计区间后下钻明细口径失效，收起并待下次展开时按新区间重拉
+  useEffect(() => {
+    setItemsData(null)
+    setExpanded(null)
+  }, [days])
+
   const handleSync = async () => {
     setSyncing(true)
     setNotice('')
@@ -77,8 +98,10 @@ export default function AdminBillingPage() {
       setNotice(
         res.errors.length > 0
           ? `同步完成（${res.synced_days} 天），部分失败: ${res.errors.join('；')}`
-          : `同步完成：${res.synced_days} 天，共 ${res.synced_rows} 条产品账单`
+          : `同步完成：${res.synced_days} 天，共 ${res.synced_rows} 条产品账单、${res.synced_item_rows ?? 0} 条计费项明细`
       )
+      // 明细已变化，作废下钻缓存
+      setItemsData(null)
       await load(days)
     } catch (e) {
       setNotice(e instanceof Error ? e.message : '同步失败')
@@ -86,6 +109,28 @@ export default function AdminBillingPage() {
       setSyncing(false)
     }
   }
+
+  const toggleProduct = async (code: string) => {
+    if (expanded === code) {
+      setExpanded(null)
+      return
+    }
+    setExpanded(code)
+    // 明细接口一次返回全部产品，拉过就不再重复请求
+    if (itemsData || itemsLoading) return
+    setItemsLoading(true)
+    setItemsError('')
+    try {
+      setItemsData(await getAdminBillItems(days))
+    } catch (e) {
+      setItemsError(e instanceof Error ? e.message : '加载计费项明细失败')
+    } finally {
+      setItemsLoading(false)
+    }
+  }
+
+  const itemsOf = (code: string): BillItemDetail[] =>
+    itemsData?.products.find((p) => p.product_code === code)?.items ?? []
 
   const chartData = (data?.daily ?? []).map((d) => ({
     ...d,
@@ -196,7 +241,10 @@ export default function AdminBillingPage() {
 
           {/* 按产品分类明细 */}
           <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 overflow-x-auto">
-            <h2 className="text-sm font-medium text-gray-700 mb-4">按产品分类明细</h2>
+            <h2 className="text-sm font-medium text-gray-700 mb-1">按产品分类明细</h2>
+            <p className="text-xs text-gray-400 mb-3.5">
+              点击产品行可下钻到计费项，看清单个产品里每台实例、每项计费各花多少钱
+            </p>
             {data.by_product.length === 0 ? (
               <p className="text-sm text-gray-400 py-6 text-center">
                 {data.configured ? '统计区间内暂无账单数据' : '待配置账单 AK 后自动同步'}
@@ -213,30 +261,53 @@ export default function AdminBillingPage() {
                   </tr>
                 </thead>
                 <tbody className="text-gray-600">
-                  {data.by_product.map((p) => (
-                    <tr key={p.product_code} className="border-b border-gray-50 last:border-0">
-                      <td className="py-2.5 pr-3">
-                        <span className="font-medium text-gray-700">
-                          {PRODUCT_SHORT_NAMES[p.product_code] || p.product_name || p.product_code}
-                        </span>
-                        <span className="text-gray-300 ml-1.5">{p.product_code}</span>
-                      </td>
-                      <td className="text-right px-3 font-medium">{formatMoney(p.pretax_amount)}</td>
-                      <td className="text-right px-3">{formatMoney(p.payment_amount)}</td>
-                      <td className="text-right px-3">{formatMoney(p.deducted_by_coupons)}</td>
-                      <td className="pl-3">
-                        <div className="flex items-center justify-end gap-2">
-                          <div className="flex-1 max-w-[120px] h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-primary rounded-full"
-                              style={{ width: `${Math.min(p.percentage, 100)}%` }}
-                            />
-                          </div>
-                          <span className="w-10 text-right text-gray-500">{p.percentage}%</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {data.by_product.map((p) => {
+                    const open = expanded === p.product_code
+                    return (
+                      <Fragment key={p.product_code}>
+                        <tr
+                          onClick={() => toggleProduct(p.product_code)}
+                          className={`border-b border-gray-50 last:border-0 cursor-pointer transition-colors hover:bg-gray-50 ${
+                            open ? 'bg-gray-50' : ''
+                          }`}
+                        >
+                          <td className="py-2.5 pr-3">
+                            <Chevron open={open} />
+                            <span className="font-medium text-gray-700">
+                              {PRODUCT_SHORT_NAMES[p.product_code] || p.product_name || p.product_code}
+                            </span>
+                            <span className="text-gray-300 ml-1.5">{p.product_code}</span>
+                          </td>
+                          <td className="text-right px-3 font-medium">{formatMoney(p.pretax_amount)}</td>
+                          <td className="text-right px-3">{formatMoney(p.payment_amount)}</td>
+                          <td className="text-right px-3">{formatMoney(p.deducted_by_coupons)}</td>
+                          <td className="pl-3">
+                            <div className="flex items-center justify-end gap-2">
+                              <div className="flex-1 max-w-[120px] h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-primary rounded-full"
+                                  style={{ width: `${Math.min(p.percentage, 100)}%` }}
+                                />
+                              </div>
+                              <span className="w-10 text-right text-gray-500">{p.percentage}%</span>
+                            </div>
+                          </td>
+                        </tr>
+                        {open && (
+                          <tr className="border-b border-gray-100">
+                            <td colSpan={5} className="bg-gray-50 px-5 py-3.5">
+                              <BillItemsTable
+                                items={itemsOf(p.product_code)}
+                                loading={itemsLoading}
+                                error={itemsError}
+                                meta={itemsData}
+                              />
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    )
+                  })}
                 </tbody>
               </table>
             )}
@@ -259,5 +330,160 @@ function SummaryCard({ label, value, accent }: { label: string; value: string; a
       <p className="text-xs text-gray-400">{label}</p>
       <p className={`text-xl font-semibold mt-1.5 ${accent}`}>{value}</p>
     </div>
+  )
+}
+
+/** 产品行展开后的计费项明细 */
+function BillItemsTable({
+  items,
+  loading,
+  error,
+  meta,
+}: {
+  items: BillItemDetail[]
+  loading: boolean
+  error: string
+  meta: AdminBillItemsResponse | null
+}) {
+  if (loading) {
+    return <p className="text-xs text-gray-400 py-2">加载计费项明细…</p>
+  }
+  if (error) {
+    return <p className="text-xs text-red-500 py-2">{error}</p>
+  }
+  if (!meta) {
+    return null
+  }
+  if (!meta.has_detail) {
+    return (
+      <p className="text-xs text-gray-400 py-2">
+        该区间暂无计费项明细（下钻上线前的历史账单不回填）。点右上角「手动同步」可补齐最近 30 天。
+      </p>
+    )
+  }
+  if (items.length === 0) {
+    return <p className="text-xs text-gray-400 py-2">该产品在此区间没有计费项明细。</p>
+  }
+
+  // 按量是「当前每月要花」，预付费摊月是「合同价参考」（可能含区间内已退订的历史包月），
+  // 两者合并求和会得出一个现实中不存在的数（如 RDS 已退订包月 206 + 现按量 315 = 521）
+  const payGoMonthly = items
+    .filter((it) => it.subscription_type === 'PayAsYouGo')
+    .reduce((sum, it) => sum + it.monthly_cost, 0)
+  const prepaidMonthly = items
+    .filter((it) => it.subscription_type === 'Subscription')
+    .reduce((sum, it) => sum + it.monthly_cost, 0)
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+        <p className="text-xs text-gray-500">
+          共 {items.length} 项计费 · 明细覆盖 {meta.covered_days} 天
+        </p>
+        {(payGoMonthly > 0 || prepaidMonthly > 0) && (
+          <p className="text-xs text-gray-500">
+            {payGoMonthly > 0 && (
+              <>
+                按量月开销{' '}
+                <span className="text-primary font-semibold">{formatMoney(payGoMonthly)}/月</span>
+              </>
+            )}
+            {payGoMonthly > 0 && prepaidMonthly > 0 && <span className="mx-1.5 text-gray-300">|</span>}
+            {prepaidMonthly > 0 && (
+              <>
+                预付费摊月 <span className="font-semibold">{formatMoney(prepaidMonthly)}/月</span>
+              </>
+            )}
+          </p>
+        )}
+      </div>
+
+      <div className="max-h-72 overflow-y-auto rounded-lg border border-gray-200 bg-white">
+        <table className="w-full text-xs min-w-[600px]">
+          <thead className="sticky top-0 bg-white">
+            <tr className="text-gray-400 border-b border-gray-100">
+              <th className="text-left font-normal py-2 pl-3 pr-3">计费项 / 实例</th>
+              <th className="text-left font-normal py-2 px-3">单价</th>
+              <th className="text-right font-normal py-2 px-3">区间应付</th>
+              <th className="text-right font-normal py-2 px-3">折算月均</th>
+              <th className="text-right font-normal py-2 pl-3 pr-3 w-24">占该产品</th>
+            </tr>
+          </thead>
+          <tbody className="text-gray-600">
+            {items.map((it) => (
+              <tr
+                key={`${it.subscription_type}|${it.instance_id}|${it.billing_item_code}|${it.billing_item}`}
+                className="border-b border-gray-50 last:border-0"
+              >
+                <td className="py-2 pl-3 pr-3">
+                  <span className="text-gray-700">{it.billing_item}</span>
+                  <span className="ml-1.5 px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 text-[10px]">
+                    {SUBSCRIPTION_LABELS[it.subscription_type] || it.subscription_type || '其他'}
+                  </span>
+                  {(it.instance_label || it.instance_spec) && (
+                    <span className="block text-gray-400 mt-0.5 truncate max-w-[300px]">
+                      {[it.instance_label, it.instance_spec].filter(Boolean).join(' · ')}
+                    </span>
+                  )}
+                </td>
+                <td className="px-3 text-gray-500 whitespace-nowrap">
+                  {it.list_price ? `${it.list_price}${it.list_price_unit}` : '—'}
+                </td>
+                <td className="text-right px-3 whitespace-nowrap">
+                  {formatMoney(it.pretax_amount)}
+                  <span className="block text-gray-400 text-[10px]">出账 {it.bill_days} 天</span>
+                </td>
+                <td
+                  className={`text-right px-3 whitespace-nowrap ${
+                    it.monthly_cost > 0 ? 'text-primary font-medium' : 'text-gray-300'
+                  }`}
+                >
+                  {it.monthly_cost > 0 ? `${formatMoney(it.monthly_cost)}/月` : '—'}
+                </td>
+                <td className="pl-3 pr-3">
+                  <div className="flex items-center justify-end gap-1.5">
+                    <div className="flex-1 max-w-[52px] h-1 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary rounded-full"
+                        style={{ width: `${Math.min(it.percentage, 100)}%` }}
+                      />
+                    </div>
+                    <span className="w-9 text-right text-gray-500">{it.percentage}%</span>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">
+        「折算月均」中按量项按最近 {meta.monthly_basis_days} 天的实际用量折算，代表照现在用法这一项一个月要花多少，
+        已停用的按量项与一次性跑批（如批量生图）此处显示 —；包年包月项按合同价除以服务周期摊月，
+        是历史成交价的参考，不保证至今仍在支付（如已退订的旧包月）。
+      </p>
+    </div>
+  )
+}
+
+/** 产品行展开指示箭头 */
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 12 12"
+      aria-hidden
+      className={`inline-block w-2.5 h-2.5 mr-1.5 -mt-0.5 text-gray-400 transition-transform duration-200 ${
+        open ? 'rotate-90' : ''
+      }`}
+    >
+      <path
+        d="M4.5 2.5 L8 6 L4.5 9.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   )
 }

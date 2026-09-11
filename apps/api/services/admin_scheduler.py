@@ -38,7 +38,7 @@ class AdminScheduler:
     # ------------------------------------------------------------------
 
     def _bootstrap(self) -> None:
-        """补齐最近 7 天缺失的看板快照；账单表为空时回填最近 30 天"""
+        """补齐最近 7 天缺失的看板快照；账单/计费项明细表为空时回填最近 30 天"""
         from apps.api.services import admin_stats_service, aliyun_billing_service
 
         today = today_cn()
@@ -59,15 +59,23 @@ class AdminScheduler:
             logger.warning(f"[AdminScheduler] 看板补算失败: {e}")
 
         # 账单首次回填（仅在已配置 AK 且表为空时）
+        # 计费项明细是后加的链路：单独判空——主账单已有数据但明细表为空（升级前的
+        # 历史区间）时也要回填一次，否则下钻视图永远空白。若明细因权限持续拉不到，
+        # 表保持为空会在下次启动重试，属期望行为（不阻塞事件循环，仅延后后台数据就绪）。
         if settings.billing_configured:
             try:
                 with DatabasePool.get_connection() as conn:
                     with conn.cursor() as cur:
                         cur.execute("SELECT COUNT(*) FROM aliyun_daily_bills")
-                        empty = (cur.fetchone()[0] or 0) == 0
-                if empty:
+                        bills_empty = (cur.fetchone()[0] or 0) == 0
+                        cur.execute("SELECT COUNT(*) FROM aliyun_daily_bill_items")
+                        items_empty = (cur.fetchone()[0] or 0) == 0
+                if bills_empty or items_empty:
                     result = aliyun_billing_service.sync_bills(days=30)
-                    logger.info(f"[AdminScheduler] 账单首次回填完成: {result}")
+                    logger.info(
+                        f"[AdminScheduler] 账单首次回填完成"
+                        f"（主账单为空={bills_empty}, 明细为空={items_empty}）: {result}"
+                    )
             except Exception as e:
                 logger.warning(f"[AdminScheduler] 账单首次回填失败: {e}")
 

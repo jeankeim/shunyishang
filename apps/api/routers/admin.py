@@ -43,6 +43,7 @@ class AdminMeResponse(BaseModel):
 class BillSyncResponse(BaseModel):
     synced_days: int
     synced_rows: int
+    synced_item_rows: int = 0
     errors: list = []
     synced_at: str = ""
 
@@ -75,6 +76,18 @@ async def get_bills(
 ):
     """阿里云全产品（ECS/RDS/OSS/CDN/大模型等）按天账单汇总"""
     return await asyncio.to_thread(aliyun_billing_service.get_bill_summary, days)
+
+
+@router.get("/bills/items", summary="账单计费项下钻明细")
+async def get_bill_items(
+    days: int = Query(31, ge=1, le=366, description="统计天数"),
+):
+    """
+    产品级账单的下钻明细：拆到实例与计费项（如 RDS 的「规格 7.82/天」与
+    「存储空间 2.52/天」），带单价、用量与服务周期，用于定位单一产品内
+    的钱到底花在哪台机器上、以及按量与包年包月孰优孰劣。
+    """
+    return await asyncio.to_thread(aliyun_billing_service.get_bill_items, days)
 
 
 @router.get("/llm-usage", summary="用户大模型调用明细")
