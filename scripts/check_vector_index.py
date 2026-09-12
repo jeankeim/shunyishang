@@ -8,7 +8,9 @@ from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 
 # 加载环境变量
-load_dotenv('.env.production')
+# 生产配置唯一来源为 .env.ecs；Zeabur 时代的 .env.production 已废弃归档，不得再引用
+# 注意：.env.ecs 中的 DATABASE_URL 是 VPC 内网地址，本脚本需在 ECS 上执行
+load_dotenv('.env.ecs')
 
 DATABASE_URL = os.getenv('DATABASE_URL')
 if not DATABASE_URL:

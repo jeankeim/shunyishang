@@ -99,10 +99,10 @@ def load_env():
 
 
 def get_prod_url() -> str:
-    for line in (ROOT / ".env.production").read_text().splitlines():
+    for line in (ROOT / ".env.ecs").read_text().splitlines():
         if line.startswith("DATABASE_URL="):
             return line.split("=", 1)[1].strip()
-    raise RuntimeError(".env.production 中未找到 DATABASE_URL")
+    raise RuntimeError(".env.ecs 中未找到 DATABASE_URL")
 
 
 def get_r2_client():

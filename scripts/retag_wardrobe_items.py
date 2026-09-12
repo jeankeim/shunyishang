@@ -7,13 +7,13 @@
 
 用法：
     # 预览（不写库）
-    python3 scripts/retag_wardrobe_items.py --env .env.production --dry-run
+    python3 scripts/retag_wardrobe_items.py --env .env.ecs --dry-run
 
     # 执行（默认只处理 style/color/material 为空的物品）
-    python3 scripts/retag_wardrobe_items.py --env .env.production
+    python3 scripts/retag_wardrobe_items.py --env .env.ecs
 
     # 指定用户 + 同步刷新 embedding
-    python3 scripts/retag_wardrobe_items.py --env .env.production --user 2 --with-embedding
+    python3 scripts/retag_wardrobe_items.py --env .env.ecs --user 2 --with-embedding
 
 更新策略（保守）：
 - 写入 style/color/material 列 + attributes_detail 的 颜色/面料/款式 键

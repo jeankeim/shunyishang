@@ -25,7 +25,9 @@ import oss2
 from dotenv import load_dotenv
 
 load_dotenv(".env")
-load_dotenv(".env.production", override=False)
+# R2 凭证仅存于 Zeabur 时代的配置归档（该文件已因含明文密钥而废弃，不再作为 .env.production 存在，
+# 仅为本历史迁移脚本保留可跑能力；R2 已全面换为 OSS，新代码不得再引用此文件）
+load_dotenv("backups/LEGACY_ZEABUR_ENV_DO_NOT_USE.txt", override=False)
 
 R2_ACCOUNT_ID = os.environ["R2_ACCOUNT_ID"]
 R2_ACCESS_KEY_ID = os.environ["R2_ACCESS_KEY_ID"]

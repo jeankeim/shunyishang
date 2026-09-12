@@ -2,13 +2,31 @@
 """
 执行缩略图字段迁移脚本
 连接到线上数据库并执行 add_thumbnail_url.sql
+（目标库由 .env.ecs 的 DATABASE_URL 决定；该地址仅 VPC 内可达，需在 ECS 上执行）
 """
 
-import psycopg2
+import os
 from pathlib import Path
 
-# 数据库连接字符串
-DB_URL = "postgresql://root:DXQg3VOsxycmWi1h749Z5P6Fa0Kf2j8q@43.129.75.126:30216/zeabur"
+import psycopg2
+
+# 数据库连接串一律从环境读取，禁止硬编码到源码
+# （历史上本文件曾把线上 root 明文连接串写死在第 11 行，并已随公开仓库泄露）
+# 用法：python scripts/migrations/execute_thumbnail_migration.py   # 读 .env.ecs
+ENV_FILE = Path(__file__).resolve().parents[2] / ".env.ecs"
+
+
+def load_db_url() -> str:
+    """优先取进程环境变量，其次读 .env.ecs"""
+    url = os.environ.get("DATABASE_URL", "").strip()
+    if url:
+        return url
+    if ENV_FILE.exists():
+        for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
+            if line.startswith("DATABASE_URL="):
+                return line.split("=", 1)[1].strip()
+    raise SystemExit(f"未找到 DATABASE_URL：请设置环境变量，或确保 {ENV_FILE.name} 存在")
+
 
 def execute_migration():
     """执行数据库迁移"""
@@ -19,7 +37,7 @@ def execute_migration():
     try:
         # 连接数据库
         print("\n📡 正在连接数据库...")
-        conn = psycopg2.connect(DB_URL)
+        conn = psycopg2.connect(load_db_url())
         conn.autocommit = False  # 使用事务
         cur = conn.cursor()
         print("✅ 数据库连接成功")

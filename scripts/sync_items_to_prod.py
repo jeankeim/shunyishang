@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
-将本地 items 表（500 件，含 embedding）全量同步到 Zeabur 生产库
+将本地 items 表（500 件，含 embedding）全量同步到生产库
+
+⚠️ 生产库地址在 .env.ecs，且为 VPC 内网地址 —— 本脚本必须在 ECS 上执行，
+   在开发机上跑只会连不上（旧版误指 .env.production，那是一个已废弃但仍公网可达的遗留库）。
 
 流程:
 1. 远端补齐 color/style/material 三列（迁移 10 的结构变更）
@@ -53,11 +56,11 @@ def log(level: str, message: str):
 
 
 def get_prod_url() -> str:
-    env_path = ROOT / ".env.production"
+    env_path = ROOT / ".env.ecs"
     for line in env_path.read_text().splitlines():
         if line.startswith("DATABASE_URL="):
             return line.split("=", 1)[1].strip()
-    raise RuntimeError(".env.production 中未找到 DATABASE_URL")
+    raise RuntimeError(".env.ecs 中未找到 DATABASE_URL")
 
 
 def ensure_remote_columns(remote):

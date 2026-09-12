@@ -21,8 +21,8 @@
     # 执行修复
     python3 scripts/fix_gender_mislabeled_items.py --env .env --apply
 
-    # 生产环境先预览
-    python3 scripts/fix_gender_mislabeled_items.py --env .env.production
+    # 生产环境先预览（需在 ECS 上执行，.env.ecs 里的库地址仅 VPC 内可达）
+    python3 scripts/fix_gender_mislabeled_items.py --env .env.ecs
 """
 
 import argparse
