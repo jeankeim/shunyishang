@@ -143,11 +143,44 @@ def row_counts(conn) -> dict[str, int]:
     return out
 
 
+def ensure_database_exists(dst_dsn: str) -> None:
+    """目标库必须已存在：RDS 新建实例上只有 postgres 一个库，不先处理会直接抛
+    一个看不出所以然的 OperationalError traceback。先尝试用同一凭证建库，
+    无权限时给出控制台的精确入口。"""
+    try:
+        connect(dst_dsn).close()
+        return
+    except psycopg2.OperationalError as e:
+        if "does not exist" not in str(e):
+            die(f"连不上目标库：{str(e)[:200]}")
+
+    params = parse_dsn(dst_dsn)
+    dbname = params["dbname"]
+    log(f"  目标实例上还没有数据库 {dbname}，尝试创建…")
+    admin = dict(params, dbname="postgres")
+    try:
+        conn = psycopg2.connect(options=SESSION_GUARD, connect_timeout=15, **admin)
+        conn.autocommit = True
+        with conn.cursor() as cur:
+            cur.execute(
+                f'CREATE DATABASE "{dbname}" ENCODING \'UTF8\' TEMPLATE template0'
+            )
+        conn.close()
+        log(f"  ✅ 已创建数据库 {dbname}")
+    except Exception as e:  # noqa: BLE001
+        die(
+            f"自动建库失败：{str(e)[:160]}\n"
+            f"   请在控制台手工建库：RDS 实例 {params['host'].split('.')[0]} → 左侧「数据库管理」→\n"
+            f"   创建数据库，库名填 {dbname}，字符集选 UTF8，授权账号选你的连接账号。"
+        )
+
+
 def preflight(src_dsn: str, dst_dsn: str, pg_bin: str, force: bool) -> dict:
     log("── 阶段 0：预检 ──")
     info: dict = {}
 
     src = connect(src_dsn)
+    ensure_database_exists(dst_dsn)
     dst = connect(dst_dsn)
 
     src_major, dst_major = server_major(src), server_major(dst)
@@ -313,7 +346,9 @@ def restore(dst_dsn: str, pg_bin: str, dump_path: Path) -> None:
     params = parse_dsn(dst_dsn)
     env = {**os.environ, "PGPASSWORD": params["password"]}
 
-    # vector 扩展必须在 restore 之前存在，否则含 vector 列的 CREATE TABLE 会失败
+    # vector 扩展必须在 restore 之前存在，否则含 vector 列的 CREATE TABLE 会失败；
+    # 先建还能顺带避开一个坑：dump 里带的是源端旧版本号（如 VERSION '0.5.1'），
+    # 若该版本在新实例上不可用会报错，而已存在时 IF NOT EXISTS 会直接跳过不校验版本。
     log("  预建扩展：vector")
     dst = connect(dst_dsn)
     dst.autocommit = True
