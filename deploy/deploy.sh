@@ -97,19 +97,29 @@ fi
 # ---- Step 3: 执行重建 ----
 echo "[3/4] 执行重建..."
 
+# Web 单独处理，不要写成 `up -d --build web`：compose 的 --build 会连带构建 depends_on
+# 声明的服务（web → api），所有层即便全 CACHED 也会导出一份新的 api 镜像，
+# 镜像 ID 一变 compose 就重建 api 容器 —— 改一行前端文案却让后端冷启动一次。
+# 拆成 build（只构建 web 自身）+ up --no-deps（只收敛 web 容器）即可避开。
+# 代价：api 若已挂掉，本命令不会把它带起来 —— 那属于 Step 4 健康检查该报警的情况。
+rebuild_web() {
+    echo "  🔄 重建 Web（不连带重启 api）..."
+    WEB_API_URL=http://api:8000 docker compose -f docker-compose.prod.yml build web
+    WEB_API_URL=http://api:8000 docker compose -f docker-compose.prod.yml up -d --no-deps web
+}
+
 if [ "$NEED_COMPOSE" = true ]; then
     echo "  🔄 重启全部服务..."
     docker compose -f docker-compose.prod.yml up -d --build
 elif [ "$NEED_API" = true ] && [ "$NEED_WEB" = true ]; then
-    echo "  🔄 重建 API + Worker + Web..."
+    echo "  🔄 重建 API + Worker..."
     docker compose -f docker-compose.prod.yml up -d --build api worker
-    WEB_API_URL=http://api:8000 docker compose -f docker-compose.prod.yml up -d --build web
+    rebuild_web
 elif [ "$NEED_API" = true ]; then
     echo "  🔄 重建 API + Worker..."
     docker compose -f docker-compose.prod.yml up -d --build api worker
 elif [ "$NEED_WEB" = true ]; then
-    echo "  🔄 重建 Web..."
-    WEB_API_URL=http://api:8000 docker compose -f docker-compose.prod.yml up -d --build web
+    rebuild_web
 fi
 
 if [ "$NEED_NGINX" = true ]; then
@@ -127,13 +137,24 @@ docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "shunyi
 
 echo ""
 # 健康检查
+# Nginx 这条必须探 443：80 端口现在是 `return 301 https://$host$request_uri`，
+# 探 80 永远只能拿到 301，既证明不了 nginx 活着也证明不了它能代理到后端 ——
+# 而把成败判定写成「等于 200」会让脚本从 HTTPS 上线起就一直报「部分服务异常」，
+# 于是下次 nginx 真出事时，它看起来和这条永久噪音完全一样。用 -k 是因为回环访问
+# 拿不到匹配 CN 的证书，这里只关心链路通不通，不关心证书链（公网证书另有监控）。
 API_OK=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health 2>/dev/null || echo "000")
 WEB_OK=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ 2>/dev/null || echo "000")
-NGX_OK=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/health 2>/dev/null || echo "000")
+NGX_OK=$(curl -sk -o /dev/null -w "%{http_code}" https://localhost/health 2>/dev/null || echo "000")
+# 80 → HTTPS 的引导只作旁证打印，不参与成败判定
+HTTP_TO_HTTPS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/health 2>/dev/null || echo "000")
 
-echo "  后端 /health:       $API_OK"
-echo "  前端 /:             $WEB_OK"
-echo "  Nginx → 后端:       $NGX_OK"
+echo "  后端 /health:              $API_OK"
+echo "  前端 /:                    $WEB_OK"
+echo "  Nginx(443) → 后端:         $NGX_OK"
+echo "  Nginx(80) 引导到 HTTPS:    $HTTP_TO_HTTPS"
+echo ""
+
+echo "  api 容器启动于: $(docker inspect shunyishang-api --format '{{.State.StartedAt}}' 2>/dev/null || echo '未知')"
 echo ""
 
 if [ "$API_OK" = "200" ] && [ "$NGX_OK" = "200" ]; then
@@ -148,10 +169,21 @@ else
     echo "========================================="
 fi
 
-# ---- Step 5: 构建后清理（--build 会产生悬空镜像与构建缓存） ----
+# ---- Step 5: 构建后清理 ----
+# 悬空镜像每次构建都会多一份（ECS 上实测积到 52 个 / 14.7GB 可回收，是磁盘最大占用项）。
+# Docker 25 的 image prune 不支持 --keep-storage，改用 until 过滤：只清 7 天前的，
+# 近期部署的镜像留着，需要时 docker tag 回去就是最快的回滚路径。
+if [ "$NEED_API" = true ] || [ "$NEED_WEB" = true ] || [ "$NEED_COMPOSE" = true ]; then
+    echo ""
+    echo "[5/5] 清理 7 天前的悬空镜像..."
+    docker image prune -f --filter until=168h | tail -2
+fi
+
+# 构建缓存不在常规路径里清：它是下次构建全 CACHED 的来源，也是 2GiB 内存机器上
+# Next.js 构建不 OOM 的前提。只有磁盘真吃紧时才走完整 cleanup。
 DISK_PCT=$(df --output=pcent / 2>/dev/null | tail -1 | tr -d ' %' || df -k / | tail -1 | awk '{gsub("%","",$5); print $5}')
 if [ "$DISK_PCT" -ge 80 ] 2>/dev/null; then
     echo ""
-    echo "[5/5] 磁盘占用 ${DISK_PCT}%，执行构建后清理..."
+    echo "[5/5+] 磁盘占用 ${DISK_PCT}%，执行完整清理（含构建缓存）..."
     bash deploy/cleanup.sh
 fi
