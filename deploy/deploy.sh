@@ -170,20 +170,36 @@ else
 fi
 
 # ---- Step 5: 构建后清理 ----
-# 悬空镜像每次构建都会多一份，留着会让 docker images 越来越难读。
-# Docker 25 的 image prune 不支持 --keep-storage，改用 until 过滤：只清 7 天前的，
-# 近期部署的镜像留着，需要时 docker tag 回去就是最快的回滚路径。
-# 注：这一步不是为了腾磁盘。实测清掉 50 个悬空镜像后 df -h 一格未动（reclaimed 0B）——
-# 它们和存活镜像共用 layer，而 docker system df 的「可回收 14.71GB」是按每个镜像
-# 各自申报的大小累加，不是物理占用（du 默认对硬链接只计一次，18G 是真的）。
+# 5a) 悬空镜像：每次构建都会多一份，留着会让 docker images 越来越难读。
+#     Docker 25 的 image prune 不支持 --keep-storage，改用 until 过滤：只清 7 天前的，
+#     近期部署的镜像留着，需要时 docker tag 回去就是最快的回滚路径。
+#     注：这一步不是为了腾磁盘。实测清掉 50 个悬空镜像后 df -h 一格未动（reclaimed 0B）——
+#     它们的 blob 同时被 5b 的构建缓存引用着，删掉镜像元数据并不释放物理空间。
+# 5b) 构建缓存才是磁盘真正的大头，必须设上限。
+#     dockerd 内嵌 BuildKit 与镜像层共用同一个 overlay2 store：实测 overlay2 17.28GB 里
+#     有 148 个层目录只被 layerdb 注册、不被任何镜像/容器引用，物理 11.94GB 全是缓存。
+#     它只增不减 —— 每部署一次就给每个 COPY 步骤新留一条记录（实测累积到
+#     [runtime 7/8] COPY 38 条、runner [4/7]~[7/7] 各 16 条），20 天账面涨到 13.91GB。
+#     选 --keep-storage 而不是 --filter until=：前者按最近使用保留，不涉及
+#     「until 究竟看创建还是看使用时间」这个口径争议（buildx du 只给人话字符串）。
+#     6GB 的依据：近两周用过的链账面约 5.76GB，被砍的是 14 天以外的历史产物副本。
+#     实测 keep-storage 6GB：199 条/13.91GB -> 111 条/6.44GB，df 26G->19G（69%->49%），
+#     当天构建链与基础镜像的 pulled from 记录都保留，下次部署仍命中缓存。
+#     前提：python:3.11-slim 与 node:20-alpine 已 docker pull 进本地镜像库，即使缓存
+#     被过度回收也不依赖镜像站重新拉取（这两个基础镜像本地镜像库里原本没有）。
+# 两条清理都带 || 兜底：脚本开头是 set -euo pipefail，若不兜住，prune 一旦失败会在
+# 健康检查已通过之后把整次部署误报成失败。
 if [ "$NEED_API" = true ] || [ "$NEED_WEB" = true ] || [ "$NEED_COMPOSE" = true ]; then
     echo ""
-    echo "[5/5] 清理 7 天前的悬空镜像..."
-    docker image prune -f --filter until=168h | tail -2
+    echo "[5/5] 清理 7 天前的悬空镜像 + 构建缓存收敛到 6GB 上限..."
+    docker image prune -f --filter until=168h 2>&1 | tail -1 \
+        || echo "      悬空镜像清理失败（忽略，不影响本次部署）"
+    docker builder prune -f --keep-storage 6GB 2>&1 | tail -1 \
+        || echo "      构建缓存收敛失败（忽略，磁盘仍会由下方 80% 阈值兜底）"
 fi
 
-# 构建缓存不在常规路径里清：它是下次构建全 CACHED 的来源，也是 2GiB 内存机器上
-# Next.js 构建不 OOM 的前提。只有磁盘真吃紧时才走完整 cleanup。
+# 兜底路径留完整清理：cleanup.sh 里的 builder prune 是无下限全清，只在磁盘真吃紧时
+# 才值得付出「下次构建冷启动」的代价。有了上面 6GB 上限，正常情况下不该再走到这里。
 DISK_PCT=$(df --output=pcent / 2>/dev/null | tail -1 | tr -d ' %' || df -k / | tail -1 | awk '{gsub("%","",$5); print $5}')
 if [ "$DISK_PCT" -ge 80 ] 2>/dev/null; then
     echo ""
