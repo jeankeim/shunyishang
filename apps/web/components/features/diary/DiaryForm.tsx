@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { getAuthToken, previewTagging } from '@/lib/api'
 import { todayLocal } from '@/lib/date'
 import { useWardrobeStore } from '@/store/wardrobe'
+import { CATEGORY_ICON, groupWardrobeByCategory } from '@/lib/wardrobe-display'
 import { Camera, X, Loader2, Check, Sparkles } from 'lucide-react'
 import { DiaryDatePicker } from './DiaryDatePicker'
 
@@ -17,6 +18,49 @@ const MOODS = [
 ]
 
 const OCCASIONS = ['日常', '上班', '约会', '聚会', '运动', '旅行', '正式场合']
+
+/** 品类快导 chip（衣橱衣物多于一个品类时才出现） */
+const CHIP_CLS =
+  'shrink-0 flex items-center gap-1 px-2 py-1 rounded-full text-[11px] border border-stone-200 ' +
+  'bg-white text-[var(--brand-body)] hover:border-emerald-300 hover:bg-emerald-50/40 transition-colors'
+
+/**
+ * 选择区内部分组的吸顶把手
+ *
+ * 视觉沿用衣橱抽屉柜（WardrobeCabinet）那一套：渐变把手条 + serif 品类名 + 实时件数，
+ * 使日记与衣橱两个入口对「品类」的呈现一致。尺寸用 px 不用 rem 档位
+ * （项目 root font-size 为 18px，rem 档位会被放大 12.5%）。
+ */
+function OutfitGroupHeader({
+  icon,
+  title,
+  count,
+  selected,
+}: {
+  icon: string
+  title: string
+  count: number
+  selected?: number
+}) {
+  return (
+    <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-stone-200/70 bg-stone-50/95 px-2.5 py-1.5 backdrop-blur">
+      <span className="h-1.5 w-6 shrink-0 rounded-full bg-gradient-to-b from-stone-300 to-stone-400" />
+      <span className="shrink-0 text-[13px]">{icon}</span>
+      <span
+        className="shrink-0 text-[13px] font-semibold text-[var(--brand-heading)]"
+        style={{ fontFamily: 'serif' }}
+      >
+        {title}
+      </span>
+      <span className="shrink-0 text-[11px] text-stone-400">{count} 件</span>
+      {!!selected && (
+        <span className="ml-auto shrink-0 rounded-full bg-emerald-500 px-1.5 py-0.5 text-[10px] leading-none text-white">
+          已选 {selected}
+        </span>
+      )}
+    </div>
+  )
+}
 
 interface DiaryFormProps {
   initialData?: {
@@ -72,8 +116,29 @@ export function DiaryForm({ initialData, onSubmit, onCancel, isEdit }: DiaryForm
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // 从衣橱选择今日穿搭（仅创建模式；后端 update 不支持修改关联衣物）
-  const { items: wardrobeItems, fetchItems, addItem } = useWardrobeStore()
+  const { items: wardrobeItems, total: wardrobeTotal, fetchItems, addItem } = useWardrobeStore()
   const [selectedItemIds, setSelectedItemIds] = useState<number[]>([])
+
+  // 品类分组复用衣橱的同一套词表与顺序（CATEGORY_ORDER），避免两处品类口径漂移
+  const categoryGroups = useMemo(() => groupWardrobeByCategory(wardrobeItems), [wardrobeItems])
+  // 各品类已选件数：抽屉把手上直接标出，省去「我到底勾了哪几件」的回溯
+  const selectedByCategory = useMemo(() => {
+    const chosen = new Set(selectedItemIds)
+    const counts: Record<string, number> = {}
+    for (const g of categoryGroups) {
+      counts[g.category] = g.items.reduce((n, it) => (chosen.has(it.id) ? n + 1 : n), 0)
+    }
+    return counts
+  }, [categoryGroups, selectedItemIds])
+
+  // 品类快导：点击滚到对应分组。滚动只发生在选择区内部，不惊动整页
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  const groupRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const jumpToCategory = (key: string) => {
+    const el = groupRefs.current[key]
+    const sc = scrollerRef.current
+    if (el && sc) sc.scrollTo({ top: el.offsetTop, behavior: 'smooth' })
+  }
 
   useEffect(() => {
     if (!isEdit && wardrobeItems.length === 0) {
@@ -423,58 +488,125 @@ export function DiaryForm({ initialData, onSubmit, onCancel, isEdit }: DiaryForm
               衣橱还没有衣物，可拍照识别新衣物添加
             </p>
           ) : (
-            <div className="grid grid-cols-4 gap-2 max-h-56 overflow-y-auto p-0.5">
-              {/* 拍照新增的待选衣物 */}
-              {pendingNewItems.map((item) => (
-                <div
-                  key={item.tempId}
-                  className="relative aspect-square rounded-xl overflow-hidden border-2 border-amber-400 ring-2 ring-amber-200"
-                >
-                  <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                  <span className="absolute top-1 left-1 px-1 rounded bg-amber-500 text-white text-[10px] leading-4">新</span>
-                  <button
-                    type="button"
-                    onClick={() => removePendingItem(item.tempId)}
-                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70"
-                    aria-label="移除"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                  <span className="absolute bottom-0 inset-x-0 bg-black/40 text-white text-[10px] px-1 py-0.5 truncate">
-                    {item.name}
-                  </span>
+            <div className="space-y-1.5">
+              {/* 品类快导：多于一个品类才值得占一行，单品类时直接筛已是可找 */}
+              {categoryGroups.length > 1 && (
+                <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-1">
+                  {pendingNewItems.length > 0 && (
+                    <button type="button" className={CHIP_CLS} onClick={() => jumpToCategory('__new')}>
+                      ✨ 新识别
+                      <span className="text-stone-400">{pendingNewItems.length}</span>
+                    </button>
+                  )}
+                  {categoryGroups.map((g) => (
+                    <button
+                      key={g.category}
+                      type="button"
+                      className={CHIP_CLS}
+                      onClick={() => jumpToCategory(g.category)}
+                      aria-label={`跳转到 ${g.category}`}
+                    >
+                      {CATEGORY_ICON[g.category] ?? '🧺'} {g.category}
+                      <span className={selectedByCategory[g.category] ? 'text-emerald-600 font-medium' : 'text-stone-400'}>
+                        {selectedByCategory[g.category]
+                          ? `${selectedByCategory[g.category]}/${g.items.length}`
+                          : g.items.length}
+                      </span>
+                    </button>
+                  ))}
                 </div>
-              ))}
-              {/* 衣橱已有衣物 */}
-              {wardrobeItems.map((item) => {
-                const selected = selectedItemIds.includes(item.id)
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => toggleItem(item.id)}
-                    className={`relative aspect-square rounded-xl overflow-hidden border-2 transition-all ${
-                      selected ? 'border-emerald-500 ring-2 ring-emerald-200' : 'border-stone-200'
-                    }`}
-                  >
-                    {item.image_url ? (
-                      <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-stone-100 text-xl text-stone-400">
-                        {item.primary_element || '👕'}
+              )}
+
+              {/* 选择区：内部滚动 + 分组吸顶把手，滚到哪都知道自己在哪个品类 */}
+              <div
+                ref={scrollerRef}
+                className="relative max-h-[320px] overflow-y-auto rounded-xl border border-stone-200"
+              >
+                {/* 拍照新增的待选衣物：单独成组，保留「尚未存入衣橱」的琥珀视觉语义 */}
+                {pendingNewItems.length > 0 && (
+                  <div ref={(el) => { groupRefs.current.__new = el }}>
+                    <OutfitGroupHeader icon="✨" title="新识别" count={pendingNewItems.length} />
+                    <div className="grid grid-cols-4 gap-2 p-2">
+                      {pendingNewItems.map((item) => (
+                        <div
+                          key={item.tempId}
+                          className="relative aspect-square rounded-xl overflow-hidden border-2 border-amber-400 ring-2 ring-amber-200"
+                        >
+                          <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                          <span className="absolute top-1 left-1 px-1 rounded bg-amber-500 text-white text-[10px] leading-4">新</span>
+                          <button
+                            type="button"
+                            onClick={() => removePendingItem(item.tempId)}
+                            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70"
+                            aria-label="移除"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                          <span className="absolute bottom-0 inset-x-0 bg-black/40 text-white text-[10px] px-1 py-0.5 truncate">
+                            {item.name}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {categoryGroups.map((g) => {
+                  const sel = selectedByCategory[g.category] || 0
+                  return (
+                    <div
+                      key={g.category}
+                      data-outfit-group={g.category}
+                      ref={(el) => { groupRefs.current[g.category] = el }}
+                    >
+                      <OutfitGroupHeader
+                        icon={CATEGORY_ICON[g.category] ?? '🧺'}
+                        title={g.category}
+                        count={g.items.length}
+                        selected={sel}
+                      />
+                      <div className="grid grid-cols-4 gap-2 p-2">
+                        {g.items.map((item) => {
+                          const selected = selectedItemIds.includes(item.id)
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => toggleItem(item.id)}
+                              className={`relative aspect-square rounded-xl overflow-hidden border-2 transition-all ${
+                                selected ? 'border-emerald-500 ring-2 ring-emerald-200' : 'border-stone-200'
+                              }`}
+                            >
+                              {item.image_url ? (
+                                <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-stone-100 text-xl text-stone-400">
+                                  {item.primary_element || '👕'}
+                                </div>
+                              )}
+                              {selected && (
+                                <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center">
+                                  <Check className="w-3 h-3" />
+                                </div>
+                              )}
+                              <span className="absolute bottom-0 inset-x-0 bg-black/40 text-white text-[10px] px-1 py-0.5 truncate">
+                                {item.name}
+                              </span>
+                            </button>
+                          )
+                        })}
                       </div>
-                    )}
-                    {selected && (
-                      <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center">
-                        <Check className="w-3 h-3" />
-                      </div>
-                    )}
-                    <span className="absolute bottom-0 inset-x-0 bg-black/40 text-white text-[10px] px-1 py-0.5 truncate">
-                      {item.name}
-                    </span>
-                  </button>
-                )
-              })}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* 衣橱取数上限 100 件：被截断时明说，不让人以为东西没分类 */}
+              {wardrobeTotal > wardrobeItems.length && (
+                <p className="text-[11px] text-[var(--brand-subtle)]">
+                  衣橱共 {wardrobeTotal} 件，此处仅列出前 {wardrobeItems.length} 件
+                </p>
+              )}
             </div>
           )}
 
