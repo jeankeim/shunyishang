@@ -75,15 +75,27 @@ class DiaryFeedbackService:
         Returns:
             物品属性列表 [{color, primary_element, category, style, material, thickness_level}, ...]
         """
+        # 两个来源各有主键，必须分开 JOIN：衣橱单品在 user_wardrobe（主键 id），
+        # 公共种子单品在 items（主键 item_code，该表没有 id 列）。
+        # 曾经写成 doi.wardrobe_item_id = i.id，PostgreSQL 在解析期就抛 UndefinedColumn —— 与
+        # diary_id 取值、与有没有关联行都无关，本函数在任何参数下都返回不了结果，
+        # 于是评分驱动的偏好回流长期静默失效（调用方 try/except 只留一行 warning）。
+        # category 也要回落到真实列：前端提交只带 wardrobe_item_id，doi.category 对衣橱行恒为 NULL。
         query = """
-            SELECT doi.item_source, doi.wardrobe_item_id, doi.seed_item_code, doi.category,
-                   i.name, i.primary_element, i.attributes_detail,
-                   i.color, i.style, i.material, i.thickness_level
+            SELECT doi.item_source, doi.wardrobe_item_id, doi.seed_item_code,
+                   COALESCE(doi.category, uw.category, i.category)     AS category,
+                   COALESCE(uw.name, i.name)                           AS name,
+                   COALESCE(uw.primary_element, i.primary_element)     AS primary_element,
+                   COALESCE(uw.attributes_detail, i.attributes_detail) AS attributes_detail,
+                   COALESCE(uw.color, i.color)                         AS color,
+                   COALESCE(uw.style, i.style)                         AS style,
+                   COALESCE(uw.material, i.material)                   AS material,
+                   COALESCE(uw.thickness_level, i.thickness_level)     AS thickness_level
             FROM diary_outfit_items doi
-            LEFT JOIN items i ON (
-                (doi.item_source = 'wardrobe' AND doi.wardrobe_item_id = i.id)
-                OR (doi.item_source = 'public' AND doi.seed_item_code = i.item_code)
-            )
+            LEFT JOIN user_wardrobe uw
+                   ON doi.item_source = 'wardrobe' AND uw.id = doi.wardrobe_item_id
+            LEFT JOIN items i
+                   ON doi.item_source = 'public' AND i.item_code = doi.seed_item_code
             WHERE doi.diary_id = %s
         """
         with DatabasePool.get_connection() as conn:
