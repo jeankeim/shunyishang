@@ -170,9 +170,12 @@ else
 fi
 
 # ---- Step 5: 构建后清理 ----
-# 悬空镜像每次构建都会多一份（ECS 上实测积到 52 个 / 14.7GB 可回收，是磁盘最大占用项）。
+# 悬空镜像每次构建都会多一份，留着会让 docker images 越来越难读。
 # Docker 25 的 image prune 不支持 --keep-storage，改用 until 过滤：只清 7 天前的，
 # 近期部署的镜像留着，需要时 docker tag 回去就是最快的回滚路径。
+# 注：这一步不是为了腾磁盘。实测清掉 50 个悬空镜像后 df -h 一格未动（reclaimed 0B）——
+# 它们和存活镜像共用 layer，而 docker system df 的「可回收 14.71GB」是按每个镜像
+# 各自申报的大小累加，不是物理占用（du 默认对硬链接只计一次，18G 是真的）。
 if [ "$NEED_API" = true ] || [ "$NEED_WEB" = true ] || [ "$NEED_COMPOSE" = true ]; then
     echo ""
     echo "[5/5] 清理 7 天前的悬空镜像..."
