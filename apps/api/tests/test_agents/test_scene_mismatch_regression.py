@@ -201,12 +201,17 @@ class TestNumericDateSignalAndTravelAlignment:
         assert [f["date"] for f in got] == [forecast[i]["date"] for i in range(3)]
 
     def test_forecast_beyond_coverage_returns_empty(self):
-        """出行日期超出预报覆盖范围时不给出错误预判"""
+        """出行日期超出预报覆盖范围时不给出错误预判
+
+        日期相对 today 生成（往后 30 天），不写死具体月日：写死后会随系统时钟
+        进入 7 天预报窗口内而失真。
+        """
         from datetime import date, timedelta
 
         from packages.ai_agents.nodes import _align_forecast_to_travel
 
         today = date.today()
         forecast = [{"date": (today + timedelta(days=i)).isoformat()} for i in range(7)]
-        got = _align_forecast_to_travel(forecast, "10.15去北京出差两天", 2)
+        beyond = today + timedelta(days=30)
+        got = _align_forecast_to_travel(forecast, f"{beyond.month}.{beyond.day}去北京出差两天", 2)
         assert got == []

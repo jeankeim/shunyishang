@@ -250,12 +250,27 @@ class TestAnalyzeIntentNode:
         assert "水" in result["target_elements"] or len(result["target_elements"]) >= 0
 
     def test_llm_query_enhancement(self):
-        """当 rule 方法不可用时走 LLM 增强"""
-        state = self._base_state(user_input="xyz random text no keywords")
-        with patch("packages.ai_agents.nodes._enhance_query_with_llm", return_value="enhanced query") as mock_llm:
+        """LLM 意图层不可用且规则提不到五行时，回退到 LLM 查询增强
+
+        注：understand_query 需固定返回 None——否则真实意图层会将无关键词输入
+        判为非穿搭而在门控处提前返回（见 test_non_fashion_intent_short_circuit）。
+        """
+        state = self._base_state(user_input="帮我推荐点衣服")
+        with patch("packages.ai_agents.nodes.understand_query", return_value=None), \
+             patch("packages.ai_agents.nodes._enhance_query_with_llm", return_value="enhanced query") as mock_llm:
             result = analyze_intent_node(state)
             mock_llm.assert_called_once()
             assert result["search_query"] == "enhanced query"
+
+    def test_non_fashion_intent_short_circuit(self):
+        """非穿搭意图在门控处提前返回，不进入搜索查询生成"""
+        state = self._base_state(user_input="xyz random text no keywords")
+        with patch("packages.ai_agents.nodes.understand_query",
+                   return_value=MagicMock(is_fashion=False)), \
+             patch("packages.ai_agents.nodes._enhance_query_with_llm") as mock_llm:
+            result = analyze_intent_node(state)
+            assert result.get("error") == "非穿搭意图"
+            mock_llm.assert_not_called()
 
 
 # ============================================================
