@@ -1,5 +1,5 @@
 """
-顺衣尚后端测试共享 fixtures
+我的个人衣橱后端测试共享 fixtures
 提供 FastAPI TestClient、数据库 mock、认证 token 等
 """
 

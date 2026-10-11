@@ -441,9 +441,9 @@ export function GuofengSatori(data: SatoriPosterData): ReactNode {
       <div style={{ display: 'flex', flexDirection: 'column', padding: '0 120px', marginTop: 24 }}>
         <MeanderBand width={840} />
         <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', marginTop: 20 }}>
-          <Seal char="顺" size={52} fontSize={28} />
+          <Seal char="衣" size={52} fontSize={28} />
           <div style={{ display: 'flex', fontSize: 30, color: INK, marginLeft: 16, fontFamily: FONT }}>
-            顺衣尚 · 五行穿搭
+            我的个人衣橱 · 五行穿搭
           </div>
           <div style={{ display: 'flex', flex: 1 }} />
           <div style={{ display: 'flex', fontSize: 22, color: INK_GRAY, fontFamily: FONT }}>

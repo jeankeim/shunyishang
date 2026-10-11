@@ -29,9 +29,9 @@ export function LiuliVariant() {
       >
         <div className="flex items-center gap-2.5">
           <span className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold text-white" style={{ background: cobalt }}>
-            顺
+            衣
           </span>
-          <span className="text-[15px] font-semibold tracking-wide">顺衣尚</span>
+          <span className="text-[15px] font-semibold tracking-wide">我的个人衣橱</span>
         </div>
         <button className="h-10 rounded-full border bg-white px-5 text-[13px] font-medium transition-transform duration-150 ease-out active:scale-[0.97]" style={{ borderColor: line }}>
           我的衣橱
@@ -157,7 +157,7 @@ export function LiuliVariant() {
       </main>
 
       <footer className="pb-10 text-center text-xs" style={{ color: '#9AA1AB' }}>
-        顺衣尚 · 五行穿搭灵感，仅供娱乐参考
+        我的个人衣橱 · 五行穿搭灵感，仅供娱乐参考
       </footer>
     </div>
   )

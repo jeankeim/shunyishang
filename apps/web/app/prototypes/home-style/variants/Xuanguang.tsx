@@ -33,7 +33,7 @@ export function XuanguangVariant() {
         className="mx-auto flex max-w-6xl items-center justify-between px-6 pt-7 md:px-10"
       >
         <div className="flex items-baseline gap-3">
-          <span className="[font-family:var(--font-noto-serif-sc)] text-lg font-semibold tracking-[0.3em]">顺衣尚</span>
+          <span className="[font-family:var(--font-noto-serif-sc)] text-lg font-semibold tracking-[0.3em]">我的个人衣橱</span>
           <span className="hidden text-[11px] tracking-[0.35em] text-white/35 sm:inline">WUXING · OUTFIT</span>
         </div>
         <div className="flex items-center gap-2 text-xs text-white/45">
@@ -193,7 +193,7 @@ export function XuanguangVariant() {
       </main>
 
       <footer className="pb-10 text-center text-[11px] tracking-[0.25em] text-white/25">
-        顺衣尚 · 五行穿搭灵感，仅供娱乐参考
+        我的个人衣橱 · 五行穿搭灵感，仅供娱乐参考
       </footer>
     </div>
   )

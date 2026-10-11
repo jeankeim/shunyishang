@@ -22,7 +22,7 @@ class PosterGenerateRequest(BaseModel):
     xiyong_elements: List[str] = []
     theme: str = "fire"  # fire/wood/earth/metal/water
     quote: Optional[str] = ""
-    signature: Optional[str] = "顺衣尚"
+    signature: Optional[str] = "我的个人衣橱"
     scene: Optional[str] = ""
     username: Optional[str] = ""
 
@@ -46,7 +46,7 @@ async def generate_poster_image(request: PosterGenerateRequest):
             xiyong_elements=request.xiyong_elements,
             theme=request.theme,
             quote=request.quote or "",
-            signature=request.signature or "顺衣尚",
+            signature=request.signature or "我的个人衣橱",
             scene=request.scene or "",
             username=request.username or "",
         )
@@ -91,7 +91,7 @@ async def generate_poster_base64(request: PosterGenerateRequest):
             xiyong_elements=request.xiyong_elements,
             theme=request.theme,
             quote=request.quote or "",
-            signature=request.signature or "顺衣尚",
+            signature=request.signature or "我的个人衣橱",
             scene=request.scene or "",
             username=request.username or "",
         )
@@ -122,7 +122,7 @@ class WeekPosterRequest(BaseModel):
     days: List[dict]
     theme: str = "wood"
     username: Optional[str] = ""
-    signature: Optional[str] = "顺衣尚"
+    signature: Optional[str] = "我的个人衣橱"
     city: Optional[str] = ""
 
     @field_validator("days")
@@ -163,7 +163,7 @@ async def generate_week_poster_image(request: WeekPosterRequest):
             days=request.days,
             theme=request.theme,
             username=request.username or "",
-            signature=request.signature or "顺衣尚",
+            signature=request.signature or "我的个人衣橱",
             city=request.city or "",
         )
 

@@ -130,7 +130,7 @@ export function FortuneShareCard({ fortune, username }: FortuneShareCardProps) {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">顺</span>
+                  <span className="text-white text-xs font-bold">衣</span>
                 </div>
                 <span className="text-xs text-stone-500 tracking-wide">我的个人衣橱 · 五行穿搭</span>
               </div>

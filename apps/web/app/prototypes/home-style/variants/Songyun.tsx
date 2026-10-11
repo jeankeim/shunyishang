@@ -23,7 +23,7 @@ export function SongyunVariant() {
         className="mx-auto max-w-6xl px-6 md:px-10"
       >
         <div className="flex items-center justify-between border-b py-5 text-xs tracking-[0.25em]" style={{ borderColor: 'rgba(27,30,27,0.18)' }}>
-          <span className="[font-family:var(--font-noto-serif-sc)] text-base font-semibold">顺衣尚</span>
+          <span className="[font-family:var(--font-noto-serif-sc)] text-base font-semibold">我的个人衣橱</span>
           <span style={{ color: dai }}>{TODAY.solarTerm} · 第廿四候</span>
           <span className="opacity-60">{TODAY.date} {TODAY.weekday}</span>
         </div>
@@ -162,7 +162,7 @@ export function SongyunVariant() {
       </main>
 
       <footer className="border-t py-8 text-center text-[11px] tracking-[0.25em] opacity-40" style={{ borderColor: 'rgba(27,30,27,0.18)' }}>
-        顺衣尚 · 五行穿搭灵感，仅供娱乐参考
+        我的个人衣橱 · 五行穿搭灵感，仅供娱乐参考
       </footer>
     </div>
   )

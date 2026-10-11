@@ -168,7 +168,7 @@ describe('PosterTemplate', () => {
 
     it('should render brand footer', () => {
       render(<PosterTemplate layout="guofeng" {...baseProps} />)
-      expect(screen.getByText('顺衣尚 · 五行穿搭')).toBeInTheDocument()
+      expect(screen.getByText('我的个人衣橱 · 五行穿搭')).toBeInTheDocument()
       expect(screen.getByText('弘扬传统文化 · 衣承五行')).toBeInTheDocument()
     })
 

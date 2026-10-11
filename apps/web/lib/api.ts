@@ -2079,7 +2079,7 @@ export async function postWeekPoster(params: {
         days: params.days,
         theme: params.theme || 'wood',
         username: params.username || '',
-        signature: params.signature || '顺衣尚',
+        signature: params.signature || '我的个人衣橱',
         city: params.city || '',
       }),
     })
@@ -2777,7 +2777,7 @@ export async function postPosterBase64(
         xiyong_elements: params.xiyong_elements || [],
         theme: params.theme || 'wood',
         quote: params.quote || '',
-        signature: params.signature || '顺衣尚',
+        signature: params.signature || '我的个人衣橱',
         scene: params.scene || '',
         username: params.username || '',
       }),

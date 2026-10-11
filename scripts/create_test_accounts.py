@@ -21,7 +21,7 @@ TEST_ACCOUNTS = [
 def create_test_accounts():
     """创建测试账号"""
     print("=" * 50)
-    print("顺衣尚 - 测试账号创建工具")
+    print("我的个人衣橱 - 测试账号创建工具")
     print("=" * 50)
     
     created = []

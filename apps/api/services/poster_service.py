@@ -337,7 +337,7 @@ def generate_simple_poster(
     xiyong_elements: List[str],
     theme_name: str = 'fire',
     quote: str = '',
-    signature: str = '顺衣尚',
+    signature: str = '我的个人衣橱',
     scene: str = '',
 ) -> Image.Image:
     """生成简约风格海报"""
@@ -463,7 +463,7 @@ def generate_wuxing_poster(
     xiyong_elements: List[str],
     theme_name: str = 'fire',
     quote: str = '',
-    signature: str = '顺衣尚',
+    signature: str = '我的个人衣橱',
     scene: str = '',
 ) -> Image.Image:
     """生成五行国潮风格海报"""
@@ -612,7 +612,7 @@ def generate_wuxing_poster(
     
     # 品牌名称
     brand_font = get_font(26, 'bold')
-    draw.text((brand_x + 50, row1_y), '顺衣尚', fill='white', font=brand_font, anchor='lm')
+    draw.text((brand_x + 50, row1_y), '我的个人衣橱', fill='white', font=brand_font, anchor='lm')
     
     # 右侧生成时间
     from datetime import datetime
@@ -632,7 +632,7 @@ def generate_wuxing_poster(
     
     # 第四行：签名（右下角）
     sign_font = get_font(24, 'bold')
-    draw.text((POSTER_WIDTH - 100, row3_y + 35), '—— 顺衣尚', fill=(255, 255, 255, 153), font=sign_font, anchor='rm')
+    draw.text((POSTER_WIDTH - 100, row3_y + 35), '—— 我的个人衣橱', fill=(255, 255, 255, 153), font=sign_font, anchor='rm')
     
     return img
 
@@ -643,7 +643,7 @@ def generate_card_poster(
     xiyong_elements: List[str],
     theme_name: str = 'fire',
     quote: str = '',
-    signature: str = '顺衣尚',
+    signature: str = '我的个人衣橱',
     scene: str = '',
     username: str = '',
 ) -> Image.Image:
@@ -814,7 +814,7 @@ def generate_card_poster(
     # 第一行：品牌 + 日期
     row1_y = footer_y + 40
     brand_font = get_font(26, 'bold')
-    draw.text((100, row1_y), '顺衣尚', fill='#6B7280', font=brand_font, anchor='lm')
+    draw.text((100, row1_y), '我的个人衣橱', fill='#6B7280', font=brand_font, anchor='lm')
         
     date_font = get_font(24)
     from datetime import datetime
@@ -833,7 +833,7 @@ def generate_guofeng_poster(
     xiyong_elements: List[str],
     theme_name: str = 'fire',
     quote: str = '',
-    signature: str = '顺衣尚',
+    signature: str = '我的个人衣橱',
     scene: str = '',
     username: str = '',
 ) -> Image.Image:
@@ -1054,10 +1054,10 @@ def generate_guofeng_poster(
     draw_meander(draw, 120, 1712, POSTER_WIDTH - 240, unit=26, color=ANTIQUE_GOLD, line_width=2)
 
     # 品牌印章 + 名称（左），日期（右）
-    draw_seal(img, 100, 1762, 52, '顺', font=get_serif_font(28))
+    draw_seal(img, 100, 1762, 52, '衣', font=get_serif_font(28))
     draw = ImageDraw.Draw(img)
     brand_font = get_serif_font(30)
-    draw.text((168, 1788), '顺衣尚 · 五行穿搭', fill=INK, font=brand_font, anchor='lm')
+    draw.text((168, 1788), '我的个人衣橱 · 五行穿搭', fill=INK, font=brand_font, anchor='lm')
     date_font = get_serif_font(22)
     date_str = datetime.now().strftime('%Y-%m-%d')
     if lunar:
@@ -1136,7 +1136,7 @@ def generate_week_poster(
     days: List[Dict],
     theme_name: str = 'wood',
     username: str = '',
-    signature: str = '顺衣尚',
+    signature: str = '我的个人衣橱',
     city: str = '',
 ) -> Image.Image:
     """
@@ -1271,7 +1271,7 @@ def generate_week_poster_bytes(
     days: List[Dict],
     theme: str = 'wood',
     username: str = '',
-    signature: str = '顺衣尚',
+    signature: str = '我的个人衣橱',
     city: str = '',
 ) -> bytes:
     """一周穿搭海报出口（与 generate_poster 同样的 PNG 编码）"""
@@ -1296,7 +1296,7 @@ def generate_poster(
     xiyong_elements: List[str] = None,
     theme: str = 'fire',
     quote: str = '',
-    signature: str = '顺衣尚',
+    signature: str = '我的个人衣橱',
     scene: str = '',
     username: str = '',
 ) -> bytes:

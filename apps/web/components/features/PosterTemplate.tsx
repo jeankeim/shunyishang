@@ -789,8 +789,8 @@ const GuofengTemplate: React.FC<PosterTemplateProps> = ({
         <div className="pt-2" style={{ borderTop: `1px solid ${GOLD}55` }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="w-6 h-6 rounded-sm flex items-center justify-center text-white text-xs" style={{ background: SEAL }}>顺</span>
-              <span className="text-sm font-bold" style={{ color: INK }}>顺衣尚 · 五行穿搭</span>
+              <span className="w-6 h-6 rounded-sm flex items-center justify-center text-white text-xs" style={{ background: SEAL }}>衣</span>
+              <span className="text-sm font-bold" style={{ color: INK }}>我的个人衣橱 · 五行穿搭</span>
             </div>
             <span className="text-xs" style={{ color: GRAY }}>弘扬传统文化 · 衣承五行</span>
           </div>
