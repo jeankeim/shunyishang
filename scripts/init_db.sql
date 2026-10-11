@@ -62,10 +62,13 @@ CREATE TABLE users (
     nickname VARCHAR(100),                      -- 昵称
     avatar_url VARCHAR(500),                    -- 头像URL
     gender VARCHAR(10),                         -- 性别
-    birth_date DATE,                            -- 出生日期
-    birth_time TIME,                            -- 出生时间
-    birth_location VARCHAR(200),                -- 出生地点
+    -- PII 三列必须为 TEXT：应用层 Fernet 加密后存 `enc:v1:<token>`（长度可达百字节），
+    -- DATE/TIME/VARCHAR(200) 均会在写入时报类型/超长错误（迁移 17 同步）
+    birth_date TEXT,                            -- 出生日期（敏感信息，应用层加密存储）
+    birth_time TEXT,                            -- 出生时间（敏感信息，应用层加密存储）
+    birth_location TEXT,                        -- 出生地点（敏感信息，应用层加密存储）
     preferred_city VARCHAR(100),                -- 常驻城市
+    privacy_agreed_at TIMESTAMPTZ,              -- 隐私政策/敏感信息处理同意时间（PIPL 留痕）
     bazi JSONB,                                 -- 八字信息缓存
     xiyong_elements JSONB,                      -- 喜用神缓存
     preferred_elements JSONB,                   -- 偏好五行
