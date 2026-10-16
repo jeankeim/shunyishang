@@ -16,12 +16,45 @@ set -euo pipefail
 
 cd /opt/shunyishang
 
+# ---- 中断可见性：任何一步失败 / 被信号打断，都要说清断在哪一步 ----
+# 事故背景：2026-10-11 一次经 ssh 触发的部署，会话被 SIGHUP 带走后脚本只跑完 api+worker，
+# web 重建那一步从未开始（线上镜像时间停在 9/13）。但 Step 4 只校验 api 与 nginx 两个 200，
+# 于是「半程部署」在脚本自己的输出里与成功完全同形，只能靠人工比对镜像时间才发现。
+LAST_STEP="Step 0 初始化"
+ABORT_REPORTED=false
+
+report_abort() {
+    local code="${1:-1}"
+    if [ "${ABORT_REPORTED:-false}" = true ]; then
+        return 0
+    fi
+    ABORT_REPORTED=true
+    echo ""
+    echo "[ABORT] 中断于: ${LAST_STEP}（退出码 ${code}）"
+    echo "        本次部署可能只完成了一部分：用 docker images 核对各镜像 CreatedAt 是否晚于部署开始时间"
+    return 0
+}
+
+# ERR 只在命令失败时触发，EXIT 只在脚本正常离开时触发 —— 实测（bash 5 + set -e）：
+# kill -HUP / -TERM 直接以 129 / 143 退出，ERR 与 EXIT 两个都静默不跑。而 2026-10-11
+# 那次事故的真实形态正是 ssh 掉线 → 内核向进程组发 SIGHUP，所以三个信号必须单独挂。
+# 注：会话真断了时 stdout 已关，这行提示会随管道一起没 —— 故长构建必须重定向到日志文件。
+trap 'report_abort $?' ERR
+trap 'code=$?; if [ "$code" -ne 0 ]; then report_abort "$code"; fi; exit "$code"' EXIT
+trap 'report_abort 129; exit 129' HUP
+trap 'report_abort 130; exit 130' INT
+trap 'report_abort 143; exit 143' TERM
+
+# 部署开始时间：Step 4 用它判定 web 镜像确实是本次重建出来的
+DEPLOY_START_EPOCH=$(date +%s)
+
 echo "========================================="
 echo "  顺衣尚 · ECS 一键部署"
 echo "========================================="
 echo ""
 
 # ---- Step 1: 拉取代码 ----
+LAST_STEP="Step 1/4 git fetch + reset --hard（拉代码）"
 echo "[1/4] 拉取最新代码..."
 git fetch origin main
 OLD_HEAD=$(git rev-parse HEAD)
@@ -40,6 +73,7 @@ fi
 echo ""
 
 # ---- Step 2: 检测变更模块 ----
+LAST_STEP="Step 2/4 变更模块检测"
 echo "[2/4] 检测变更模块..."
 
 NEED_API=false
@@ -78,6 +112,7 @@ fi
 echo ""
 
 # ---- Step 2.5: 磁盘/内存预检（防止构建打满磁盘或 OOM） ----
+LAST_STEP="Step 2.5/4 磁盘/内存预检"
 DISK_PCT=$(df --output=pcent / 2>/dev/null | tail -1 | tr -d ' %' || df -k / | tail -1 | awk '{gsub("%","",$5); print $5}')
 if [ "$DISK_PCT" -ge 80 ] 2>/dev/null; then
     echo "[2.5/4] ⚠️  磁盘占用已达 ${DISK_PCT}%，构建前先清理..."
@@ -95,6 +130,7 @@ if { [ "$NEED_WEB" = true ] || [ "$NEED_API" = true ]; } && command -v free >/de
 fi
 
 # ---- Step 3: 执行重建 ----
+LAST_STEP="Step 3/4 服务重建"
 echo "[3/4] 执行重建..."
 
 # Web 单独处理，不要写成 `up -d --build web`：compose 的 --build 会连带构建 depends_on
@@ -103,19 +139,23 @@ echo "[3/4] 执行重建..."
 # 拆成 build（只构建 web 自身）+ up --no-deps（只收敛 web 容器）即可避开。
 # 代价：api 若已挂掉，本命令不会把它带起来 —— 那属于 Step 4 健康检查该报警的情况。
 rebuild_web() {
+    LAST_STEP="Step 3/4 rebuild_web（compose build web + up --no-deps web）"
     echo "  🔄 重建 Web（不连带重启 api）..."
     WEB_API_URL=http://api:8000 docker compose -f docker-compose.prod.yml build web
     WEB_API_URL=http://api:8000 docker compose -f docker-compose.prod.yml up -d --no-deps web
 }
 
 if [ "$NEED_COMPOSE" = true ]; then
+    LAST_STEP="Step 3/4 全量 up -d --build（compose/env 变更）"
     echo "  🔄 重启全部服务..."
     docker compose -f docker-compose.prod.yml up -d --build
 elif [ "$NEED_API" = true ] && [ "$NEED_WEB" = true ]; then
+    LAST_STEP="Step 3/4 重建 API + Worker（随后 rebuild_web）"
     echo "  🔄 重建 API + Worker..."
     docker compose -f docker-compose.prod.yml up -d --build api worker
     rebuild_web
 elif [ "$NEED_API" = true ]; then
+    LAST_STEP="Step 3/4 重建 API + Worker"
     echo "  🔄 重建 API + Worker..."
     docker compose -f docker-compose.prod.yml up -d --build api worker
 elif [ "$NEED_WEB" = true ]; then
@@ -129,6 +169,7 @@ fi
 echo ""
 
 # ---- Step 4: 验证 ----
+LAST_STEP="Step 4/4 验证服务状态"
 echo "[4/4] 验证服务状态..."
 sleep 2
 
@@ -157,6 +198,50 @@ echo ""
 echo "  api 容器启动于: $(docker inspect shunyishang-api --format '{{.State.StartedAt}}' 2>/dev/null || echo '未知')"
 echo ""
 
+# ---- 前端镜像新鲜度校验：本次该重建 web 却没重建，就是「静默半程部署」 ----
+# 判定不看 curl 返回码（旧镜像照样 200），只看镜像 Created 是否晚于本次部署开始。
+# 覆盖两条会重建 web 的路径：NEED_WEB（差异化）与 NEED_COMPOSE（改了 compose/.env 走全量 up --build）。
+WEB_STALE=false
+WEB_STALE_REASON=""
+if [ "$NEED_WEB" = true ] || [ "$NEED_COMPOSE" = true ]; then
+    LAST_STEP="Step 4/4 前端镜像新鲜度校验"
+    WEB_IMG_ID=$(docker inspect shunyishang-web --format '{{.Image}}' 2>/dev/null || echo "")
+    WEB_IMG_CREATED_RAW=$(docker image inspect "${WEB_IMG_ID}" --format '{{.Created}}' 2>/dev/null || echo "")
+    # docker 返回 2026-10-12T07:43:10.626932143+08:00（带纳秒），稳妥起见先砍小数段；
+    # 容器 .Created 是 Z 结尾的 UTC 串，date -d 同样可解，所以这里取镜像而非容器时间
+    WEB_IMG_CREATED_CLEAN=$(printf '%s' "${WEB_IMG_CREATED_RAW}" | sed -E 's/\.[0-9]+//')
+    WEB_IMG_EPOCH=""
+    if [ -n "${WEB_IMG_CREATED_CLEAN}" ]; then
+        WEB_IMG_EPOCH=$(date -d "${WEB_IMG_CREATED_CLEAN}" +%s 2>/dev/null || echo "")
+    fi
+
+    if ! [[ "${WEB_IMG_EPOCH}" =~ ^[0-9]+$ ]]; then
+        WEB_STALE=true
+        WEB_STALE_REASON="取不到 web 镜像创建时间（容器/镜像不存在，或 date 解析失败）"
+    elif [ "${WEB_IMG_EPOCH}" -lt "${DEPLOY_START_EPOCH}" ]; then
+        WEB_STALE=true
+        WEB_STALE_REASON="web 镜像构建于 ${WEB_IMG_CREATED_CLEAN}，早于本次部署开始 $(date -d "@${DEPLOY_START_EPOCH}" '+%F %T')，前端没有被重建"
+    else
+        echo "  ✅ 前端镜像确为本次重建: $(date -d "@${WEB_IMG_EPOCH}" '+%F %T')（部署开始 $(date -d "@${DEPLOY_START_EPOCH}" '+%F %T')）"
+    fi
+fi
+
+if [ "$WEB_STALE" = true ]; then
+    echo ""
+    echo "========================================="
+    echo "  ❌ 部署失败：前端未重建"
+    echo "     ${WEB_STALE_REASON}"
+    echo "========================================="
+    echo '      常见原因：Step 3 的 rebuild_web 没跑成（ssh 会话掉线被 SIGHUP 带走最常见）。'
+    echo '      补救 —— 构建放后台并落盘，别让日志随会话一起没了（逐行粘贴执行）：'
+    echo '        cd /opt/shunyishang'
+    echo '        nohup bash -c "WEB_API_URL=http://api:8000 docker compose -f docker-compose.prod.yml build web && WEB_API_URL=http://api:8000 docker compose -f docker-compose.prod.yml up -d --no-deps web" > /tmp/web-build.log 2>&1 &'
+    echo '        tail -f /tmp/web-build.log'
+    # 直接退出、不跑 Step 5：web 压根没构建，没有新增缓存可清；
+    # 而把「失败」尽早以非零码抛出去，比顺手清一次磁盘更要紧。
+    exit 1
+fi
+
 if [ "$API_OK" = "200" ] && [ "$NGX_OK" = "200" ]; then
     echo "========================================="
     echo "  ✅ 部署完成，所有服务正常"
@@ -170,6 +255,7 @@ else
 fi
 
 # ---- Step 5: 构建后清理 ----
+LAST_STEP="Step 5/5 构建后清理（悬空镜像 + 缓存上限）"
 # 5a) 悬空镜像：每次构建都会多一份，留着会让 docker images 越来越难读。
 #     Docker 25 的 image prune 不支持 --keep-storage，改用 until 过滤：只清 7 天前的，
 #     近期部署的镜像留着，需要时 docker tag 回去就是最快的回滚路径。
