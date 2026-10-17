@@ -12,6 +12,26 @@ import {
 } from '@/lib/poster-satori'
 
 describe('lib/poster-satori', () => {
+  // 深度收集元素树里的所有文本节点（satori 树是纯 props.children 嵌套）
+  function collectSatoriText(node: unknown): string[] {
+    const out: string[] = []
+    const walk = (n: unknown) => {
+      if (n === null || n === undefined || n === false) return
+      if (typeof n === 'string' || typeof n === 'number') {
+        const s = String(n).trim()
+        if (s) out.push(s)
+        return
+      }
+      if (Array.isArray(n)) {
+        n.forEach(walk)
+        return
+      }
+      const el = n as { props?: { children?: unknown } }
+      if (el.props?.children !== undefined) walk(el.props.children)
+    }
+    walk(node)
+    return out
+  }
   describe('pickSatoriMainIndex', () => {
     it('按品类优先级选择主件：外套 > 上装', () => {
       const items = [
@@ -98,6 +118,54 @@ describe('lib/poster-satori', () => {
         date: '2026-08-05',
       })
       expect(node).toBeTruthy()
+    })
+
+    // 缺陷回归：guofeng 线上主出图走 satori，而 satori 此前整个文件没有 signature，
+    // 前端选了签名也只出固定文案。下面两条把「签名必须上到出图」钉成契约。
+    it('传入 signature 时渲染到出图上', () => {
+      const node = GuofengSatori({
+        title: '今日五行穿搭推荐',
+        items: [{ name: '风衣', category: '外套', primary_element: '水' }],
+        xiyong_elements: ['水'],
+        theme: 'water',
+        date: '2026-08-05',
+        signature: '张三的衣橱',
+      })
+      expect(collectSatoriText(node)).toContain('—— 张三的衣橱')
+    })
+
+    it('未传 signature 时不画出光秃秃的破折号', () => {
+      const node = GuofengSatori({
+        title: '今日五行穿搭推荐',
+        items: [{ name: '风衣', category: '外套', primary_element: '水' }],
+        xiyong_elements: ['水'],
+        theme: 'water',
+        date: '2026-08-05',
+      })
+      const texts = collectSatoriText(node)
+      expect(texts.some((t) => t.startsWith('——'))).toBe(false)
+      // 品牌位始终为备案名，不受签名影响
+      expect(texts.some((t) => t.includes('我的个人衣橱 · 五行穿搭'))).toBe(true)
+    })
+
+    it('超长签名按像素预算截断，不压到同行标语', () => {
+      const node = GuofengSatori({
+        title: '今日五行穿搭推荐',
+        items: [{ name: '风衣', category: '外套', primary_element: '水' }],
+        xiyong_elements: ['水'],
+        theme: 'water',
+        date: '2026-08-05',
+        signature: '这是一个非常非常非常长的个性签名用来验证截断',
+      })
+      const texts = collectSatoriText(node)
+      const sig = texts.find((t) => t.startsWith('——'))
+      expect(sig).toBeDefined()
+      expect(sig!.endsWith('…')).toBe(true)
+      let width = 0
+      for (let i = 0; i < sig!.length; i++) {
+        width += sig!.charCodeAt(i) > 0xff ? 22 : 22 * 0.55
+      }
+      expect(width).toBeLessThanOrEqual(240 + 22)
     })
   })
 })

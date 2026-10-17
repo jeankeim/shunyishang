@@ -22,6 +22,7 @@ from apps.api.services.poster_service import (
 )
 from apps.api.services.poster_service import (
     generate_guofeng_poster,
+    draw_signature,
     get_serif_font,
     hex_to_rgb,
     wrap_text,
@@ -730,3 +731,74 @@ class TestWeekPoster:
         assert _truncate('棉麻宽松长袖衬衫', 6) == '棉麻宽松长袖…'
         assert _truncate('短袖', 6) == '短袖'
         assert _truncate('', 6) == ''
+
+
+# ============================================================
+# 用户签名契约测试
+# 缺陷回归：signature 参数曾被 wuxing/card/guofeng 三模板的硬编码文案覆盖，
+# 前端选了签名也不生效；card 模板甚至根本没有签名位。
+# ============================================================
+
+SIGNATURE_ITEMS = [{"name": "棉麻衬衫", "primary_element": "金", "category": "上装", "image_url": ""}]
+
+
+class TestSignatureContract:
+    """四个 Pillow 模板都必须把 signature 参数真正画进图里"""
+
+    @pytest.mark.parametrize("layout", ['simple', 'wuxing', 'card', 'guofeng'])
+    def test_template_honours_signature_param(self, layout):
+        """出图时必须用传入的签名，而不是硬编码品牌名"""
+        builders = {
+            'simple': generate_simple_poster,
+            'wuxing': generate_wuxing_poster,
+            'card': generate_card_poster,
+            'guofeng': generate_guofeng_poster,
+        }
+        sig = '张三的衣橱'
+        with patch("apps.api.services.poster_service.download_image", return_value=None), \
+                patch("apps.api.services.poster_service.draw_signature") as mock_sign:
+            img = builders[layout](
+                title="测试",
+                items=SIGNATURE_ITEMS,
+                xiyong_elements=["金"],
+                signature=sig,
+            )
+        assert img.size == (POSTER_WIDTH, POSTER_HEIGHT)
+        assert mock_sign.called, f"{layout} 模板未绘制签名"
+        passed = [c.args[2] for c in mock_sign.call_args_list if len(c.args) >= 3]
+        assert sig in passed, f"{layout} 模板画出的签名不是传入值：{passed}"
+
+    def test_draw_signature_prefix(self):
+        """正常签名带「—— 」前缀，与前端预览一致"""
+        draw = MagicMock()
+        font = get_font(24)
+        draw_signature(draw, (1000, 1800), '张三', font, '#6B7280', anchor='rm', max_width=900)
+        assert draw.text.call_args.kwargs['anchor'] == 'rm'
+        assert draw.text.call_args.args[1] == '—— 张三'
+
+    def test_draw_signature_skips_empty(self):
+        """空签名直接跳过：不能画出光秃秃的「—— 」（前端是 {signature && ...}）"""
+        draw = MagicMock()
+        font = get_font(24)
+        for blank in ('', '   ', None):
+            draw.text.reset_mock()
+            draw_signature(draw, (1000, 1800), blank, font, '#6B7280')
+            draw.text.assert_not_called()
+
+    def test_draw_signature_truncates_by_pixel_width(self):
+        """超长签名按像素截断，不压到同行其它文案上"""
+        draw = MagicMock()
+        font = get_font(24)
+        max_width = 260.0
+        long_sig = '这是一个非常非常非常长的个性签名用来验证像素级截断行为是否真的生效' + '尾缀'
+        draw_signature(draw, (980, 1848), long_sig, font, '#6B7280', anchor='rm', max_width=max_width)
+        drawn = draw.text.call_args.args[1]
+        assert drawn.endswith('…')
+        assert font.getlength(drawn) <= max_width + 1
+
+    def test_draw_signature_keeps_short_text_intact(self):
+        """宽度足够时不截断，不出现省略号"""
+        draw = MagicMock()
+        font = get_font(24)
+        draw_signature(draw, (980, 1848), '短发', font, '#6B7280', anchor='rm', max_width=900)
+        assert draw.text.call_args.args[1] == '—— 短发'

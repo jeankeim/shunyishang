@@ -448,7 +448,8 @@ def generate_simple_poster(
     
     # 签名
     sign_font = get_font(32)
-    draw.text((POSTER_WIDTH - 100, POSTER_HEIGHT - 80), f'—— {signature}', fill='#6B7280', font=sign_font, anchor='rm')
+    draw_signature(draw, (POSTER_WIDTH - 100, POSTER_HEIGHT - 80), signature, sign_font,
+                   '#6B7280', anchor='rm', max_width=900)
     
     # 底部引导文字（独立一行，小号字体）
     guide_font = get_font(20)
@@ -630,9 +631,14 @@ def generate_wuxing_poster(
     guide_font = get_font(20)
     draw.text((POSTER_WIDTH // 2, row3_y), '浏览 shunyishang.cn 体验更多功能', fill=(255, 255, 255, 80), font=guide_font, anchor='mm')
     
-    # 第四行：签名（右下角）
+    # 签名（右下角，取 signature 参数，与前端 WuxingTemplate 一致）
+    # 原本画在 row3_y + 35 ≈ y1912，而画布高 1920 —— 签名下半截永远被裁在画布外（旧硬编码文案同样如此）。
+    # 改画在引导行右侧空档：引导文字居中（约 350~730px），签名右对齐可用到 980px。
     sign_font = get_font(24, 'bold')
-    draw.text((POSTER_WIDTH - 100, row3_y + 35), '—— 我的个人衣橱', fill=(255, 255, 255, 153), font=sign_font, anchor='rm')
+    guide_w = guide_font.getlength('浏览 shunyishang.cn 体验更多功能')
+    draw_signature(draw, (POSTER_WIDTH - 100, row3_y), signature, sign_font,
+                   (255, 255, 255, 153), anchor='rm',
+                   max_width=POSTER_WIDTH - 100 - (POSTER_WIDTH / 2 + guide_w / 2) - 30)
     
     return img
 
@@ -810,6 +816,13 @@ def generate_card_poster(
     # 底部品牌标识（分行布局）
     footer_y = POSTER_HEIGHT - 120
     draw.line([(80, footer_y), (POSTER_WIDTH - 80, footer_y)], fill=(0, 0, 0, 20), width=2)
+
+    # 签名（居中，坐在内容与底部品牌栏之间）
+    # card 模板此前根本没有签名位：前端 CardTemplate 会渲染「—— {signature}」，
+    # 而后端 Pillow 出图直接丢掉——预览有签名、下载图没签名。
+    sign_font = get_font(24)
+    draw_signature(draw, (POSTER_WIDTH // 2, footer_y - 42), signature, sign_font,
+                   '#9CA3AF', anchor='mm', max_width=760)
     
     # 第一行：品牌 + 日期
     row1_y = footer_y + 40
@@ -1066,6 +1079,11 @@ def generate_guofeng_poster(
 
     slogan_font = get_serif_font(24)
     draw.text((POSTER_WIDTH // 2, 1848), '弘扬传统文化 · 衣承五行', fill=INK_GRAY, font=slogan_font, anchor='mm')
+    # 签名：居中 slogan 右侧的空档（slogan 约 374~706px，可用到 980px）
+    # 与 satori 版 GuofengSatori 同一位置，两条出图路径保持对齐
+    guofeng_sign_font = get_serif_font(22)
+    draw_signature(draw, (POSTER_WIDTH - 100, 1848), signature, guofeng_sign_font,
+                   INK_GRAY, anchor='rm', max_width=260)
     guide_font = get_serif_font(22)
     draw.text((POSTER_WIDTH // 2, 1888), '浏览 shunyishang.cn 领取专属五行穿搭',
               fill=INK_GRAY, font=guide_font, anchor='mm')
@@ -1095,6 +1113,30 @@ def _truncate(text: str, limit: int) -> str:
     """按字符数截断（中文等宽场景够用），超出补省略号"""
     text = (text or '').strip()
     return text if len(text) <= limit else text[:limit] + '…'
+
+
+def draw_signature(draw: ImageDraw.ImageDraw, xy, signature: str, font, fill,
+                   anchor: str = 'rm', max_width: float = 900.0) -> None:
+    """绘制用户签名（带「—— 」前缀，按像素宽度截断）
+
+    签名内容可被用户自由输入（PosterEditor 的输入框），长度无上界；
+    不截断会压到同行/居中的其它文案上。中文与 ASCII 混排时按字符数截不准，
+    所以用 font.getlength 按实际像素宽度截。
+    空签名直接跳过，与前端 {signature && (...)} 的渲染条件保持一致。
+    """
+    text = (signature or '').strip()
+    if not text:
+        return
+    full = f'—— {text}'
+    if font.getlength(full) > max_width:
+        budget = max_width - font.getlength('—— …')
+        kept = ''
+        for ch in text:
+            if font.getlength(kept + ch) > budget:
+                break
+            kept += ch
+        full = f'—— {kept}…'
+    draw.text(xy, full, fill=fill, font=font, anchor=anchor)
 
 
 def _paste_round_thumb(

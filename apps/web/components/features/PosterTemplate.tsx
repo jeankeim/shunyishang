@@ -651,6 +651,7 @@ const GuofengTemplate: React.FC<PosterTemplateProps> = ({
   quote,
   theme,
   username,
+  signature,
 }) => {
   const PAPER = '#F6F3E9', INK = '#2B2B2B', GRAY = '#7A7468', GOLD = '#B08D57', SEAL = '#A63D2F';
   const visible = items.slice(0, 6);
@@ -792,7 +793,13 @@ const GuofengTemplate: React.FC<PosterTemplateProps> = ({
               <span className="w-6 h-6 rounded-sm flex items-center justify-center text-white text-xs" style={{ background: SEAL }}>衣</span>
               <span className="text-sm font-bold" style={{ color: INK }}>我的个人衣橱 · 五行穿搭</span>
             </div>
-            <span className="text-xs" style={{ color: GRAY }}>弘扬传统文化 · 衣承五行</span>
+            <div className="text-right">
+              <div className="text-xs" style={{ color: GRAY }}>弘扬传统文化 · 衣承五行</div>
+              {/* 签名位：与 Pillow / satori 两条出图路径保持一致，否则预览有、出图无 */}
+              {signature && (
+                <div className="mt-0.5 text-[10px] italic" style={{ color: GRAY }}>—— {signature}</div>
+              )}
+            </div>
           </div>
           <p className="mt-1 text-center text-[10px]" style={{ color: GRAY }}>浏览 shunyishang.cn 领取专属五行穿搭</p>
         </div>

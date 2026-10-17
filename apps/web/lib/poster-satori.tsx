@@ -25,6 +25,7 @@ export interface SatoriPosterData {
   theme: string
   quote?: string
   username?: string
+  signature?: string         // 用户自定义署名，与 Pillow 版 signature 参数对齐
   lunar?: string             // 如「丙午年六月廿三」
   date: string               // 公历 YYYY-MM-DD
   paper_texture_data?: string // 宣纸纹理 data URI
@@ -450,9 +451,18 @@ export function GuofengSatori(data: SatoriPosterData): ReactNode {
             {data.date}{data.lunar ? ` · ${data.lunar}` : ''}
           </div>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 18 }}>
+        {/* 标语居中 + 右侧签名位（两侧等宽 flex:1 撑住，标语仍居中）*/}
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', marginTop: 18 }}>
+          <div style={{ display: 'flex', flex: 1 }} />
           <div style={{ fontSize: 24, color: INK_GRAY, fontFamily: FONT, letterSpacing: 2 }}>
             弘扬传统文化 · 衣承五行
+          </div>
+          <div style={{ display: 'flex', flex: 1, justifyContent: 'flex-end' }}>
+            {data.signature ? (
+              <div style={{ fontSize: 22, color: INK_GRAY, fontFamily: FONT }}>
+                {truncateText(`—— ${data.signature}`, 22, 240)}
+              </div>
+            ) : null}
           </div>
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: 10, marginBottom: 26 }}>

@@ -1,7 +1,16 @@
 -- =====================================================
 -- WuXing AI Stylist - Database Initialization Script
--- Version: 2.0
+-- Version: 2.1
 -- Description: 完整的五行智能衣橱数据库表结构（包含Week 4所有扩展）
+-- 与迁移链对齐说明：
+--   * 本文件负责 5 张基础表，需与 scripts/migrations/ 的 ALTER 结果等价
+--     （10/23 的 color・style・material、add_thumbnail_url 的 thumbnail_url、
+--      12_user_aesthetic_profile 的审美画像 5 列、17 的 PII 三列与 privacy_agreed_at）
+--   * 其余业务表（日记/运势/会员/推送/社区/游戏化/任务/后台看板/LLM 用量等）
+--     由 migrations 03~29 创建，本文件不重复定义；docker-compose 只挂载 00~12，
+--     剩下的靠后端启动时的自动迁移器执行（apps/api/core/migrations.py，
+--     用 schema_migrations 表记账），因此首次启动完成后表结构才齐备
+--   * 新增列一律附 COMMENT，位置与语义以线上库 information_schema 为准
 -- =====================================================
 
 -- 启用 pgvector 扩展
@@ -45,6 +54,12 @@ CREATE TABLE items (
     functionality JSONB DEFAULT '{}',           -- 功能特性：{"保暖": false, "透气": true}
     thickness_level VARCHAR(20),                -- 厚度等级：轻薄/适中/加厚/厚重
     image_url VARCHAR(500),                     -- 图片URL
+    thumbnail_url VARCHAR(500),                 -- 缩略图URL（渐进式加载，宽度 400px）
+
+    -- 偏好维度（从 attributes_detail 提取，迁移 10/23；缺列会导致偏好查询报错）
+    color VARCHAR(50),                          -- 颜色 = attributes_detail->'颜色'->>'名称'
+    style VARCHAR(50),                          -- 风格 = attributes_detail->'款式'->>'形状'
+    material VARCHAR(50),                       -- 材质 = attributes_detail->'面料'->>'名称'
     
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -72,6 +87,13 @@ CREATE TABLE users (
     bazi JSONB,                                 -- 八字信息缓存
     xiyong_elements JSONB,                      -- 喜用神缓存
     preferred_elements JSONB,                   -- 偏好五行
+
+    -- 审美画像（迁移 12_user_aesthetic_profile）
+    skin_tone VARCHAR(20),                      -- 肤色：冷白皮/暖白皮/自然色/小麦色/黑皮
+    style_preference VARCHAR(50),               -- 风格偏好：简约/韩系/日系/国潮/复古/商务/街头/文艺
+    body_type VARCHAR(20),                      -- 体型：偏瘦/标准/偏胖
+    aesthetic_tags JSONB DEFAULT '[]',          -- 扩展审美标签数组（渐进式收集）
+    aesthetic_updated_at TIMESTAMPTZ,           -- 审美信息最后更新时间
     is_active BOOLEAN DEFAULT TRUE,             -- 账户状态
     last_login_at TIMESTAMP,                    -- 最后登录时间
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -108,6 +130,11 @@ CREATE TABLE user_wardrobe (
     temperature_range JSONB DEFAULT '{}',       -- 温度范围：{"min": 15, "max": 25}
     functionality JSONB DEFAULT '[]',           -- 功能场景：["面试", "约会", "商务"]
     thickness_level VARCHAR(20),                -- 厚度：轻薄/适中/加厚/厚重
+
+    -- 偏好维度（从 attributes_detail 提取，迁移 10/23）
+    color VARCHAR(50),                          -- 颜色 = attributes_detail->'颜色'->>'名称'
+    style VARCHAR(50),                          -- 风格 = attributes_detail->'款式'->>'形状'
+    material VARCHAR(50),                       -- 材质 = attributes_detail->'面料'->>'名称'
     
     -- 状态标记
     is_custom BOOLEAN DEFAULT FALSE,            -- TRUE=自定义，FALSE=引用公共库
@@ -156,6 +183,7 @@ CREATE UNIQUE INDEX idx_items_item_code ON items(item_code);
 CREATE INDEX idx_items_category ON items(category);
 CREATE INDEX idx_items_primary_element ON items(primary_element);
 CREATE INDEX idx_items_gender ON items(gender);
+CREATE INDEX idx_items_thumbnail_url ON items(thumbnail_url);
 CREATE INDEX idx_items_embedding ON items 
     USING hnsw (embedding vector_cosine_ops)
     WITH (m = 16, ef_construction = 64);
@@ -164,6 +192,8 @@ CREATE INDEX idx_items_embedding ON items
 CREATE INDEX idx_users_user_code ON users(user_code);
 CREATE INDEX idx_users_phone ON users(phone);
 CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_skin_tone ON users(skin_tone);
+CREATE INDEX idx_users_style_pref ON users(style_preference);
 
 -- user_wardrobe 表索引
 CREATE INDEX idx_wardrobe_user_element ON user_wardrobe(user_id, primary_element);
@@ -193,6 +223,10 @@ COMMENT ON COLUMN items.temperature_range IS '温度范围: {"最低": 10, "最�
 COMMENT ON COLUMN items.functionality IS '功能特性: {"保暖": false, "透气": true, "速干": false, "防晒": false, "防水": false}';
 COMMENT ON COLUMN items.thickness_level IS '厚度等级: 轻薄/适中/加厚/厚重';
 COMMENT ON COLUMN items.image_url IS '图片URL: /images/seed/ITEM_001.png';
+COMMENT ON COLUMN items.thumbnail_url IS '图片缩略图 URL（用于渐进式加载，宽度 400px）';
+COMMENT ON COLUMN items.color IS '颜色（从 attributes_detail 提取的偏好维度列）';
+COMMENT ON COLUMN items.style IS '风格（从 attributes_detail 提取的偏好维度列）';
+COMMENT ON COLUMN items.material IS '材质（从 attributes_detail 提取的偏好维度列）';
 COMMENT ON COLUMN items.energy_intensity IS '能量强度(0.0-1.0)，用于八字喜用神匹配';
 COMMENT ON COLUMN items.embedding IS '向量嵌入，用于语义搜索 (BGE-M3, 1024维度)';
 COMMENT ON COLUMN items.attributes_detail IS 'AI分析结果: {"颜色": {...}, "面料": {...}, "款式": {...}}';
@@ -208,6 +242,17 @@ COMMENT ON COLUMN user_wardrobe.temperature_range IS '温度范围: {"min": 15, 
 COMMENT ON COLUMN user_wardrobe.functionality IS '功能场景: ["面试", "约会", "商务", "日常", "运动", "派对", "居家", "旅行"]';
 COMMENT ON COLUMN user_wardrobe.thickness_level IS '厚度等级: 轻薄/适中/加厚/厚重';
 COMMENT ON COLUMN user_wardrobe.energy_intensity IS '能量强度(0.0-1.0)，用于八字喜用神匹配';
+COMMENT ON COLUMN user_wardrobe.color IS '颜色（从 attributes_detail 提取的偏好维度列）';
+COMMENT ON COLUMN user_wardrobe.style IS '风格（从 attributes_detail 提取的偏好维度列）';
+COMMENT ON COLUMN user_wardrobe.material IS '材质（从 attributes_detail 提取的偏好维度列）';
+
+-- users 表注释（审美画像 + PII 同意留痕）
+COMMENT ON COLUMN users.skin_tone IS '肤色: 冷白皮/暖白皮/自然色/小麦色/黑皮';
+COMMENT ON COLUMN users.style_preference IS '风格偏好: 简约/韩系/日系/国潮/复古/商务/街头/文艺';
+COMMENT ON COLUMN users.body_type IS '体型: 偏瘦/标准/偏胖';
+COMMENT ON COLUMN users.aesthetic_tags IS '扩展审美标签 JSONB 数组';
+COMMENT ON COLUMN users.aesthetic_updated_at IS '审美信息最后更新时间';
+COMMENT ON COLUMN users.privacy_agreed_at IS '隐私政策/敏感信息处理同意时间（PIPL 留痕）';
 
 COMMENT ON TABLE feedback_logs IS '推荐反馈记录表';
 COMMENT ON COLUMN feedback_logs.item_source IS 'wardrobe=私有衣橱物品，public=公共库物品';

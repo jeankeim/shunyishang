@@ -138,6 +138,7 @@ export async function POST(request: NextRequest) {
         theme: body.theme || 'fire',
         quote: body.quote || '',
         username: body.username || '',
+        signature: body.signature || '',
         lunar,
         date,
         paper_texture_data: await loadPaperTexture(),

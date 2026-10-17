@@ -172,6 +172,20 @@ describe('PosterTemplate', () => {
       expect(screen.getByText('弘扬传统文化 · 衣承五行')).toBeInTheDocument()
     })
 
+    // 缺陷回归：GuofengTemplate 此前连 signature 都没解构，
+    // 预览无签名而后端/satori 出图有签名（或反过来），两者对不上。
+    it('should render user signature in preview', () => {
+      render(<PosterTemplate layout="guofeng" {...baseProps} signature="张三的衣橱" />)
+      expect(screen.getByText('—— 张三的衣橱')).toBeInTheDocument()
+    })
+
+    it('should omit signature node when signature empty', () => {
+      render(<PosterTemplate layout="guofeng" {...baseProps} signature="" />)
+      expect(screen.queryByText(/^——/)).not.toBeInTheDocument()
+      // 签名消失不影响品牌位
+      expect(screen.getByText('我的个人衣橱 · 五行穿搭')).toBeInTheDocument()
+    })
+
     it('should hide quote when many items', () => {
       const manyItems = Array.from({ length: 5 }, (_, i) => ({
         name: `物品${i}`,
