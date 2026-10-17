@@ -4,7 +4,7 @@
  * 虚拟试衣页面
  * 整合 VirtualTryOnCanvas + TryOnToolbar + LayerPanel
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import {
@@ -14,6 +14,9 @@ import {
   ExportModal,
   useTryOnCanvas,
 } from '@/components/features/VirtualTryOn';
+
+/** 对齐辅助线偏好的 localStorage 键 */
+const GUIDES_STORAGE_KEY = 'tryon-show-guides';
 
 export default function TryOnPage() {
   const {
@@ -40,6 +43,31 @@ export default function TryOnPage() {
 
   const [showExportModal, setShowExportModal] = useState(false);
   const [canvasDataUrl, setCanvasDataUrl] = useState<string | null>(null);
+  // 对齐辅助线开关：默认开，持久化到 localStorage（用户关掉后不该每次进来都重新打开）
+  const [showGuides, setShowGuides] = useState(true);
+
+  // 只在客户端读取偏好，避免 SSR 与首屏渲染结果不一致导致 hydration 警告
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(GUIDES_STORAGE_KEY) === '0') {
+        setShowGuides(false);
+      }
+    } catch {
+      // 隐私模式等场景下 localStorage 不可用，保持默认开启
+    }
+  }, []);
+
+  const handleToggleGuides = useCallback(() => {
+    setShowGuides(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem(GUIDES_STORAGE_KEY, next ? '1' : '0');
+      } catch {
+        // 存不下不影响本次使用
+      }
+      return next;
+    });
+  }, []);
 
   const selectedLayer = layers.find(l => l.id === selectedId);
 
@@ -124,6 +152,7 @@ export default function TryOnPage() {
             onRotateLayer={rotateLayer}
             onAddLayer={addLayer}
             onSetCanvasSize={setCanvasSize}
+            showGuides={showGuides}
           />
         </div>
 
@@ -147,6 +176,8 @@ export default function TryOnPage() {
               onRedo={redo}
               onOpacityChange={handleOpacityChange}
               onExport={handleExport}
+              showGuides={showGuides}
+              onToggleGuides={handleToggleGuides}
             />
           </div>
 

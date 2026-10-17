@@ -513,4 +513,115 @@ describe('VirtualTryOnCanvas', () => {
     // layer_b has higher zIndex so it should be selected
     expect(defaultProps.onSelectLayer).toHaveBeenCalledWith('layer_b');
   });
+
+  // ===== 中线对齐辅助线（B2） =====
+  const clothingLayer: TryOnLayer = {
+    id: 'layer_c',
+    type: 'clothing',
+    src: 'data:image/png;base64,shirt',
+    x: 310,
+    y: 0,
+    width: 100,
+    height: 120,
+    rotation: 0,
+    opacity: 1,
+    zIndex: 2,
+    visible: true,
+    name: '上衣',
+  };
+
+  // 让 canvas 的坐标映射在测试里是 1:1（getBoundingClientRect 与 width/height 对齐）
+  const primeCanvasGeometry = () => {
+    const canvas = screen.getByRole('img');
+    canvas.getBoundingClientRect = vi.fn(() => ({
+      left: 0, top: 0, right: 800, bottom: 600,
+      width: 800, height: 600, x: 0, y: 0, toJSON: () => {},
+    }));
+    Object.defineProperty(canvas, 'width', { value: 800 });
+    Object.defineProperty(canvas, 'height', { value: 600 });
+    return canvas;
+  };
+
+  it('默认渲染垂直中线辅助层', () => {
+    render(<VirtualTryOnCanvas {...defaultProps} layers={mockLayers} />);
+    expect(screen.getByTestId('alignment-guides')).toBeInTheDocument();
+  });
+
+  it('showGuides=false 时不渲染辅助层', () => {
+    render(<VirtualTryOnCanvas {...defaultProps} layers={mockLayers} showGuides={false} />);
+    expect(screen.queryByTestId('alignment-guides')).not.toBeInTheDocument();
+  });
+
+  it('无图层时不渲染辅助层', () => {
+    render(<VirtualTryOnCanvas {...defaultProps} layers={[]} />);
+    expect(screen.queryByTestId('alignment-guides')).not.toBeInTheDocument();
+  });
+
+  it('衣物拖拽接近中线时吸附到中线', () => {
+    render(<VirtualTryOnCanvas {...defaultProps} layers={[clothingLayer]} selectedId="layer_c" />);
+    const canvas = primeCanvasGeometry();
+
+    fireEvent.mouseDown(canvas, { clientX: 320, clientY: 50 });
+    // dx=34 → 期望位置 344，中心 394，与中线 400 相差 6 < 阈值 8 → 吸到 400 - 50 = 350
+    fireEvent.mouseMove(canvas, { clientX: 354, clientY: 50 });
+    expect(defaultProps.onMoveLayer).toHaveBeenCalledWith('layer_c', 350, 0);
+    fireEvent.mouseUp(canvas);
+  });
+
+  it('远离中线的衣物拖拽保持原值', () => {
+    render(<VirtualTryOnCanvas {...defaultProps} layers={[clothingLayer]} selectedId="layer_c" />);
+    const canvas = primeCanvasGeometry();
+
+    fireEvent.mouseDown(canvas, { clientX: 320, clientY: 50 });
+    // dx=30 → 中心 390，距中线 10 > 阈值 → 不吸附
+    fireEvent.mouseMove(canvas, { clientX: 350, clientY: 50 });
+    expect(defaultProps.onMoveLayer).toHaveBeenCalledWith('layer_c', 340, 0);
+    fireEvent.mouseUp(canvas);
+  });
+
+  it('底图照片不参与吸附（避免把人弄歪）', () => {
+    const photoNearCenter: TryOnLayer = { ...mockLayers[0], x: 310, width: 100, height: 100 };
+    render(<VirtualTryOnCanvas {...defaultProps} layers={[photoNearCenter]} selectedId="layer_1" />);
+    const canvas = primeCanvasGeometry();
+
+    fireEvent.mouseDown(canvas, { clientX: 320, clientY: 50 });
+    fireEvent.mouseMove(canvas, { clientX: 354, clientY: 50 });
+    expect(defaultProps.onMoveLayer).toHaveBeenCalledWith('layer_1', 344, 0);
+    fireEvent.mouseUp(canvas);
+  });
+
+  it('辅助线关闭时吸附一并失效', () => {
+    render(
+      <VirtualTryOnCanvas
+        {...defaultProps}
+        layers={[clothingLayer]}
+        selectedId="layer_c"
+        showGuides={false}
+      />,
+    );
+    const canvas = primeCanvasGeometry();
+
+    fireEvent.mouseDown(canvas, { clientX: 320, clientY: 50 });
+    fireEvent.mouseMove(canvas, { clientX: 354, clientY: 50 });
+    expect(defaultProps.onMoveLayer).toHaveBeenCalledWith('layer_c', 344, 0);
+    fireEvent.mouseUp(canvas);
+  });
+
+  it('选中衣物已居中时显示对齐确认提示', () => {
+    const centered: TryOnLayer = { ...clothingLayer, x: 350 };
+    render(<VirtualTryOnCanvas {...defaultProps} layers={[centered]} selectedId="layer_c" />);
+    expect(screen.getByText('已对齐中线')).toBeInTheDocument();
+  });
+
+  it('选中衣物未居中时不显示对齐确认提示', () => {
+    render(<VirtualTryOnCanvas {...defaultProps} layers={[clothingLayer]} selectedId="layer_c" />);
+    expect(screen.queryByText('已对齐中线')).not.toBeInTheDocument();
+  });
+
+  it('辅助层不影响点击（pointer-events-none）', () => {
+    render(<VirtualTryOnCanvas {...defaultProps} layers={[clothingLayer]} />);
+    const guides = screen.getByTestId('alignment-guides');
+    expect(guides.className).toContain('pointer-events-none');
+    expect(guides).toHaveAttribute('aria-hidden', 'true');
+  });
 });

@@ -17,6 +17,7 @@ import {
   Undo2,
   Redo2,
   Download,
+  Crosshair,
 } from 'lucide-react';
 
 interface TryOnToolbarProps {
@@ -35,6 +36,9 @@ interface TryOnToolbarProps {
   onRedo: () => void;
   onOpacityChange: (value: number) => void;
   onExport: () => void;
+  /** 中线辅助线开关 */
+  showGuides?: boolean;
+  onToggleGuides?: () => void;
 }
 
 interface ToolButtonProps {
@@ -43,9 +47,11 @@ interface ToolButtonProps {
   onClick: () => void;
   disabled?: boolean;
   variant?: 'default' | 'danger' | 'primary';
+  /** 开关型按钮的激活态 */
+  active?: boolean;
 }
 
-function ToolButton({ icon, label, onClick, disabled = false, variant = 'default' }: ToolButtonProps) {
+function ToolButton({ icon, label, onClick, disabled = false, variant = 'default', active = false }: ToolButtonProps) {
   const colorMap = {
     default: 'text-[var(--brand-body)] hover:bg-[var(--brand-surface)]',
     danger: 'text-[var(--wuxing-fire)] hover:bg-red-50',
@@ -58,7 +64,8 @@ function ToolButton({ icon, label, onClick, disabled = false, variant = 'default
       whileTap={{ scale: disabled ? 1 : 0.95 }}
       onClick={onClick}
       disabled={disabled}
-      className={`flex items-center justify-center w-10 h-10 rounded-xl transition-colors duration-200 ${colorMap[variant]} ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+      aria-pressed={active || undefined}
+      className={`flex items-center justify-center w-10 h-10 rounded-xl transition-colors duration-200 ${active ? 'text-white bg-[var(--wuxing-wood)]' : colorMap[variant]} ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
       title={label}
       aria-label={label}
     >
@@ -83,6 +90,8 @@ export function TryOnToolbar({
   onRedo,
   onOpacityChange,
   onExport,
+  showGuides = true,
+  onToggleGuides,
 }: TryOnToolbarProps) {
   return (
     <div
@@ -107,6 +116,18 @@ export function TryOnToolbar({
       {/* 分隔线 */}
       <div className="h-px md:h-auto md:w-full bg-[var(--brand-border)]/60 mx-1 hidden md:block" />
       <div className="w-px md:hidden bg-[var(--brand-border)]/60 my-1" />
+
+      {/* 视图辅助：中线对齐开关（与选中态无关，始终可用） */}
+      {onToggleGuides && (
+        <div className="flex md:flex-col gap-1.5">
+          <ToolButton
+            icon={<Crosshair className="w-5 h-5" />}
+            label={showGuides ? '关闭对齐辅助线' : '开启对齐辅助线'}
+            onClick={onToggleGuides}
+            active={showGuides}
+          />
+        </div>
+      )}
 
       {/* 变换类按钮 */}
       <div className="flex md:flex-col gap-1.5">

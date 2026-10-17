@@ -6,4 +6,5 @@ export { TryOnToolbar } from './TryOnToolbar';
 export { LayerPanel } from './LayerPanel';
 export { ExportModal } from './ExportModal';
 export { useTryOnCanvas } from './useTryOnCanvas';
+export { snapToVerticalCenter, isHorizontallyCentered } from './alignment';
 export type { TryOnLayer, LayerType, UseTryOnCanvasReturn } from './useTryOnCanvas';

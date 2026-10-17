@@ -118,4 +118,34 @@ describe('TryOnToolbar', () => {
     render(<TryOnToolbar {...defaultProps} />);
     expect(screen.getByRole('toolbar')).toBeInTheDocument();
   });
+
+  // ===== 中线对齐辅助线开关（B2） =====
+  it('提供回调时渲染对齐辅助线开关', () => {
+    render(<TryOnToolbar {...defaultProps} onToggleGuides={vi.fn()} />);
+    expect(screen.getByLabelText('关闭对齐辅助线')).toBeInTheDocument();
+  });
+
+  it('未提供回调时不渲染开关（向后兼容）', () => {
+    render(<TryOnToolbar {...defaultProps} />);
+    expect(screen.queryByLabelText('关闭对齐辅助线')).not.toBeInTheDocument();
+  });
+
+  it('点击开关调用回调', () => {
+    const onToggleGuides = vi.fn();
+    render(<TryOnToolbar {...defaultProps} showGuides={false} onToggleGuides={onToggleGuides} />);
+    fireEvent.click(screen.getByLabelText('开启对齐辅助线'));
+    expect(onToggleGuides).toHaveBeenCalledOnce();
+  });
+
+  it('开关状态反映在 aria-pressed 上', () => {
+    const { rerender } = render(<TryOnToolbar {...defaultProps} showGuides onToggleGuides={vi.fn()} />);
+    expect(screen.getByLabelText('关闭对齐辅助线')).toHaveAttribute('aria-pressed', 'true');
+    rerender(<TryOnToolbar {...defaultProps} showGuides={false} onToggleGuides={vi.fn()} />);
+    expect(screen.getByLabelText('开启对齐辅助线').hasAttribute('aria-pressed')).toBe(false);
+  });
+
+  it('辅助线开关不受选中态影响', () => {
+    render(<TryOnToolbar {...defaultProps} hasSelection={false} onToggleGuides={vi.fn()} />);
+    expect(screen.getByLabelText('关闭对齐辅助线')).toBeEnabled();
+  });
 });
