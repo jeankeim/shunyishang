@@ -13,13 +13,14 @@ from datetime import date, datetime
 from typing import Optional
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Request
 from pydantic import BaseModel, Field
 from psycopg2.extras import RealDictCursor
 
 from apps.api.core.database import DatabasePool
 from apps.api.core.time_utils import today_cn
 from apps.api.routers.auth import get_current_user
+from apps.api.core.security import decode_access_token
 from apps.api.schemas.diary import CreateDiaryRequest, DiaryItemRequest
 from apps.api.services.diary_service import diary_service
 from apps.api.schemas.wardrobe import (
@@ -48,6 +49,7 @@ from apps.api.services.embedding_service import embedding_service, build_wardrob
 from apps.api.services.storage import get_storage_service
 from apps.api.services.wuxing_analysis_service import wuxing_analysis_service
 from packages.ai_agents.wardrobe_tagging import run_batch_tagging
+from packages.recommendation.config import ALLOWED_BEHAVIOR_ACTIONS, ALLOWED_ITEM_SOURCES
 
 logger = logging.getLogger(__name__)
 
@@ -1781,15 +1783,43 @@ class BehaviorRequest(BaseModel):
     """用户行为上报请求"""
     user_id: Optional[int] = None
     item_id: str
-    action: str = Field(..., description="行为类型: view/click/expand/image_click/dwell")
+    action: str = Field(..., description="行为类型: view/click/expand/image_click/dwell/adopt/share/download/check_in")
     item_source: str = Field('public', description="物品来源: public/wardrobe")
     dwell_duration: Optional[int] = Field(None, description="停留时长（秒）")
     session_id: Optional[str] = None
 
 
 @router.post("/behavior")
-async def report_behavior(request: BehaviorRequest):
+async def report_behavior(request: BehaviorRequest, http_request: Request):
     """记录用户行为（隐性反馈）"""
+    # 白名单校验：行为表是偏好学习的数据源，非法 action 会被聚合当成 view 计入，
+    # 直接拒掉比落脏数据安全（权重单事实源：config.ALLOWED_BEHAVIOR_ACTIONS）
+    if request.action not in ALLOWED_BEHAVIOR_ACTIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"不支持的行为类型: {request.action}",
+        )
+    if request.item_source not in ALLOWED_ITEM_SOURCES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"不支持的物品来源: {request.item_source}",
+        )
+
+    # 身份以 token 为准（没 token 时才回退到 body 里的 user_id）：
+    # 1) 任意客户端不能再替别人写行为；
+    # 2) 修复前端一直传 undefined 导致行为全部落 user_id=NULL、
+    #    而聚合查询 WHERE ub.user_id = %s 永远读不到、隐性反馈形同虚设的问题。
+    # 只解 JWT 不回查 DB：曝光/停留类事件频率高，不值得每埋一个 DB 查询。
+    user_id = request.user_id
+    auth_header = http_request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        payload = decode_access_token(auth_header[7:])
+        if payload and payload.get("sub"):
+            try:
+                user_id = int(payload["sub"])
+            except (TypeError, ValueError):
+                pass
+
     try:
         with DatabasePool.get_connection() as conn:
             with conn.cursor() as cur:
@@ -1798,7 +1828,7 @@ async def report_behavior(request: BehaviorRequest):
                        (user_id, item_id, item_source, action, dwell_duration, session_id)
                        VALUES (%s, %s, %s, %s, %s, %s)""",
                     [
-                        request.user_id,
+                        user_id,
                         request.item_id,
                         request.item_source,
                         request.action,

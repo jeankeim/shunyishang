@@ -3,7 +3,7 @@
 
 包含：
 - 显性反馈（点赞/点踩）→ 偏好学习（委托 PreferenceService）
-- 隐性反馈（浏览/点击/停留）→ 行为加分（本模块核心新增）
+- 隐性反馈（浏览/点击/停留/采纳/分享/下载/实穿打卡）→ 行为加分（本模块核心新增）
 
 隐性反馈机制：
 1. 从 user_behaviors 表聚合用户近期行为（7天内）
@@ -86,17 +86,14 @@ def get_user_behavior_preferences(user_id: int) -> Dict[str, Dict[str, float]]:
             days_old = row.get("days_old", 0) or 0
             dwell_duration = row.get("dwell_duration", 0) or 0
 
-            # 计算行为基础权重
-            if action == "dwell" and dwell_duration > 10:
-                base_weight = BEHAVIOR_WEIGHTS["dwell_long"]
-            elif action == "dwell":
-                base_weight = BEHAVIOR_WEIGHTS["dwell_short"]
-            elif action == "image_click":
-                base_weight = BEHAVIOR_WEIGHTS["image_click"]
-            elif action in ("click", "expand"):
-                base_weight = BEHAVIOR_WEIGHTS["click"]
-            else:  # view
-                base_weight = BEHAVIOR_WEIGHTS["view"]
+            # 计算行为基础权重（权重全部取自 config.BEHAVIOR_WEIGHTS，新增行为只需改配置）
+            if action == "dwell":
+                weight_key = "dwell_long" if dwell_duration > 10 else "dwell_short"
+            elif action in BEHAVIOR_WEIGHTS:
+                weight_key = action
+            else:  # 兼容旧数据/脏数据：未知行为降为 view 权重
+                weight_key = "view"
+            base_weight = BEHAVIOR_WEIGHTS[weight_key]
 
             # 时间衰减
             decay = max(0.1, 1.0 - days_old * BEHAVIOR_DECAY_PER_DAY)
@@ -213,7 +210,7 @@ def record_user_behavior(
     Args:
         user_id: 用户ID
         item_id: 物品ID
-        action: 行为类型（view/click/expand/image_click/dwell）
+        action: 行为类型（取值见 config.ALLOWED_BEHAVIOR_ACTIONS）
         item_source: 物品来源（public/wardrobe）
         dwell_duration: 停留时长（秒）
         session_id: 推荐会话ID

@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { generateAndDownloadPoster, sharePosterWithBase64, PosterGenerateParams } from '@/lib/poster-api';
+import { reportBehavior } from '@/lib/api';
 import { DEFAULT_TEMPLATE, DEFAULT_THEME, WUXING_THEMES, ELEMENT_THEME_MAP, ColorTheme } from '@/lib/poster-templates';
 
 interface PosterItem {
@@ -9,6 +10,10 @@ interface PosterItem {
   color?: string;
   category?: string;
   reason?: string;
+  // 行为归属需要单品身份（海报展示字段本身用不到）
+  item_code?: string;
+  item_id?: string | number;
+  source?: string;
 }
 
 interface UsePosterOptions {
@@ -41,6 +46,21 @@ export function usePoster(options: UsePosterOptions = {}) {
   const scene = options.scene || '';
   const username = options.username || '';
 
+  // 分享/下载海报 = 对整套穿搭的强正向意愿，逐单件上报隐性行为（静默失败）
+  const trackOutfitItems = useCallback((action: 'share' | 'download') => {
+    items.forEach((item) => {
+      const identity = item.item_id || item.item_code;
+      if (!identity) return;
+      reportBehavior(
+        undefined,
+        identity,
+        action,
+        undefined,
+        item.source === 'wardrobe' ? 'wardrobe' : 'public'
+      );
+    });
+  }, [items]);
+
   // 下载海报
   const download = useCallback(async () => {
     try {
@@ -69,6 +89,7 @@ export function usePoster(options: UsePosterOptions = {}) {
       
       // 调用后端 API 生成并下载
       await generateAndDownloadPoster(params);
+      trackOutfitItems('download');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '海报下载失败';
       setError(errorMessage);
@@ -76,7 +97,7 @@ export function usePoster(options: UsePosterOptions = {}) {
     } finally {
       setIsGenerating(false);
     }
-  }, [selectedTemplate, title, items, xiyongElements, selectedTheme, quote, signature, scene, username]);
+  }, [selectedTemplate, title, items, xiyongElements, selectedTheme, quote, signature, scene, username, trackOutfitItems]);
 
   // 分享海报
   const share = useCallback(async () => {
@@ -106,6 +127,7 @@ export function usePoster(options: UsePosterOptions = {}) {
       
       // 调用后端 API 生成并分享
       await sharePosterWithBase64(params);
+      trackOutfitItems('share');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '海报分享失败';
       setError(errorMessage);
@@ -113,7 +135,7 @@ export function usePoster(options: UsePosterOptions = {}) {
     } finally {
       setIsGenerating(false);
     }
-  }, [selectedTemplate, title, items, xiyongElements, selectedTheme, quote, signature, scene, username]);
+  }, [selectedTemplate, title, items, xiyongElements, selectedTheme, quote, signature, scene, username, trackOutfitItems]);
 
   // 重置海报
   const reset = useCallback(() => {

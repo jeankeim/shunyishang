@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { RecommendItem } from '@/types'
 import { submitFeedback, cancelFeedback, reportBehavior, WardrobeSimilarItem } from '@/lib/api'
@@ -54,27 +54,44 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
   const config = getWuxingConfig(item.primary_element)
   const isAuthenticated = useUserStore((s) => s.isAuthenticated)
 
+  // 行为埋点统一入口：身份归属靠 Bearer token，item_source 必须跟着物品走
+  // （旧实现写死 public，衣橱单品的行为 JOIN user_wardrobe 失配，属性维度拿不到加分）
+  const trackBehavior = useCallback(
+    (action: Parameters<typeof reportBehavior>[2], dwellDuration?: number) => {
+      const identity = item.item_id || item.item_code
+      if (!identity) return
+      reportBehavior(
+        undefined,
+        identity,
+        action,
+        dwellDuration,
+        item.source === 'wardrobe' ? 'wardrobe' : 'public'
+      )
+    },
+    [item.item_id, item.item_code, item.source]
+  )
+
   // 行为埋点：卡片曝光（view）
   useEffect(() => {
     if (!hasReportedView.current) {
       hasReportedView.current = true
-      reportBehavior(undefined, item.item_id || item.item_code || '', 'view')
+      trackBehavior('view')
     }
-  }, [item.item_id, item.item_code])
+  }, [trackBehavior])
 
   // 行为埋点：停留检测（dwell > 3秒）
   useEffect(() => {
     dwellTimerRef.current = setTimeout(() => {
       if (!hasReportedDwell.current) {
         hasReportedDwell.current = true
-        reportBehavior(undefined, item.item_id || item.item_code || '', 'dwell', 3)
+        trackBehavior('dwell', 3)
       }
     }, 3000)
 
     return () => {
       if (dwellTimerRef.current) clearTimeout(dwellTimerRef.current)
     }
-  }, [item.item_id, item.item_code])
+  }, [trackBehavior])
 
   const fullImageUrl = getImageUrl(item.image_url)
   const thumbnailUrl = item.thumbnail_url ? getImageUrl(item.thumbnail_url) : null
@@ -84,14 +101,14 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
   // 行为埋点：展开详情
   const handleToggleDetails = () => {
     if (!showDetails) {
-      reportBehavior(undefined, item.item_id || item.item_code || '', 'expand')
+      trackBehavior('expand')
     }
     setShowDetails(!showDetails)
   }
 
   // 点击卡片图片 → 打开放大详情弹窗（喜欢/不喜欢在弹窗内操作）
   const handleImageTap = () => {
-    reportBehavior(undefined, item.item_id || item.item_code || '', 'image_click')
+    trackBehavior('image_click')
     setShowDetailModal(true)
     setShowReasons(false)
     setSelectedReasons([])
@@ -102,7 +119,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
   const handleLike = async () => {
     if (isSubmitting) return
     setIsSubmitting(true)
-    reportBehavior(undefined, item.item_id || item.item_code || '', 'click')
+    trackBehavior('click')
     try {
       await submitFeedback({
         session_id: sessionId,
@@ -126,7 +143,7 @@ export function RecommendCard({ item, index, sessionId, onFeedback, onImageClick
 
   // 点踩 → 显示原因选择
   const handleDislikeTap = () => {
-    reportBehavior(undefined, item.item_id || item.item_code || '', 'click')
+    trackBehavior('click')
     setShowReasons(true)
     setSelectedReasons([])
     setSubmitError(null)

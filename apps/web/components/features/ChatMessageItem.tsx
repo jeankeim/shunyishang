@@ -355,6 +355,10 @@ export function ChatMessageItem({
                 color: item.color,
                 category: item.category,
                 reason: item.reason,
+                // 分享/下载海报时行为埋点需要单品身份
+                item_code: item.item_code,
+                item_id: item.item_id,
+                source: item.source,
               }))}
               xiyongElements={message.metadata?.targetElements || []}
               scene={message.metadata?.scene || ''}

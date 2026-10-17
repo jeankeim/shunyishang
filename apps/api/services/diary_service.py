@@ -57,6 +57,7 @@ class DiaryService:
                 # 关联衣物
                 if data.items:
                     DiaryService._insert_diary_items(cur, row['id'], data.items)
+                    DiaryService._record_check_in_behaviors(cur, user_id, data.items)
                     DiaryService._adjust_wardrobe_wear(
                         cur, user_id,
                         DiaryService._wardrobe_ids_from_items(data.items),
@@ -116,6 +117,38 @@ class DiaryService:
                 """,
                 [user_id, wid, user_id],
             )
+
+    @staticmethod
+    def _record_check_in_behaviors(cur, user_id: int, items: List[DiaryItemRequest]) -> None:
+        """把“实穿打卡”写成隐性行为信号（action=check_in）
+
+        日记里关联一件衣服 = 用户真的穿过它，强于停留/点击，因此走行为聚合
+        而不是新建一套偏好表。失败不影响打卡主流程（与日记同事务，只在异常时降噪）。
+        item_source 映射：wardrobe -> user_wardrobe.id，seed -> items.item_code（即 public）
+        """
+        rows = []
+        for item in items:
+            if item.item_source == 'wardrobe' and item.wardrobe_item_id:
+                rows.append((str(item.wardrobe_item_id), 'wardrobe'))
+            elif item.item_source == 'seed' and item.seed_item_code:
+                rows.append((item.seed_item_code, 'public'))
+        if not rows:
+            return
+        # 用 SAVEPOINT 包裹：埋点写失败不能拖垮整个打卡事务
+        # （PostgreSQL 下语句报错会把事务置为 aborted，必须回滚到保存点才能继续）
+        try:
+            cur.execute("SAVEPOINT check_in_behavior")
+            cur.executemany(
+                """
+                INSERT INTO user_behaviors (user_id, item_id, item_source, action)
+                VALUES (%s, %s, %s, 'check_in')
+                """,
+                [(user_id, item_id, source) for item_id, source in rows],
+            )
+            cur.execute("RELEASE SAVEPOINT check_in_behavior")
+        except Exception as e:  # noqa: BLE001 - 埋点不得影响打卡主链路
+            cur.execute("ROLLBACK TO SAVEPOINT check_in_behavior")
+            logger.warning(f"[实穿埋点] 写入失败 user={user_id}: {e}")
 
     @staticmethod
     def _insert_diary_items(cur, diary_id: int, items: List[DiaryItemRequest]):
@@ -387,6 +420,9 @@ class DiaryService:
                     item_data.notes,
                 ])
                 row = cur.fetchone()
+
+                # 实穿打卡 = 最强隐性正信号，同步进行为表供推荐学习
+                DiaryService._record_check_in_behaviors(cur, user_id, [item_data])
 
                 # 衣橱衣物追加进日记 = 一次穿着记录
                 if item_data.item_source == 'wardrobe' and item_data.wardrobe_item_id:

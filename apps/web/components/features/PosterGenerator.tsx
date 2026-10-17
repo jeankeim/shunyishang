@@ -18,6 +18,10 @@ interface PosterGeneratorProps {
     color?: string;
     category?: string;
     reason?: string;
+    /** 单品身份：分享/下载时把隐性行为归属到具体衣物 */
+    item_code?: string;
+    item_id?: string | number;
+    source?: string;
   }>;
   xiyongElements?: string[];
   scene?: string;

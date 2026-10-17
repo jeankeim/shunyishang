@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { RecommendCard } from '../RecommendCard'
 import type { RecommendItem } from '@/types'
+import { reportBehavior } from '@/lib/api'
 
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
@@ -246,5 +247,34 @@ describe('RecommendCard', () => {
     expect(screen.getByText('✓ 颜色不喜欢')).toBeInTheDocument()
     // 确认按钮显示选中数量
     expect(screen.getByText('确认(2)')).toBeInTheDocument()
+  })
+
+  // ========== 隐性行为埋点归属 ==========
+  describe('行为埋点', () => {
+    it('曝光上报带上 item_source，衣橱单品不混入公共库', () => {
+      render(<RecommendCard item={{ ...mockItem, source: 'wardrobe' }} index={0} />)
+      expect(reportBehavior).toHaveBeenCalledWith(undefined, 1, 'view', undefined, 'wardrobe')
+    })
+
+    it('公共库单品默认 public', () => {
+      render(<RecommendCard item={{ ...mockItem, source: undefined }} index={0} />)
+      expect(reportBehavior).toHaveBeenCalledWith(undefined, 1, 'view', undefined, 'public')
+    })
+
+    it('停留时长作为第 4 个参数传递', () => {
+      vi.useFakeTimers()
+      try {
+          render(<RecommendCard item={mockItem} index={0} />)
+        vi.advanceTimersByTime(3100)
+        expect(reportBehavior).toHaveBeenCalledWith(undefined, 1, 'dwell', 3, 'public')
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('无任何身份的单品不埋点', () => {
+      render(<RecommendCard item={{ ...mockItem, item_id: undefined, item_code: '' as string }} index={0} />)
+      expect(reportBehavior).not.toHaveBeenCalled()
+    })
   })
 })

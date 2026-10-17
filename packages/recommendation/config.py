@@ -59,17 +59,20 @@ MAX_TARGET_ELEMENTS = 3
 # ============================================================
 # 权重预设表：(has_bazi, has_scene, has_prefs) -> weights
 # 所有预设的各权重之和 = 1.0
+# 2026-10-17：有场景的四个预设 scene 上调 0.15/0.20 -> 0.25/0.30，
+# 减量全部由 semantic 承担（语义分在硬过滤后的池子里区分度低，
+# “软场景冲突”是用户感知最强的 bad case 来源）；经 ci_gate 前后对比验证
 # ============================================================
 WEIGHT_PRESETS: Dict[Tuple[bool, bool, bool], Dict[str, float]] = {
     # 有八字 + 有场景
-    (True,  True,  True):  {"semantic": 0.50, "wuxing": 0.25, "scene": 0.15, "pref": 0.10, "temp": 0.00},
-    (True,  True,  False): {"semantic": 0.50, "wuxing": 0.30, "scene": 0.20, "pref": 0.00, "temp": 0.00},
+    (True,  True,  True):  {"semantic": 0.40, "wuxing": 0.25, "scene": 0.25, "pref": 0.10, "temp": 0.00},
+    (True,  True,  False): {"semantic": 0.40, "wuxing": 0.30, "scene": 0.30, "pref": 0.00, "temp": 0.00},
     # 有八字 + 无场景
     (True,  False, True):  {"semantic": 0.50, "wuxing": 0.35, "scene": 0.00, "pref": 0.15, "temp": 0.00},
     (True,  False, False): {"semantic": 0.55, "wuxing": 0.45, "scene": 0.00, "pref": 0.00, "temp": 0.00},
     # 无八字 + 有场景
-    (False, True,  True):  {"semantic": 0.55, "wuxing": 0.15, "scene": 0.20, "pref": 0.10, "temp": 0.00},
-    (False, True,  False): {"semantic": 0.60, "wuxing": 0.20, "scene": 0.20, "pref": 0.00, "temp": 0.00},
+    (False, True,  True):  {"semantic": 0.45, "wuxing": 0.15, "scene": 0.30, "pref": 0.10, "temp": 0.00},
+    (False, True,  False): {"semantic": 0.50, "wuxing": 0.20, "scene": 0.30, "pref": 0.00, "temp": 0.00},
     # 无八字 + 无场景
     (False, False, True):  {"semantic": 0.55, "wuxing": 0.30, "scene": 0.00, "pref": 0.15, "temp": 0.00},
     (False, False, False): {"semantic": 0.60, "wuxing": 0.40, "scene": 0.00, "pref": 0.00, "temp": 0.00},
@@ -185,7 +188,23 @@ BEHAVIOR_WEIGHTS: Dict[str, float] = {
     "expand": 0.2,          # 展开详情
     "image_click": 0.25,    # 点击图片
     "view": 0.1,            # 浏览
+    # 2026-10-17 新增：强正信号（发生在“看完详情”之后，权重必须高于 dwell_long）
+    "adopt": 0.40,          # 采纳推荐单品（如“今日穿这个”一键填入打卡）
+    "share": 0.45,          # 把含该单品的穿搭分享出去
+    "download": 0.50,       # 下载该穿搭的海报（比分享更强的保留意愿）
+    "check_in": 0.60,       # 日记实穿打卡（真穿过 = 最强隐性正信号）
 }
+
+# 行为上报白名单（/api/v1/wardrobe/behavior 的单事实源）
+# 目的：未知 action 落入聚合的 else 分支会被当 view 计入，污染偏好学习
+ALLOWED_BEHAVIOR_ACTIONS: frozenset = frozenset({
+    "view", "click", "expand", "image_click", "dwell",
+    "adopt", "share", "download", "check_in",
+})
+
+# 物品来源白名单（user_behaviors.item_source）
+ALLOWED_ITEM_SOURCES: frozenset = frozenset({"public", "wardrobe"})
+
 BEHAVIOR_LOOKBACK_DAYS = 7       # 行为回溯天数
 BEHAVIOR_MAX_SCORE = 0.10        # 行为加分在 final_score 中的最大占比
 BEHAVIOR_DECAY_PER_DAY = 0.05    # 每日衰减

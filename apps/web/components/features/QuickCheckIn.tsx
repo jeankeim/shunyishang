@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ModalPortal } from '@/components/ui/ModalPortal'
-import { quickCheckIn, getDailyPick } from '@/lib/api'
+import { quickCheckIn, getDailyPick, reportBehavior } from '@/lib/api'
 import { useUserStore } from '@/store/user'
 
 // 心情选项
@@ -92,6 +92,10 @@ export function QuickCheckIn({ isOpen, onClose, onSuccess, weatherInfo }: QuickC
     const item = dailyPick.item
     const elemLabel = item.primary_element ? `（${item.primary_element}）` : ''
     setDescription(`${item.name}${elemLabel}`)
+    // 采纳今日推荐 = 明确的正向信号（权重高于 dwell），daily-pick 单品均来自衣橱
+    if (item.id) {
+      reportBehavior(undefined, item.id, 'adopt', undefined, 'wardrobe')
+    }
   }
 
   if (!isAuthenticated || !isOpen) return null

@@ -136,22 +136,28 @@ export interface SSEEvent {
 
 /**
  * 上报用户行为（隐性反馈）
+ *
+ * 带 Bearer 头：后端以 token 里的 user_id 为准归属行为（未登录时为游客行为，不参与偏好学习）。
+ * 静默失败，不阻塞交互。
  */
 export async function reportBehavior(
   userId: number | undefined,
   itemId: string | number,
-  action: 'view' | 'click' | 'expand' | 'image_click' | 'dwell',
-  dwellDuration?: number
+  action: 'view' | 'click' | 'expand' | 'image_click' | 'dwell' | 'adopt' | 'share' | 'download' | 'check_in',
+  dwellDuration?: number,
+  itemSource: 'public' | 'wardrobe' = 'public'
 ): Promise<void> {
   try {
     await fetch(`${getAPIBase()}/api/v1/wardrobe/behavior`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      signal: AbortSignal.timeout(10000),
       body: JSON.stringify({
         user_id: userId,
         item_id: itemId,
         action,
         dwell_duration: dwellDuration,
+        item_source: itemSource,
       }),
     })
   } catch (e) {

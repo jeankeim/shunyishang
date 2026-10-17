@@ -1,3 +1,7 @@
+vi.mock('@/lib/api', () => ({
+  reportBehavior: vi.fn().mockResolvedValue(undefined),
+}))
+
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { usePoster } from '@/hooks/usePoster'
@@ -18,6 +22,7 @@ vi.mock('@/lib/poster-templates', () => ({
 }))
 
 import { generateAndDownloadPoster, sharePosterWithBase64 } from '@/lib/poster-api'
+import { reportBehavior } from '@/lib/api'
 
 describe('usePoster', () => {
   beforeEach(() => {
@@ -216,5 +221,53 @@ describe('usePoster', () => {
       xiyongElements: [],
     }))
     expect(result.current.selectedTheme.key).toBe('fire')
+  })
+
+  // ========== 隐性行为埋点（分享/下载） ==========
+  describe('行为埋点', () => {
+    const identifiedItems = [
+      { name: '衬衫', item_code: 'C-001', source: 'public' },
+      { name: '马面裙', item_id: 88, source: 'wardrobe' },
+    ]
+
+    it('下载成功后逐单件上报 download 行为', async () => {
+      vi.mocked(generateAndDownloadPoster).mockResolvedValue(undefined)
+      const { result } = renderHook(() => usePoster({ items: identifiedItems }))
+
+      await act(async () => { await result.current.download() })
+
+      expect(reportBehavior).toHaveBeenCalledTimes(2)
+      expect(reportBehavior).toHaveBeenNthCalledWith(1, undefined, 'C-001', 'download', undefined, 'public')
+      expect(reportBehavior).toHaveBeenNthCalledWith(2, undefined, 88, 'download', undefined, 'wardrobe')
+    })
+
+    it('分享成功后逐单件上报 share 行为', async () => {
+      vi.mocked(sharePosterWithBase64).mockResolvedValue(undefined)
+      const { result } = renderHook(() => usePoster({ items: identifiedItems }))
+
+      await act(async () => { await result.current.share() })
+
+      expect(reportBehavior).toHaveBeenCalledTimes(2)
+      expect(reportBehavior).toHaveBeenNthCalledWith(1, undefined, 'C-001', 'share', undefined, 'public')
+    })
+
+    it('生成失败时不埋点（不能把失败当成喜爱）', async () => {
+      vi.mocked(generateAndDownloadPoster).mockRejectedValue(new Error('boom'))
+      const { result } = renderHook(() => usePoster({ items: identifiedItems }))
+
+      await act(async () => { await result.current.download() })
+
+      expect(reportBehavior).not.toHaveBeenCalled()
+      expect(result.current.error).toBe('boom')
+    })
+
+    it('无单品身份的 items 不埋点', async () => {
+      vi.mocked(sharePosterWithBase64).mockResolvedValue(undefined)
+      const { result } = renderHook(() => usePoster({ items: [{ name: '无名单品' }] }))
+
+      await act(async () => { await result.current.share() })
+
+      expect(reportBehavior).not.toHaveBeenCalled()
+    })
   })
 })
