@@ -32,6 +32,7 @@ from packages.utils.anchor_item import (
     extract_anchor_specs,
     find_anchor_item,
     item_conflicts_with_anchor,
+    resolve_anchor_vs_category_constraint,
 )
 from packages.utils.destiny_calculator import (
     analyze_year_fortune,
@@ -345,15 +346,13 @@ def analyze_intent_node(state: AgentState) -> Dict:
     # 2.4.1 品类约束（新增维度，来自 LLM 意图层）- 必须在锚点过滤之前提取
     category_constraint = llm_intent.categories if llm_intent and llm_intent.categories else None
         
-    # 2.4.2 过滤锚点：移除与品类约束重复的锚点（防止"上装"被误当锚点排除同品类物品）
+    # 2.4.2 锚点与品类约束消歧（两者语义互斥：「我要这个品类」vs「我已有这个品类的一件，给我别的」）
+    # 早期按 category 直接删锚点会全量禁用锚点机制（LLM categories 与锚点 category 同源，凡点名衣物必相等），
+    # 现按搭配诉求/锚点具体性/获取诉求三分支判定，详见 resolve_anchor_vs_category_constraint
     if category_constraint and anchor_specs:
-        original_count = len(anchor_specs)
-        # 关键：检查锚点的 category（而非 phrase）是否与品类约束匹配
-        # 例如：用户说"裤子"，锚点 category="下装"，品类约束=['下装']，应过滤掉
-        anchor_specs = [s for s in anchor_specs if s.get("category") not in category_constraint]
-        if len(anchor_specs) < original_count:
-            removed_count = original_count - len(anchor_specs)
-            logger.info(f"[锚点过滤] 移除 {removed_count} 个与品类约束重复的锚点")
+        anchor_specs, category_constraint = resolve_anchor_vs_category_constraint(
+            anchor_specs, category_constraint, user_input
+        )
         
     if anchor_specs:
         logger.info(

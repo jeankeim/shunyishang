@@ -11,6 +11,8 @@
 1. extract_anchor_spec: 从文本提取锚点描述（颜色+品类相邻，或无色品类点名）
 2. find_anchor_item: 在物品库检索最匹配的锚点物品（有色同族宽松 / 无色按品类词）
 3. COLOR_GROUP_ELEMENT: 色系→五行映射，供叙事上下文使用
+4. is_matching_request / is_acquiring_request: 判别「搭配诉求」与「获取诉求」，
+   供调用方在锚点与品类约束冲突时消歧（两者语义互斥，判错方向会推荐冲突单品）
 """
 
 import logging
@@ -85,6 +87,22 @@ _PREFIX_WINDOW = 7
 # 提问标记：前缀窗口内出现这些词时，品类词是提问对象（「配什么外套」），
 # 而非用户自有单品，不构成锚点
 _QUESTION_MARKERS = ("什么", "啥", "哪")
+
+# 搭配诉求标记：「我已有这件，给我能配它的别的品类」——品类词属于锚点描述，不是诉求目标
+_MATCHING_MARKERS = (
+    "如何搭配", "怎么搭配", "怎样搭配", "咋搭配", "想搭配",
+    "如何搭", "怎么搭", "怎样搭", "咋搭",
+    "如何配", "怎么配", "怎样配", "咋配",
+    "配什么", "配啥", "配哪", "搭什么", "搭啥", "搭哪",
+    "搭配什么", "搭配啥", "搭配哪",
+    "怎么穿", "如何穿", "怎样穿",
+)
+
+# 获取诉求标记：「用户要的就是该品类单品本身」——品类词是诉求目标，不构成锚点
+_ACQUIRING_MARKERS = (
+    "买", "入手", "种草", "推荐", "想要", "要一条", "来一条", "来件", "来双",
+    "挑", "选", "有没有", "帮我找", "需要",
+)
 
 
 def extract_anchor_specs(text: str) -> List[Dict]:
@@ -162,6 +180,92 @@ def extract_anchor_spec(text: str) -> Optional[Dict]:
     """兼容接口：返回首个锚点描述，无命中时 None"""
     specs = extract_anchor_specs(text)
     return specs[0] if specs else None
+
+
+def is_matching_request(text: str) -> bool:
+    """
+    判定文本是否为「搭配诉求」（我已有这件，请给我能配它的别的品类）
+
+    与「获取诉求」互斥，由调用方按搭配诉求优先判定：
+    「推荐一条黑色裤子配什么上衣」同时含推荐与配什么，应按搭配诉求处理。
+    示例：「黑色裤子如何搭配」「牛仔裤配什么鞋」「灰色大衣怎么搭配」→ True
+    """
+    if not text:
+        return False
+    return any(m in text for m in _MATCHING_MARKERS)
+
+
+def is_acquiring_request(text: str) -> bool:
+    """
+    判定文本是否为「获取诉求」（用户要的就是该品类单品本身）
+
+    示例：「推荐一条裤子」「想要黑色裤子」「想买条裙子」→ True
+    """
+    if not text:
+        return False
+    return any(m in text for m in _ACQUIRING_MARKERS)
+
+
+def resolve_anchor_vs_category_constraint(
+    anchor_specs: List[Dict],
+    category_constraint: Optional[List[str]],
+    text: str,
+) -> tuple:
+    """
+    锚点与品类约束冲突时消歧，返回 (保留的锚点列表, 调整后的品类约束)
+
+    两者语义互斥：category_constraint=「我要这个品类」，anchor=「我已有这个品类的一件，给我别的」。
+    不能按 category 直接删锚点 —— LLM 的 categories 与锚点的 category 同源（衣物名词→标准品类），
+    凡点名衣物必相等，那样会全量禁用锚点机制（「黑色裤子如何搭配」→ 推荐一堆裤子）。
+
+    分支判定（仅对 category 与约束重叠的锚点生效）：
+    - 搭配诉求（「牛仔裤配什么鞋」）→ 锚点胜出，该品类移出约束
+    - 有色锚点且非获取诉求（「黑色裤子」）→ 具体单品指称，锚点胜出，该品类移出约束
+    - 获取诉求（「想要黑色裤子」）或无色泛品类锚点（「木属性的上装」）→ 锚点让路，约束保留
+
+    锚点胜出时必须同步移出约束：否则检索仍按 category IN (...) 硬过滤，
+    叠加锚点排除同品类 → 结果集直接为空。
+
+    Returns:
+        (kept_specs, kept_constraint)；kept_constraint 为空时返回 None
+    """
+    if not category_constraint or not anchor_specs:
+        return anchor_specs, category_constraint
+
+    match_request = is_matching_request(text)
+    acquire_request = is_acquiring_request(text)
+
+    kept: List[Dict] = []
+    dropped: List[Dict] = []
+    relaxed_cats: List[str] = []
+    for spec in anchor_specs:
+        spec_cat = spec.get("category")
+        # 不与品类约束冲突（含 LLM 显式识别、未归纳出品类的锚点）→ 直接保留
+        if spec_cat is None or spec_cat not in category_constraint:
+            kept.append(spec)
+            continue
+        # 冲突：搭配诉求优先；否则看锚点是否带颜色限定；获取诉求则锚点让路
+        if match_request or (spec.get("color_group") is not None and not acquire_request):
+            kept.append(spec)
+            if spec_cat not in relaxed_cats:
+                relaxed_cats.append(spec_cat)
+        else:
+            dropped.append(spec)
+
+    if dropped:
+        logger.info(
+            f"[锚点消歧] 获取诉求优先，移除泛品类锚点："
+            f"{'、'.join(s['phrase'] for s in dropped)}"
+        )
+    kept_constraint = category_constraint
+    if relaxed_cats:
+        kept_constraint = (
+            [c for c in category_constraint if c not in relaxed_cats] or None
+        )
+        logger.info(
+            f"[锚点消歧] 锚点优先，品类约束放宽：{'、'.join(relaxed_cats)} 已移出约束"
+        )
+    return kept, kept_constraint
 
 
 def item_conflicts_with_anchor(item: Dict, spec: Dict) -> bool:
