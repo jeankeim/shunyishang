@@ -1,6 +1,9 @@
 """
 智能提醒服务测试
 覆盖: services/smart_reminder_service.py
+
+注：节气/换季提醒按真实 date.today() 计算，测试必须隔离该分支，
+否则每逢节气前窗口（如立冬前 2 天）会日历性转红。
 """
 
 import pytest
@@ -13,6 +16,20 @@ def mock_cache():
     with patch("apps.api.services.smart_reminder_service.redis_cache") as m:
         m.get.return_value = None
         m.set.return_value = True
+        yield m
+
+
+@pytest.fixture
+def mock_solar_term():
+    """冻结节气判定，使 _check_solar_term_change / _check_season_transition 均返回 None
+
+    服务内 solar_term_service 是函数级 inline import，必须 patch **源模块**属性才生效；
+    patch smart_reminder_service.solar_term_service 是无效目标（模块层无此名字），
+    靠 create=True 静默造个没人读的假属性，mock 形同虚设。
+    """
+    with patch("apps.api.services.solar_term_service.solar_term_service") as m:
+        m.get_upcoming_solar_term.return_value = None
+        m.get_outfit_suggestion.return_value = None
         yield m
 
 
@@ -37,14 +54,15 @@ class TestSmartReminderService:
         from apps.api.services.smart_reminder_service import SmartReminderService
         return SmartReminderService()
 
-    def test_check_and_notify_no_alerts(self, mock_cache, mock_db):
+    def test_check_and_notify_no_alerts(self, mock_cache, mock_db, mock_solar_term):
+        """无任何提醒：需同时隔离节气/换季分支（否则立冬等窗口会多出提醒）"""
         _, mock_cursor = mock_db
         mock_cursor.fetchall.return_value = []
         svc = self._create_service()
         result = svc.check_and_notify(user_id=1)
         assert result == []
 
-    def test_check_and_notify_with_weather_alert(self, mock_cache, mock_db):
+    def test_check_and_notify_with_weather_alert(self, mock_cache, mock_db, mock_solar_term):
         _, mock_cursor = mock_db
         mock_cursor.fetchall.return_value = []
 
@@ -55,18 +73,9 @@ class TestSmartReminderService:
             return None  # no alert cache
         mock_cache.get.side_effect = cache_get_side_effect
 
-        weather = {"temperature": 20, "weather_condition": "晴", "city": "杭州"}
         svc = self._create_service()
 
-        with patch("apps.api.services.smart_reminder_service.push_service", create=True) as mock_push:
-            with patch("apps.api.services.smart_reminder_service.solar_term_service", create=True) as mock_st:
-                mock_st.get_upcoming_solar_term.return_value = None
-                # Import the module to patch correctly
-                import apps.api.services.smart_reminder_service as mod
-                with patch.object(mod, 'push_service', create=True) as mock_push2:
-                    pass  # push import is inline, need different approach
-
-        # Simpler: just call and check it doesn't crash
+        # 逐个隔离其余分支，断言天气提醒是唯一结果
         with patch("apps.api.services.smart_reminder_service.SmartReminderService._check_weather_change") as m1:
             m1.return_value = {"type": "weather_change", "message": "降温10°C"}
             with patch("apps.api.services.smart_reminder_service.SmartReminderService._check_idle_wardrobe") as m2:
@@ -179,17 +188,16 @@ class TestSmartReminderService:
         result = svc._check_idle_wardrobe(user_id=1)
         assert result is None
 
-    def test_check_solar_term_change_no_upcoming(self, mock_cache):
+    def test_check_solar_term_change_no_upcoming(self, mock_cache, mock_solar_term):
+        """无临近节气时不提醒（patch 源模块，见 mock_solar_term 说明）"""
         svc = self._create_service()
-        with patch("apps.api.services.smart_reminder_service.solar_term_service", create=True) as mock_st:
-            mock_st.get_upcoming_solar_term.return_value = None
-            result = svc._check_solar_term_change(user_id=1)
+        result = svc._check_solar_term_change(user_id=1)
         assert result is None
 
     def test_check_solar_term_change_cached(self, mock_cache):
         mock_cache.get.return_value = "1"
         svc = self._create_service()
-        with patch("apps.api.services.smart_reminder_service.solar_term_service", create=True) as mock_st:
+        with patch("apps.api.services.solar_term_service.solar_term_service") as mock_st:
             mock_st.get_upcoming_solar_term.return_value = {"name": "小暑", "element": "火"}
             result = svc._check_solar_term_change(user_id=1)
         assert result is None
